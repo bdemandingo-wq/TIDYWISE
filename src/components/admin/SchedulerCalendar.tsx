@@ -11,8 +11,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Booking } from '@/types/booking';
-import { mockBookings, mockStaff, mockServices } from '@/data/mockData';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +20,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useBookingsByDateRange, BookingWithDetails } from '@/hooks/useBookings';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { AddBookingDialog } from './AddBookingDialog';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -29,18 +30,32 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   pending: 'bg-warning/20 text-warning border-warning/30',
   confirmed: 'bg-primary/20 text-primary border-primary/30',
+  in_progress: 'bg-info/20 text-info border-info/30',
   completed: 'bg-success/20 text-success border-success/30',
   cancelled: 'bg-destructive/20 text-destructive border-destructive/30',
+  no_show: 'bg-muted text-muted-foreground border-muted',
 };
+
+// Default service colors
+const serviceColors = [
+  '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
+];
 
 export function SchedulerCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  // Get date range for current month view
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  
+  const { data: bookings = [], isLoading } = useBookingsByDateRange(monthStart, monthEnd);
 
   const { year, month, days } = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -66,13 +81,13 @@ export function SchedulerCalendar() {
     return { year, month, days };
   }, [currentDate]);
 
-  const getBookingsForDate = (date: Date): Booking[] => {
-    const dateStr = date.toISOString().split('T')[0];
-    return mockBookings.filter(b => b.date === dateStr);
+  const getBookingsForDate = (date: Date): BookingWithDetails[] => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return bookings.filter(b => format(new Date(b.scheduled_at), 'yyyy-MM-dd') === dateStr);
   };
 
   const navigateMonth = (direction: number) => {
-    setCurrentDate(new Date(year, month + direction, 1));
+    setCurrentDate(direction > 0 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
   };
 
   const goToToday = () => {
@@ -84,31 +99,33 @@ export function SchedulerCalendar() {
     return date.toDateString() === today.toDateString();
   };
 
-  const getServiceColor = (serviceId: string) => {
-    const service = mockServices.find(s => s.id === serviceId);
-    return service?.color || '#6b7280';
+  const getServiceColor = (index: number) => {
+    return serviceColors[index % serviceColors.length];
   };
 
-  const sendCleanerNotification = async (booking: Booking) => {
+  const sendCleanerNotification = async (booking: BookingWithDetails) => {
+    if (!booking.staff) {
+      toast.error('No staff assigned to this booking');
+      return;
+    }
+
     setSendingEmail(true);
     try {
-      const staff = mockStaff.find(s => s.id === booking.staffId);
-      if (!staff) {
-        toast.error('Staff member not found');
-        return;
-      }
+      const customerName = booking.customer 
+        ? `${booking.customer.first_name} ${booking.customer.last_name}`
+        : 'Unknown Customer';
 
       const { error } = await supabase.functions.invoke('send-cleaner-notification', {
         body: {
-          cleanerName: staff.name,
-          cleanerEmail: staff.email,
-          customerName: booking.customerName,
-          customerPhone: booking.customerPhone,
-          serviceName: booking.service,
-          appointmentDate: booking.date,
-          appointmentTime: booking.time,
+          cleanerName: booking.staff.name,
+          cleanerEmail: booking.staff.email,
+          customerName,
+          customerPhone: booking.customer?.phone || 'Not provided',
+          serviceName: booking.service?.name || 'Cleaning Service',
+          appointmentDate: format(new Date(booking.scheduled_at), 'MMMM d, yyyy'),
+          appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
           address: booking.address || 'Address not provided',
-          bookingNumber: booking.bookingNumber,
+          bookingNumber: booking.booking_number,
         },
       });
 
@@ -116,7 +133,7 @@ export function SchedulerCalendar() {
         console.error('Email error:', error);
         toast.error('Failed to send notification');
       } else {
-        toast.success(`Notification sent to ${staff.name}`);
+        toast.success(`Notification sent to ${booking.staff.name}`);
       }
     } catch (err) {
       console.error('Failed to send notification:', err);
@@ -176,7 +193,7 @@ export function SchedulerCalendar() {
               Week
             </Button>
           </div>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-4 h-4" />
             Add Booking
           </Button>
@@ -197,51 +214,59 @@ export function SchedulerCalendar() {
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-7">
-        {days.map((date, index) => (
-          <div
-            key={index}
-            className={cn(
-              'calendar-day min-h-[120px]',
-              date && isToday(date) && 'today',
-              !date && 'bg-muted/30'
-            )}
-          >
-            {date && (
-              <>
-                <span
-                  className={cn(
-                    'text-sm font-medium mb-1',
-                    isToday(date) && 'text-primary'
-                  )}
-                >
-                  {date.getDate()}
-                </span>
-                <div className="w-full space-y-1 overflow-hidden">
-                  {getBookingsForDate(date).slice(0, 3).map((booking) => (
-                    <button
-                      key={booking.id}
-                      onClick={() => setSelectedBooking(booking)}
-                      className="booking-pill w-full text-left"
-                      style={{
-                        backgroundColor: `${getServiceColor(booking.serviceId)}20`,
-                        color: getServiceColor(booking.serviceId),
-                        borderLeft: `3px solid ${getServiceColor(booking.serviceId)}`,
-                      }}
-                    >
-                      <span className="font-medium">{booking.time}</span>{' '}
-                      {booking.customerName.split(' ')[0]}
-                    </button>
-                  ))}
-                  {getBookingsForDate(date).length > 3 && (
-                    <span className="text-xs text-muted-foreground pl-2">
-                      +{getBookingsForDate(date).length - 3} more
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
+        {isLoading ? (
+          <div className="col-span-7 flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
-        ))}
+        ) : (
+          days.map((date, index) => (
+            <div
+              key={index}
+              className={cn(
+                'calendar-day min-h-[120px]',
+                date && isToday(date) && 'today',
+                !date && 'bg-muted/30'
+              )}
+            >
+              {date && (
+                <>
+                  <span
+                    className={cn(
+                      'text-sm font-medium mb-1',
+                      isToday(date) && 'text-primary'
+                    )}
+                  >
+                    {date.getDate()}
+                  </span>
+                  <div className="w-full space-y-1 overflow-hidden">
+                    {getBookingsForDate(date).slice(0, 3).map((booking, bIndex) => (
+                      <button
+                        key={booking.id}
+                        onClick={() => setSelectedBooking(booking)}
+                        className="booking-pill w-full text-left"
+                        style={{
+                          backgroundColor: `${getServiceColor(bIndex)}20`,
+                          color: getServiceColor(bIndex),
+                          borderLeft: `3px solid ${getServiceColor(bIndex)}`,
+                        }}
+                      >
+                        <span className="font-medium">
+                          {format(new Date(booking.scheduled_at), 'h:mm a')}
+                        </span>{' '}
+                        {booking.customer?.first_name || 'Customer'}
+                      </button>
+                    ))}
+                    {getBookingsForDate(date).length > 3 && (
+                      <span className="text-xs text-muted-foreground pl-2">
+                        +{getBookingsForDate(date).length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Booking Detail Dialog */}
@@ -253,18 +278,31 @@ export function SchedulerCalendar() {
           {selectedBooking && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold">{selectedBooking.service}</span>
+                <span className="text-lg font-semibold">
+                  {selectedBooking.service?.name || 'Cleaning Service'}
+                </span>
                 <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
-                  {selectedBooking.status}
+                  {selectedBooking.status.replace('_', ' ')}
                 </Badge>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                Booking #{selectedBooking.booking_number}
               </div>
               
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{selectedBooking.customerName}</p>
-                    <p className="text-muted-foreground">{selectedBooking.customerEmail}</p>
+                    <p className="font-medium">
+                      {selectedBooking.customer 
+                        ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
+                        : 'Unknown Customer'
+                      }
+                    </p>
+                    <p className="text-muted-foreground">
+                      {selectedBooking.customer?.email || 'No email'}
+                    </p>
                   </div>
                 </div>
                 
@@ -272,7 +310,8 @@ export function SchedulerCalendar() {
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">
-                      {selectedBooking.date} at {selectedBooking.time}
+                      {format(new Date(selectedBooking.scheduled_at), 'MMMM d, yyyy')} at{' '}
+                      {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
                     </p>
                     <p className="text-muted-foreground">
                       Duration: {selectedBooking.duration} minutes
@@ -283,19 +322,41 @@ export function SchedulerCalendar() {
                 {selectedBooking.address && (
                   <div className="flex items-center gap-3 text-sm">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <p>{selectedBooking.address}</p>
+                    <p>
+                      {selectedBooking.address}
+                      {selectedBooking.city && `, ${selectedBooking.city}`}
+                      {selectedBooking.state && `, ${selectedBooking.state}`}
+                      {selectedBooking.zip_code && ` ${selectedBooking.zip_code}`}
+                    </p>
+                  </div>
+                )}
+
+                {selectedBooking.staff && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Assigned: {selectedBooking.staff.name}</p>
+                      <p className="text-muted-foreground">{selectedBooking.staff.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedBooking.notes && (
+                  <div className="p-3 bg-muted rounded-lg text-sm">
+                    <p className="font-medium mb-1">Notes:</p>
+                    <p className="text-muted-foreground">{selectedBooking.notes}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-2xl font-bold">${selectedBooking.price}</span>
+                <span className="text-2xl font-bold">${selectedBooking.total_amount}</span>
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
                     className="gap-2"
                     onClick={() => sendCleanerNotification(selectedBooking)}
-                    disabled={sendingEmail}
+                    disabled={sendingEmail || !selectedBooking.staff}
                   >
                     {sendingEmail ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -311,6 +372,8 @@ export function SchedulerCalendar() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AddBookingDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
     </div>
   );
 }
