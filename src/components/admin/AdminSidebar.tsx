@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Users,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: Home },
@@ -36,7 +37,22 @@ const settingsNav = [
 
 export function AdminSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const userInitials = user?.user_metadata?.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar flex flex-col">
@@ -96,10 +112,10 @@ export function AdminSidebar() {
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent transition-colors"
         >
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground">
-            JD
+            {userInitials}
           </div>
           <div className="flex-1 text-left">
-            <p className="text-sm font-medium text-sidebar-foreground">John Doe</p>
+            <p className="text-sm font-medium text-sidebar-foreground">{userName}</p>
             <p className="text-xs text-sidebar-foreground/60">Admin</p>
           </div>
           <ChevronDown className={cn(
@@ -114,7 +130,10 @@ export function AdminSidebar() {
               <UserCircle className="w-4 h-4" />
               <span className="text-sm">Profile</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors">
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+            >
               <LogOut className="w-4 h-4" />
               <span className="text-sm">Logout</span>
             </button>
