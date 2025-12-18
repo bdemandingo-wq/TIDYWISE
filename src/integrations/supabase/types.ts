@@ -98,8 +98,11 @@ export type Database = {
       }
       business_settings: {
         Row: {
+          accent_color: string | null
+          allow_online_booking: boolean | null
           booking_buffer_minutes: number | null
           cancellation_policy: string | null
+          cancellation_window_hours: number | null
           company_address: string | null
           company_city: string | null
           company_email: string | null
@@ -112,12 +115,22 @@ export type Database = {
           id: string
           logo_url: string | null
           max_advance_booking_days: number | null
+          minimum_notice_hours: number | null
+          notify_cancellations: boolean | null
+          notify_new_booking: boolean | null
+          notify_reminders: boolean | null
+          notify_sms: boolean | null
+          primary_color: string | null
+          require_deposit: boolean | null
           timezone: string | null
           updated_at: string
         }
         Insert: {
+          accent_color?: string | null
+          allow_online_booking?: boolean | null
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
+          cancellation_window_hours?: number | null
           company_address?: string | null
           company_city?: string | null
           company_email?: string | null
@@ -130,12 +143,22 @@ export type Database = {
           id?: string
           logo_url?: string | null
           max_advance_booking_days?: number | null
+          minimum_notice_hours?: number | null
+          notify_cancellations?: boolean | null
+          notify_new_booking?: boolean | null
+          notify_reminders?: boolean | null
+          notify_sms?: boolean | null
+          primary_color?: string | null
+          require_deposit?: boolean | null
           timezone?: string | null
           updated_at?: string
         }
         Update: {
+          accent_color?: string | null
+          allow_online_booking?: boolean | null
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
+          cancellation_window_hours?: number | null
           company_address?: string | null
           company_city?: string | null
           company_email?: string | null
@@ -148,6 +171,13 @@ export type Database = {
           id?: string
           logo_url?: string | null
           max_advance_booking_days?: number | null
+          minimum_notice_hours?: number | null
+          notify_cancellations?: boolean | null
+          notify_new_booking?: boolean | null
+          notify_reminders?: boolean | null
+          notify_sms?: boolean | null
+          primary_color?: string | null
+          require_deposit?: boolean | null
           timezone?: string | null
           updated_at?: string
         }
