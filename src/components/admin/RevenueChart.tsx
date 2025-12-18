@@ -41,7 +41,7 @@ export function RevenueChart({ bookings }: RevenueChartProps) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm p-4">
       <h3 className="font-semibold mb-4">Revenue (Last 7 Days)</h3>
-      <div className="h-[250px]">
+      <div className="h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
             <defs>
