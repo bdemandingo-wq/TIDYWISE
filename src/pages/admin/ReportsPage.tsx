@@ -48,15 +48,22 @@ export default function ReportsPage() {
     });
     const staffStats = Array.from(staffMap.values()).sort((a, b) => b.revenue - a.revenue);
 
-    // Monthly data (last 6 months simulation)
-    const monthlyData = [
-      { month: 'Jul', revenue: 12500, bookings: 85 },
-      { month: 'Aug', revenue: 14200, bookings: 92 },
-      { month: 'Sep', revenue: 13800, bookings: 88 },
-      { month: 'Oct', revenue: 16500, bookings: 105 },
-      { month: 'Nov', revenue: 18200, bookings: 118 },
-      { month: 'Dec', revenue: 15800, bookings: 98 },
-    ];
+    // Monthly data - derived from actual bookings
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    const monthlyData = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12;
+      const monthBookings = completedBookings.filter(b => {
+        const bookingDate = new Date(b.date);
+        return bookingDate.getMonth() === monthIndex;
+      });
+      monthlyData.push({
+        month: months[monthIndex],
+        revenue: monthBookings.reduce((sum, b) => sum + b.price, 0),
+        bookings: monthBookings.length,
+      });
+    }
 
     const totalRevenue = completedBookings.reduce((sum, b) => sum + b.price, 0);
     const avgBookingValue = totalRevenue / completedBookings.length || 0;
