@@ -33,6 +33,19 @@ interface BusinessSettings {
   booking_buffer_minutes: number;
   max_advance_booking_days: number;
   cancellation_policy: string;
+  // Booking settings
+  allow_online_booking: boolean;
+  require_deposit: boolean;
+  minimum_notice_hours: number;
+  cancellation_window_hours: number;
+  // Notification settings
+  notify_new_booking: boolean;
+  notify_reminders: boolean;
+  notify_cancellations: boolean;
+  notify_sms: boolean;
+  // Branding settings
+  primary_color: string;
+  accent_color: string;
 }
 
 const defaultSettings: BusinessSettings = {
@@ -49,6 +62,16 @@ const defaultSettings: BusinessSettings = {
   booking_buffer_minutes: 15,
   max_advance_booking_days: 60,
   cancellation_policy: '',
+  allow_online_booking: true,
+  require_deposit: true,
+  minimum_notice_hours: 24,
+  cancellation_window_hours: 48,
+  notify_new_booking: true,
+  notify_reminders: true,
+  notify_cancellations: true,
+  notify_sms: false,
+  primary_color: '#3b82f6',
+  accent_color: '#14b8a6',
 };
 
 export default function SettingsPage() {
@@ -66,11 +89,9 @@ export default function SettingsPage() {
         .from('business_settings')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data) {
         setSettings({
@@ -88,6 +109,16 @@ export default function SettingsPage() {
           booking_buffer_minutes: data.booking_buffer_minutes || 15,
           max_advance_booking_days: data.max_advance_booking_days || 60,
           cancellation_policy: data.cancellation_policy || '',
+          allow_online_booking: data.allow_online_booking ?? true,
+          require_deposit: data.require_deposit ?? true,
+          minimum_notice_hours: data.minimum_notice_hours || 24,
+          cancellation_window_hours: data.cancellation_window_hours || 48,
+          notify_new_booking: data.notify_new_booking ?? true,
+          notify_reminders: data.notify_reminders ?? true,
+          notify_cancellations: data.notify_cancellations ?? true,
+          notify_sms: data.notify_sms ?? false,
+          primary_color: data.primary_color || '#3b82f6',
+          accent_color: data.accent_color || '#14b8a6',
         });
       }
     } catch (error) {
@@ -115,6 +146,16 @@ export default function SettingsPage() {
         booking_buffer_minutes: settings.booking_buffer_minutes,
         max_advance_booking_days: settings.max_advance_booking_days,
         cancellation_policy: settings.cancellation_policy,
+        allow_online_booking: settings.allow_online_booking,
+        require_deposit: settings.require_deposit,
+        minimum_notice_hours: settings.minimum_notice_hours,
+        cancellation_window_hours: settings.cancellation_window_hours,
+        notify_new_booking: settings.notify_new_booking,
+        notify_reminders: settings.notify_reminders,
+        notify_cancellations: settings.notify_cancellations,
+        notify_sms: settings.notify_sms,
+        primary_color: settings.primary_color,
+        accent_color: settings.accent_color,
       };
 
       if (settings.id) {
@@ -144,7 +185,7 @@ export default function SettingsPage() {
     }
   };
 
-  const updateField = (field: keyof BusinessSettings, value: string | number) => {
+  const updateField = (field: keyof BusinessSettings, value: string | number | boolean) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
@@ -306,7 +347,10 @@ export default function SettingsPage() {
                     Let customers book services through your website
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.allow_online_booking}
+                  onCheckedChange={(checked) => updateField('allow_online_booking', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -316,17 +360,28 @@ export default function SettingsPage() {
                     Collect a deposit when booking is made
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.require_deposit}
+                  onCheckedChange={(checked) => updateField('require_deposit', checked)}
+                />
               </div>
               <Separator />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Minimum Notice (hours)</Label>
-                  <Input type="number" defaultValue="24" />
+                  <Input
+                    type="number"
+                    value={settings.minimum_notice_hours}
+                    onChange={(e) => updateField('minimum_notice_hours', parseInt(e.target.value) || 0)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Cancellation Window (hours)</Label>
-                  <Input type="number" defaultValue="48" />
+                  <Input
+                    type="number"
+                    value={settings.cancellation_window_hours}
+                    onChange={(e) => updateField('cancellation_window_hours', parseInt(e.target.value) || 0)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Buffer Between Bookings (min)</Label>
@@ -371,7 +426,10 @@ export default function SettingsPage() {
                   <p className="font-medium">New Booking Alerts</p>
                   <p className="text-sm text-muted-foreground">Get notified when a new booking is made</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notify_new_booking}
+                  onCheckedChange={(checked) => updateField('notify_new_booking', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -379,7 +437,10 @@ export default function SettingsPage() {
                   <p className="font-medium">Booking Reminders</p>
                   <p className="text-sm text-muted-foreground">Send reminders to customers before their appointment</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notify_reminders}
+                  onCheckedChange={(checked) => updateField('notify_reminders', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -387,7 +448,10 @@ export default function SettingsPage() {
                   <p className="font-medium">Cancellation Alerts</p>
                   <p className="text-sm text-muted-foreground">Get notified when a booking is cancelled</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={settings.notify_cancellations}
+                  onCheckedChange={(checked) => updateField('notify_cancellations', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -395,7 +459,10 @@ export default function SettingsPage() {
                   <p className="font-medium">SMS Notifications</p>
                   <p className="text-sm text-muted-foreground">Receive SMS for urgent updates</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={settings.notify_sms}
+                  onCheckedChange={(checked) => updateField('notify_sms', checked)}
+                />
               </div>
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -430,15 +497,27 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Primary Color</Label>
                   <div className="flex gap-2">
-                    <Input defaultValue="#3b82f6" />
-                    <div className="w-10 h-10 rounded-lg bg-primary" />
+                    <Input
+                      value={settings.primary_color}
+                      onChange={(e) => updateField('primary_color', e.target.value)}
+                    />
+                    <div
+                      className="w-10 h-10 rounded-lg border"
+                      style={{ backgroundColor: settings.primary_color }}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Accent Color</Label>
                   <div className="flex gap-2">
-                    <Input defaultValue="#14b8a6" />
-                    <div className="w-10 h-10 rounded-lg bg-accent" />
+                    <Input
+                      value={settings.accent_color}
+                      onChange={(e) => updateField('accent_color', e.target.value)}
+                    />
+                    <div
+                      className="w-10 h-10 rounded-lg border"
+                      style={{ backgroundColor: settings.accent_color }}
+                    />
                   </div>
                 </div>
               </div>
