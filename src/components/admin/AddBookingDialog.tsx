@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Dialog,
   DialogContent,
@@ -162,18 +165,14 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
   const calculatedPrice = useMemo(() => {
     if (!selectedService || !squareFootage) return 0;
     
-    let serviceType = selectedService;
-    // Map frequency to service type for pricing
-    if (frequency === 'weekly' && selectedService !== 'move_in_out' && selectedService !== 'construction') {
-      serviceType = 'weekly_clean';
-    } else if (frequency === 'biweekly' && selectedService !== 'move_in_out' && selectedService !== 'construction') {
-      serviceType = 'biweekly_clean';
-    } else if (frequency === 'monthly' && selectedService !== 'move_in_out' && selectedService !== 'construction') {
-      serviceType = 'monthly_clean';
-    }
-    
     const sqFtIndex = getSqFtIndexFromValue(parseInt(squareFootage));
-    let basePrice = getPriceForService(serviceType as CleaningServiceType, sqFtIndex);
+    let basePrice = getPriceForService(selectedService as CleaningServiceType, sqFtIndex);
+    
+    // Apply frequency discount
+    const frequencyOption = frequencyOptions.find(f => f.id === frequency);
+    if (frequencyOption && frequencyOption.discount > 0) {
+      basePrice = basePrice * (1 - frequencyOption.discount);
+    }
     
     // Add extras
     const extrasTotal = selectedExtras.reduce((sum, extraId) => {
@@ -181,7 +180,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
       return sum + (extra?.price || 0);
     }, 0);
     
-    return basePrice + extrasTotal;
+    return Math.round(basePrice + extrasTotal);
   }, [selectedService, squareFootage, frequency, selectedExtras]);
 
   const finalPrice = adjustPrice && customPrice ? parseFloat(customPrice) : calculatedPrice;
@@ -642,12 +641,29 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
               </section>
 
 
+              {/* Frequency Selection */}
+              <section>
+                <h3 className="text-lg font-semibold mb-2">Frequency</h3>
+                <div className="space-y-2">
+                  <Label>How often?</Label>
+                  <Select value={frequency} onValueChange={setFrequency}>
+                    <SelectTrigger className="max-w-md">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {frequencyOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </section>
+
               {/* Service Details */}
               <section>
-                <h3 className="text-lg font-semibold mb-2">Service</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  More than 4000 Square Feet? Please call <a href="tel:8137356859" className="text-primary hover:underline">(813) 735 6859</a> or <a href="mailto:info@example.com" className="text-primary hover:underline">EMAIL</a> us for a custom quote.
-                </p>
+                <h3 className="text-lg font-semibold mb-4">Service Details</h3>
                 
                 <div className="grid grid-cols-3 gap-4 max-w-2xl">
                   <div className="space-y-2">
@@ -686,6 +702,54 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
                         {squareFootageRanges.map((range) => (
                           <SelectItem key={range.maxSqFt} value={range.maxSqFt.toString()}>
                             {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </section>
+
+              {/* Schedule Date & Time */}
+              <section>
+                <h3 className="text-lg font-semibold mb-4">Schedule Date & Time</h3>
+                <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !scheduledDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {scheduledDate ? format(new Date(scheduledDate), "PPP") : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={scheduledDate ? new Date(scheduledDate) : undefined}
+                          onSelect={(date) => date && setScheduledDate(date.toISOString().split('T')[0])}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Time</Label>
+                    <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map((time) => (
+                          <SelectItem key={time} value={time}>
+                            {time}
                           </SelectItem>
                         ))}
                       </SelectContent>
