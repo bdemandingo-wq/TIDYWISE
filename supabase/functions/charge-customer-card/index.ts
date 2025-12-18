@@ -11,7 +11,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface ChargeCardRequest {
+interface HoldCardRequest {
   email: string;
   amount: number;
   description?: string;
@@ -24,9 +24,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, amount, description, bookingId }: ChargeCardRequest = await req.json();
+    const { email, amount, description, bookingId }: HoldCardRequest = await req.json();
 
-    console.log("Charging customer card:", { email, amount, description, bookingId });
+    console.log("Placing hold on customer card:", { email, amount, description, bookingId });
 
     if (!email || !amount) {
       return new Response(
@@ -58,9 +58,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const defaultPaymentMethod = customer.invoice_settings?.default_payment_method;
+    let paymentMethodId = customer.invoice_settings?.default_payment_method as string;
     
-    if (!defaultPaymentMethod) {
+    if (!paymentMethodId) {
       // Try to get any attached payment method
       const paymentMethods = await stripe.paymentMethods.list({
         customer: customerId,
@@ -74,46 +74,67 @@ const handler = async (req: Request): Promise<Response> => {
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
+      paymentMethodId = paymentMethods.data[0].id;
     }
 
-    // Create and confirm a payment intent
+    // Create a payment intent with capture_method: 'manual' to place a hold without charging
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: "usd",
       customer: customerId,
-      payment_method: defaultPaymentMethod as string || undefined,
+      payment_method: paymentMethodId,
       off_session: true,
       confirm: true,
-      description: description || "Cleaning service payment",
+      capture_method: "manual", // This places a hold but doesn't capture (charge) the funds
+      description: description || "Cleaning service hold",
       metadata: {
         bookingId: bookingId || "",
       },
     });
 
-    console.log("Payment successful:", paymentIntent.id, "Status:", paymentIntent.status);
+    console.log("Hold placed successfully:", paymentIntent.id, "Status:", paymentIntent.status);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      paymentIntentId: paymentIntent.id,
-      status: paymentIntent.status,
-      amount: amount,
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    // Check if the hold was successful
+    if (paymentIntent.status === "requires_capture") {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        paymentIntentId: paymentIntent.id,
+        status: "hold_placed",
+        amount: amount,
+        message: `Hold of $${amount.toFixed(2)} placed successfully. Card will be charged after service completion.`
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    } else {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        error: "Failed to place hold on card"
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
   } catch (error: any) {
-    console.error("Error in charge-customer-card function:", error);
+    console.error("Error in hold-customer-card function:", error);
     
     // Handle specific Stripe errors
     if (error.type === "StripeCardError") {
       return new Response(
-        JSON.stringify({ error: `Card declined: ${error.message}` }),
+        JSON.stringify({ 
+          success: false,
+          declined: true,
+          error: `Card declined: ${error.message}`,
+          declineCode: error.decline_code || "unknown"
+        }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

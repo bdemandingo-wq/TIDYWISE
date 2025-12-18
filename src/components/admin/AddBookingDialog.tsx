@@ -64,14 +64,13 @@ interface AddBookingDialogProps {
 }
 
 const extraIcons: Record<string, React.ReactNode> = {
-  heavy_duty: <Sparkles className="w-6 h-6" />,
-  cabinets: <LayoutGrid className="w-6 h-6" />,
-  blinds: <Blinds className="w-6 h-6" />,
-  fridge: <Refrigerator className="w-6 h-6" />,
-  dishes: <UtensilsCrossed className="w-6 h-6" />,
-  oven: <Flame className="w-6 h-6" />,
-  pet_hair: <Dog className="w-6 h-6" />,
+  windows: <Blinds className="w-6 h-6" />,
+  appliances: <Refrigerator className="w-6 h-6" />,
+  baseboards: <LayoutGrid className="w-6 h-6" />,
+  walls: <Sparkles className="w-6 h-6" />,
+  carpets: <Dog className="w-6 h-6" />,
   laundry: <Shirt className="w-6 h-6" />,
+  dishes: <UtensilsCrossed className="w-6 h-6" />,
 };
 
 export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBookingDialogProps) {
@@ -358,18 +357,18 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
     }
   };
 
-  const handleChargeCard = async () => {
+  const handlePlaceHold = async () => {
     const customerEmail = customerType === 'existing' 
       ? existingCustomers.find(c => c.id === selectedCustomerId)?.email 
       : email;
     
     if (!customerEmail) {
-      toast({ title: "Error", description: "Customer email required to charge card", variant: "destructive" });
+      toast({ title: "Error", description: "Customer email required to place hold", variant: "destructive" });
       return;
     }
     
     if (!finalPrice || finalPrice <= 0) {
-      toast({ title: "Error", description: "Invalid amount to charge", variant: "destructive" });
+      toast({ title: "Error", description: "Invalid amount for hold", variant: "destructive" });
       return;
     }
     
@@ -387,10 +386,27 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
       
       if (error) throw error;
       
-      toast({ title: "Payment Successful", description: `Charged $${finalPrice.toFixed(2)} to card on file` });
+      if (data.declined) {
+        toast({ 
+          title: "Card Declined", 
+          description: data.error || "The card was declined. Please inform the client.", 
+          variant: "destructive" 
+        });
+      } else if (data.success) {
+        toast({ 
+          title: "Hold Placed Successfully", 
+          description: data.message || `Hold of $${finalPrice.toFixed(2)} placed on card. Will be charged after service.`
+        });
+      } else {
+        toast({ 
+          title: "Hold Failed", 
+          description: data.error || "Failed to place hold on card", 
+          variant: "destructive" 
+        });
+      }
     } catch (error: any) {
-      console.error('Failed to charge card:', error);
-      toast({ title: "Payment Failed", description: error.message || "Failed to charge card", variant: "destructive" });
+      console.error('Failed to place hold:', error);
+      toast({ title: "Hold Failed", description: error.message || "Failed to place hold on card. Please inform the client.", variant: "destructive" });
     } finally {
       setChargingCard(false);
     }
@@ -997,7 +1013,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
               <section>
                 <h3 className="text-lg font-semibold mb-2">Payment Information</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Cards will not be charged until AFTER the appointment is complete.
+                  A hold will be placed on the card. Payment captured after service completion.
                 </p>
                 
                 <RadioGroup 
@@ -1092,14 +1108,14 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
                     
                     <Button 
                       type="button" 
-                      className="w-full bg-emerald-500 hover:bg-emerald-600"
-                      onClick={handleChargeCard}
+                      className="w-full bg-amber-500 hover:bg-amber-600"
+                      onClick={handlePlaceHold}
                       disabled={chargingCard || (!savedCardInfo && !cardNumber)}
                     >
                       {chargingCard ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : null}
-                      Charge ${finalPrice.toFixed(2)} Now
+                      Place Hold for ${finalPrice.toFixed(2)}
                     </Button>
                   </div>
                 )}
