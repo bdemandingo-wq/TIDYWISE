@@ -5,3 +5,15 @@ verify_jwt = false
 
 [functions.send-cleaner-notification]
 verify_jwt = false
+
+[functions.send-payment-link]
+verify_jwt = false
+
+[functions.save-customer-card]
+verify_jwt = false
+
+[functions.charge-customer-card]
+verify_jwt = false
+
+[functions.get-customer-card]
+verify_jwt = false

@@ -37,7 +37,9 @@ import {
   Dog, 
   Shirt,
   Send,
-  Calendar
+  Calendar,
+  CreditCard,
+  Check
 } from 'lucide-react';
 import { useCreateBooking, useCreateCustomer, useServices, useStaff, useCustomers } from '@/hooks/useBookings';
 import { 
@@ -152,7 +154,15 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
   const createCustomer = useCreateCustomer();
   
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
-
+  
+  // Card on file
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpMonth, setCardExpMonth] = useState('');
+  const [cardExpYear, setCardExpYear] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [savingCard, setSavingCard] = useState(false);
+  const [chargingCard, setChargingCard] = useState(false);
+  const [savedCardInfo, setSavedCardInfo] = useState<{ last4: string; brand: string } | null>(null);
   // Calculate price
   const calculatedPrice = useMemo(() => {
     if (!selectedService || !squareFootage) return 0;
@@ -298,6 +308,91 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
       toast({ title: "Error", description: "Failed to send payment link", variant: "destructive" });
     } finally {
       setSendingPaymentLink(false);
+    }
+  };
+
+  const handleSaveCard = async () => {
+    const customerEmail = customerType === 'existing' 
+      ? existingCustomers.find(c => c.id === selectedCustomerId)?.email 
+      : email;
+    const customerName = customerType === 'existing' 
+      ? `${existingCustomers.find(c => c.id === selectedCustomerId)?.first_name} ${existingCustomers.find(c => c.id === selectedCustomerId)?.last_name}`
+      : `${firstName} ${lastName}`;
+    
+    if (!customerEmail || !customerName) {
+      toast({ title: "Error", description: "Customer details required to save card", variant: "destructive" });
+      return;
+    }
+    
+    if (!cardNumber || !cardExpMonth || !cardExpYear || !cardCvc) {
+      toast({ title: "Error", description: "All card fields are required", variant: "destructive" });
+      return;
+    }
+    
+    setSavingCard(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('save-customer-card', {
+        body: {
+          email: customerEmail,
+          customerName,
+          cardNumber: cardNumber.replace(/\s/g, ''),
+          expMonth: parseInt(cardExpMonth),
+          expYear: parseInt(cardExpYear),
+          cvc: cardCvc,
+        }
+      });
+      
+      if (error) throw error;
+      
+      setSavedCardInfo({ last4: data.last4, brand: data.brand });
+      setCardNumber('');
+      setCardExpMonth('');
+      setCardExpYear('');
+      setCardCvc('');
+      toast({ title: "Success", description: `Card saved (${data.brand} ending in ${data.last4})` });
+    } catch (error: any) {
+      console.error('Failed to save card:', error);
+      toast({ title: "Error", description: error.message || "Failed to save card", variant: "destructive" });
+    } finally {
+      setSavingCard(false);
+    }
+  };
+
+  const handleChargeCard = async () => {
+    const customerEmail = customerType === 'existing' 
+      ? existingCustomers.find(c => c.id === selectedCustomerId)?.email 
+      : email;
+    
+    if (!customerEmail) {
+      toast({ title: "Error", description: "Customer email required to charge card", variant: "destructive" });
+      return;
+    }
+    
+    if (!finalPrice || finalPrice <= 0) {
+      toast({ title: "Error", description: "Invalid amount to charge", variant: "destructive" });
+      return;
+    }
+    
+    setChargingCard(true);
+    try {
+      const serviceName = cleaningServices.find(s => s.id === selectedService)?.name || 'Cleaning Service';
+      
+      const { data, error } = await supabase.functions.invoke('charge-customer-card', {
+        body: {
+          email: customerEmail,
+          amount: finalPrice,
+          description: `${serviceName} - ${firstName || ''} ${lastName || ''}`.trim(),
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast({ title: "Payment Successful", description: `Charged $${finalPrice.toFixed(2)} to card on file` });
+    } catch (error: any) {
+      console.error('Failed to charge card:', error);
+      toast({ title: "Payment Failed", description: error.message || "Failed to charge card", variant: "destructive" });
+    } finally {
+      setChargingCard(false);
     }
   };
 
@@ -925,10 +1020,87 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
                 </RadioGroup>
                 
                 {paymentMethod === 'card' && (
-                  <div className="p-4 border rounded-lg max-w-md">
-                    <p className="text-sm text-muted-foreground">
-                      Card payment integration coming soon. For now, you can send a payment link to the customer.
-                    </p>
+                  <div className="p-4 border rounded-lg max-w-md space-y-4">
+                    {savedCardInfo ? (
+                      <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <CreditCard className="w-5 h-5 text-emerald-600" />
+                        <div>
+                          <p className="font-medium text-emerald-800">
+                            {savedCardInfo.brand} •••• {savedCardInfo.last4}
+                          </p>
+                          <p className="text-xs text-emerald-600">Card on file</p>
+                        </div>
+                        <Check className="w-5 h-5 text-emerald-600 ml-auto" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Card Number</Label>
+                          <Input
+                            value={cardNumber}
+                            onChange={(e) => setCardNumber(e.target.value)}
+                            placeholder="4242 4242 4242 4242"
+                            maxLength={19}
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-2">
+                            <Label>Exp Month</Label>
+                            <Input
+                              value={cardExpMonth}
+                              onChange={(e) => setCardExpMonth(e.target.value)}
+                              placeholder="MM"
+                              maxLength={2}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Exp Year</Label>
+                            <Input
+                              value={cardExpYear}
+                              onChange={(e) => setCardExpYear(e.target.value)}
+                              placeholder="YY"
+                              maxLength={4}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>CVC</Label>
+                            <Input
+                              value={cardCvc}
+                              onChange={(e) => setCardCvc(e.target.value)}
+                              placeholder="123"
+                              maxLength={4}
+                              type="password"
+                            />
+                          </div>
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={handleSaveCard}
+                          disabled={savingCard || !cardNumber || !cardExpMonth || !cardExpYear || !cardCvc}
+                          className="w-full"
+                        >
+                          {savingCard ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <CreditCard className="w-4 h-4 mr-2" />
+                          )}
+                          Save Card on File
+                        </Button>
+                      </>
+                    )}
+                    
+                    <Button 
+                      type="button" 
+                      className="w-full bg-emerald-500 hover:bg-emerald-600"
+                      onClick={handleChargeCard}
+                      disabled={chargingCard || (!savedCardInfo && !cardNumber)}
+                    >
+                      {chargingCard ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : null}
+                      Charge ${finalPrice.toFixed(2)} Now
+                    </Button>
                   </div>
                 )}
                 
