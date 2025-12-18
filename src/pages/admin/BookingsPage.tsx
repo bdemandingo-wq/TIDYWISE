@@ -18,17 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
 import { format } from 'date-fns';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning/20 text-warning border-warning/30',
@@ -43,6 +46,7 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -67,6 +71,64 @@ export default function BookingsPage() {
       id: bookingId, 
       status: newStatus as BookingWithDetails['status']
     });
+  };
+
+  const handleCapturePayment = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "Customer email not found", variant: "destructive" });
+      return;
+    }
+
+    setCapturingPayment(booking.id);
+    
+    try {
+      // First, we need to find any pending payment intents for this customer
+      // For now, we'll prompt the admin to enter the payment intent ID
+      // In a real implementation, you'd store the payment intent ID with the booking
+      const paymentIntentId = prompt("Enter the Payment Intent ID to capture:");
+      
+      if (!paymentIntentId) {
+        setCapturingPayment(null);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('capture-payment', {
+        body: {
+          paymentIntentId,
+          amountToCapture: booking.total_amount,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({ 
+          title: "Payment Captured", 
+          description: data.message 
+        });
+        
+        // Update booking payment status
+        await updateBooking.mutateAsync({ 
+          id: booking.id, 
+          payment_status: 'paid' as any
+        });
+      } else {
+        toast({ 
+          title: "Capture Failed", 
+          description: data.error, 
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to capture payment:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to capture payment", 
+        variant: "destructive" 
+      });
+    } finally {
+      setCapturingPayment(null);
+    }
   };
 
   if (error) {
@@ -212,6 +274,20 @@ export default function BookingsPage() {
                         >
                           Mark Complete
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleCapturePayment(booking)}
+                          disabled={capturingPayment === booking.id || booking.payment_status === 'paid'}
+                        >
+                          {capturingPayment === booking.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CreditCard className="w-4 h-4" />
+                          )}
+                          {booking.payment_status === 'paid' ? 'Payment Captured' : 'Capture Payment'}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="gap-2 text-destructive"
                           onClick={() => handleStatusChange(booking.id, 'cancelled')}
