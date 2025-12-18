@@ -134,7 +134,7 @@ export default function ReportsPage() {
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 32%, 91%)" />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '$0' : `$${(v/1000).toFixed(0)}k`} domain={[0, 'auto']} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} domain={[0, 20000]} ticks={[0, 5000, 10000, 15000, 20000]} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(0, 0%, 100%)',
