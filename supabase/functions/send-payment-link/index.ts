@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  apiVersion: "2025-08-27.basil",
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +18,7 @@ interface PaymentLinkRequest {
   customerName: string;
   amount: number;
   serviceName: string;
+  bookingId?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,7 +27,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, customerName, amount, serviceName }: PaymentLinkRequest = await req.json();
+    const { email, customerName, amount, serviceName, bookingId }: PaymentLinkRequest = await req.json();
+
+    console.log("Received payment link request:", { email, customerName, amount, serviceName, bookingId });
 
     if (!email || !customerName || !amount) {
       return new Response(
@@ -31,12 +38,53 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Generate a simple payment link placeholder
-    // In production, you would integrate with Stripe to create a payment link
-    const paymentLink = `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '')}/payment?amount=${amount}`;
+    // Check if customer exists in Stripe, create if not
+    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    let customerId: string;
+    
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      console.log("Found existing Stripe customer:", customerId);
+    } else {
+      const newCustomer = await stripe.customers.create({
+        email: email,
+        name: customerName,
+      });
+      customerId = newCustomer.id;
+      console.log("Created new Stripe customer:", customerId);
+    }
 
+    // Create a Stripe Checkout session for the payment
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: serviceName || "Cleaning Service",
+              description: `Booking payment for ${customerName}`,
+            },
+            unit_amount: Math.round(amount * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${req.headers.get("origin") || "https://tidywisecleaning.com"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin") || "https://tidywisecleaning.com"}/payment-canceled`,
+      metadata: {
+        bookingId: bookingId || "",
+        customerName: customerName,
+        serviceName: serviceName,
+      },
+    });
+
+    console.log("Created Stripe checkout session:", session.id, "URL:", session.url);
+
+    // Send email with the Stripe payment link
     const emailResponse = await resend.emails.send({
-      from: "South Florida Cleaning <onboarding@resend.dev>",
+      from: "Tidywise Cleaning <onboarding@resend.dev>",
       to: [email],
       subject: "Complete Your Booking Payment",
       html: `
@@ -52,6 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
             .button { display: inline-block; background: #10b981; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
             .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
             .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+            .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 10px; }
           </style>
         </head>
         <body>
@@ -61,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div class="content">
               <p>Hi ${customerName},</p>
-              <p>Thank you for choosing our cleaning services! Please complete your payment to confirm your booking.</p>
+              <p>Thank you for choosing Tidywise Cleaning! Please complete your payment to confirm your booking.</p>
               
               <div class="details">
                 <h3>Booking Details</h3>
@@ -69,20 +118,23 @@ const handler = async (req: Request): Promise<Response> => {
                 <p class="amount">$${amount.toFixed(2)}</p>
               </div>
               
-              <p>Click the button below to securely enter your payment details:</p>
+              <p>Click the button below to securely complete your payment:</p>
               
               <center>
-                <a href="${paymentLink}" class="button">Pay Now</a>
+                <a href="${session.url}" class="button">Pay Now - Secure Checkout</a>
               </center>
               
-              <p style="color: #666; font-size: 14px;">
-                Your card will not be charged until after the service is complete. 
-                We only collect your payment information to secure your booking.
+              <div class="secure">
+                <span>🔒 Secured by Stripe</span>
+              </div>
+              
+              <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                This payment link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
               </p>
             </div>
             <div class="footer">
               <p>Questions? Reply to this email or call us at (813) 735-6859</p>
-              <p>&copy; 2024 South Florida Cleaning. All rights reserved.</p>
+              <p>&copy; 2024 Tidywise Cleaning. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -92,7 +144,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Payment link email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      data: emailResponse,
+      paymentUrl: session.url,
+      sessionId: session.id
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
