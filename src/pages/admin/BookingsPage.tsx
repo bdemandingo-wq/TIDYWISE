@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { mockBookings, mockServices } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter, Download, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -27,31 +26,69 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
+import { format } from 'date-fns';
+import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   pending: 'bg-warning/20 text-warning border-warning/30',
   confirmed: 'bg-primary/20 text-primary border-primary/30',
+  in_progress: 'bg-info/20 text-info border-info/30',
   completed: 'bg-success/20 text-success border-success/30',
   cancelled: 'bg-destructive/20 text-destructive border-destructive/30',
+  no_show: 'bg-muted text-muted-foreground border-muted',
 };
 
 export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const filteredBookings = mockBookings.filter((booking) => {
+  const { data: bookings = [], isLoading, error } = useBookings();
+  const updateBooking = useUpdateBooking();
+
+  const filteredBookings = bookings.filter((booking) => {
+    const customerName = booking.customer 
+      ? `${booking.customer.first_name} ${booking.customer.last_name}`.toLowerCase()
+      : '';
+    const serviceName = booking.service?.name?.toLowerCase() || '';
+    const bookingNum = booking.booking_number.toString();
+    
     const matchesSearch =
-      booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.id.toLowerCase().includes(searchTerm.toLowerCase());
+      customerName.includes(searchTerm.toLowerCase()) ||
+      serviceName.includes(searchTerm.toLowerCase()) ||
+      bookingNum.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    await updateBooking.mutateAsync({ 
+      id: bookingId, 
+      status: newStatus as BookingWithDetails['status']
+    });
+  };
+
+  if (error) {
+    return (
+      <AdminLayout title="Bookings" subtitle="Error loading bookings">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-destructive">Failed to load bookings. Please try again.</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
       title="Bookings"
       subtitle={`${filteredBookings.length} total bookings`}
+      actions={
+        <Button className="gap-2" onClick={() => setAddDialogOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Add Booking
+        </Button>
+      }
     >
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -72,8 +109,10 @@ export default function BookingsPage() {
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="confirmed">Confirmed</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="no_show">No Show</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" className="gap-2">
@@ -84,70 +123,112 @@ export default function BookingsPage() {
 
       {/* Table */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Booking ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Staff</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBookings.slice(0, 20).map((booking) => (
-              <TableRow key={booking.id} className="hover:bg-muted/30">
-                <TableCell className="font-mono text-sm font-semibold">
-                  #{booking.bookingNumber}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{booking.customerName}</p>
-                    <p className="text-sm text-muted-foreground">{booking.customerEmail}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.service}</TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{booking.date}</p>
-                    <p className="text-sm text-muted-foreground">{booking.time}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{booking.staff}</TableCell>
-                <TableCell>
-                  <Badge className={cn('capitalize', statusColors[booking.status])}>
-                    {booking.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-semibold">${booking.price}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        <Eye className="w-4 h-4" /> View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Edit className="w-4 h-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 text-destructive">
-                        <Trash2 className="w-4 h-4" /> Cancel
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-muted-foreground mb-4">No bookings found</p>
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create your first booking
+            </Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Booking ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Staff</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredBookings.map((booking) => (
+                <TableRow key={booking.id} className="hover:bg-muted/30">
+                  <TableCell className="font-mono text-sm font-semibold">
+                    #{booking.booking_number}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">
+                        {booking.customer 
+                          ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                          : 'Unknown Customer'
+                        }
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.customer?.email || 'No email'}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{booking.service?.name || 'Unknown Service'}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">
+                        {format(new Date(booking.scheduled_at), 'MMM d, yyyy')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(booking.scheduled_at), 'h:mm a')}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{booking.staff?.name || 'Unassigned'}</TableCell>
+                  <TableCell>
+                    <Badge className={cn('capitalize', statusColors[booking.status] || statusColors.pending)}>
+                      {booking.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold">${booking.total_amount}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="gap-2">
+                          <Eye className="w-4 h-4" /> View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2">
+                          <Edit className="w-4 h-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                        >
+                          Confirm
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleStatusChange(booking.id, 'completed')}
+                        >
+                          Mark Complete
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive"
+                          onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                        >
+                          <Trash2 className="w-4 h-4" /> Cancel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
+
+      <AddBookingDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
     </AdminLayout>
   );
 }
