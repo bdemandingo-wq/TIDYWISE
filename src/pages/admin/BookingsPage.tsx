@@ -42,6 +42,24 @@ const statusColors: Record<string, string> = {
   no_show: 'bg-muted text-muted-foreground border-muted',
 };
 
+const getPaymentStatusInfo = (booking: BookingWithDetails) => {
+  const hasPaymentIntent = !!(booking as any).payment_intent_id;
+  
+  if (booking.payment_status === 'paid') {
+    return { label: 'Paid', className: 'bg-success/20 text-success border-success/30' };
+  }
+  if (booking.payment_status === 'refunded') {
+    return { label: 'Refunded', className: 'bg-muted text-muted-foreground border-muted' };
+  }
+  if (hasPaymentIntent && booking.payment_status === 'partial') {
+    return { label: 'Hold Active', className: 'bg-warning/20 text-warning border-warning/30' };
+  }
+  if (hasPaymentIntent) {
+    return { label: 'Hold Active', className: 'bg-warning/20 text-warning border-warning/30' };
+  }
+  return { label: 'No Payment', className: 'bg-destructive/20 text-destructive border-destructive/30' };
+};
+
 export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -249,6 +267,7 @@ export default function BookingsPage() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Staff</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -287,6 +306,11 @@ export default function BookingsPage() {
                   <TableCell>
                     <Badge className={cn('capitalize', statusColors[booking.status] || statusColors.pending)}>
                       {booking.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={cn('capitalize', getPaymentStatusInfo(booking).className)}>
+                      {getPaymentStatusInfo(booking).label}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-semibold">${booking.total_amount}</TableCell>
