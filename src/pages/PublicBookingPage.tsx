@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { mockServices, mockStaff } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -18,9 +19,17 @@ import {
   Mail,
   Phone,
   DollarSign,
+  Ruler,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { 
+  cleaningServices, 
+  squareFootageRanges, 
+  extras, 
+  getPriceForService,
+  type CleaningServiceType 
+} from '@/data/pricingData';
 
 const timeSlots = [
   '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -29,7 +38,9 @@ const timeSlots = [
 
 export default function PublicBookingPage() {
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<CleaningServiceType | null>(null);
+  const [selectedSqFtIndex, setSelectedSqFtIndex] = useState<number | null>(null);
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [customerInfo, setCustomerInfo] = useState({
@@ -37,10 +48,33 @@ export default function PublicBookingPage() {
     email: '',
     phone: '',
     address: '',
+    city: '',
+    state: '',
+    zipCode: '',
     notes: '',
   });
 
-  const service = mockServices.find(s => s.id === selectedService);
+  const service = cleaningServices.find(s => s.id === selectedService);
+  
+  const calculateTotal = () => {
+    let total = 0;
+    if (service && selectedSqFtIndex !== null) {
+      total = getPriceForService(service.id, selectedSqFtIndex);
+    }
+    
+    // Add extras
+    selectedExtras.forEach(extraId => {
+      const extra = extras.find(e => e.id === extraId);
+      if (extra) {
+        // Skip if included in service
+        if (extraId === 'oven' && selectedService === 'deep_clean') return;
+        if (extraId === 'fridge' && selectedService === 'move_in_out') return;
+        total += extra.price;
+      }
+    });
+    
+    return total;
+  };
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1);
@@ -50,9 +84,17 @@ export default function PublicBookingPage() {
     if (step > 1) setStep(step - 1);
   };
 
+  const toggleExtra = (extraId: string) => {
+    setSelectedExtras(prev => 
+      prev.includes(extraId) 
+        ? prev.filter(id => id !== extraId)
+        : [...prev, extraId]
+    );
+  };
+
   const canProceed = () => {
     switch (step) {
-      case 1: return selectedService !== null;
+      case 1: return selectedService !== null && selectedSqFtIndex !== null;
       case 2: return selectedDate !== undefined && selectedTime !== null;
       case 3: return customerInfo.name && customerInfo.email && customerInfo.phone && customerInfo.address;
       default: return true;
@@ -126,53 +168,154 @@ export default function PublicBookingPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Step 1: Select Service */}
+          {/* Step 1: Select Service & Square Footage */}
           {step === 1 && (
-            <div className="animate-fade-in">
-              <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
-              <p className="text-muted-foreground mb-6">Choose the service you'd like to book</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockServices.filter(s => s.isActive).map((service) => (
-                  <Card
-                    key={service.id}
-                    className={cn(
-                      'cursor-pointer transition-all hover:shadow-md',
-                      selectedService === service.id && 'ring-2 ring-primary'
-                    )}
-                    onClick={() => setSelectedService(service.id)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center"
-                          style={{ backgroundColor: `${service.color}20`, color: service.color }}
-                        >
-                          <CalendarIcon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{service.name}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">{service.description}</p>
-                          <div className="flex items-center gap-4 mt-3">
-                            <div className="flex items-center gap-1 text-sm">
-                              <Clock className="w-4 h-4 text-muted-foreground" />
-                              {service.duration} min
-                            </div>
-                            <div className="flex items-center gap-1 text-sm font-semibold">
-                              <DollarSign className="w-4 h-4 text-success" />
-                              {service.price}
-                            </div>
-                          </div>
-                        </div>
-                        {selectedService === service.id && (
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="w-4 h-4 text-primary-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+            <div className="animate-fade-in space-y-8">
+              {/* Square Footage Selection */}
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Home Size</h2>
+                <p className="text-muted-foreground mb-4">Select your home's square footage</p>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Ruler className="w-5 h-5 text-primary" />
+                      <Label className="text-base">Square Footage</Label>
+                    </div>
+                    <Select 
+                      value={selectedSqFtIndex?.toString() ?? ''} 
+                      onValueChange={(val) => setSelectedSqFtIndex(parseInt(val))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select your home size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {squareFootageRanges.map((range, index) => (
+                          <SelectItem key={index} value={index.toString()}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
               </div>
+
+              {/* Service Selection */}
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
+                <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cleaningServices.map((svc) => {
+                    const price = selectedSqFtIndex !== null 
+                      ? getPriceForService(svc.id, selectedSqFtIndex) 
+                      : svc.minimumPrice;
+                    
+                    return (
+                      <Card
+                        key={svc.id}
+                        className={cn(
+                          'cursor-pointer transition-all hover:shadow-md',
+                          selectedService === svc.id && 'ring-2 ring-primary'
+                        )}
+                        onClick={() => setSelectedService(svc.id)}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <div
+                              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${svc.color}20`, color: svc.color }}
+                            >
+                              <CalendarIcon className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold">{svc.name}</h3>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{svc.description}</p>
+                              <div className="flex items-center gap-2 mt-3">
+                                <div className="flex items-center gap-1 text-lg font-bold text-success">
+                                  <DollarSign className="w-5 h-5" />
+                                  {price}
+                                </div>
+                                {selectedSqFtIndex === null && (
+                                  <span className="text-xs text-muted-foreground">(min price)</span>
+                                )}
+                              </div>
+                            </div>
+                            {selectedService === svc.id && (
+                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <Check className="w-4 h-4 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Extras */}
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Add Extras</h2>
+                <p className="text-muted-foreground mb-4">Optional add-on services</p>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {extras.map((extra) => {
+                        const isIncluded = 
+                          (extra.id === 'oven' && selectedService === 'deep_clean') ||
+                          (extra.id === 'fridge' && selectedService === 'move_in_out');
+                        
+                        return (
+                          <div key={extra.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={extra.id}
+                                checked={selectedExtras.includes(extra.id) || isIncluded}
+                                disabled={isIncluded}
+                                onCheckedChange={() => !isIncluded && toggleExtra(extra.id)}
+                              />
+                              <div>
+                                <Label htmlFor={extra.id} className={cn(isIncluded && 'text-muted-foreground')}>
+                                  {extra.name}
+                                </Label>
+                                {extra.note && (
+                                  <p className="text-xs text-muted-foreground">{extra.note}</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className={cn(
+                              "font-medium",
+                              isIncluded ? "text-success" : "text-foreground"
+                            )}>
+                              {isIncluded ? 'Included' : `+$${extra.price}`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Price Summary */}
+              {selectedService && selectedSqFtIndex !== null && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Estimated Total</p>
+                        <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{service?.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {squareFootageRanges[selectedSqFtIndex].label}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
@@ -204,7 +347,7 @@ export default function PublicBookingPage() {
                     {selectedDate ? (
                       <div className="grid grid-cols-2 gap-2">
                         {timeSlots.map((time) => {
-                          const available = Math.random() > 0.3; // Simulated availability
+                          const available = Math.random() > 0.3; // TODO: Replace with actual availability
                           return (
                             <Button
                               key={time}
@@ -281,15 +424,44 @@ export default function PublicBookingPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="address">Service Address *</Label>
+                      <Label htmlFor="address">Street Address *</Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                           id="address"
-                          placeholder="123 Main St, City, State"
+                          placeholder="123 Main Street"
                           className="pl-9"
                           value={customerInfo.address}
                           onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        placeholder="City"
+                        value={customerInfo.city}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State</Label>
+                        <Input
+                          id="state"
+                          placeholder="State"
+                          value={customerInfo.state}
+                          onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">ZIP Code</Label>
+                        <Input
+                          id="zipCode"
+                          placeholder="12345"
+                          value={customerInfo.zipCode}
+                          onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })}
                         />
                       </div>
                     </div>
@@ -302,6 +474,35 @@ export default function PublicBookingPage() {
                       value={customerInfo.notes}
                       onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })}
                     />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Price Summary */}
+              <Card className="mt-6 bg-primary/5 border-primary/20">
+                <CardContent className="p-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>{service?.name}</span>
+                      <span>${selectedSqFtIndex !== null ? getPriceForService(service!.id, selectedSqFtIndex) : 0}</span>
+                    </div>
+                    {selectedExtras.map(extraId => {
+                      const extra = extras.find(e => e.id === extraId);
+                      const isIncluded = 
+                        (extraId === 'oven' && selectedService === 'deep_clean') ||
+                        (extraId === 'fridge' && selectedService === 'move_in_out');
+                      if (!extra || isIncluded) return null;
+                      return (
+                        <div key={extraId} className="flex justify-between text-sm text-muted-foreground">
+                          <span>{extra.name}</span>
+                          <span>+${extra.price}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                      <span>Total</span>
+                      <span className="text-primary">${calculateTotal()}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -331,8 +532,14 @@ export default function PublicBookingPage() {
                       <p className="font-medium">{service?.name}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Price</p>
-                      <p className="font-semibold text-success">${service?.price}</p>
+                      <p className="text-sm text-muted-foreground">Home Size</p>
+                      <p className="font-medium">
+                        {selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Price</p>
+                      <p className="font-semibold text-success">${calculateTotal()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Date</p>
@@ -353,10 +560,23 @@ export default function PublicBookingPage() {
                       <p className="text-sm text-muted-foreground">Customer</p>
                       <p className="font-medium">{customerInfo.name}</p>
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <p className="text-sm text-muted-foreground">Address</p>
-                      <p className="font-medium">{customerInfo.address}</p>
+                      <p className="font-medium">
+                        {customerInfo.address}
+                        {customerInfo.city && `, ${customerInfo.city}`}
+                        {customerInfo.state && `, ${customerInfo.state}`}
+                        {customerInfo.zipCode && ` ${customerInfo.zipCode}`}
+                      </p>
                     </div>
+                    {selectedExtras.length > 0 && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-muted-foreground">Extras</p>
+                        <p className="font-medium">
+                          {selectedExtras.map(id => extras.find(e => e.id === id)?.name).join(', ')}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="pt-4 border-t">
                     <Badge className="bg-success/20 text-success border-success/30">
