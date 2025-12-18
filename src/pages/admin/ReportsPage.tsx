@@ -66,7 +66,9 @@ export default function ReportsPage() {
     }
 
     const totalRevenue = completedBookings.reduce((sum, b) => sum + b.price, 0);
-    const avgBookingValue = totalRevenue / completedBookings.length || 0;
+    const avgBookingValue = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
+    const totalBookings = mockBookings.length;
+    const conversionRate = totalBookings > 0 ? Math.round((completedBookings.length / totalBookings) * 100) : 0;
 
     return {
       serviceStats,
@@ -76,7 +78,7 @@ export default function ReportsPage() {
         totalRevenue,
         completedBookings: completedBookings.length,
         avgBookingValue,
-        conversionRate: 87,
+        conversionRate,
       },
     };
   }, []);
@@ -132,7 +134,7 @@ export default function ReportsPage() {
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 32%, 91%)" />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => v === 0 ? '$0' : `$${(v/1000).toFixed(0)}k`} domain={[0, 'auto']} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(0, 0%, 100%)',
