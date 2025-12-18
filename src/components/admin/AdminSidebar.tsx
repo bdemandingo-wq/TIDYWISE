@@ -7,9 +7,7 @@ import {
   BarChart3,
   Briefcase,
   UserCircle,
-  CreditCard,
   Bell,
-  HelpCircle,
   LogOut,
   ChevronDown,
   Home,
@@ -30,9 +28,7 @@ const navigation = [
 
 const settingsNav = [
   { name: 'Settings', href: '/admin/settings', icon: Settings },
-  { name: 'Billing', href: '/admin/billing', icon: CreditCard },
   { name: 'Notifications', href: '/admin/notifications', icon: Bell },
-  { name: 'Help', href: '/admin/help', icon: HelpCircle },
 ];
 
 export function AdminSidebar() {
