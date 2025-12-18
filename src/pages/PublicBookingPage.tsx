@@ -71,9 +71,6 @@ export default function PublicBookingPage() {
     selectedExtras.forEach(extraId => {
       const extra = extras.find(e => e.id === extraId);
       if (extra) {
-        // Skip if included in service
-        if (extraId === 'oven' && selectedService === 'deep_clean') return;
-        if (extraId === 'fridge' && selectedService === 'move_in_out') return;
         total += extra.price;
       }
     });
@@ -312,39 +309,22 @@ export default function PublicBookingPage() {
                 <p className="text-muted-foreground mb-4">Optional add-on services</p>
                 <Card>
                   <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {extras.map((extra) => {
-                        const isIncluded = 
-                          (extra.id === 'oven' && selectedService === 'deep_clean') ||
-                          (extra.id === 'fridge' && selectedService === 'move_in_out');
-                        
-                        return (
-                          <div key={extra.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                id={extra.id}
-                                checked={selectedExtras.includes(extra.id) || isIncluded}
-                                disabled={isIncluded}
-                                onCheckedChange={() => !isIncluded && toggleExtra(extra.id)}
-                              />
-                              <div>
-                                <Label htmlFor={extra.id} className={cn(isIncluded && 'text-muted-foreground')}>
-                                  {extra.name}
-                                </Label>
-                                {extra.note && (
-                                  <p className="text-xs text-muted-foreground">{extra.note}</p>
-                                )}
-                              </div>
-                            </div>
-                            <span className={cn(
-                              "font-medium",
-                              isIncluded ? "text-success" : "text-foreground"
-                            )}>
-                              {isIncluded ? 'Included' : `+$${extra.price}`}
-                            </span>
-                          </div>
-                        );
-                      })}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {extras.map((extra) => (
+                        <div 
+                          key={extra.id} 
+                          onClick={() => toggleExtra(extra.id)}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all h-[100px]",
+                            selectedExtras.includes(extra.id) 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <span className="font-medium text-center text-sm mb-1">{extra.name}</span>
+                          <span className="text-primary font-semibold">+${extra.price}</span>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -541,10 +521,7 @@ export default function PublicBookingPage() {
                     </div>
                     {selectedExtras.map(extraId => {
                       const extra = extras.find(e => e.id === extraId);
-                      const isIncluded = 
-                        (extraId === 'oven' && selectedService === 'deep_clean') ||
-                        (extraId === 'fridge' && selectedService === 'move_in_out');
-                      if (!extra || isIncluded) return null;
+                      if (!extra) return null;
                       return (
                         <div key={extraId} className="flex justify-between text-sm text-muted-foreground">
                           <span>{extra.name}</span>

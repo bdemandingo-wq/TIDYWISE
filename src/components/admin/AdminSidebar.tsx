@@ -26,11 +26,6 @@ const navigation = [
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];
 
-const settingsNav = [
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
-  { name: 'Notifications', href: '/admin/notifications', icon: Bell },
-];
-
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,26 +74,6 @@ export function AdminSidebar() {
           })}
         </div>
 
-        <div className="mt-8">
-          <p className="px-3 mb-2 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/50">
-            Settings
-          </p>
-          <div className="space-y-1">
-            {settingsNav.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={cn('sidebar-link', isActive && 'active')}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
       </nav>
 
       {/* User Profile */}

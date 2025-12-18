@@ -105,22 +105,15 @@ function PricingTable() {
 
 function ExtrasSection() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {extras.map((extra) => (
-        <Card key={extra.id}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-semibold">{extra.name}</h4>
-                {extra.note && (
-                  <p className="text-sm text-muted-foreground">{extra.note}</p>
-                )}
-              </div>
-              <Badge variant="secondary" className="text-lg">
-                <DollarSign className="w-4 h-4" />
-                {extra.price}
-              </Badge>
+        <Card key={extra.id} className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6 flex flex-col items-center justify-center text-center h-[140px]">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Plus className="w-6 h-6 text-primary" />
             </div>
+            <h4 className="font-semibold text-base mb-1">{extra.name}</h4>
+            <p className="text-xl font-bold text-primary">${extra.price}</p>
           </CardContent>
         </Card>
       ))}
@@ -158,31 +151,11 @@ export default function ServicesPage() {
       title="Services & Pricing"
       subtitle="Square footage-based pricing for all cleaning services"
     >
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="pricing-table" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="pricing-table">Full Pricing Table</TabsTrigger>
           <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {/* Service Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cleaningServices.map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </div>
-
-          {/* Minimum Prices */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Minimum Prices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MinimumPricesSection />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="pricing-table">
           <Card>
