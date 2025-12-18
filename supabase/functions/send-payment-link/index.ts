@@ -71,8 +71,8 @@ const handler = async (req: Request): Promise<Response> => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin") || "https://tidywisecleaning.com"}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin") || "https://tidywisecleaning.com"}/payment-canceled`,
+      success_url: "https://tidywisecleaning.com",
+      cancel_url: "https://tidywisecleaning.com",
       metadata: {
         bookingId: bookingId || "",
         customerName: customerName,
