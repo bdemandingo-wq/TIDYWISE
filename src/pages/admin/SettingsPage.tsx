@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +14,150 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, CreditCard, Palette } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface BusinessSettings {
+  id?: string;
+  company_name: string;
+  company_email: string;
+  company_phone: string;
+  company_address: string;
+  company_city: string;
+  company_state: string;
+  company_zip: string;
+  timezone: string;
+  currency: string;
+  logo_url: string;
+  booking_buffer_minutes: number;
+  max_advance_booking_days: number;
+  cancellation_policy: string;
+}
+
+const defaultSettings: BusinessSettings = {
+  company_name: '',
+  company_email: '',
+  company_phone: '',
+  company_address: '',
+  company_city: '',
+  company_state: '',
+  company_zip: '',
+  timezone: 'America/New_York',
+  currency: 'USD',
+  logo_url: '',
+  booking_buffer_minutes: 15,
+  max_advance_booking_days: 60,
+  cancellation_policy: '',
+};
 
 export default function SettingsPage() {
+  const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setSettings({
+          id: data.id,
+          company_name: data.company_name || '',
+          company_email: data.company_email || '',
+          company_phone: data.company_phone || '',
+          company_address: data.company_address || '',
+          company_city: data.company_city || '',
+          company_state: data.company_state || '',
+          company_zip: data.company_zip || '',
+          timezone: data.timezone || 'America/New_York',
+          currency: data.currency || 'USD',
+          logo_url: data.logo_url || '',
+          booking_buffer_minutes: data.booking_buffer_minutes || 15,
+          max_advance_booking_days: data.max_advance_booking_days || 60,
+          cancellation_policy: data.cancellation_policy || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      const settingsData = {
+        company_name: settings.company_name,
+        company_email: settings.company_email,
+        company_phone: settings.company_phone,
+        company_address: settings.company_address,
+        company_city: settings.company_city,
+        company_state: settings.company_state,
+        company_zip: settings.company_zip,
+        timezone: settings.timezone,
+        currency: settings.currency,
+        logo_url: settings.logo_url,
+        booking_buffer_minutes: settings.booking_buffer_minutes,
+        max_advance_booking_days: settings.max_advance_booking_days,
+        cancellation_policy: settings.cancellation_policy,
+      };
+
+      if (settings.id) {
+        const { error } = await supabase
+          .from('business_settings')
+          .update(settingsData)
+          .eq('id', settings.id);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('business_settings')
+          .insert(settingsData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setSettings(prev => ({ ...prev, id: data.id }));
+      }
+
+      toast.success('Settings saved successfully');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateField = (field: keyof BusinessSettings, value: string | number) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout title="Settings" subtitle="Manage your business preferences">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout
       title="Settings"
@@ -46,56 +188,101 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="businessName">Business Name</Label>
-                  <Input id="businessName" defaultValue="Footprint Cleaning" />
+                  <Input
+                    id="businessName"
+                    value={settings.company_name}
+                    onChange={(e) => updateField('company_name', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Business Email</Label>
-                  <Input id="email" type="email" defaultValue="contact@footprintcleaning.com" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={settings.company_email}
+                    onChange={(e) => updateField('company_email', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" defaultValue="(555) 123-4567" />
+                  <Input
+                    id="phone"
+                    value={settings.company_phone}
+                    onChange={(e) => updateField('company_phone', e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input id="website" defaultValue="https://footprintcleaning.com" />
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={settings.company_city}
+                    onChange={(e) => updateField('company_city', e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Business Address</Label>
-                <Input id="address" defaultValue="123 Business St, New York, NY 10001" />
+                <Input
+                  id="address"
+                  value={settings.company_address}
+                  onChange={(e) => updateField('company_address', e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={settings.company_state}
+                    onChange={(e) => updateField('company_state', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zip">ZIP Code</Label>
+                  <Input
+                    id="zip"
+                    value={settings.company_zip}
+                    onChange={(e) => updateField('company_zip', e.target.value)}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="est">
+                  <Select
+                    value={settings.timezone}
+                    onValueChange={(value) => updateField('timezone', value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="est">Eastern Time (ET)</SelectItem>
-                      <SelectItem value="cst">Central Time (CT)</SelectItem>
-                      <SelectItem value="mst">Mountain Time (MT)</SelectItem>
-                      <SelectItem value="pst">Pacific Time (PT)</SelectItem>
+                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Currency</Label>
-                  <Select defaultValue="usd">
+                  <Select
+                    value={settings.currency}
+                    onValueChange={(value) => updateField('currency', value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="usd">USD ($)</SelectItem>
-                      <SelectItem value="eur">EUR (€)</SelectItem>
-                      <SelectItem value="gbp">GBP (£)</SelectItem>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <Button className="gap-2">
-                <Save className="w-4 h-4" />
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
               </Button>
             </CardContent>
@@ -143,15 +330,23 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Buffer Between Bookings (min)</Label>
-                  <Input type="number" defaultValue="30" />
+                  <Input
+                    type="number"
+                    value={settings.booking_buffer_minutes}
+                    onChange={(e) => updateField('booking_buffer_minutes', parseInt(e.target.value) || 0)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Max Advance Booking (days)</Label>
-                  <Input type="number" defaultValue="60" />
+                  <Input
+                    type="number"
+                    value={settings.max_advance_booking_days}
+                    onChange={(e) => updateField('max_advance_booking_days', parseInt(e.target.value) || 0)}
+                  />
                 </div>
               </div>
-              <Button className="gap-2">
-                <Save className="w-4 h-4" />
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
               </Button>
             </CardContent>
@@ -202,8 +397,8 @@ export default function SettingsPage() {
                 </div>
                 <Switch />
               </div>
-              <Button className="gap-2">
-                <Save className="w-4 h-4" />
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
               </Button>
             </CardContent>
@@ -225,7 +420,11 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Logo URL</Label>
-                <Input defaultValue="https://example.com/logo.png" />
+                <Input
+                  value={settings.logo_url}
+                  onChange={(e) => updateField('logo_url', e.target.value)}
+                  placeholder="https://example.com/logo.png"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -243,8 +442,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-              <Button className="gap-2">
-                <Save className="w-4 h-4" />
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
               </Button>
             </CardContent>
