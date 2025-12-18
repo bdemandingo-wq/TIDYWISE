@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard } from 'lucide-react';
+import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -47,6 +47,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
+  const [cancelingHold, setCancelingHold] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -128,6 +129,60 @@ export default function BookingsPage() {
       });
     } finally {
       setCapturingPayment(null);
+    }
+  };
+
+  const handleCancelHold = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "Customer email not found", variant: "destructive" });
+      return;
+    }
+
+    setCancelingHold(booking.id);
+    
+    try {
+      const paymentIntentId = prompt("Enter the Payment Intent ID to cancel/release:");
+      
+      if (!paymentIntentId) {
+        setCancelingHold(null);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('cancel-hold', {
+        body: {
+          paymentIntentId,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({ 
+          title: "Hold Released", 
+          description: data.message 
+        });
+        
+        // Update booking payment status to refunded
+        await updateBooking.mutateAsync({ 
+          id: booking.id, 
+          payment_status: 'refunded' as any
+        });
+      } else {
+        toast({ 
+          title: "Release Failed", 
+          description: data.error, 
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to cancel hold:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to release hold", 
+        variant: "destructive" 
+      });
+    } finally {
+      setCancelingHold(null);
     }
   };
 
@@ -286,6 +341,18 @@ export default function BookingsPage() {
                             <CreditCard className="w-4 h-4" />
                           )}
                           {booking.payment_status === 'paid' ? 'Payment Captured' : 'Capture Payment'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2 text-warning"
+                          onClick={() => handleCancelHold(booking)}
+                          disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded'}
+                        >
+                          {cancelingHold === booking.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <XCircle className="w-4 h-4" />
+                          )}
+                          {booking.payment_status === 'refunded' ? 'Hold Released' : 'Release Hold'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
