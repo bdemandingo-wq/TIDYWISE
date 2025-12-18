@@ -226,9 +226,26 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (data: NewCustomerData) => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Error getting current user:', userError);
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error('You must be signed in to create a customer');
+      }
+
       const { data: customer, error } = await supabase
         .from('customers')
-        .insert(data)
+        .insert({
+          ...data,
+          user_id: user.id,
+        })
         .select()
         .single();
 
