@@ -44,6 +44,7 @@ import {
   CreditCard,
   Check
 } from 'lucide-react';
+import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { useCreateBooking, useCreateCustomer, useServices, useStaff, useCustomers } from '@/hooks/useBookings';
 import { 
   cleaningServices, 
@@ -153,14 +154,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
   
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
   
-  // Card on file
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpMonth, setCardExpMonth] = useState('');
-  const [cardExpYear, setCardExpYear] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-  const [savingCard, setSavingCard] = useState(false);
+  // Card on file - now using Stripe Elements
   const [chargingCard, setChargingCard] = useState(false);
-  const [savedCardInfo, setSavedCardInfo] = useState<{ last4: string; brand: string } | null>(null);
+  const [savedCardInfo, setSavedCardInfo] = useState<{ last4: string; brand: string; paymentMethodId?: string } | null>(null);
   // Calculate price
   const calculatedPrice = useMemo(() => {
     if (!selectedService || !squareFootage) return 0;
@@ -303,51 +299,20 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
     }
   };
 
-  const handleSaveCard = async () => {
-    const customerEmail = customerType === 'existing' 
-      ? existingCustomers.find(c => c.id === selectedCustomerId)?.email 
+  const getCustomerEmail = () => {
+    return customerType === 'existing' 
+      ? existingCustomers.find(c => c.id === selectedCustomerId)?.email || ''
       : email;
-    const customerName = customerType === 'existing' 
-      ? `${existingCustomers.find(c => c.id === selectedCustomerId)?.first_name} ${existingCustomers.find(c => c.id === selectedCustomerId)?.last_name}`
-      : `${firstName} ${lastName}`;
-    
-    if (!customerEmail || !customerName) {
-      toast({ title: "Error", description: "Customer details required to save card", variant: "destructive" });
-      return;
-    }
-    
-    if (!cardNumber || !cardExpMonth || !cardExpYear || !cardCvc) {
-      toast({ title: "Error", description: "All card fields are required", variant: "destructive" });
-      return;
-    }
-    
-    setSavingCard(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('save-customer-card', {
-        body: {
-          email: customerEmail,
-          customerName,
-          cardNumber: cardNumber.replace(/\s/g, ''),
-          expMonth: parseInt(cardExpMonth),
-          expYear: parseInt(cardExpYear),
-          cvc: cardCvc,
-        }
-      });
-      
-      if (error) throw error;
-      
-      setSavedCardInfo({ last4: data.last4, brand: data.brand });
-      setCardNumber('');
-      setCardExpMonth('');
-      setCardExpYear('');
-      setCardCvc('');
-      toast({ title: "Success", description: `Card saved (${data.brand} ending in ${data.last4})` });
-    } catch (error: any) {
-      console.error('Failed to save card:', error);
-      toast({ title: "Error", description: error.message || "Failed to save card", variant: "destructive" });
-    } finally {
-      setSavingCard(false);
-    }
+  };
+
+  const getCustomerName = () => {
+    return customerType === 'existing' 
+      ? `${existingCustomers.find(c => c.id === selectedCustomerId)?.first_name || ''} ${existingCustomers.find(c => c.id === selectedCustomerId)?.last_name || ''}`.trim()
+      : `${firstName} ${lastName}`.trim();
+  };
+
+  const handleCardSaved = (cardInfo: { last4: string; brand: string; paymentMethodId: string }) => {
+    setSavedCardInfo({ last4: cardInfo.last4, brand: cardInfo.brand, paymentMethodId: cardInfo.paymentMethodId });
   };
 
   const handlePlaceHold = async () => {
@@ -987,59 +952,17 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
                       </div>
                     ) : (
                       <>
-                        <div className="space-y-2">
-                          <Label>Card Number</Label>
-                          <Input
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                            placeholder="4242 4242 4242 4242"
-                            maxLength={19}
+                        {getCustomerEmail() && getCustomerName() ? (
+                          <StripeCardForm
+                            email={getCustomerEmail()}
+                            customerName={getCustomerName()}
+                            onCardSaved={handleCardSaved}
                           />
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-2">
-                            <Label>Exp Month</Label>
-                            <Input
-                              value={cardExpMonth}
-                              onChange={(e) => setCardExpMonth(e.target.value)}
-                              placeholder="MM"
-                              maxLength={2}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Exp Year</Label>
-                            <Input
-                              value={cardExpYear}
-                              onChange={(e) => setCardExpYear(e.target.value)}
-                              placeholder="YY"
-                              maxLength={4}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>CVC</Label>
-                            <Input
-                              value={cardCvc}
-                              onChange={(e) => setCardCvc(e.target.value)}
-                              placeholder="123"
-                              maxLength={4}
-                              type="password"
-                            />
-                          </div>
-                        </div>
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          onClick={handleSaveCard}
-                          disabled={savingCard || !cardNumber || !cardExpMonth || !cardExpYear || !cardCvc}
-                          className="w-full"
-                        >
-                          {savingCard ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : (
-                            <CreditCard className="w-4 h-4 mr-2" />
-                          )}
-                          Save Card on File
-                        </Button>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Please enter customer details first to save a card.
+                          </p>
+                        )}
                       </>
                     )}
                     
@@ -1047,7 +970,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate }: AddBooking
                       type="button" 
                       className="w-full bg-amber-500 hover:bg-amber-600"
                       onClick={handlePlaceHold}
-                      disabled={chargingCard || (!savedCardInfo && !cardNumber)}
+                      disabled={chargingCard || !savedCardInfo}
                     >
                       {chargingCard ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
