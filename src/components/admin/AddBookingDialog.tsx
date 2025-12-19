@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -672,12 +673,18 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                         placeholder="Phone number"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="col-span-2 space-y-2">
                       <Label>Address</Label>
-                      <Input
+                      <AddressAutocomplete
                         value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Street address"
+                        onChange={setAddress}
+                        onAddressSelect={(components) => {
+                          setAddress(components.address);
+                          setCity(components.city);
+                          setState(components.state);
+                          setZipCode(components.zipCode);
+                        }}
+                        placeholder="Start typing an address..."
                       />
                     </div>
                     <div className="space-y-2">
