@@ -1,83 +1,285 @@
-import { useMemo } from 'react';
-import { Booking } from '@/types/booking';
+import { useState, useMemo } from 'react';
+import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
-import { Clock, User, ChevronRight } from 'lucide-react';
+import { Clock, User, ChevronRight, Mail, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { mockServices } from '@/data/mockData';
+import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useNavigate } from 'react-router-dom';
+import { EditCustomerDialog } from './EditCustomerDialog';
 
 interface UpcomingBookingsProps {
-  bookings: Booking[];
+  bookings: BookingWithDetails[];
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   pending: 'bg-warning/20 text-warning border-warning/30',
   confirmed: 'bg-primary/20 text-primary border-primary/30',
+  in_progress: 'bg-info/20 text-info border-info/30',
   completed: 'bg-success/20 text-success border-success/30',
   cancelled: 'bg-destructive/20 text-destructive border-destructive/30',
+  no_show: 'bg-muted text-muted-foreground border-muted',
 };
 
+const statusLabels: Record<string, string> = {
+  pending: 'pending payment',
+  confirmed: 'uncleaned',
+  in_progress: 'in progress',
+  completed: 'clean completed',
+  cancelled: 'cancelled',
+  no_show: 'no show',
+};
+
+// Default service colors
+const serviceColors = [
+  '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
+];
+
 export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
+  const navigate = useNavigate();
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<BookingWithDetails['customer'] | null>(null);
+
   const upcomingBookings = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     return bookings
-      .filter(b => b.date >= today && b.status !== 'cancelled')
+      .filter(b => {
+        const bookingDate = new Date(b.scheduled_at);
+        return bookingDate >= today && b.status !== 'cancelled';
+      })
+      .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
       .slice(0, 5);
   }, [bookings]);
 
-  const getServiceColor = (serviceId: string) => {
-    const service = mockServices.find(s => s.id === serviceId);
-    return service?.color || '#6b7280';
+  const getServiceColor = (index: number) => {
+    return serviceColors[index % serviceColors.length];
+  };
+
+  const sendCleanerNotification = async (booking: BookingWithDetails) => {
+    if (!booking.staff) {
+      toast.error('No staff assigned to this booking');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const customerName = booking.customer 
+        ? `${booking.customer.first_name} ${booking.customer.last_name}`
+        : 'Unknown Customer';
+
+      const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+        body: {
+          cleanerName: booking.staff.name,
+          cleanerEmail: booking.staff.email,
+          customerName,
+          customerPhone: booking.customer?.phone || 'Not provided',
+          serviceName: booking.service?.name || 'Cleaning Service',
+          appointmentDate: format(new Date(booking.scheduled_at), 'MMMM d, yyyy'),
+          appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
+          address: booking.address || 'Address not provided',
+          bookingNumber: booking.booking_number,
+        },
+      });
+
+      if (error) {
+        console.error('Email error:', error);
+        toast.error('Failed to send notification');
+      } else {
+        toast.success(`Notification sent to ${booking.staff.name}`);
+      }
+    } catch (err) {
+      console.error('Failed to send notification:', err);
+      toast.error('Failed to send notification');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleCustomerClick = (booking: BookingWithDetails, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedBooking(booking);
+  };
+
+  const handleEditCustomer = () => {
+    if (selectedBooking?.customer) {
+      setEditingCustomer(selectedBooking.customer);
+    }
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm">
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="font-semibold">Upcoming Bookings</h3>
-        <Button variant="ghost" size="sm" className="gap-1 text-primary">
-          View all <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-      <div className="divide-y divide-border">
-        {upcomingBookings.map((booking) => (
-          <div
-            key={booking.id}
-            className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+    <>
+      <div className="bg-card rounded-xl border border-border shadow-sm">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-semibold">Upcoming Bookings</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-1 text-primary"
+            onClick={() => navigate('/admin/bookings')}
           >
-            <div className="flex items-start gap-3">
+            View all <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="divide-y divide-border">
+          {upcomingBookings.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              No upcoming bookings
+            </div>
+          ) : (
+            upcomingBookings.map((booking, index) => (
               <div
-                className="w-1 h-full min-h-[60px] rounded-full"
-                style={{ backgroundColor: getServiceColor(booking.serviceId) }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium truncate">{booking.service}</p>
-                  <Badge className={cn('capitalize text-xs', statusColors[booking.status])}>
-                    {booking.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5" />
-                    <span className="truncate">{booking.customerName}</span>
+                key={booking.id}
+                className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => setSelectedBooking(booking)}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-1 h-full min-h-[60px] rounded-full"
+                    style={{ backgroundColor: getServiceColor(index) }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium truncate">{booking.service?.name || 'Service'}</p>
+                      <Badge className={cn('capitalize text-xs', statusColors[booking.status])}>
+                        {statusLabels[booking.status] || booking.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                        onClick={(e) => handleCustomerClick(booking, e)}
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span className="truncate">
+                          {booking.customer 
+                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                            : 'Unknown'}
+                        </span>
+                      </button>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{format(new Date(booking.scheduled_at), 'h:mm a')}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{booking.time}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Booking Detail Dialog */}
+      <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold">
+                  {selectedBooking.service?.name || 'Cleaning Service'}
+                </span>
+                <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
+                  {statusLabels[selectedBooking.status] || selectedBooking.status}
+                </Badge>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                Booking #{selectedBooking.booking_number}
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">
+                        {selectedBooking.customer 
+                          ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
+                          : 'Unknown Customer'
+                        }
+                      </p>
+                      <p className="text-muted-foreground">
+                        {selectedBooking.customer?.email || 'No email'}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedBooking.customer && (
+                    <Button variant="outline" size="sm" onClick={handleEditCustomer}>
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">
+                      {format(new Date(selectedBooking.scheduled_at), 'MMMM d, yyyy')} at{' '}
+                      {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Duration: {selectedBooking.duration} minutes
+                    </p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(booking.date).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </p>
+
+                {selectedBooking.staff && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Assigned: {selectedBooking.staff.name}</p>
+                      <p className="text-muted-foreground">{selectedBooking.staff.email}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <span className="text-2xl font-bold">${selectedBooking.total_amount}</span>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="gap-2"
+                    onClick={() => sendCleanerNotification(selectedBooking)}
+                    disabled={sendingEmail || !selectedBooking.staff}
+                  >
+                    {sendingEmail ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Mail className="w-4 h-4" />
+                    )}
+                    Notify Cleaner
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <EditCustomerDialog 
+        open={!!editingCustomer} 
+        onOpenChange={(open) => !open && setEditingCustomer(null)}
+        customer={editingCustomer}
+      />
+    </>
   );
 }

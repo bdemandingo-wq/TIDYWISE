@@ -8,10 +8,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Booking } from '@/types/booking';
+import { BookingWithDetails } from '@/hooks/useBookings';
+import { format, subDays } from 'date-fns';
 
 interface RevenueChartProps {
-  bookings: Booking[];
+  bookings: BookingWithDetails[];
 }
 
 export function RevenueChart({ bookings }: RevenueChartProps) {
@@ -20,17 +21,17 @@ export function RevenueChart({ bookings }: RevenueChartProps) {
     const today = new Date();
 
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const date = subDays(today, i);
+      const dateStr = format(date, 'yyyy-MM-dd');
       
-      const dayBookings = bookings.filter(
-        b => b.date === dateStr && b.status !== 'cancelled'
-      );
+      const dayBookings = bookings.filter(b => {
+        const bookingDate = format(new Date(b.scheduled_at), 'yyyy-MM-dd');
+        return bookingDate === dateStr && b.status !== 'cancelled';
+      });
       
       last7Days.push({
-        date: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        revenue: dayBookings.reduce((sum, b) => sum + b.price, 0),
+        date: format(date, 'EEE'),
+        revenue: dayBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
         bookings: dayBookings.length,
       });
     }

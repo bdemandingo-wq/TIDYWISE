@@ -7,7 +7,6 @@ import {
   BarChart3,
   Briefcase,
   UserCircle,
-  Bell,
   LogOut,
   ChevronDown,
   Home,
@@ -97,9 +96,12 @@ export function AdminSidebar() {
         
         {isProfileOpen && (
           <div className="mt-2 py-2 space-y-1 animate-fade-in">
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-              <UserCircle className="w-4 h-4" />
-              <span className="text-sm">Profile</span>
+            <button 
+              onClick={() => navigate('/admin/settings')}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="text-sm">Settings</span>
             </button>
             <button 
               onClick={handleLogout}
