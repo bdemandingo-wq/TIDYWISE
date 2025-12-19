@@ -19,7 +19,7 @@ interface BookingNotificationRequest {
 }
 
 // Admin email to receive notifications
-const ADMIN_EMAIL = "agencyfootprintcleaning@gmail.com";
+const ADMIN_EMAIL = "support@tidywisecleaning.com";
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
