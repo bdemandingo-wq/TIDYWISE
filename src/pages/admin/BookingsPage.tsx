@@ -30,6 +30,7 @@ import {
 import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
 import { format } from 'date-fns';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
+import { BookingDetailsDialog, EditBookingDialog } from '@/components/admin/BookingDialogs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -64,6 +65,9 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
   const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
   const [cancelingHold, setCancelingHold] = useState<string | null>(null);
 
@@ -322,28 +326,40 @@ export default function BookingsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onSelect={() => {
+                            setActiveBooking(booking);
+                            setViewDialogOpen(true);
+                          }}
+                        >
                           <Eye className="w-4 h-4" /> View
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onSelect={() => {
+                            setActiveBooking(booking);
+                            setEditDialogOpen(true);
+                          }}
+                        >
                           <Edit className="w-4 h-4" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                          onSelect={() => handleStatusChange(booking.id, 'confirmed')}
                         >
                           Confirm
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => handleStatusChange(booking.id, 'completed')}
+                          onSelect={() => handleStatusChange(booking.id, 'completed')}
                         >
                           Mark Complete
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => handleCapturePayment(booking)}
+                          onSelect={() => handleCapturePayment(booking)}
                           disabled={capturingPayment === booking.id || booking.payment_status === 'paid' || !(booking as any).payment_intent_id}
                         >
                           {capturingPayment === booking.id ? (
@@ -351,11 +367,15 @@ export default function BookingsPage() {
                           ) : (
                             <CreditCard className="w-4 h-4" />
                           )}
-                          {booking.payment_status === 'paid' ? 'Payment Captured' : (!(booking as any).payment_intent_id ? 'No Hold' : 'Capture Payment')}
+                          {booking.payment_status === 'paid'
+                            ? 'Payment Captured'
+                            : !(booking as any).payment_intent_id
+                              ? 'No Hold'
+                              : 'Capture Payment'}
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2 text-warning"
-                          onClick={() => handleCancelHold(booking)}
+                          onSelect={() => handleCancelHold(booking)}
                           disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}
                         >
                           {cancelingHold === booking.id ? (
@@ -363,12 +383,16 @@ export default function BookingsPage() {
                           ) : (
                             <XCircle className="w-4 h-4" />
                           )}
-                          {booking.payment_status === 'refunded' ? 'Hold Released' : (!(booking as any).payment_intent_id ? 'No Hold' : 'Release Hold')}
+                          {booking.payment_status === 'refunded'
+                            ? 'Hold Released'
+                            : !(booking as any).payment_intent_id
+                              ? 'No Hold'
+                              : 'Release Hold'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2 text-destructive"
-                          onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                          onSelect={() => handleStatusChange(booking.id, 'cancelled')}
                         >
                           <Trash2 className="w-4 h-4" /> Cancel
                         </DropdownMenuItem>
@@ -383,6 +407,24 @@ export default function BookingsPage() {
       </div>
 
       <AddBookingDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+
+      <BookingDetailsDialog
+        open={viewDialogOpen}
+        onOpenChange={(open) => {
+          setViewDialogOpen(open);
+          if (!open) setActiveBooking(null);
+        }}
+        booking={activeBooking}
+      />
+
+      <EditBookingDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setActiveBooking(null);
+        }}
+        booking={activeBooking}
+      />
     </AdminLayout>
   );
 }
