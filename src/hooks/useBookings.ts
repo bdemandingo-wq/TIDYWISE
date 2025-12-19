@@ -17,6 +17,13 @@ export interface BookingWithDetails {
   city: string | null;
   state: string | null;
   zip_code: string | null;
+  apt_suite: string | null;
+  frequency: string | null;
+  bedrooms: string | null;
+  bathrooms: string | null;
+  square_footage: string | null;
+  extras: string[] | null;
+  is_draft: boolean;
   created_at: string;
   updated_at: string;
   customer: {
@@ -57,6 +64,13 @@ export interface CreateBookingData {
   city?: string;
   state?: string;
   zip_code?: string;
+  apt_suite?: string;
+  frequency?: string;
+  bedrooms?: string;
+  bathrooms?: string;
+  square_footage?: string;
+  extras?: string[];
+  is_draft?: boolean;
 }
 
 export interface NewCustomerData {

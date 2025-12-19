@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard, XCircle } from 'lucide-react';
+import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard, XCircle, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -202,6 +202,17 @@ export default function BookingsPage() {
     }
   };
 
+  const handleDuplicate = (booking: BookingWithDetails) => {
+    setEditingBooking({
+      ...booking,
+      id: '',
+      booking_number: 0,
+      payment_intent_id: null,
+      payment_status: 'pending',
+    });
+    setAddDialogOpen(true);
+  };
+
   if (error) {
     return (
       <AdminLayout title="Bookings" subtitle="Error loading bookings">
@@ -357,6 +368,12 @@ export default function BookingsPage() {
                         >
                           <Edit className="w-4 h-4" /> Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDuplicate(booking)}
+                        >
+                          <Copy className="w-4 h-4" /> Duplicate
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2" onClick={() => handleStatusChange(booking.id, 'completed')}>
                           Mark Complete
                         </DropdownMenuItem>
@@ -423,6 +440,7 @@ export default function BookingsPage() {
           if (!open) setEditingBooking(null);
         }}
         booking={editingBooking}
+        onDuplicate={handleDuplicate}
       />
 
       <BookingDetailsDialog

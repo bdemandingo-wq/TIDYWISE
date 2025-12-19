@@ -17,18 +17,25 @@ export type Database = {
       bookings: {
         Row: {
           address: string | null
+          apt_suite: string | null
+          bathrooms: string | null
+          bedrooms: string | null
           booking_number: number
           city: string | null
           created_at: string
           customer_id: string | null
           deposit_paid: number | null
           duration: number
+          extras: Json | null
+          frequency: string | null
           id: string
+          is_draft: boolean | null
           notes: string | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           scheduled_at: string
           service_id: string | null
+          square_footage: string | null
           staff_id: string | null
           state: string | null
           status: Database["public"]["Enums"]["booking_status"]
@@ -38,18 +45,25 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          apt_suite?: string | null
+          bathrooms?: string | null
+          bedrooms?: string | null
           booking_number?: number
           city?: string | null
           created_at?: string
           customer_id?: string | null
           deposit_paid?: number | null
           duration: number
+          extras?: Json | null
+          frequency?: string | null
           id?: string
+          is_draft?: boolean | null
           notes?: string | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           scheduled_at: string
           service_id?: string | null
+          square_footage?: string | null
           staff_id?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
@@ -59,18 +73,25 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          apt_suite?: string | null
+          bathrooms?: string | null
+          bedrooms?: string | null
           booking_number?: number
           city?: string | null
           created_at?: string
           customer_id?: string | null
           deposit_paid?: number | null
           duration?: number
+          extras?: Json | null
+          frequency?: string | null
           id?: string
+          is_draft?: boolean | null
           notes?: string | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           scheduled_at?: string
           service_id?: string | null
+          square_footage?: string | null
           staff_id?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["booking_status"]

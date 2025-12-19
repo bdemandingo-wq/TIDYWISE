@@ -16,8 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, addWeeks, addMonths } from 'date-fns';
 import { 
   Calendar as CalendarIcon, 
   CreditCard, 
@@ -29,19 +30,30 @@ import {
   Send,
   CheckCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Save,
+  Copy,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { useCustomers, useServices, useStaff, useCreateBooking, useCreateCustomer, BookingWithDetails } from '@/hooks/useBookings';
+import { useCustomers, useServices, useStaff, useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails } from '@/hooks/useBookings';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
+import { 
+  squareFootageRanges, 
+  extras as extrasData, 
+  frequencyOptions, 
+  bedroomOptions, 
+  bathroomOptions 
+} from '@/data/pricingData';
 
 interface AddBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: Date;
   booking?: BookingWithDetails | null;
+  onDuplicate?: (booking: BookingWithDetails) => void;
 }
 
 interface CardInfo {
@@ -59,11 +71,12 @@ const TIME_SLOTS = [
   '05:00 PM', '05:30 PM', '06:00 PM'
 ];
 
-export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: AddBookingDialogProps) {
+export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onDuplicate }: AddBookingDialogProps) {
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
   const createBooking = useCreateBooking();
+  const updateBooking = useUpdateBooking();
   const createCustomer = useCreateCustomer();
 
   // Form state
@@ -85,6 +98,18 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [totalAmount, setTotalAmount] = useState<number>(0);
+  
+  // New form fields
+  const [address, setAddress] = useState('');
+  const [aptSuite, setAptSuite] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [frequency, setFrequency] = useState('one_time');
+  const [bedrooms, setBedrooms] = useState('1');
+  const [bathrooms, setBathrooms] = useState('1');
+  const [squareFootage, setSquareFootage] = useState('');
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
 
   // Card state
   const [cardInfo, setCardInfo] = useState<CardInfo | null>(null);
@@ -96,6 +121,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -109,12 +135,61 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
     : `${newCustomer.first_name} ${newCustomer.last_name}`;
 
-  // Update total when service changes
+  // Pre-fill form when editing a booking
   useEffect(() => {
-    if (selectedService) {
+    if (booking && open) {
+      // Customer
+      if (booking.customer) {
+        setCustomerTab('existing');
+        setSelectedCustomerId(booking.customer.id);
+      }
+      
+      // Service
+      if (booking.service) {
+        setSelectedServiceId(booking.service.id);
+      }
+      
+      // Staff
+      if (booking.staff) {
+        setSelectedStaffId(booking.staff.id);
+      }
+      
+      // Date and time
+      const scheduledDate = new Date(booking.scheduled_at);
+      setSelectedDate(scheduledDate);
+      const hours = scheduledDate.getHours();
+      const minutes = scheduledDate.getMinutes();
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      setSelectedTime(`${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`);
+      
+      // Other fields
+      setNotes(booking.notes || '');
+      setTotalAmount(booking.total_amount || 0);
+      setAddress(booking.address || '');
+      setAptSuite(booking.apt_suite || '');
+      setCity(booking.city || '');
+      setState(booking.state || '');
+      setZipCode(booking.zip_code || '');
+      setFrequency(booking.frequency || 'one_time');
+      setBedrooms(booking.bedrooms || '1');
+      setBathrooms(booking.bathrooms || '1');
+      setSquareFootage(booking.square_footage || '');
+      setSelectedExtras(booking.extras || []);
+    } else if (!booking && open) {
+      // Reset for new booking but keep defaultDate
+      if (defaultDate) {
+        setSelectedDate(defaultDate);
+      }
+    }
+  }, [booking, open, defaultDate]);
+
+  // Update total when service changes (only if not editing)
+  useEffect(() => {
+    if (selectedService && !booking) {
       setTotalAmount(selectedService.price);
     }
-  }, [selectedService]);
+  }, [selectedService, booking]);
 
   // Load card info when customer changes
   useEffect(() => {
@@ -176,7 +251,6 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
         toast.success(data.message || 'Hold placed on card successfully');
         return data.paymentIntentId;
       } else if (data.declined) {
-        // Parse specific decline reasons
         const declineCode = data.declineCode;
         let friendlyMessage = data.error;
         let errorType: 'insufficient_funds' | 'declined' | 'other' = 'other';
@@ -225,7 +299,6 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
       setChargeErrorType('other');
       toast.error(errorMessage);
       return null;
-      return null;
     } finally {
       setChargingCard(false);
     }
@@ -267,7 +340,82 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     toast.success(`Card saved: ${info.brand} ending in ${info.last4}`);
   };
 
-  const handleSubmit = async () => {
+  const buildBookingData = async (isDraft: boolean) => {
+    let customerId = selectedCustomerId;
+
+    // Create new customer if needed
+    if (customerTab === 'new') {
+      const customer = await createCustomer.mutateAsync(newCustomer);
+      customerId = customer.id;
+    }
+
+    // Parse the time
+    const [time, period] = selectedTime.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) hour24 += 12;
+    if (period === 'AM' && hours === 12) hour24 = 0;
+
+    const scheduledAt = new Date(selectedDate!);
+    scheduledAt.setHours(hour24, minutes, 0, 0);
+
+    return {
+      customer_id: customerId,
+      service_id: selectedServiceId || null,
+      staff_id: selectedStaffId || null,
+      scheduled_at: scheduledAt.toISOString(),
+      duration: selectedService?.duration || 60,
+      total_amount: totalAmount,
+      status: isDraft ? 'pending' as const : 'confirmed' as const,
+      payment_status: 'pending' as const,
+      notes: notes || null,
+      address: address || null,
+      apt_suite: aptSuite || null,
+      city: city || null,
+      state: state || null,
+      zip_code: zipCode || null,
+      frequency: frequency,
+      bedrooms: bedrooms,
+      bathrooms: bathrooms,
+      square_footage: squareFootage || null,
+      extras: selectedExtras,
+      is_draft: isDraft,
+    };
+  };
+
+  const createRecurringBookings = async (baseBookingData: any) => {
+    if (frequency === 'one_time') return;
+
+    const bookingsToCreate: any[] = [];
+    const baseDate = new Date(baseBookingData.scheduled_at);
+    
+    // Create bookings for the next 3 months for recurring services
+    const intervals = frequency === 'weekly' ? 12 : frequency === 'biweekly' ? 6 : 3;
+    
+    for (let i = 1; i <= intervals; i++) {
+      let nextDate: Date;
+      if (frequency === 'weekly') {
+        nextDate = addWeeks(baseDate, i);
+      } else if (frequency === 'biweekly') {
+        nextDate = addWeeks(baseDate, i * 2);
+      } else {
+        nextDate = addMonths(baseDate, i);
+      }
+
+      bookingsToCreate.push({
+        ...baseBookingData,
+        scheduled_at: nextDate.toISOString(),
+        payment_intent_id: null, // Each booking needs its own payment
+      });
+    }
+
+    // Create all recurring bookings
+    for (const bookingData of bookingsToCreate) {
+      await createBooking.mutateAsync(bookingData);
+    }
+  };
+
+  const handleSubmit = async (isDraft: boolean = false) => {
     // Validation
     if (customerTab === 'existing' && !selectedCustomerId) {
       toast.error('Please select a customer');
@@ -286,88 +434,92 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
       return;
     }
 
-    setSubmitting(true);
+    if (isDraft) {
+      setSavingDraft(true);
+    } else {
+      setSubmitting(true);
+    }
 
     try {
-      let customerId = selectedCustomerId;
+      const bookingData = await buildBookingData(isDraft);
 
-      // Create new customer if needed
-      if (customerTab === 'new') {
-        const customer = await createCustomer.mutateAsync(newCustomer);
-        customerId = customer.id;
-      }
-
-      // Parse the time
-      const [time, period] = selectedTime.split(' ');
-      const [hours, minutes] = time.split(':').map(Number);
-      let hour24 = hours;
-      if (period === 'PM' && hours !== 12) hour24 += 12;
-      if (period === 'AM' && hours === 12) hour24 = 0;
-
-      const scheduledAt = new Date(selectedDate);
-      scheduledAt.setHours(hour24, minutes, 0, 0);
-
-      // Attempt to charge card if customer has one
-      let paymentIntentId: string | undefined;
-      if (cardInfo?.hasCard) {
-        const result = await handleChargeCard();
-        if (result) {
-          paymentIntentId = result;
-        }
-        // Don't block booking creation if card charge fails
-      }
-
-      // Get address from customer
-      const customerData = customerTab === 'existing' 
-        ? customers.find(c => c.id === customerId)
-        : newCustomer;
-
-      // Create the booking
-      const bookingData = {
-        customer_id: customerId,
-        service_id: selectedServiceId,
-        staff_id: selectedStaffId || null,
-        scheduled_at: scheduledAt.toISOString(),
-        duration: selectedService?.duration || 60,
-        total_amount: totalAmount,
-        status: 'confirmed' as const,
-        payment_status: paymentIntentId ? 'partial' as const : 'pending' as const,
-        payment_intent_id: paymentIntentId,
-        notes: notes || null,
-        address: customerData?.address || null,
-        city: customerData?.city || null,
-        state: customerData?.state || null,
-        zip_code: customerData?.zip_code || null,
-      };
-
-      await createBooking.mutateAsync(bookingData);
-
-      // Send admin notification email
-      try {
-        await supabase.functions.invoke('send-admin-booking-notification', {
-          body: {
-            customerName: customerName,
-            customerEmail: customerEmail,
-            serviceName: selectedService?.name,
-            scheduledAt: scheduledAt.toISOString(),
-            totalAmount: totalAmount,
-            address: customerData?.address,
-          }
+      if (booking) {
+        // Update existing booking
+        await updateBooking.mutateAsync({
+          id: booking.id,
+          ...bookingData,
         });
-      } catch (emailError) {
-        console.error('Failed to send admin notification:', emailError);
-        // Don't block on email failure
+        toast.success('Booking updated successfully');
+      } else {
+        // Attempt to charge card if customer has one and not a draft
+        let paymentIntentId: string | undefined;
+        if (!isDraft && cardInfo?.hasCard) {
+          const result = await handleChargeCard();
+          if (result) {
+            paymentIntentId = result;
+          }
+        }
+
+        const finalBookingData = {
+          ...bookingData,
+          payment_status: paymentIntentId ? 'partial' as const : 'pending' as const,
+          payment_intent_id: paymentIntentId,
+        };
+
+        await createBooking.mutateAsync(finalBookingData);
+
+        // Create recurring bookings if applicable
+        if (!isDraft && frequency !== 'one_time') {
+          await createRecurringBookings(finalBookingData);
+          toast.success(`Booking created with ${frequency} recurring schedule`);
+        } else {
+          toast.success(isDraft ? 'Draft quote saved' : 'Booking created successfully');
+        }
+
+        // Send admin notification email
+        if (!isDraft) {
+          try {
+            await supabase.functions.invoke('send-admin-booking-notification', {
+              body: {
+                customerName: customerName,
+                customerEmail: customerEmail,
+                serviceName: selectedService?.name,
+                scheduledAt: bookingData.scheduled_at,
+                totalAmount: totalAmount,
+                address: address,
+              }
+            });
+          } catch (emailError) {
+            console.error('Failed to send admin notification:', emailError);
+          }
+        }
       }
 
-      toast.success('Booking created successfully');
       onOpenChange(false);
       resetForm();
     } catch (error: any) {
-      console.error('Error creating booking:', error);
-      toast.error(error.message || 'Failed to create booking');
+      console.error('Error saving booking:', error);
+      toast.error(error.message || 'Failed to save booking');
     } finally {
       setSubmitting(false);
+      setSavingDraft(false);
     }
+  };
+
+  const handleDuplicate = () => {
+    if (!booking) return;
+    
+    // Create a copy of the booking data for duplication
+    const duplicateBooking = {
+      ...booking,
+      id: undefined,
+      booking_number: undefined,
+      payment_intent_id: null,
+      payment_status: 'pending' as const,
+    };
+    
+    onDuplicate?.(duplicateBooking as BookingWithDetails);
+    toast.success('Booking duplicated - adjust the date and save');
   };
 
   const resetForm = () => {
@@ -389,21 +541,47 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     setSelectedTime('');
     setNotes('');
     setTotalAmount(0);
+    setAddress('');
+    setAptSuite('');
+    setCity('');
+    setState('');
+    setZipCode('');
+    setFrequency('one_time');
+    setBedrooms('1');
+    setBathrooms('1');
+    setSquareFootage('');
+    setSelectedExtras([]);
     setCardInfo(null);
     setChargeError(null);
   };
 
+  const toggleExtra = (extraId: string) => {
+    setSelectedExtras(prev => 
+      prev.includes(extraId) 
+        ? prev.filter(id => id !== extraId)
+        : [...prev, extraId]
+    );
+  };
+
+  // Calculate extras total
+  const extrasTotal = selectedExtras.reduce((sum, extraId) => {
+    const extra = extrasData.find(e => e.id === extraId);
+    return sum + (extra?.price || 0);
+  }, 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{booking ? 'Edit Booking' : 'New Booking'}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {booking ? 'Edit Booking' : 'New Booking'}
+            {booking?.is_draft && <Badge variant="secondary">Draft</Badge>}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Customer & Service */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Column 1 - Customer */}
           <div className="space-y-6">
-            {/* Customer Selection */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -473,72 +651,154 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                         placeholder="(555) 123-4567"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <AddressAutocomplete
-                        value={newCustomer.address}
-                        onChange={(value) => setNewCustomer(prev => ({ ...prev, address: value }))}
-                        onAddressSelect={(addressData) => {
-                          setNewCustomer(prev => ({
-                            ...prev,
-                            address: addressData.address,
-                            city: addressData.city,
-                            state: addressData.state,
-                            zip_code: addressData.zipCode
-                          }));
-                        }}
-                        placeholder="Start typing address..."
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <Label htmlFor="city">City</Label>
-                        <Input
-                          id="city"
-                          value={newCustomer.city}
-                          onChange={(e) => setNewCustomer(prev => ({ ...prev, city: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="state">State</Label>
-                        <Input
-                          id="state"
-                          value={newCustomer.state}
-                          onChange={(e) => setNewCustomer(prev => ({ ...prev, state: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="zipCode">ZIP</Label>
-                        <Input
-                          id="zipCode"
-                          value={newCustomer.zip_code}
-                          onChange={(e) => setNewCustomer(prev => ({ ...prev, zip_code: e.target.value }))}
-                        />
-                      </div>
-                    </div>
                   </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
 
-            {/* Service Selection */}
+            {/* Property Details */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Property Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>Address</Label>
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={setAddress}
+                    onAddressSelect={(addressData) => {
+                      setAddress(addressData.address);
+                      setCity(addressData.city);
+                      setState(addressData.state);
+                      setZipCode(addressData.zipCode);
+                    }}
+                    placeholder="Start typing address..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="aptSuite">Apt / Suite</Label>
+                  <Input
+                    id="aptSuite"
+                    value={aptSuite}
+                    onChange={(e) => setAptSuite(e.target.value)}
+                    placeholder="Apt 4B"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zipCode">ZIP</Label>
+                    <Input
+                      id="zipCode"
+                      value={zipCode}
+                      onChange={(e) => setZipCode(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Bedrooms</Label>
+                    <Select value={bedrooms} onValueChange={setBedrooms}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bedroomOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Bathrooms</Label>
+                    <Select value={bathrooms} onValueChange={setBathrooms}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bathroomOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Square Footage</Label>
+                  <Select value={squareFootage} onValueChange={setSquareFootage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sq ft range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {squareFootageRanges.map((range) => (
+                        <SelectItem key={range.label} value={range.label}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Column 2 - Service & Extras */}
+          <div className="space-y-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Service</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name} - ${service.price}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label>Service Type</Label>
+                  <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name} - ${service.price}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Frequency</Label>
+                  <Select value={frequency} onValueChange={setFrequency}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {frequencyOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div>
                   <Label htmlFor="totalAmount">Total Amount</Label>
@@ -569,11 +829,47 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                 </div>
               </CardContent>
             </Card>
+
+            {/* Extras */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Extras</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {extrasData.map((extra) => (
+                    <div 
+                      key={extra.id}
+                      className={cn(
+                        "flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-colors",
+                        selectedExtras.includes(extra.id) 
+                          ? "border-primary bg-primary/10" 
+                          : "border-border hover:border-primary/50"
+                      )}
+                      onClick={() => toggleExtra(extra.id)}
+                    >
+                      <Checkbox 
+                        checked={selectedExtras.includes(extra.id)}
+                        onCheckedChange={() => toggleExtra(extra.id)}
+                      />
+                      <div className="flex-1 text-sm">
+                        <p className="font-medium">{extra.name}</p>
+                        <p className="text-muted-foreground">${extra.price}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {extrasTotal > 0 && (
+                  <div className="mt-3 pt-3 border-t text-sm">
+                    Extras Total: <span className="font-semibold">${extrasTotal}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Right Column - Schedule & Payment */}
+          {/* Column 3 - Schedule & Payment */}
           <div className="space-y-6">
-            {/* Date & Time */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -602,7 +898,6 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                         mode="single"
                         selected={selectedDate}
                         onSelect={setSelectedDate}
-                        disabled={(date) => date < new Date()}
                         initialFocus
                       />
                     </PopoverContent>
@@ -781,17 +1076,41 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
         {/* Footer */}
         <Separator className="my-4" />
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="text-lg font-semibold">
-            Total: <span className="text-primary">${totalAmount.toFixed(2)}</span>
+            Total: <span className="text-primary">${(totalAmount + extrasTotal).toFixed(2)}</span>
+            {extrasTotal > 0 && (
+              <span className="text-sm text-muted-foreground ml-2">
+                (${totalAmount} + ${extrasTotal} extras)
+              </span>
+            )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
+            
+            {booking && (
+              <Button variant="outline" onClick={handleDuplicate}>
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate
+              </Button>
+            )}
+            
+            <Button 
+              variant="secondary" 
+              onClick={() => handleSubmit(true)} 
+              disabled={savingDraft || submitting}
+            >
+              {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <FileText className="mr-2 h-4 w-4" />
+              Save as Draft
+            </Button>
+            
+            <Button onClick={() => handleSubmit(false)} disabled={submitting || savingDraft}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {booking ? 'Update Booking' : 'Create Booking'}
+              <Save className="mr-2 h-4 w-4" />
+              {booking ? 'Update Booking' : 'Save Booking'}
             </Button>
           </div>
         </div>
