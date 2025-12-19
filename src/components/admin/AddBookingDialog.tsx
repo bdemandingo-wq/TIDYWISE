@@ -22,7 +22,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
         </DialogHeader>
         <div className="flex-1 overflow-hidden h-full">
           <iframe 
-            src="https://agencyfootprintcleaning.bookingkoala.com/booknow?embed=true" 
+            src="https://agencyfootprintcleaning.bookingkoala.com/admin/booking/add/home_cleaning" 
             style={{ border: 'none', height: 'calc(90vh - 60px)' }}
             width="100%" 
             scrolling="yes"
