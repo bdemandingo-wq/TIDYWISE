@@ -19,7 +19,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard, XCircle, Copy } from 'lucide-react';
+import { 
+  Search, 
+  Download, 
+  MoreHorizontal, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  Plus, 
+  Loader2, 
+  CreditCard, 
+  XCircle, 
+  Copy,
+  Calendar,
+  User,
+  Clock,
+  DollarSign,
+  Filter
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -35,31 +52,31 @@ import { BookingDetailsDialog } from '@/components/admin/BookingDialogs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-warning/20 text-warning border-warning/30',
-  confirmed: 'bg-primary/20 text-primary border-primary/30',
-  in_progress: 'bg-info/20 text-info border-info/30',
-  completed: 'bg-success/20 text-success border-success/30',
-  cancelled: 'bg-destructive/20 text-destructive border-destructive/30',
-  no_show: 'bg-muted text-muted-foreground border-muted',
+const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
+  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
+  no_show: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
 };
 
 const getPaymentStatusInfo = (booking: BookingWithDetails) => {
   const hasPaymentIntent = !!(booking as any).payment_intent_id;
   
   if (booking.payment_status === 'paid') {
-    return { label: 'Paid', className: 'bg-success/20 text-success border-success/30' };
+    return { label: 'Paid', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: '✓' };
   }
   if (booking.payment_status === 'refunded') {
-    return { label: 'Refunded', className: 'bg-muted text-muted-foreground border-muted' };
+    return { label: 'Refunded', bg: 'bg-slate-100', text: 'text-slate-600', icon: '↩' };
   }
   if (hasPaymentIntent && booking.payment_status === 'partial') {
-    return { label: 'Hold Active', className: 'bg-warning/20 text-warning border-warning/30' };
+    return { label: 'Hold', bg: 'bg-amber-50', text: 'text-amber-700', icon: '◐' };
   }
   if (hasPaymentIntent) {
-    return { label: 'Hold Active', className: 'bg-warning/20 text-warning border-warning/30' };
+    return { label: 'Hold', bg: 'bg-amber-50', text: 'text-amber-700', icon: '◐' };
   }
-  return { label: 'No Payment', className: 'bg-destructive/20 text-destructive border-destructive/30' };
+  return { label: 'Unpaid', bg: 'bg-rose-50', text: 'text-rose-700', icon: '○' };
 };
 
 export default function BookingsPage() {
@@ -92,6 +109,14 @@ export default function BookingsPage() {
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Stats
+  const stats = {
+    total: bookings.length,
+    pending: bookings.filter(b => b.status === 'pending').length,
+    confirmed: bookings.filter(b => b.status === 'confirmed').length,
+    completed: bookings.filter(b => b.status === 'completed').length,
+  };
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     await updateBooking.mutateAsync({
@@ -176,7 +201,6 @@ export default function BookingsPage() {
           description: data.message 
         });
         
-        // Update booking payment status
         await updateBooking.mutateAsync({ 
           id: booking.id, 
           payment_status: 'paid' as any
@@ -225,7 +249,6 @@ export default function BookingsPage() {
           description: data.message 
         });
         
-        // Update booking payment status to refunded
         await updateBooking.mutateAsync({ 
           id: booking.id, 
           payment_status: 'refunded' as any
@@ -273,252 +296,369 @@ export default function BookingsPage() {
   return (
     <AdminLayout
       title="Bookings"
-      subtitle={`${filteredBookings.length} total bookings`}
+      subtitle="Manage your appointments"
       actions={
         <Button
-          className="gap-2"
+          className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-md"
           onClick={() => {
             setEditingBooking(null);
             setAddDialogOpen(true);
           }}
         >
           <Plus className="w-4 h-4" />
-          Add Booking
+          New Booking
         </Button>
       }
     >
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in">
+        <div className="group relative bg-gradient-to-br from-card to-secondary/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Total</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.total}</p>
+          </div>
+        </div>
+        
+        <div className="group relative bg-gradient-to-br from-card to-amber-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-amber-100 rounded-xl">
+                <Clock className="w-5 h-5 text-amber-600" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Pending</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.pending}</p>
+          </div>
+        </div>
+        
+        <div className="group relative bg-gradient-to-br from-card to-blue-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-100 rounded-xl">
+                <User className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Confirmed</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.confirmed}</p>
+          </div>
+        </div>
+        
+        <div className="group relative bg-gradient-to-br from-card to-emerald-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-100 rounded-xl">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Completed</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search bookings..."
+            placeholder="Search by name, service, or booking #..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            className="pl-11 h-11 bg-card border-border/50 rounded-xl focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="no_show">No Show</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export
-        </Button>
-        {selectedBookings.size > 0 && (
-          <Button 
-            variant="destructive" 
-            className="gap-2"
-            onClick={handleBulkDelete}
-            disabled={bulkDeleting}
-          >
-            {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete ({selectedBookings.size})
+        <div className="flex gap-3">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px] h-11 bg-card border-border/50 rounded-xl">
+              <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border rounded-xl">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="no_show">No Show</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="h-11 gap-2 rounded-xl border-border/50 hover:bg-secondary/50">
+            <Download className="w-4 h-4" />
+            Export
           </Button>
-        )}
+          {selectedBookings.size > 0 && (
+            <Button 
+              variant="destructive" 
+              className="h-11 gap-2 rounded-xl"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Delete ({selectedBookings.size})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading bookings...</p>
+            </div>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <p className="text-muted-foreground mb-4">No bookings found</p>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create your first booking
+          <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+            <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
+              <Calendar className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No bookings found</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              {searchTerm || statusFilter !== 'all' 
+                ? "Try adjusting your search or filter criteria"
+                : "Get started by creating your first booking"
+              }
+            </p>
+            <Button 
+              onClick={() => setAddDialogOpen(true)}
+              className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            >
+              <Plus className="w-4 h-4" />
+              Create Booking
             </Button>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50px]">
-                  <Checkbox 
-                    checked={selectedBookings.size === filteredBookings.length && filteredBookings.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Booking ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Staff</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBookings.map((booking) => (
-                <TableRow key={booking.id} className={cn("hover:bg-muted/30", selectedBookings.has(booking.id) && "bg-muted/50")}>
-                  <TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-secondary/30 hover:bg-secondary/30">
+                  <TableHead className="w-[50px]">
                     <Checkbox 
-                      checked={selectedBookings.has(booking.id)}
-                      onCheckedChange={() => toggleSelectBooking(booking.id)}
+                      checked={selectedBookings.size === filteredBookings.length && filteredBookings.length > 0}
+                      onCheckedChange={toggleSelectAll}
                     />
-                  </TableCell>
-                  <TableCell className="font-mono text-sm font-semibold">
-                    #{booking.booking_number}
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">
-                        {booking.customer 
-                          ? `${booking.customer.first_name} ${booking.customer.last_name}`
-                          : 'Unknown Customer'
-                        }
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {booking.customer?.email || 'No email'}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{booking.service?.name || 'Unknown Service'}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">
-                        {format(new Date(booking.scheduled_at), 'MMM d, yyyy')}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(booking.scheduled_at), 'h:mm a')}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{booking.staff?.name || 'Unassigned'}</TableCell>
-                  <TableCell>
-                    <Badge className={cn('capitalize', statusColors[booking.status] || statusColors.pending)}>
-                      {booking.status.replace('_', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn('capitalize', getPaymentStatusInfo(booking).className)}>
-                      {getPaymentStatusInfo(booking).label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-semibold">${booking.total_amount}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => {
-                            setActiveBooking(booking);
-                            setViewDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => {
-                            setEditingBooking(booking);
-                            setAddDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => handleDuplicate(booking)}
-                        >
-                          <Copy className="w-4 h-4" /> Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => handleStatusChange(booking.id, 'completed')}>
-                          Mark Complete
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => handleCapturePayment(booking)}
-                          disabled={
-                            capturingPayment === booking.id ||
-                            booking.payment_status === 'paid' ||
-                            !(booking as any).payment_intent_id
-                          }
-                        >
-                          {capturingPayment === booking.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CreditCard className="w-4 h-4" />
-                          )}
-                          {booking.payment_status === 'paid'
-                            ? 'Payment Captured'
-                            : !(booking as any).payment_intent_id
-                              ? 'No Hold'
-                              : 'Capture Payment'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2 text-warning"
-                          onClick={() => handleCancelHold(booking)}
-                          disabled={
-                            cancelingHold === booking.id ||
-                            booking.payment_status === 'paid' ||
-                            booking.payment_status === 'refunded' ||
-                            !(booking as any).payment_intent_id
-                          }
-                        >
-                          {cancelingHold === booking.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <XCircle className="w-4 h-4" />
-                          )}
-                          {booking.payment_status === 'refunded'
-                            ? 'Hold Released'
-                            : !(booking as any).payment_intent_id
-                              ? 'No Hold'
-                              : 'Release Hold'}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(booking)}>
-                          <Trash2 className="w-4 h-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="font-semibold">Booking</TableHead>
+                  <TableHead className="font-semibold">Customer</TableHead>
+                  <TableHead className="font-semibold">Service</TableHead>
+                  <TableHead className="font-semibold">Schedule</TableHead>
+                  <TableHead className="font-semibold">Staff</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Payment</TableHead>
+                  <TableHead className="font-semibold text-right">Amount</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredBookings.map((booking, index) => {
+                  const statusStyle = statusConfig[booking.status] || statusConfig.pending;
+                  const paymentInfo = getPaymentStatusInfo(booking);
+                  
+                  return (
+                    <TableRow 
+                      key={booking.id} 
+                      className={cn(
+                        "group transition-colors hover:bg-secondary/20",
+                        selectedBookings.has(booking.id) && "bg-primary/5"
+                      )}
+                      style={{ animationDelay: `${index * 0.03}s` }}
+                    >
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedBookings.has(booking.id)}
+                          onCheckedChange={() => toggleSelectBooking(booking.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-sm font-bold text-primary">
+                          #{booking.booking_number}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                            <span className="text-sm font-semibold text-primary">
+                              {booking.customer?.first_name?.[0] || '?'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {booking.customer 
+                                ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                                : 'Unknown'
+                              }
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {booking.customer?.email || 'No email'}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">{booking.service?.name || 'Unknown'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">
+                            {format(new Date(booking.scheduled_at), 'MMM d, yyyy')}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(booking.scheduled_at), 'h:mm a')}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "text-sm",
+                          booking.staff?.name ? "text-foreground" : "text-muted-foreground italic"
+                        )}>
+                          {booking.staff?.name || 'Unassigned'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className={cn(
+                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium",
+                          statusStyle.bg, statusStyle.text
+                        )}>
+                          <span className={cn("w-1.5 h-1.5 rounded-full", statusStyle.dot)} />
+                          {booking.status.replace('_', ' ')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                          paymentInfo.bg, paymentInfo.text
+                        )}>
+                          <span>{paymentInfo.icon}</span>
+                          {paymentInfo.label}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-bold text-foreground">${booking.total_amount}</span>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-popover border-border rounded-xl">
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
+                                setActiveBooking(booking);
+                                setViewDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
+                                setEditingBooking(booking);
+                                setAddDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => handleDuplicate(booking)}
+                            >
+                              <Copy className="w-4 h-4" /> Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer" 
+                              onClick={() => handleStatusChange(booking.id, 'completed')}
+                            >
+                              Mark Complete
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => handleCapturePayment(booking)}
+                              disabled={
+                                capturingPayment === booking.id ||
+                                booking.payment_status === 'paid' ||
+                                !(booking as any).payment_intent_id
+                              }
+                            >
+                              {capturingPayment === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-4 h-4" />
+                              )}
+                              {booking.payment_status === 'paid'
+                                ? 'Payment Captured'
+                                : !(booking as any).payment_intent_id
+                                  ? 'No Hold'
+                                  : 'Capture Payment'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => handleCancelHold(booking)}
+                              disabled={
+                                cancelingHold === booking.id ||
+                                booking.payment_status === 'paid' ||
+                                booking.payment_status === 'refunded' ||
+                                !(booking as any).payment_intent_id
+                              }
+                            >
+                              {cancelingHold === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <XCircle className="w-4 h-4" />
+                              )}
+                              Release Hold
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive cursor-pointer focus:text-destructive"
+                              onClick={() => handleDelete(booking)}
+                            >
+                              <Trash2 className="w-4 h-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
+      {/* Dialogs */}
       <AddBookingDialog
         open={addDialogOpen}
-        onOpenChange={(open) => {
-          setAddDialogOpen(open);
-          if (!open) setEditingBooking(null);
-        }}
+        onOpenChange={setAddDialogOpen}
         booking={editingBooking}
         onDuplicate={handleDuplicate}
       />
-
+      
       <BookingDetailsDialog
         open={viewDialogOpen}
-        onOpenChange={(open) => {
-          setViewDialogOpen(open);
-          if (!open) setActiveBooking(null);
-        }}
+        onOpenChange={setViewDialogOpen}
         booking={activeBooking}
       />
     </AdminLayout>
