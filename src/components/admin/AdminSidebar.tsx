@@ -12,6 +12,7 @@ import {
   Home,
   DollarSign,
   Receipt,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Staff', href: '/admin/staff', icon: UserCircle },
   { name: 'Payroll', href: '/admin/payroll', icon: DollarSign },
   { name: 'Finance', href: '/admin/finance', icon: Receipt },
+  { name: 'Expenses', href: '/admin/expenses', icon: Package },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];
 

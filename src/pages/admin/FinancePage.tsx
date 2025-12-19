@@ -71,6 +71,20 @@ export default function FinancePage() {
     },
   });
 
+  // Fetch expenses for the date range
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses-finance', dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Transform bookings to transactions with calculated fees
   const transactions: Transaction[] = useMemo(() => {
     return bookings.map((b: any) => {
@@ -122,8 +136,8 @@ export default function FinancePage() {
     const refundedTransactions = transactions.filter(t => t.payment_status === 'refunded');
     const totalRefunds = refundedTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
     
-    // For now, supplies is a placeholder - could be tracked separately
-    const suppliesCost = 0;
+    // Calculate supplies cost from expenses
+    const suppliesCost = expenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
     
     const netRevenue = totalSales - totalFees;
     const netProfit = netRevenue - totalCleanerPay - suppliesCost - totalRefunds;
@@ -134,13 +148,13 @@ export default function FinancePage() {
       totalFees: Math.round(totalFees * 100) / 100,
       netRevenue: Math.round(netRevenue * 100) / 100,
       totalCleanerPay: Math.round(totalCleanerPay * 100) / 100,
-      suppliesCost,
+      suppliesCost: Math.round(suppliesCost * 100) / 100,
       totalRefunds: Math.round(totalRefunds * 100) / 100,
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 10) / 10,
       transactionCount: paidTransactions.length,
     };
-  }, [transactions]);
+  }, [transactions, expenses]);
 
   // Sales tax by zip code
   const salesTaxByZip = useMemo(() => {

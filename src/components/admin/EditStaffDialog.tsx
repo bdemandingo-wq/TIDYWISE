@@ -34,6 +34,8 @@ interface StaffMember {
   tax_classification?: string | null;
   base_wage?: number | null;
   tax_document_url?: string | null;
+  ssn_last4?: string | null;
+  ein?: string | null;
 }
 
 interface EditStaffDialogProps {
@@ -58,6 +60,8 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     tax_classification: 'w2' as 'w2' | '1099',
     base_wage: '',
     tax_document_url: '',
+    ssn_last4: '',
+    ein: '',
   });
 
   useEffect(() => {
@@ -72,6 +76,8 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         tax_classification: (staff.tax_classification as 'w2' | '1099') || 'w2',
         base_wage: staff.base_wage?.toString() || '',
         tax_document_url: staff.tax_document_url || '',
+        ssn_last4: staff.ssn_last4 || '',
+        ein: staff.ein || '',
       });
     }
   }, [staff]);
@@ -94,6 +100,8 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           tax_classification: formData.tax_classification,
           base_wage: formData.base_wage ? parseFloat(formData.base_wage) : null,
           tax_document_url: formData.tax_document_url || null,
+          ssn_last4: formData.ssn_last4 || null,
+          ein: formData.ein || null,
         })
         .eq('id', staff.id);
 
@@ -280,6 +288,31 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
                 onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
                 placeholder="25.00"
               />
+            </div>
+          </div>
+
+          {/* SSN/EIN Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-ssn_last4">SSN (Last 4 digits)</Label>
+              <Input
+                id="edit-ssn_last4"
+                value={formData.ssn_last4}
+                onChange={(e) => setFormData({ ...formData, ssn_last4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                placeholder="1234"
+                maxLength={4}
+              />
+              <p className="text-xs text-muted-foreground">For 1099-NEC filing</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-ein">EIN (if applicable)</Label>
+              <Input
+                id="edit-ein"
+                value={formData.ein}
+                onChange={(e) => setFormData({ ...formData, ein: e.target.value })}
+                placeholder="XX-XXXXXXX"
+              />
+              <p className="text-xs text-muted-foreground">For contractors with EIN</p>
             </div>
           </div>
 

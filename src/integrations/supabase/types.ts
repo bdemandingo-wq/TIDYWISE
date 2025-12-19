@@ -270,6 +270,42 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          expense_date: string
+          id: string
+          receipt_url: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          description: string
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          receipt_url?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -383,12 +419,14 @@ export type Database = {
           base_wage: number | null
           bio: string | null
           created_at: string
+          ein: string | null
           email: string
           hourly_rate: number | null
           id: string
           is_active: boolean
           name: string
           phone: string | null
+          ssn_last4: string | null
           tax_classification: string | null
           tax_document_url: string | null
           updated_at: string
@@ -399,12 +437,14 @@ export type Database = {
           base_wage?: number | null
           bio?: string | null
           created_at?: string
+          ein?: string | null
           email: string
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
           name: string
           phone?: string | null
+          ssn_last4?: string | null
           tax_classification?: string | null
           tax_document_url?: string | null
           updated_at?: string
@@ -415,12 +455,14 @@ export type Database = {
           base_wage?: number | null
           bio?: string | null
           created_at?: string
+          ein?: string | null
           email?: string
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
           name?: string
           phone?: string | null
+          ssn_last4?: string | null
           tax_classification?: string | null
           tax_document_url?: string | null
           updated_at?: string
