@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Home,
   DollarSign,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Staff', href: '/admin/staff', icon: UserCircle },
   { name: 'Payroll', href: '/admin/payroll', icon: DollarSign },
+  { name: 'Finance', href: '/admin/finance', icon: Receipt },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];
 

@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Percent, Clock } from "lucide-react";
+import { Loader2, DollarSign, Percent, Clock, Send, CreditCard } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string }> = [
   { value: "pending", label: "Pending Payment" },
@@ -36,7 +37,46 @@ export function BookingDetailsDialog({
   onOpenChange: (open: boolean) => void;
   booking: BookingWithDetails | null;
 }) {
+  const [sendingLink, setSendingLink] = useState(false);
+
   if (!booking) return null;
+
+  const handleSendCardLink = async () => {
+    if (!booking.customer?.email) {
+      toast({
+        title: "Error",
+        description: "Customer email is required to send card link",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingLink(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-card-collection-link', {
+        body: {
+          email: booking.customer.email,
+          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Card link sent!",
+        description: `A secure card setup link has been emailed to ${booking.customer.email}`,
+      });
+    } catch (error: any) {
+      console.error('Error sending card link:', error);
+      toast({
+        title: "Failed to send",
+        description: error.message || "Could not send card collection link",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingLink(false);
+    }
+  };
 
   const scheduled = new Date(booking.scheduled_at);
   const bookingAny = booking as any;
@@ -125,7 +165,23 @@ export function BookingDetailsDialog({
           ) : null}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {booking.customer?.email && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={handleSendCardLink}
+              disabled={sendingLink}
+            >
+              {sendingLink ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4" />
+              )}
+              Send Secure Card Link
+            </Button>
+          )}
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Close
           </Button>

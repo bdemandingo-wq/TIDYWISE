@@ -16,6 +16,7 @@ import CustomersPage from "./pages/admin/CustomersPage";
 import ServicesPage from "./pages/admin/ServicesPage";
 import StaffPage from "./pages/admin/StaffPage";
 import PayrollPage from "./pages/admin/PayrollPage";
+import FinancePage from "./pages/admin/FinancePage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import NotificationsPage from "./pages/admin/NotificationsPage";
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/admin/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
               <Route path="/admin/staff" element={<ProtectedRoute><StaffPage /></ProtectedRoute>} />
               <Route path="/admin/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
+              <Route path="/admin/finance" element={<ProtectedRoute><FinancePage /></ProtectedRoute>} />
               <Route path="/admin/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
               <Route path="/admin/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/admin/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
