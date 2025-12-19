@@ -390,16 +390,17 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
     const bookingsToCreate: any[] = [];
     const baseDate = new Date(baseBookingData.scheduled_at);
     
-    // Create bookings for the next 3 months for recurring services
-    const intervals = frequency === 'weekly' ? 12 : frequency === 'biweekly' ? 6 : 3;
+    // Create 3 bookings in advance for all recurring frequencies
+    const numBookings = 3;
     
-    for (let i = 1; i <= intervals; i++) {
+    for (let i = 1; i <= numBookings; i++) {
       let nextDate: Date;
       if (frequency === 'weekly') {
         nextDate = addWeeks(baseDate, i);
       } else if (frequency === 'biweekly') {
         nextDate = addWeeks(baseDate, i * 2);
       } else {
+        // monthly
         nextDate = addMonths(baseDate, i);
       }
 
