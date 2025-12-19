@@ -830,6 +830,20 @@ export default function BookingsPage() {
                             >
                               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
                             </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-emerald-600" 
+                              onClick={async () => {
+                                await updateBooking.mutateAsync({
+                                  id: booking.id,
+                                  payment_status: 'paid' as any
+                                });
+                                toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
+                              }}
+                              disabled={booking.payment_status === 'paid'}
+                            >
+                              <CreditCard className="w-4 h-4" /> 
+                              {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer text-emerald-600"
