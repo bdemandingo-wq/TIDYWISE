@@ -146,8 +146,13 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
   };
 
   const handleChargeCard = async () => {
-    if (!customerEmail || !totalAmount) {
-      toast.error('Please select a customer and service first');
+    if (!customerEmail) {
+      toast.error('Please select a customer first');
+      return;
+    }
+    
+    if (!totalAmount || totalAmount < 0.50) {
+      toast.error('Amount must be at least $0.50 to charge a card');
       return;
     }
 
