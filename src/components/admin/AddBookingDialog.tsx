@@ -44,7 +44,7 @@ import {
   CreditCard,
   Check,
 } from 'lucide-react';
-
+import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import {
   BookingWithDetails,
   useCreateBooking,
@@ -1086,9 +1086,44 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                 
                 {paymentMethod === 'card' && (
                   <div className="p-4 border rounded-lg max-w-md space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Card payment will be collected at time of service.
-                    </p>
+                    {savedCardInfo ? (
+                      <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <CreditCard className="w-5 h-5 text-emerald-600" />
+                        <div>
+                          <p className="font-medium text-emerald-800">
+                            {savedCardInfo.brand} •••• {savedCardInfo.last4}
+                          </p>
+                          <p className="text-xs text-emerald-600">Card on file</p>
+                        </div>
+                        <Check className="w-5 h-5 text-emerald-600 ml-auto" />
+                      </div>
+                    ) : (
+                      <>
+                        {getCustomerEmail() && getCustomerName() ? (
+                          <StripeCardForm
+                            email={getCustomerEmail()}
+                            customerName={getCustomerName()}
+                            onCardSaved={handleCardSaved}
+                          />
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Please enter customer details first to save a card.
+                          </p>
+                        )}
+                      </>
+                    )}
+                    
+                    <Button 
+                      type="button" 
+                      className="w-full bg-amber-500 hover:bg-amber-600"
+                      onClick={handlePlaceHold}
+                      disabled={chargingCard || !savedCardInfo}
+                    >
+                      {chargingCard ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : null}
+                      Place Hold for ${finalPrice.toFixed(2)}
+                    </Button>
                   </div>
                 )}
                 

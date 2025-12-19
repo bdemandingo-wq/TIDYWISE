@@ -15,7 +15,6 @@ import ServicesPage from "./pages/admin/ServicesPage";
 import StaffPage from "./pages/admin/StaffPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
-import BookingFormPage from "./pages/admin/BookingFormPage";
 import NotificationsPage from "./pages/admin/NotificationsPage";
 import NotFound from "./pages/NotFound";
 
@@ -43,7 +42,6 @@ const App = () => (
             <Route path="/admin/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/admin/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-            <Route path="/admin/booking-form" element={<ProtectedRoute><BookingFormPage /></ProtectedRoute>} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
