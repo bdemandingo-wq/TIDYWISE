@@ -455,7 +455,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
     try {
       const bookingData = await buildBookingData(isDraft);
 
-      if (booking) {
+      // Only update when we have a real booking id.
+      // Duplicates prefill the form with a booking object but without an id.
+      if (booking?.id) {
         // Update existing booking
         await updateBooking.mutateAsync({
           id: booking.id,
