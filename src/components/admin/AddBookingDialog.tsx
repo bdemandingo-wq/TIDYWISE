@@ -98,6 +98,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [aptNumber, setAptNumber] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
@@ -241,6 +242,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     setEmail('');
     setPhone('');
     setAddress('');
+    setAptNumber('');
     setCity('');
     setState('');
     setZipCode('');
@@ -278,6 +280,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     setPrivateCustomerNote('');
     setNoteForProvider('');
     setPaymentIntentId(null);
+    setSavedCardInfo(null);
   };
 
   const handleSendPaymentLink = async () => {
@@ -370,8 +373,8 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
       return;
     }
     
-    if (!finalPrice || finalPrice <= 0) {
-      toast({ title: "Error", description: "Invalid amount for hold", variant: "destructive" });
+    if (!finalPrice || finalPrice < 0.50) {
+      toast({ title: "Error", description: "Amount must be at least $0.50 to place a hold", variant: "destructive" });
       return;
     }
     
@@ -418,11 +421,31 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
   };
 
   useEffect(() => {
-    if (!open || !booking) return;
+    if (!open) return;
+    
+    // Reset form when opening fresh (not editing)
+    if (!booking) {
+      resetForm();
+      return;
+    }
 
     // Prefill the same booking form for editing
     setCustomerType('existing');
     setSelectedCustomerId(booking.customer?.id || '');
+
+    // Populate customer details from booking for display
+    if (booking.customer) {
+      setFirstName(booking.customer.first_name || '');
+      setLastName(booking.customer.last_name || '');
+      setEmail(booking.customer.email || '');
+      setPhone(booking.customer.phone || '');
+    }
+
+    // Populate address fields from booking
+    setAddress(booking.address || '');
+    setCity(booking.city || '');
+    setState(booking.state || '');
+    setZipCode(booking.zip_code || '');
 
     if (booking.staff?.id) setSelectedStaffId(booking.staff.id);
 
@@ -435,11 +458,22 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     const matched = cleaningServices.find((s) => serviceName.includes(s.name.toLowerCase()));
     if (matched) setSelectedService(matched.id as any);
 
+    // Set duration
+    if (booking.duration) {
+      setAdjustTime(true);
+      setCustomDuration(String(booking.duration));
+    }
+
     setAdjustPrice(true);
     setCustomPrice(String(booking.total_amount ?? ''));
 
     // Put existing notes into Special Notes so they stay visible/editable
     setSpecialNotes(booking.notes || '');
+
+    // Preserve payment intent if exists
+    if (booking.payment_intent_id) {
+      setPaymentIntentId(booking.payment_intent_id);
+    }
   }, [open, booking]);
 
   const handleSubmit = async (e: React.FormEvent, saveType: 'booking' | 'draft' | 'quote' = 'booking') => {
@@ -447,7 +481,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
 
     try {
       let customerId = selectedCustomerId;
-      let customerAddress = address;
+      // Combine address with apt number if provided
+      const fullAddress = aptNumber ? `${address}, ${aptNumber}` : address;
+      let customerAddress = fullAddress;
       let customerCity = city;
       let customerState = state;
       let customerZip = zipCode;
@@ -460,7 +496,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
             last_name: lastName,
             email,
             phone: phone || undefined,
-            address: address || undefined,
+            address: fullAddress || undefined,
             city: city || undefined,
             state: state || undefined,
             zip_code: zipCode || undefined,
@@ -688,20 +724,26 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label>Apt/Suite #</Label>
+                      <Input
+                        value={aptNumber}
+                        onChange={(e) => setAptNumber(e.target.value)}
+                        placeholder="Apt, Suite, Unit, etc."
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>City</Label>
                       <Input
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-2">
-                        <Label>State</Label>
-                        <Input
-                          value={state}
-                          onChange={(e) => setState(e.target.value)}
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label>State</Label>
+                      <Input
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                      />
                     </div>
                   </div>
                 )}
@@ -825,7 +867,11 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                           mode="single"
                           selected={scheduledDate ? new Date(scheduledDate) : undefined}
                           onSelect={(date) => date && setScheduledDate(date.toISOString().split('T')[0])}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return date < today;
+                          }}
                           initialFocus
                         />
                       </PopoverContent>
@@ -1278,30 +1324,44 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
 
             {/* Action Buttons */}
             <div className="space-y-2">
-              <Button 
-                className="w-full bg-emerald-500 hover:bg-emerald-600" 
-                onClick={(e) => handleSubmit(e, 'booking')}
-                disabled={isSubmitting || !selectedService || !squareFootage}
-              >
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Booking
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white"
-                onClick={(e) => handleSubmit(e, 'draft')}
-                disabled={isSubmitting}
-              >
-                Save As Draft
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full border-orange-400 text-orange-500 hover:bg-orange-50"
-                onClick={(e) => handleSubmit(e, 'quote')}
-                disabled={isSubmitting}
-              >
-                Save As Quote
-              </Button>
+              {isEdit && (
+                <Button 
+                  className="w-full bg-blue-500 hover:bg-blue-600" 
+                  onClick={(e) => handleSubmit(e, 'booking')}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Update Booking
+                </Button>
+              )}
+              {!isEdit && (
+                <>
+                  <Button 
+                    className="w-full bg-emerald-500 hover:bg-emerald-600" 
+                    onClick={(e) => handleSubmit(e, 'booking')}
+                    disabled={isSubmitting || !selectedService || !squareFootage}
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Save Booking
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+                    onClick={(e) => handleSubmit(e, 'draft')}
+                    disabled={isSubmitting}
+                  >
+                    Save As Draft
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-orange-400 text-orange-500 hover:bg-orange-50"
+                    onClick={(e) => handleSubmit(e, 'quote')}
+                    disabled={isSubmitting}
+                  >
+                    Save As Quote
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

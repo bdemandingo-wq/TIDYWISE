@@ -120,7 +120,7 @@ function CardFormInner({ email, customerName, onCardSaved, onError }: CardFormPr
       </div>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         disabled={loading || !stripe || !cardComplete}
         className="w-full"
         onClick={handleSaveCard}
@@ -130,7 +130,7 @@ function CardFormInner({ email, customerName, onCardSaved, onError }: CardFormPr
         ) : (
           <CreditCard className="w-4 h-4 mr-2" />
         )}
-        Save Card on File
+        Add Card
       </Button>
     </div>
   );
