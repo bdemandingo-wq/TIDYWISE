@@ -8,8 +8,10 @@ import {
   User,
   Mail,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -20,8 +22,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useBookingsByDateRange, BookingWithDetails } from '@/hooks/useBookings';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { useBookings, BookingWithDetails } from '@/hooks/useBookings';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -39,27 +41,88 @@ const statusColors: Record<string, string> = {
   no_show: 'bg-muted text-muted-foreground border-muted',
 };
 
+const statusLabels: Record<string, string> = {
+  pending: 'pending payment',
+  confirmed: 'uncleaned',
+  in_progress: 'in progress',
+  completed: 'clean completed',
+  cancelled: 'cancelled',
+  no_show: 'no show',
+};
+
 // Default service colors
 const serviceColors = [
   '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
 ];
 
-export function SchedulerCalendar() {
+interface SchedulerCalendarProps {
+  searchTerm?: string;
+  onSearchChange?: (term: string) => void;
+}
+
+export function SchedulerCalendar({ searchTerm = '', onSearchChange }: SchedulerCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
+  const [searchResultsOpen, setSearchResultsOpen] = useState(false);
 
-  // Get date range for current month view
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  
-  const { data: bookings = [], isLoading } = useBookingsByDateRange(monthStart, monthEnd);
+  // Fetch all bookings
+  const { data: allBookings = [], isLoading } = useBookings();
+
+  const activeSearchTerm = searchTerm || localSearchTerm;
+
+  // Filter bookings based on search
+  const searchResults = useMemo(() => {
+    if (!activeSearchTerm.trim()) return [];
+    
+    const term = activeSearchTerm.toLowerCase();
+    return allBookings.filter(b => {
+      const customerName = b.customer 
+        ? `${b.customer.first_name} ${b.customer.last_name}`.toLowerCase()
+        : '';
+      const serviceName = b.service?.name?.toLowerCase() || '';
+      const staffName = b.staff?.name?.toLowerCase() || '';
+      
+      return customerName.includes(term) || 
+             serviceName.includes(term) || 
+             staffName.includes(term) ||
+             b.booking_number.toString().includes(term);
+    }).sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
+  }, [allBookings, activeSearchTerm]);
+
+  // Get bookings for the current view (month or week)
+  const bookings = useMemo(() => {
+    let start: Date, end: Date;
+    
+    if (viewMode === 'week') {
+      start = startOfWeek(currentDate);
+      end = endOfWeek(currentDate);
+    } else {
+      start = startOfMonth(currentDate);
+      end = endOfMonth(currentDate);
+    }
+    
+    return allBookings.filter(b => {
+      const bookingDate = new Date(b.scheduled_at);
+      return bookingDate >= start && bookingDate <= end;
+    });
+  }, [allBookings, currentDate, viewMode]);
 
   const { year, month, days } = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate);
+      const days: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        days.push(addDays(weekStart, i));
+      }
+      return { year, month, days };
+    }
     
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -79,15 +142,19 @@ export function SchedulerCalendar() {
     }
     
     return { year, month, days };
-  }, [currentDate]);
+  }, [currentDate, viewMode]);
 
   const getBookingsForDate = (date: Date): BookingWithDetails[] => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return bookings.filter(b => format(new Date(b.scheduled_at), 'yyyy-MM-dd') === dateStr);
   };
 
-  const navigateMonth = (direction: number) => {
-    setCurrentDate(direction > 0 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+  const navigate = (direction: number) => {
+    if (viewMode === 'week') {
+      setCurrentDate(direction > 0 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(direction > 0 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    }
   };
 
   const goToToday = () => {
@@ -143,20 +210,37 @@ export function SchedulerCalendar() {
     }
   };
 
+  const handleSearchChange = (value: string) => {
+    setLocalSearchTerm(value);
+    if (onSearchChange) {
+      onSearchChange(value);
+    }
+    setSearchResultsOpen(value.length > 0);
+  };
+
+  const getHeaderTitle = () => {
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+    }
+    return `${MONTHS[month]} ${year}`;
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center justify-between p-4 border-b border-border flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold">
-            {MONTHS[month]} {year}
+            {getHeaderTitle()}
           </h2>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
               className="h-8 w-8"
-              onClick={() => navigateMonth(-1)}
+              onClick={() => navigate(-1)}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -164,7 +248,7 @@ export function SchedulerCalendar() {
               variant="outline"
               size="icon"
               className="h-8 w-8"
-              onClick={() => navigateMonth(1)}
+              onClick={() => navigate(1)}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -174,7 +258,55 @@ export function SchedulerCalendar() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search bookings..."
+              value={activeSearchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9 w-64"
+              onFocus={() => activeSearchTerm && setSearchResultsOpen(true)}
+            />
+            
+            {/* Search Results Dropdown */}
+            {searchResultsOpen && activeSearchTerm && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-96 overflow-auto z-50">
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No results found
+                  </div>
+                ) : (
+                  searchResults.slice(0, 10).map((booking) => (
+                    <button
+                      key={booking.id}
+                      className="w-full p-3 text-left hover:bg-muted/50 border-b border-border last:border-0"
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setSearchResultsOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {booking.customer 
+                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                            : 'Unknown'}
+                        </span>
+                        <Badge className={cn('text-xs', statusColors[booking.status])}>
+                          {statusLabels[booking.status] || booking.status}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex bg-secondary rounded-lg p-1">
             <Button
               variant={viewMode === 'month' ? 'default' : 'ghost'}
@@ -200,6 +332,14 @@ export function SchedulerCalendar() {
         </div>
       </div>
 
+      {/* Click outside to close search */}
+      {searchResultsOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setSearchResultsOpen(false)}
+        />
+      )}
+
       {/* Day Headers */}
       <div className="grid grid-cols-7 border-b border-border">
         {DAYS.map((day) => (
@@ -223,7 +363,8 @@ export function SchedulerCalendar() {
             <div
               key={index}
               className={cn(
-                'calendar-day min-h-[120px]',
+                'calendar-day',
+                viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[120px]',
                 date && isToday(date) && 'today',
                 !date && 'bg-muted/30'
               )}
@@ -236,10 +377,10 @@ export function SchedulerCalendar() {
                       isToday(date) && 'text-primary'
                     )}
                   >
-                    {date.getDate()}
+                    {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                   </span>
                   <div className="w-full space-y-1 overflow-hidden">
-                    {getBookingsForDate(date).slice(0, 3).map((booking, bIndex) => (
+                    {getBookingsForDate(date).slice(0, viewMode === 'week' ? 10 : 3).map((booking, bIndex) => (
                       <button
                         key={booking.id}
                         onClick={() => setSelectedBooking(booking)}
@@ -256,9 +397,9 @@ export function SchedulerCalendar() {
                         {booking.customer?.first_name || 'Customer'}
                       </button>
                     ))}
-                    {getBookingsForDate(date).length > 3 && (
+                    {getBookingsForDate(date).length > (viewMode === 'week' ? 10 : 3) && (
                       <span className="text-xs text-muted-foreground pl-2">
-                        +{getBookingsForDate(date).length - 3} more
+                        +{getBookingsForDate(date).length - (viewMode === 'week' ? 10 : 3)} more
                       </span>
                     )}
                   </div>
@@ -282,7 +423,7 @@ export function SchedulerCalendar() {
                   {selectedBooking.service?.name || 'Cleaning Service'}
                 </span>
                 <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
-                  {selectedBooking.status.replace('_', ' ')}
+                  {statusLabels[selectedBooking.status] || selectedBooking.status}
                 </Badge>
               </div>
               
@@ -365,7 +506,6 @@ export function SchedulerCalendar() {
                     )}
                     Notify Cleaner
                   </Button>
-                  <Button>Confirm</Button>
                 </div>
               </div>
             </div>

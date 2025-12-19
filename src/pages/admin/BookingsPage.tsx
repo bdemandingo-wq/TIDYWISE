@@ -582,7 +582,10 @@ export default function BookingsPage() {
                           statusStyle.bg, statusStyle.text
                         )}>
                           <span className={cn("w-1.5 h-1.5 rounded-full", statusStyle.dot)} />
-                          {booking.status.replace('_', ' ')}
+                          {booking.status === 'completed' ? 'clean completed' : 
+                           booking.status === 'confirmed' ? 'uncleaned' : 
+                           booking.status === 'pending' ? 'pending payment' :
+                           booking.status.replace('_', ' ')}
                         </div>
                       </TableCell>
                       <TableCell>

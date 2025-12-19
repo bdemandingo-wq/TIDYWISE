@@ -2,25 +2,44 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatCard } from '@/components/admin/StatCard';
 import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { RevenueChart } from '@/components/admin/RevenueChart';
-import { mockBookings, mockCustomers } from '@/data/mockData';
-import { Calendar, Users, DollarSign, TrendingUp, Clock } from 'lucide-react';
+import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
+import { Calendar, Users, DollarSign, Clock, Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 export default function AdminDashboard() {
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+  const { data: customers = [], isLoading: customersLoading } = useCustomers();
+
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todayBookings = mockBookings.filter(b => b.date === today);
-    const pendingBookings = mockBookings.filter(b => b.status === 'pending');
-    const completedBookings = mockBookings.filter(b => b.status === 'completed');
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.price, 0);
+    const todayBookings = bookings.filter(b => {
+      const bookingDate = new Date(b.scheduled_at).toISOString().split('T')[0];
+      return bookingDate === today;
+    });
+    const pendingBookings = bookings.filter(b => b.status === 'pending');
+    
+    // Calculate total revenue from all bookings (not just paid/completed)
+    const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
     return {
       todayBookings: todayBookings.length,
       pendingBookings: pendingBookings.length,
-      totalCustomers: mockCustomers.length,
+      totalCustomers: customers.length,
       totalRevenue,
     };
-  }, []);
+  }, [bookings, customers]);
+
+  const isLoading = bookingsLoading || customersLoading;
+
+  if (isLoading) {
+    return (
+      <AdminLayout title="Dashboard" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
@@ -66,10 +85,10 @@ export default function AdminDashboard() {
       {/* Charts and Lists */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          <RevenueChart bookings={mockBookings} />
+          <RevenueChart bookings={bookings as BookingWithDetails[]} />
         </div>
         <div>
-          <UpcomingBookings bookings={mockBookings} />
+          <UpcomingBookings bookings={bookings as BookingWithDetails[]} />
         </div>
       </div>
     </AdminLayout>
