@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { Upload, FileText, Trash2, Download } from 'lucide-react';
 
 interface StaffMember {
   id: string;
@@ -23,6 +31,9 @@ interface StaffMember {
   hourly_rate: number | null;
   bio: string | null;
   is_active: boolean;
+  tax_classification?: string | null;
+  base_wage?: number | null;
+  tax_document_url?: string | null;
 }
 
 interface EditStaffDialogProps {
@@ -34,6 +45,8 @@ interface EditStaffDialogProps {
 export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -42,6 +55,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     hourly_rate: '',
     bio: '',
     is_active: true,
+    tax_classification: 'w2' as 'w2' | '1099',
+    base_wage: '',
+    tax_document_url: '',
   });
 
   useEffect(() => {
@@ -53,6 +69,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         hourly_rate: staff.hourly_rate?.toString() || '',
         bio: staff.bio || '',
         is_active: staff.is_active,
+        tax_classification: (staff.tax_classification as 'w2' | '1099') || 'w2',
+        base_wage: staff.base_wage?.toString() || '',
+        tax_document_url: staff.tax_document_url || '',
       });
     }
   }, [staff]);
@@ -72,6 +91,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
           bio: formData.bio || null,
           is_active: formData.is_active,
+          tax_classification: formData.tax_classification,
+          base_wage: formData.base_wage ? parseFloat(formData.base_wage) : null,
+          tax_document_url: formData.tax_document_url || null,
         })
         .eq('id', staff.id);
 
@@ -88,9 +110,98 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !staff) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a PDF, JPG, or PNG file');
+      return;
+    }
+
+    // Max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File must be less than 10MB');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${staff.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('tax-documents')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('tax-documents')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, tax_document_url: fileName });
+      toast.success('Tax document uploaded');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload tax document');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!formData.tax_document_url) return;
+
+    try {
+      const { error } = await supabase.storage
+        .from('tax-documents')
+        .remove([formData.tax_document_url]);
+
+      if (error) throw error;
+
+      setFormData({ ...formData, tax_document_url: '' });
+      toast.success('Tax document deleted');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast.error('Failed to delete tax document');
+    }
+  };
+
+  const handleDownloadDocument = async () => {
+    if (!formData.tax_document_url) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('tax-documents')
+        .download(formData.tax_document_url);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = formData.tax_document_url.split('/').pop() || 'tax-document';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download tax document');
+    }
+  };
+
+  const taxDocLabel = formData.tax_classification === 'w2' ? 'W-4 Form' : 'W-9 Form';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Staff Member</DialogTitle>
         </DialogHeader>
@@ -130,16 +241,95 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-hourly_rate">Hourly Rate ($)</Label>
-            <Input
-              id="edit-hourly_rate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.hourly_rate}
-              onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-              placeholder="25.00"
+            <Label htmlFor="edit-tax_classification">Tax Classification</Label>
+            <Select
+              value={formData.tax_classification}
+              onValueChange={(value: 'w2' | '1099') => setFormData({ ...formData, tax_classification: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="w2">W-2 (Employee)</SelectItem>
+                <SelectItem value="1099">1099 (Independent Contractor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-base_wage">Base Wage ($)</Label>
+              <Input
+                id="edit-base_wage"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.base_wage}
+                onChange={(e) => setFormData({ ...formData, base_wage: e.target.value })}
+                placeholder="25.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-hourly_rate">Hourly Rate ($)</Label>
+              <Input
+                id="edit-hourly_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.hourly_rate}
+                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                placeholder="25.00"
+              />
+            </div>
+          </div>
+
+          {/* Tax Document Upload */}
+          <div className="space-y-2">
+            <Label>{taxDocLabel} (Tax Document)</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileUpload}
+              className="hidden"
             />
+            {formData.tax_document_url ? (
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                <FileText className="w-5 h-5 text-primary" />
+                <span className="flex-1 text-sm truncate">
+                  {formData.tax_document_url.split('/').pop()}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDownloadDocument}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive"
+                  onClick={handleDeleteDocument}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="w-4 h-4" />
+                {isUploading ? 'Uploading...' : `Upload ${taxDocLabel}`}
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">PDF, JPG, or PNG. Max 10MB. Admin-only access.</p>
           </div>
 
           <div className="space-y-2">

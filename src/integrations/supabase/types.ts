@@ -380,6 +380,7 @@ export type Database = {
       staff: {
         Row: {
           avatar_url: string | null
+          base_wage: number | null
           bio: string | null
           created_at: string
           email: string
@@ -388,11 +389,14 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          tax_classification: string | null
+          tax_document_url: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
+          base_wage?: number | null
           bio?: string | null
           created_at?: string
           email: string
@@ -401,11 +405,14 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          tax_classification?: string | null
+          tax_document_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
+          base_wage?: number | null
           bio?: string | null
           created_at?: string
           email?: string
@@ -414,6 +421,8 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          tax_classification?: string | null
+          tax_document_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
