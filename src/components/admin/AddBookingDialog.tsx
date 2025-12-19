@@ -46,7 +46,9 @@ import {
   extras as extrasData, 
   frequencyOptions, 
   bedroomOptions, 
-  bathroomOptions 
+  bathroomOptions,
+  cleaningServices,
+  CleaningServiceType
 } from '@/data/pricingData';
 
 interface AddBookingDialogProps {
@@ -185,12 +187,47 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
     }
   }, [booking, open, defaultDate]);
 
-  // Update total when service changes (only if not editing)
+  // Update total when service, square footage, or frequency changes (only if not editing)
   useEffect(() => {
-    if (selectedService && !booking) {
-      setTotalAmount(selectedService.price);
+    if (!booking && selectedService) {
+      // Find matching cleaning service from pricing data
+      const serviceName = selectedService.name.toLowerCase();
+      let matchedService = cleaningServices.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
+      
+      // Try to match by specific keywords
+      if (!matchedService) {
+        if (serviceName.includes('deep')) matchedService = cleaningServices.find(s => s.id === 'deep_clean');
+        else if (serviceName.includes('move')) matchedService = cleaningServices.find(s => s.id === 'move_in_out');
+        else if (serviceName.includes('construction')) matchedService = cleaningServices.find(s => s.id === 'construction');
+        else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = cleaningServices.find(s => s.id === 'standard_clean');
+      }
+      
+      if (matchedService && squareFootage) {
+        // Get the index based on selected square footage
+        const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
+        if (sqFtIndex !== -1) {
+          let basePrice = matchedService.prices[sqFtIndex];
+          
+          // Apply frequency discount for standard cleaning
+          const freqOption = frequencyOptions.find(f => f.id === frequency);
+          if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
+            basePrice = Math.round(basePrice * (1 - freqOption.discount));
+          }
+          
+          // Add extras
+          const extrasTotal = selectedExtras.reduce((sum, extraId) => {
+            const extra = extrasData.find(e => e.id === extraId);
+            return sum + (extra?.price || 0);
+          }, 0);
+          
+          setTotalAmount(basePrice + extrasTotal);
+        }
+      } else if (!squareFootage) {
+        // Fall back to service base price
+        setTotalAmount(selectedService.price);
+      }
     }
-  }, [selectedService, booking]);
+  }, [selectedService, squareFootage, frequency, selectedExtras, booking]);
 
   // Auto-fill property details when existing customer is selected
   useEffect(() => {
@@ -722,6 +759,49 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Column 2 - Service & Extras */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Service</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Service Type</Label>
+                  <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Square Footage</Label>
+                  <Select value={squareFootage} onValueChange={setSquareFootage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sq ft range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {squareFootageRanges.map((range) => (
+                        <SelectItem key={range.label} value={range.label}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Bedrooms</Label>
@@ -750,47 +830,6 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                     </Select>
                   </div>
                 </div>
-                <div>
-                  <Label>Square Footage</Label>
-                  <Select value={squareFootage} onValueChange={setSquareFootage}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select sq ft range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {squareFootageRanges.map((range) => (
-                        <SelectItem key={range.label} value={range.label}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Column 2 - Service & Extras */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Service</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Service Type</Label>
-                  <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {services.map((service) => (
-                        <SelectItem key={service.id} value={service.id}>
-                          {service.name} - ${service.price}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div>
                   <Label>Frequency</Label>
@@ -809,7 +848,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </div>
 
                 <div>
-                  <Label htmlFor="totalAmount">Total Amount</Label>
+                  <Label htmlFor="totalAmount">Adjust Total Amount</Label>
                   <Input
                     id="totalAmount"
                     type="number"

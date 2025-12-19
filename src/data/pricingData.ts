@@ -85,9 +85,9 @@ export const extras = [
 
 export const frequencyOptions = [
   { id: 'one_time', label: 'One-Time', discount: 0 },
-  { id: 'weekly', label: 'Weekly (15% off)', discount: 0.15 },
-  { id: 'biweekly', label: 'Bi-Weekly (10% off)', discount: 0.10 },
-  { id: 'monthly', label: 'Monthly (5% off)', discount: 0.05 },
+  { id: 'weekly', label: 'Weekly (30% off)', discount: 0.30 },
+  { id: 'biweekly', label: 'Bi-Weekly (25% off)', discount: 0.25 },
+  { id: 'monthly', label: 'Monthly (15% off)', discount: 0.15 },
 ];
 
 export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6+'];
