@@ -91,6 +91,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
   const [loadingCard, setLoadingCard] = useState(false);
   const [chargingCard, setChargingCard] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
+  const [chargeErrorType, setChargeErrorType] = useState<'insufficient_funds' | 'declined' | 'other' | null>(null);
   const [sendingLink, setSendingLink] = useState(false);
 
   // Submission state
@@ -158,6 +159,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
 
     setChargingCard(true);
     setChargeError(null);
+    setChargeErrorType(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('charge-customer-card', {
@@ -177,32 +179,41 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
         // Parse specific decline reasons
         const declineCode = data.declineCode;
         let friendlyMessage = data.error;
+        let errorType: 'insufficient_funds' | 'declined' | 'other' = 'other';
         
         switch (declineCode) {
           case 'insufficient_funds':
-            friendlyMessage = 'Insufficient funds - The card does not have enough funds to complete this transaction.';
+            friendlyMessage = 'Insufficient Funds';
+            errorType = 'insufficient_funds';
             break;
           case 'card_declined':
-            friendlyMessage = 'Card declined - The card was declined by the bank.';
+            friendlyMessage = 'Card Declined';
+            errorType = 'declined';
             break;
           case 'expired_card':
-            friendlyMessage = 'Expired card - The card has expired.';
+            friendlyMessage = 'Card Expired';
+            errorType = 'declined';
             break;
           case 'incorrect_cvc':
-            friendlyMessage = 'Incorrect CVC - The security code is incorrect.';
+            friendlyMessage = 'Incorrect CVC';
+            errorType = 'declined';
             break;
           case 'processing_error':
-            friendlyMessage = 'Processing error - Please try again.';
+            friendlyMessage = 'Processing Error - Try Again';
+            errorType = 'other';
             break;
           case 'lost_card':
           case 'stolen_card':
-            friendlyMessage = 'Card reported lost or stolen - Please use a different card.';
+            friendlyMessage = 'Card Reported Lost/Stolen';
+            errorType = 'declined';
             break;
           default:
-            friendlyMessage = data.error || 'Card was declined';
+            friendlyMessage = data.error || 'Card Declined';
+            errorType = 'declined';
         }
         
         setChargeError(friendlyMessage);
+        setChargeErrorType(errorType);
         toast.error(friendlyMessage);
         return null;
       } else {
@@ -211,7 +222,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to charge card';
       setChargeError(errorMessage);
+      setChargeErrorType('other');
       toast.error(errorMessage);
+      return null;
       return null;
     } finally {
       setChargingCard(false);
@@ -660,9 +673,56 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
                     </div>
 
                     {chargeError && (
-                      <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
-                        <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm">{chargeError}</p>
+                      <div className={cn(
+                        "flex flex-col gap-2 p-4 rounded-lg border-2",
+                        chargeErrorType === 'insufficient_funds' 
+                          ? "bg-red-50 border-red-300 dark:bg-red-950/30 dark:border-red-800"
+                          : "bg-destructive/10 border-destructive/20"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "flex items-center justify-center w-10 h-10 rounded-full",
+                            chargeErrorType === 'insufficient_funds'
+                              ? "bg-red-100 dark:bg-red-900/50"
+                              : "bg-destructive/20"
+                          )}>
+                            <AlertCircle className={cn(
+                              "h-6 w-6",
+                              chargeErrorType === 'insufficient_funds'
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-destructive"
+                            )} />
+                          </div>
+                          <div>
+                            <p className={cn(
+                              "font-semibold text-base",
+                              chargeErrorType === 'insufficient_funds'
+                                ? "text-red-700 dark:text-red-300"
+                                : "text-destructive"
+                            )}>
+                              {chargeError}
+                            </p>
+                            {chargeErrorType === 'insufficient_funds' && (
+                              <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                The card does not have enough funds
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30"
+                          onClick={handleSendCardLink}
+                          disabled={sendingLink}
+                        >
+                          {sendingLink ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="mr-2 h-4 w-4" />
+                          )}
+                          Send Link to Update Card
+                        </Button>
                       </div>
                     )}
                   </div>
