@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { StaffRoute } from "@/components/StaffRoute";
 import PublicBookingPage from "./pages/PublicBookingPage";
 import AuthPage from "./pages/AuthPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -17,6 +18,7 @@ import StaffPage from "./pages/admin/StaffPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import NotificationsPage from "./pages/admin/NotificationsPage";
+import StaffPortal from "./pages/staff/StaffPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,9 @@ const App = () => (
               {/* Public Routes */}
               <Route path="/" element={<PublicBookingPage />} />
               <Route path="/auth" element={<AuthPage />} />
+
+              {/* Staff Portal (Protected for staff/admin) */}
+              <Route path="/staff" element={<StaffRoute><StaffPortal /></StaffRoute>} />
 
               {/* Admin Routes (Protected) */}
               <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
