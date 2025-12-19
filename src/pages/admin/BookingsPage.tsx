@@ -63,6 +63,7 @@ import { useBookings, useUpdateBooking, useDeleteBooking, BookingWithDetails } f
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
+import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
@@ -119,6 +120,9 @@ export default function BookingsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [chargeConfirmBooking, setChargeConfirmBooking] = useState<BookingWithDetails | null>(null);
+  const [captureConfirmBooking, setCaptureConfirmBooking] = useState<BookingWithDetails | null>(null);
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [paymentHistoryBooking, setPaymentHistoryBooking] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -876,7 +880,7 @@ export default function BookingsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer"
-                              onClick={() => handleCapturePayment(booking)}
+                              onClick={() => setCaptureConfirmBooking(booking)}
                               disabled={
                                 capturingPayment === booking.id ||
                                 booking.payment_status === 'paid' ||
@@ -910,6 +914,15 @@ export default function BookingsPage() {
                                 <XCircle className="w-4 h-4" />
                               )}
                               Release Hold
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
+                                setPaymentHistoryBooking(booking);
+                                setPaymentHistoryOpen(true);
+                              }}
+                            >
+                              <Clock className="w-4 h-4" /> Payment History
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -978,6 +991,42 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Capture Hold Confirmation Dialog */}
+      <AlertDialog open={!!captureConfirmBooking} onOpenChange={(open) => !open && setCaptureConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Capture Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to capture <strong>${captureConfirmBooking?.total_amount?.toFixed(2)}</strong> from the hold on{' '}
+              <strong>{captureConfirmBooking?.customer?.first_name} {captureConfirmBooking?.customer?.last_name}</strong>'s card?
+              <br /><br />
+              This will finalize the payment hold and transfer the funds.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (captureConfirmBooking) {
+                  handleCapturePayment(captureConfirmBooking);
+                  setCaptureConfirmBooking(null);
+                }
+              }}
+            >
+              Yes, Capture Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment History Dialog */}
+      <PaymentHistoryLogDialog
+        open={paymentHistoryOpen}
+        onOpenChange={setPaymentHistoryOpen}
+        booking={paymentHistoryBooking}
+      />
     </AdminLayout>
   );
 }
