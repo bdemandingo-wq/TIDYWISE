@@ -535,12 +535,12 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking }: A
 
                 <div>
                   <Label>Assign Staff (Optional)</Label>
-                  <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+                  <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select staff member" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {staff.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name}
