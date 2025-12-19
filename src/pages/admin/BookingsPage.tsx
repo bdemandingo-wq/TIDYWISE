@@ -88,6 +88,7 @@ export default function BookingsPage() {
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
   const [cancelingHold, setCancelingHold] = useState<string | null>(null);
+  const [chargingCard, setChargingCard] = useState<string | null>(null);
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
@@ -269,6 +270,54 @@ export default function BookingsPage() {
       });
     } finally {
       setCancelingHold(null);
+    }
+  };
+
+  const handleChargeCard = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "No customer email found", variant: "destructive" });
+      return;
+    }
+
+    setChargingCard(booking.id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('charge-card-directly', {
+        body: {
+          email: booking.customer.email,
+          amount: booking.total_amount,
+          description: `Booking #${booking.booking_number} - ${booking.service?.name || 'Service'}`,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({ 
+          title: "Payment Successful", 
+          description: data.message 
+        });
+        
+        await updateBooking.mutateAsync({ 
+          id: booking.id, 
+          payment_status: 'paid' as any
+        });
+      } else {
+        toast({ 
+          title: "Charge Failed", 
+          description: data.error, 
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to charge card:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to charge card", 
+        variant: "destructive" 
+      });
+    } finally {
+      setChargingCard(null);
     }
   };
 
@@ -593,6 +642,24 @@ export default function BookingsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-emerald-600"
+                              onClick={() => handleChargeCard(booking)}
+                              disabled={
+                                chargingCard === booking.id ||
+                                booking.payment_status === 'paid' ||
+                                !booking.customer?.email
+                              }
+                            >
+                              {chargingCard === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <DollarSign className="w-4 h-4" />
+                              )}
+                              {booking.payment_status === 'paid'
+                                ? 'Already Paid'
+                                : 'Charge Card Now'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               className="gap-2 cursor-pointer"
                               onClick={() => handleCapturePayment(booking)}
                               disabled={
@@ -610,7 +677,7 @@ export default function BookingsPage() {
                                 ? 'Payment Captured'
                                 : !(booking as any).payment_intent_id
                                   ? 'No Hold'
-                                  : 'Capture Payment'}
+                                  : 'Capture Hold'}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer"

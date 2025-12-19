@@ -85,9 +85,18 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   };
 
   const handleClose = () => {
+    // Only reset credentials if user explicitly closes the dialog
+    if (!showCredentials) {
+      setFormData({ name: '', email: '', phone: '', hourly_rate: '' });
+    }
+    onOpenChange(false);
+  };
+
+  const handleCredentialsDone = () => {
     setShowCredentials(false);
     setCredentials(null);
     setCopied(false);
+    setFormData({ name: '', email: '', phone: '', hourly_rate: '' });
     onOpenChange(false);
   };
 
@@ -102,12 +111,17 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
   if (showCredentials && credentials) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent>
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Staff Member Created</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-800 font-medium">
+                ⚠️ Save these credentials before closing! They won't be shown again.
+              </p>
+            </div>
             <p className="text-sm text-muted-foreground">
               Share these credentials with the staff member. They should change their password after first login.
             </p>
@@ -118,7 +132,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Temporary Password</Label>
-                <p className="font-mono text-sm">{credentials.tempPassword}</p>
+                <p className="font-mono text-sm font-bold">{credentials.tempPassword}</p>
               </div>
             </div>
             <Button
@@ -131,7 +145,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
             </Button>
           </div>
           <DialogFooter>
-            <Button onClick={handleClose}>Done</Button>
+            <Button onClick={handleCredentialsDone}>I've Saved the Credentials</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
