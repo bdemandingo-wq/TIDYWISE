@@ -371,9 +371,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
     scheduledAt.setHours(hour24, minutes, 0, 0);
 
     return {
-      customer_id: customerId,
-      service_id: selectedServiceId || null,
-      staff_id: selectedStaffId || null,
+      customer_id: customerId || null,
+      service_id: selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null,
+      staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
       scheduled_at: scheduledAt.toISOString(),
       duration: selectedService?.duration || 60,
       total_amount: totalAmount,
