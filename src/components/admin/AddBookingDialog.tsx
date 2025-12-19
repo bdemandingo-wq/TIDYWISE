@@ -192,6 +192,16 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
     }
   }, [selectedService, booking]);
 
+  // Auto-fill property details when existing customer is selected
+  useEffect(() => {
+    if (customerTab === 'existing' && selectedCustomer && !booking) {
+      setAddress(selectedCustomer.address || '');
+      setCity(selectedCustomer.city || '');
+      setState(selectedCustomer.state || '');
+      setZipCode(selectedCustomer.zip_code || '');
+    }
+  }, [selectedCustomerId, selectedCustomer, customerTab, booking]);
+
   // Load card info when customer changes
   useEffect(() => {
     if (customerEmail) {
