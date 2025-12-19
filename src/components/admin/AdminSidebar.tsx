@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronDown,
   Home,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Staff', href: '/admin/staff', icon: UserCircle },
+  { name: 'Payroll', href: '/admin/payroll', icon: DollarSign },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];
 

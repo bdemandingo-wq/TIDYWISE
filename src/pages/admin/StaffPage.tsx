@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,8 @@ interface StaffMember {
   hourly_rate: number | null;
   bio: string | null;
   is_active: boolean;
+  tax_classification?: string | null;
+  base_wage?: number | null;
 }
 
 export default function StaffPage() {
@@ -153,9 +156,14 @@ export default function StaffPage() {
                       </Avatar>
                       <div>
                         <h3 className="font-semibold">{member.name}</h3>
-                        {member.hourly_rate && (
-                          <p className="text-sm text-muted-foreground">${member.hourly_rate}/hr</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {(member.base_wage || member.hourly_rate) && (
+                            <span className="text-sm text-muted-foreground">${member.base_wage || member.hourly_rate}/hr</span>
+                          )}
+                          <Badge variant={member.tax_classification === '1099' ? 'secondary' : 'default'} className="text-xs">
+                            {member.tax_classification === '1099' ? '1099' : 'W-2'}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                     <DropdownMenu>
