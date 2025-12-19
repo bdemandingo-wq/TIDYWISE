@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronDown,
   Home,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Staff', href: '/admin/staff', icon: UserCircle },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Booking Form', href: '/admin/booking-form', icon: FileText },
 ];
 
 export function AdminSidebar() {
