@@ -504,19 +504,11 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
         });
         toast.success('Booking updated successfully');
       } else {
-        // Attempt to charge card if customer has one and not a draft
-        let paymentIntentId: string | undefined;
-        if (!isDraft && cardInfo?.hasCard) {
-          const result = await handleChargeCard();
-          if (result) {
-            paymentIntentId = result;
-          }
-        }
-
+        // No automatic card hold - admin will charge manually when ready
         const finalBookingData = {
           ...bookingData,
-          payment_status: paymentIntentId ? 'partial' as const : 'pending' as const,
-          payment_intent_id: paymentIntentId,
+          payment_status: 'pending' as const,
+          payment_intent_id: undefined,
         };
 
         await createBooking.mutateAsync(finalBookingData);
