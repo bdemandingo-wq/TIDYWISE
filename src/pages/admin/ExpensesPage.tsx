@@ -64,6 +64,11 @@ const EXPENSE_CATEGORIES = [
   { value: 'mileage', label: 'Mileage/Travel', icon: Car },
   { value: 'equipment', label: 'Equipment', icon: Wrench },
   { value: 'office', label: 'Office/Admin', icon: Building },
+  { value: 'marketing', label: 'Marketing', icon: Receipt },
+  { value: 'insurance', label: 'Insurance', icon: Receipt },
+  { value: 'domain', label: 'Domain/Website', icon: Receipt },
+  { value: 'dialers', label: 'Dialers/Phone', icon: Receipt },
+  { value: 'misc', label: 'Misc', icon: Receipt },
   { value: 'other', label: 'Other', icon: Receipt },
 ];
 

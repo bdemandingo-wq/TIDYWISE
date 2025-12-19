@@ -127,20 +127,30 @@ export default function FinancePage() {
     });
   }, [bookings]);
 
-  // Calculate P&L metrics
+  // Calculate P&L metrics - include all bookings (not just paid) for visibility
   const metrics = useMemo(() => {
-    const paidTransactions = transactions.filter(t => t.payment_status === 'paid');
-    const totalSales = paidTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
-    const totalFees = paidTransactions.reduce((sum, t) => sum + t.processing_fee, 0);
-    const totalCleanerPay = paidTransactions.reduce((sum, t) => sum + t.cleaner_pay, 0);
+    // Include paid and partial payments for stats
+    const paidTransactions = transactions.filter(t => t.payment_status === 'paid' || t.payment_status === 'partial');
+    const allTransactions = transactions;
+    
+    // Total sales from all bookings in range (regardless of payment status)
+    const totalSales = allTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
+    const totalFees = allTransactions.reduce((sum, t) => sum + t.processing_fee, 0);
+    const totalCleanerPay = allTransactions.reduce((sum, t) => sum + t.cleaner_pay, 0);
     const refundedTransactions = transactions.filter(t => t.payment_status === 'refunded');
     const totalRefunds = refundedTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
     
-    // Calculate supplies cost from expenses
-    const suppliesCost = expenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
+    // Calculate expenses by category
+    const expensesByCategory: Record<string, number> = {};
+    expenses.forEach((e: any) => {
+      const category = e.category || 'other';
+      expensesByCategory[category] = (expensesByCategory[category] || 0) + Number(e.amount);
+    });
+    
+    const totalExpenses = expenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
     
     const netRevenue = totalSales - totalFees;
-    const netProfit = netRevenue - totalCleanerPay - suppliesCost - totalRefunds;
+    const netProfit = netRevenue - totalCleanerPay - totalExpenses - totalRefunds;
     const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
     return {
@@ -148,11 +158,12 @@ export default function FinancePage() {
       totalFees: Math.round(totalFees * 100) / 100,
       netRevenue: Math.round(netRevenue * 100) / 100,
       totalCleanerPay: Math.round(totalCleanerPay * 100) / 100,
-      suppliesCost: Math.round(suppliesCost * 100) / 100,
+      totalExpenses: Math.round(totalExpenses * 100) / 100,
+      expensesByCategory,
       totalRefunds: Math.round(totalRefunds * 100) / 100,
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 10) / 10,
-      transactionCount: paidTransactions.length,
+      transactionCount: allTransactions.length,
     };
   }, [transactions, expenses]);
 
@@ -470,10 +481,18 @@ export default function FinancePage() {
                   <span className="text-muted-foreground">Less: Cleaner Pay</span>
                   <span className="text-blue-600">-${metrics.totalCleanerPay.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Less: Supplies</span>
-                  <span className="text-muted-foreground">-${metrics.suppliesCost.toFixed(2)}</span>
-                </div>
+                {Object.entries(metrics.expensesByCategory).map(([category, amount]) => (
+                  <div key={category} className="flex justify-between items-center py-3 border-b">
+                    <span className="text-muted-foreground">Less: {category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                    <span className="text-muted-foreground">-${(amount as number).toFixed(2)}</span>
+                  </div>
+                ))}
+                {Object.keys(metrics.expensesByCategory).length === 0 && (
+                  <div className="flex justify-between items-center py-3 border-b">
+                    <span className="text-muted-foreground">Less: Expenses</span>
+                    <span className="text-muted-foreground">-$0.00</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Refunds</span>
                   <span className="text-red-600">-${metrics.totalRefunds.toFixed(2)}</span>

@@ -160,10 +160,10 @@ export default function BookingsPage() {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  // Stats
+  // Stats - pending payment based on payment_status, uncleaned based on status
   const stats = {
     total: bookings.length,
-    pending: bookings.filter(b => b.status === 'pending').length,
+    pending: bookings.filter(b => b.payment_status === 'pending').length,
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
     completed: bookings.filter(b => b.status === 'completed').length,
   };

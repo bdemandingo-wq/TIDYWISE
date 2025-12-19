@@ -223,7 +223,7 @@ export function useCustomers() {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .order('last_name', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching customers:', error);

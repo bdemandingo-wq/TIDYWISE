@@ -27,7 +27,8 @@ export type CleaningServiceType =
   | 'biweekly_clean' 
   | 'weekly_clean' 
   | 'move_in_out' 
-  | 'construction';
+  | 'construction'
+  | 'airbnb';
 
 export interface CleaningService {
   id: CleaningServiceType;
@@ -44,32 +45,40 @@ export const cleaningServices: CleaningService[] = [
     name: 'Deep Clean (First Cleaning)',
     description: 'Thorough first-time deep cleaning including inside oven',
     color: '#3b82f6',
-    minimumPrice: 250,
-    prices: [258, 293, 328, 363, 398, 433, 488, 543, 598, 653, 708, 763, 818, 873, 928, 983, 1038],
+    minimumPrice: 200,
+    prices: [208, 243, 278, 313, 348, 383, 438, 493, 548, 603, 658, 713, 768, 823, 878, 933, 988],
   },
   {
     id: 'standard_clean',
     name: 'Standard Clean',
     description: 'Regular maintenance cleaning for your home',
     color: '#10b981',
-    minimumPrice: 200,
-    prices: [158, 193, 228, 263, 298, 333, 363, 418, 473, 528, 583, 638, 693, 748, 803, 858, 913],
+    minimumPrice: 150,
+    prices: [108, 143, 178, 213, 248, 283, 313, 368, 423, 478, 533, 588, 643, 698, 753, 808, 863],
   },
   {
     id: 'move_in_out',
     name: 'Move In/Move Out Clean',
     description: 'Deep clean + $75 for move-in or move-out, includes fridge cleaning',
     color: '#06b6d4',
-    minimumPrice: 350,
-    prices: [333, 368, 403, 438, 473, 508, 563, 618, 673, 728, 783, 838, 893, 948, 1003, 1058, 1113],
+    minimumPrice: 300,
+    prices: [283, 318, 353, 388, 423, 458, 513, 568, 623, 678, 733, 788, 843, 898, 953, 1008, 1063],
   },
   {
     id: 'construction',
     name: 'Construction Clean Up',
     description: 'Heavy-duty cleaning after construction or renovation (50% more than Move In/Out)',
     color: '#f97316',
-    minimumPrice: 450,
-    prices: [500, 552, 605, 657, 710, 762, 845, 927, 1010, 1092, 1175, 1257, 1340, 1422, 1505, 1587, 1670],
+    minimumPrice: 400,
+    prices: [450, 502, 555, 607, 660, 712, 795, 877, 960, 1042, 1125, 1207, 1290, 1372, 1455, 1537, 1620],
+  },
+  {
+    id: 'airbnb',
+    name: 'Airbnb/Short-Term Rental',
+    description: 'Recurring turnover cleans for vacation rentals (3-7 cleans/month discount)',
+    color: '#ec4899',
+    minimumPrice: 95,
+    prices: [95, 115, 135, 155, 175, 195, 220, 250, 285, 320, 355, 390, 425, 460, 495, 530, 565],
   },
 ];
 
