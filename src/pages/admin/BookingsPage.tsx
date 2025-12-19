@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Download, MoreHorizontal, Eye, Edit, Trash2, Plus, Loader2, CreditCard, XCircle, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -70,6 +71,8 @@ export default function BookingsPage() {
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
   const [cancelingHold, setCancelingHold] = useState<string | null>(null);
+  const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -101,6 +104,50 @@ export default function BookingsPage() {
     const ok = window.confirm(`Delete booking #${booking.booking_number}? This cannot be undone.`);
     if (!ok) return;
     await deleteBooking.mutateAsync(booking.id);
+    setSelectedBookings(prev => {
+      const next = new Set(prev);
+      next.delete(booking.id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedBookings.size === 0) return;
+    const ok = window.confirm(`Delete ${selectedBookings.size} selected bookings? This cannot be undone.`);
+    if (!ok) return;
+    
+    setBulkDeleting(true);
+    try {
+      for (const id of selectedBookings) {
+        await deleteBooking.mutateAsync(id);
+      }
+      setSelectedBookings(new Set());
+      toast({ title: "Deleted", description: `${selectedBookings.size} bookings deleted successfully` });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete some bookings", variant: "destructive" });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedBookings.size === filteredBookings.length) {
+      setSelectedBookings(new Set());
+    } else {
+      setSelectedBookings(new Set(filteredBookings.map(b => b.id)));
+    }
+  };
+
+  const toggleSelectBooking = (id: string) => {
+    setSelectedBookings(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const handleCapturePayment = async (booking: BookingWithDetails) => {
@@ -269,6 +316,17 @@ export default function BookingsPage() {
           <Download className="w-4 h-4" />
           Export
         </Button>
+        {selectedBookings.size > 0 && (
+          <Button 
+            variant="destructive" 
+            className="gap-2"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+          >
+            {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete ({selectedBookings.size})
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -289,6 +347,12 @@ export default function BookingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox 
+                    checked={selectedBookings.size === filteredBookings.length && filteredBookings.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Booking ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Service</TableHead>
@@ -302,7 +366,13 @@ export default function BookingsPage() {
             </TableHeader>
             <TableBody>
               {filteredBookings.map((booking) => (
-                <TableRow key={booking.id} className="hover:bg-muted/30">
+                <TableRow key={booking.id} className={cn("hover:bg-muted/30", selectedBookings.has(booking.id) && "bg-muted/50")}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedBookings.has(booking.id)}
+                      onCheckedChange={() => toggleSelectBooking(booking.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-mono text-sm font-semibold">
                     #{booking.booking_number}
                   </TableCell>
