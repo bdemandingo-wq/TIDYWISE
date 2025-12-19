@@ -3,7 +3,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useStaff, useServices } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar } from 'lucide-react';
@@ -15,12 +14,42 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { AddStaffDialog } from '@/components/admin/AddStaffDialog';
+import { EditStaffDialog } from '@/components/admin/EditStaffDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  hourly_rate: number | null;
+  bio: string | null;
+  is_active: boolean;
+}
 
 export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  
   const { data: staff = [], isLoading } = useStaff();
   const { data: services = [] } = useServices();
+  const queryClient = useQueryClient();
 
   const filteredStaff = staff.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -31,7 +60,6 @@ export default function StaffPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  // Generate a consistent color based on name
   const getColorFromName = (name: string) => {
     const colors = [
       '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -39,6 +67,37 @@ export default function StaffPage() {
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
+  };
+
+  const handleEditClick = (member: StaffMember) => {
+    setSelectedStaff(member);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (member: StaffMember) => {
+    setStaffToDelete(member);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!staffToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({ is_active: false })
+        .eq('id', staffToDelete.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast.success('Staff member deactivated');
+      setDeleteDialogOpen(false);
+      setStaffToDelete(null);
+    } catch (error) {
+      console.error('Error deleting staff:', error);
+      toast.error('Failed to delete staff member');
+    }
   };
 
   return (
@@ -109,10 +168,16 @@ export default function StaffPage() {
                         <DropdownMenuItem className="gap-2">
                           <Calendar className="w-4 h-4" /> View Schedule
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleEditClick(member)}
+                        >
                           <Edit className="w-4 h-4" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive">
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive"
+                          onClick={() => handleDeleteClick(member)}
+                        >
                           <Trash2 className="w-4 h-4" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -147,6 +212,31 @@ export default function StaffPage() {
       )}
 
       <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+      <EditStaffDialog 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen} 
+        staff={selectedStaff}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {staffToDelete?.name}? This will deactivate their account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
