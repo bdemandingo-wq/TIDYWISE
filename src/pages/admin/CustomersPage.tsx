@@ -10,16 +10,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Eye, Edit, Trash2, CreditCard } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useCustomers, useDeleteCustomer } from '@/hooks/useBookings';
 import { AddCustomerDialog } from '@/components/admin/AddCustomerDialog';
+import { EditCustomerDialog } from '@/components/admin/EditCustomerDialog';
+import { PaymentHistoryDialog } from '@/components/admin/PaymentHistoryDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +37,11 @@ import {
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
 
@@ -162,10 +168,23 @@ export default function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
-                          <Eye className="w-4 h-4" /> View Profile
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setPaymentHistoryOpen(true);
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4" /> Payment History
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setEditDialogOpen(true);
+                          }}
+                        >
                           <Edit className="w-4 h-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem 
@@ -185,6 +204,22 @@ export default function CustomersPage() {
       </div>
 
       <AddCustomerDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+
+      {selectedCustomer && (
+        <>
+          <EditCustomerDialog 
+            open={editDialogOpen} 
+            onOpenChange={setEditDialogOpen} 
+            customer={selectedCustomer}
+          />
+          <PaymentHistoryDialog
+            open={paymentHistoryOpen}
+            onOpenChange={setPaymentHistoryOpen}
+            customerId={selectedCustomer.id}
+            customerName={`${selectedCustomer.first_name} ${selectedCustomer.last_name}`}
+          />
+        </>
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

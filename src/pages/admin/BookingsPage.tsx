@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { 
   Search, 
   Download, 
@@ -35,7 +37,9 @@ import {
   User,
   Clock,
   DollarSign,
-  Filter
+  Filter,
+  CalendarRange,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -46,11 +50,12 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useBookings, useUpdateBooking, useDeleteBooking, BookingWithDetails } from '@/hooks/useBookings';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog } from '@/components/admin/BookingDialogs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { DateRange } from 'react-day-picker';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -91,6 +96,7 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
@@ -140,7 +146,17 @@ export default function BookingsPage() {
       serviceName.includes(searchTerm.toLowerCase()) ||
       bookingNum.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Date range filter
+    let matchesDate = true;
+    if (dateRange?.from) {
+      const bookingDate = new Date(booking.scheduled_at);
+      const start = startOfDay(dateRange.from);
+      const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+      matchesDate = isWithinInterval(bookingDate, { start, end });
+    }
+    
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Stats
@@ -499,7 +515,49 @@ export default function BookingsPage() {
             className="pl-11 h-11 bg-card border-border/50 rounded-xl focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          {/* Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-11 gap-2 rounded-xl border-border/50 hover:bg-secondary/50">
+                <CalendarRange className="w-4 h-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <span className="text-sm">
+                      {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                    </span>
+                  ) : (
+                    <span className="text-sm">{format(dateRange.from, 'MMM d, yyyy')}</span>
+                  )
+                ) : (
+                  <span>Date Range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                initialFocus
+              />
+              {dateRange && (
+                <div className="p-3 border-t">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full gap-2"
+                    onClick={() => setDateRange(undefined)}
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Date Filter
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[160px] h-11 bg-card border-border/50 rounded-xl">
               <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
