@@ -18,6 +18,46 @@ interface HoldCardRequest {
   bookingId?: string;
 }
 
+// Map Stripe decline codes to user-friendly messages
+const DECLINE_CODE_MESSAGES: Record<string, string> = {
+  insufficient_funds: "Insufficient funds - The card does not have enough balance to complete this transaction.",
+  card_declined: "Card declined - The card was declined by the issuing bank.",
+  expired_card: "Expired card - This card has expired. Please use a different card.",
+  incorrect_cvc: "Incorrect CVC - The security code entered is incorrect.",
+  incorrect_number: "Invalid card number - Please check the card number and try again.",
+  incorrect_zip: "Incorrect ZIP code - The ZIP code does not match the card.",
+  card_not_supported: "Card not supported - This type of card is not accepted.",
+  currency_not_supported: "Currency not supported - This card does not support USD transactions.",
+  duplicate_transaction: "Duplicate transaction - A similar transaction was recently processed.",
+  fraudulent: "Transaction blocked - This transaction was flagged as potentially fraudulent.",
+  generic_decline: "Card declined - Please contact your bank or use a different card.",
+  invalid_account: "Invalid account - The card account is invalid.",
+  invalid_amount: "Invalid amount - The payment amount is not valid.",
+  issuer_not_available: "Issuer unavailable - The card issuer could not be reached. Please try again.",
+  lost_card: "Card reported lost - This card has been reported lost. Please use a different card.",
+  stolen_card: "Card reported stolen - This card has been reported stolen. Please use a different card.",
+  merchant_blacklist: "Card restricted - This card cannot be used for this purchase.",
+  new_account_information_available: "Card information updated - Please re-enter your card details.",
+  no_action_taken: "No action taken - The bank did not process the transaction.",
+  not_permitted: "Transaction not permitted - This transaction is not allowed on this card.",
+  offline_pin_required: "PIN required - This transaction requires a PIN.",
+  online_or_offline_pin_required: "PIN required - Please try again with your PIN.",
+  pickup_card: "Card pickup - This card has been flagged for pickup. Please contact your bank.",
+  pin_try_exceeded: "PIN tries exceeded - Too many incorrect PIN attempts.",
+  processing_error: "Processing error - An error occurred. Please try again.",
+  reenter_transaction: "Please try again - Re-enter the transaction.",
+  restricted_card: "Restricted card - This card has restrictions that prevent this transaction.",
+  revocation_of_all_authorizations: "Card revoked - All authorizations have been revoked.",
+  revocation_of_authorization: "Authorization revoked - Please use a different card.",
+  security_violation: "Security violation - This transaction was blocked for security reasons.",
+  service_not_allowed: "Service not allowed - This card is not allowed for this type of purchase.",
+  stop_payment_order: "Stop payment - A stop payment order is on this card.",
+  testmode_decline: "Test card - This is a test card. Please use a real card.",
+  transaction_not_allowed: "Transaction not allowed - Please contact your bank.",
+  try_again_later: "Temporarily unavailable - Please try again later.",
+  withdrawal_count_limit_exceeded: "Withdrawal limit exceeded - You've reached your daily transaction limit.",
+};
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -40,7 +80,11 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (customers.data.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Customer not found. Please save a card first." }),
+        JSON.stringify({ 
+          success: false,
+          error: "Customer not found. Please save a card first.",
+          errorCode: "customer_not_found"
+        }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -53,7 +97,11 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (customer.deleted) {
       return new Response(
-        JSON.stringify({ error: "Customer has been deleted" }),
+        JSON.stringify({ 
+          success: false,
+          error: "Customer has been deleted",
+          errorCode: "customer_deleted"
+        }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -70,7 +118,11 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (paymentMethods.data.length === 0) {
         return new Response(
-          JSON.stringify({ error: "No payment method on file for this customer" }),
+          JSON.stringify({ 
+            success: false,
+            error: "No payment method on file for this customer. Please add a card first.",
+            errorCode: "no_payment_method"
+          }),
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
@@ -111,30 +163,51 @@ const handler = async (req: Request): Promise<Response> => {
         success: false, 
         paymentIntentId: paymentIntent.id,
         status: paymentIntent.status,
-        error: "Failed to place hold on card"
+        error: "Failed to place hold on card. Unexpected status: " + paymentIntent.status
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
   } catch (error: any) {
-    console.error("Error in hold-customer-card function:", error);
+    console.error("Error in charge-customer-card function:", error);
     
-    // Handle specific Stripe errors
+    // Handle specific Stripe errors with detailed messages
     if (error.type === "StripeCardError") {
+      const declineCode = error.decline_code || error.code || "unknown";
+      const friendlyMessage = DECLINE_CODE_MESSAGES[declineCode] || error.message || "Card was declined";
+      
+      console.log("Card declined with code:", declineCode);
+      
       return new Response(
         JSON.stringify({ 
           success: false,
           declined: true,
-          error: `Card declined: ${error.message}`,
-          declineCode: error.decline_code || "unknown"
+          error: friendlyMessage,
+          declineCode: declineCode,
+          rawMessage: error.message
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (error.type === "StripeInvalidRequestError") {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Invalid request: " + error.message,
+          errorCode: "invalid_request"
         }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || "An unexpected error occurred",
+        errorCode: "server_error"
+      }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

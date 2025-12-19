@@ -17,3 +17,21 @@ verify_jwt = false
 
 [functions.get-customer-card]
 verify_jwt = false
+
+[functions.create-setup-intent]
+verify_jwt = false
+
+[functions.get-payment-method-details]
+verify_jwt = false
+
+[functions.capture-payment]
+verify_jwt = false
+
+[functions.cancel-hold]
+verify_jwt = false
+
+[functions.send-card-collection-link]
+verify_jwt = false
+
+[functions.send-admin-booking-notification]
+verify_jwt = false
