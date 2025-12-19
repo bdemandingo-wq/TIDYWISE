@@ -33,7 +33,9 @@ import {
   RefreshCw,
   Save,
   Copy,
-  FileText
+  FileText,
+  Plus,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -622,29 +624,42 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {booking ? 'Edit Booking' : 'New Booking'}
-            {booking?.is_draft && <Badge variant="secondary">Draft</Badge>}
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background to-secondary/20 border-border/50">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+            </div>
+            <span>{booking ? 'Edit Booking' : 'New Booking'}</span>
+            {booking?.is_draft && (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">
+                Draft
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-2">
           {/* Column 1 - Customer */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-5 w-5" />
+          <div className="space-y-5">
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-blue-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Customer
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Tabs value={customerTab} onValueChange={(v) => setCustomerTab(v as 'existing' | 'new')}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="existing">Existing</TabsTrigger>
-                    <TabsTrigger value="new">New Customer</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 h-10 p-1 bg-secondary/50">
+                    <TabsTrigger value="existing" className="data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-md text-sm">
+                      Existing
+                    </TabsTrigger>
+                    <TabsTrigger value="new" className="data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-md text-sm">
+                      New Customer
+                    </TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="existing" className="mt-4">
@@ -659,41 +674,45 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                   <TabsContent value="new" className="mt-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="firstName">First Name</Label>
+                        <Label htmlFor="firstName" className="text-xs font-medium text-muted-foreground">First Name</Label>
                         <Input
                           id="firstName"
                           value={newCustomer.first_name}
                           onChange={(e) => setNewCustomer(prev => ({ ...prev, first_name: e.target.value }))}
                           placeholder="John"
+                          className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="lastName">Last Name</Label>
+                        <Label htmlFor="lastName" className="text-xs font-medium text-muted-foreground">Last Name</Label>
                         <Input
                           id="lastName"
                           value={newCustomer.last_name}
                           onChange={(e) => setNewCustomer(prev => ({ ...prev, last_name: e.target.value }))}
                           placeholder="Doe"
+                          className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                         />
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email</Label>
                       <Input
                         id="email"
                         type="email"
                         value={newCustomer.email}
                         onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
                         placeholder="john@example.com"
+                        className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="phone">Phone</Label>
+                      <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground">Phone</Label>
                       <Input
                         id="phone"
                         value={newCustomer.phone}
                         onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="(555) 123-4567"
+                        className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                       />
                     </div>
                   </TabsContent>
@@ -702,16 +721,18 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
             </Card>
 
             {/* Property Details */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-emerald-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                    <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                   Property Details
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label>Address</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Address</Label>
                   <AddressAutocomplete
                     value={address}
                     onChange={setAddress}
@@ -725,37 +746,41 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                   />
                 </div>
                 <div>
-                  <Label htmlFor="aptSuite">Apt / Suite</Label>
+                  <Label htmlFor="aptSuite" className="text-xs font-medium text-muted-foreground">Apt / Suite</Label>
                   <Input
                     id="aptSuite"
                     value={aptSuite}
                     onChange={(e) => setAptSuite(e.target.value)}
                     placeholder="Apt 4B"
+                    className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="city" className="text-xs font-medium text-muted-foreground">City</Label>
                     <Input
                       id="city"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
+                      className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="state">State</Label>
+                    <Label htmlFor="state" className="text-xs font-medium text-muted-foreground">State</Label>
                     <Input
                       id="state"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
+                      className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="zipCode">ZIP</Label>
+                    <Label htmlFor="zipCode" className="text-xs font-medium text-muted-foreground">ZIP</Label>
                     <Input
                       id="zipCode"
                       value={zipCode}
                       onChange={(e) => setZipCode(e.target.value)}
+                      className="mt-1.5 h-10 bg-secondary/30 border-border/50 focus:border-primary/50"
                     />
                   </div>
                 </div>
@@ -764,19 +789,24 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
           </div>
 
           {/* Column 2 - Service & Extras */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Service</CardTitle>
+          <div className="space-y-5">
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-purple-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  Service
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Service Type</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Service Type</Label>
                   <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                       <SelectValue placeholder="Select a service" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-popover border-border">
                       {services.map((service) => (
                         <SelectItem key={service.id} value={service.id}>
                           {service.name}
@@ -787,12 +817,12 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </div>
 
                 <div>
-                  <Label>Square Footage</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Square Footage</Label>
                   <Select value={squareFootage} onValueChange={setSquareFootage}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                       <SelectValue placeholder="Select sq ft range" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-popover border-border">
                       {squareFootageRanges.map((range) => (
                         <SelectItem key={range.label} value={range.label}>
                           {range.label}
@@ -804,12 +834,12 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Bedrooms</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Bedrooms</Label>
                     <Select value={bedrooms} onValueChange={setBedrooms}>
-                      <SelectTrigger>
+                      <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover border-border">
                         {bedroomOptions.map((opt) => (
                           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                         ))}
@@ -817,12 +847,12 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                     </Select>
                   </div>
                   <div>
-                    <Label>Bathrooms</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Bathrooms</Label>
                     <Select value={bathrooms} onValueChange={setBathrooms}>
-                      <SelectTrigger>
+                      <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover border-border">
                         {bathroomOptions.map((opt) => (
                           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                         ))}
@@ -832,12 +862,12 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </div>
 
                 <div>
-                  <Label>Frequency</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Frequency</Label>
                   <Select value={frequency} onValueChange={setFrequency}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-popover border-border">
                       {frequencyOptions.map((opt) => (
                         <SelectItem key={opt.id} value={opt.id}>
                           {opt.label}
@@ -848,23 +878,26 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </div>
 
                 <div>
-                  <Label htmlFor="totalAmount">Adjust Total Amount</Label>
-                  <Input
-                    id="totalAmount"
-                    type="number"
-                    value={totalAmount}
-                    onChange={(e) => setTotalAmount(Number(e.target.value))}
-                    className="text-lg font-semibold"
-                  />
+                  <Label htmlFor="totalAmount" className="text-xs font-medium text-muted-foreground">Adjust Total Amount</Label>
+                  <div className="relative mt-1.5">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                    <Input
+                      id="totalAmount"
+                      type="number"
+                      value={totalAmount}
+                      onChange={(e) => setTotalAmount(Number(e.target.value))}
+                      className="h-12 pl-7 text-xl font-bold bg-gradient-to-r from-primary/5 to-accent/5 border-primary/30 focus:border-primary"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <Label>Assign Staff (Optional)</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Assign Staff (Optional)</Label>
                   <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                       <SelectValue placeholder="Select staff member" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="unassigned">Unassigned</SelectItem>
                       {staff.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
@@ -878,9 +911,19 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
             </Card>
 
             {/* Extras */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Extras</CardTitle>
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-amber-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Plus className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  Extras
+                  {extrasTotal > 0 && (
+                    <Badge className="ml-auto bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">
+                      +${extrasTotal}
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-2">
@@ -888,55 +931,58 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                     <div 
                       key={extra.id}
                       className={cn(
-                        "flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-colors",
+                        "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all duration-200",
                         selectedExtras.includes(extra.id) 
-                          ? "border-primary bg-primary/10" 
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/5 shadow-sm" 
+                          : "border-border/50 hover:border-primary/30 hover:bg-secondary/30"
                       )}
                       onClick={() => toggleExtra(extra.id)}
                     >
-                      <Checkbox 
-                        checked={selectedExtras.includes(extra.id)}
-                        onCheckedChange={() => toggleExtra(extra.id)}
-                      />
-                      <div className="flex-1 text-sm">
-                        <p className="font-medium">{extra.name}</p>
-                        <p className="text-muted-foreground">${extra.price}</p>
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                        selectedExtras.includes(extra.id)
+                          ? "border-primary bg-primary"
+                          : "border-border"
+                      )}>
+                        {selectedExtras.includes(extra.id) && (
+                          <CheckCircle className="w-3 h-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{extra.name}</p>
+                        <p className="text-xs text-muted-foreground">${extra.price}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                {extrasTotal > 0 && (
-                  <div className="mt-3 pt-3 border-t text-sm">
-                    Extras Total: <span className="font-semibold">${extrasTotal}</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Column 3 - Schedule & Payment */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5" />
+          <div className="space-y-5">
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-cyan-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                    <CalendarIcon className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  </div>
                   Schedule
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Date</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full justify-start text-left font-normal mt-1.5 h-10 bg-secondary/30 border-border/50",
                           !selectedDate && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                         {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
@@ -946,18 +992,19 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                         selected={selectedDate}
                         onSelect={setSelectedDate}
                         initialFocus
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
                 <div>
-                  <Label>Time</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">Time</Label>
                   <Select value={selectedTime} onValueChange={setSelectedTime}>
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-1.5 h-10 bg-secondary/30 border-border/50">
                       <SelectValue placeholder="Select time" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-popover border-border">
                       {TIME_SLOTS.map((time) => (
                         <SelectItem key={time} value={time}>
                           {time}
@@ -968,39 +1015,44 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </div>
 
                 <div>
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-xs font-medium text-muted-foreground">Notes</Label>
                   <Textarea
                     id="notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Any special instructions..."
                     rows={3}
+                    className="mt-1.5 bg-secondary/30 border-border/50 focus:border-primary/50 resize-none"
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Payment / Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm bg-gradient-to-br from-card to-card/80 overflow-hidden">
+              <CardHeader className="pb-3 bg-gradient-to-r from-rose-500/5 to-transparent">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                    <CreditCard className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                  </div>
                   Payment
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {loadingCard ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : cardInfo?.hasCard ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
                       <div className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
                         <div>
-                          <p className="font-medium capitalize">{cardInfo.brand} •••• {cardInfo.last4}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium capitalize text-emerald-800 dark:text-emerald-200">{cardInfo.brand} •••• {cardInfo.last4}</p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">
                             Expires {cardInfo.expMonth}/{cardInfo.expYear}
                           </p>
                         </div>
@@ -1009,6 +1061,7 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                         variant="ghost"
                         size="sm"
                         onClick={() => loadCardInfo(customerEmail)}
+                        className="h-8 w-8 p-0"
                       >
                         <RefreshCw className="h-4 w-4" />
                       </Button>
@@ -1111,9 +1164,14 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Select a customer to manage payment
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-3">
+                      <User className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Select a customer to manage payment
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1121,44 +1179,65 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
         </div>
 
         {/* Footer */}
-        <Separator className="my-4" />
-        
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="text-lg font-semibold">
-            Total: <span className="text-primary">${(totalAmount + extrasTotal).toFixed(2)}</span>
-            {extrasTotal > 0 && (
-              <span className="text-sm text-muted-foreground ml-2">
-                (${totalAmount} + ${extrasTotal} extras)
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            
-            {booking && (
-              <Button variant="outline" onClick={handleDuplicate}>
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicate
+        <div className="mt-6 pt-5 border-t border-border/50">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Amount</p>
+                <p className="text-2xl font-bold text-foreground">
+                  ${(totalAmount + extrasTotal).toFixed(2)}
+                </p>
+              </div>
+              {extrasTotal > 0 && (
+                <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 border-amber-200">
+                  +${extrasTotal} extras
+                </Badge>
+              )}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                className="h-10 px-4 border-border/50"
+              >
+                Cancel
               </Button>
-            )}
-            
-            <Button 
-              variant="secondary" 
-              onClick={() => handleSubmit(true)} 
-              disabled={savingDraft || submitting}
-            >
-              {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <FileText className="mr-2 h-4 w-4" />
-              Save as Draft
-            </Button>
-            
-            <Button onClick={() => handleSubmit(false)} disabled={submitting || savingDraft}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" />
-              {booking ? 'Update Booking' : 'Save Booking'}
-            </Button>
+              
+              {booking && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleDuplicate}
+                  className="h-10 px-4 border-border/50"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Duplicate
+                </Button>
+              )}
+              
+              <Button 
+                variant="secondary" 
+                onClick={() => handleSubmit(true)} 
+                disabled={savingDraft || submitting}
+                className="h-10 px-4"
+              >
+                {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <FileText className="mr-2 h-4 w-4" />
+                Save as Draft
+              </Button>
+              
+              <Button 
+                onClick={() => handleSubmit(false)} 
+                disabled={submitting || savingDraft}
+                className="h-10 px-5 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Save className="mr-2 h-4 w-4" />
+                {booking ? 'Update Booking' : 'Save Booking'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
