@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
   TableBody,
@@ -9,10 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
-import { format } from 'date-fns';
+import { TrendingUp, TrendingDown, DollarSign, Percent, CalendarIcon, Download } from 'lucide-react';
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 interface ProfitMarginReportProps {
   bookings: BookingWithDetails[];
@@ -32,13 +36,17 @@ interface BookingProfit {
 }
 
 export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(subMonths(new Date(), 2)),
+    to: endOfMonth(new Date()),
+  });
+
   const profitData = useMemo(() => {
     return bookings
       .map((booking): BookingProfit => {
         const revenue = Number(booking.total_amount || 0);
         const bookingAny = booking as any;
         
-        // Calculate cleaner pay based on wage type
         let cleanerPay = 0;
         if (bookingAny.cleaner_actual_payment) {
           cleanerPay = Number(bookingAny.cleaner_actual_payment);
@@ -51,7 +59,6 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
           } else if (wageType === 'percentage') {
             cleanerPay = (revenue * wage) / 100;
           } else {
-            // hourly
             const hours = bookingAny.cleaner_override_hours || (booking.duration / 60);
             cleanerPay = wage * hours;
           }
@@ -75,9 +82,18 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
           status: booking.status,
         };
       })
-      .filter(b => b.status === 'completed')
+      .filter(b => {
+        if (b.status !== 'completed') return false;
+        if (!dateRange?.from) return true;
+        
+        const interval = {
+          start: dateRange.from,
+          end: dateRange.to || dateRange.from,
+        };
+        return isWithinInterval(b.scheduledAt, interval);
+      })
       .sort((a, b) => b.marginPercent - a.marginPercent);
-  }, [bookings]);
+  }, [bookings, dateRange]);
 
   const summaryStats = useMemo(() => {
     const totalRevenue = profitData.reduce((sum, b) => sum + b.revenue, 0);
@@ -114,10 +130,71 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     return { label: 'Low', variant: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' };
   };
 
+  const exportToCSV = () => {
+    const headers = ['Booking #', 'Date', 'Customer', 'Service', 'Revenue', 'Cleaner Pay', 'Profit', 'Margin %'];
+    const rows = profitData.map(item => [
+      item.bookingNumber,
+      format(item.scheduledAt, 'yyyy-MM-dd'),
+      item.customerName,
+      item.serviceName,
+      item.revenue.toFixed(2),
+      item.cleanerPay.toFixed(2),
+      item.profit.toFixed(2),
+      item.marginPercent.toFixed(1),
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `profit-margin-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+  };
+
   return (
     <div className="space-y-6">
+      {/* Date Range Selector */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <CalendarIcon className="w-4 h-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
+                  </>
+                ) : (
+                  format(dateRange.from, 'MMM d, yyyy')
+                )
+              ) : (
+                'Select date range'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Button variant="outline" onClick={exportToCSV} className="gap-2">
+          <Download className="w-4 h-4" />
+          Export CSV
+        </Button>
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -223,12 +300,12 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
       {/* Detailed Table */}
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">Profit by Booking</CardTitle>
+          <CardTitle className="text-base">Profit by Booking ({profitData.length} jobs)</CardTitle>
         </CardHeader>
         <CardContent>
           {profitData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No completed bookings with wage data available
+              No completed bookings with wage data in selected date range
             </div>
           ) : (
             <Table>

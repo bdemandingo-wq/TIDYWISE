@@ -1,12 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star, TrendingUp, Clock, DollarSign, Calendar, CheckCircle } from 'lucide-react';
-import { isAfter, format, startOfMonth, endOfMonth } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Star, TrendingUp, Clock, DollarSign, Calendar as CalendarIcon, CheckCircle, Download } from 'lucide-react';
+import { isAfter, format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 interface CleanerPerformanceDashboardProps {
   bookings: BookingWithDetails[];
@@ -36,14 +40,16 @@ interface CleanerStats {
   totalEarnings: number;
   avgRevenuePerJob: number;
   avgEarningsPerJob: number;
-  thisMonthBookings: number;
-  thisMonthEarnings: number;
+  periodBookings: number;
+  periodEarnings: number;
 }
 
 export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerformanceDashboardProps) {
   const now = new Date();
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(subMonths(new Date(), 2)),
+    to: endOfMonth(new Date()),
+  });
 
   const cleanerStats = useMemo(() => {
     return staff
@@ -51,29 +57,31 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
       .map((cleaner): CleanerStats => {
         const cleanerBookings = bookings.filter(b => b.staff?.id === cleaner.id);
         
-        const completedBookings = cleanerBookings.filter(b => b.status === 'completed');
+        // Filter by date range for period stats
+        const periodBookings = cleanerBookings.filter(b => {
+          if (!dateRange?.from) return true;
+          const bookingDate = new Date(b.scheduled_at);
+          const interval = {
+            start: dateRange.from,
+            end: dateRange.to || dateRange.from,
+          };
+          return isWithinInterval(bookingDate, interval);
+        });
+        
+        const completedBookings = periodBookings.filter(b => b.status === 'completed');
         const upcomingBookings = cleanerBookings.filter(b => 
           isAfter(new Date(b.scheduled_at), now) && 
           !['completed', 'cancelled', 'no_show'].includes(b.status)
         );
-        const cancelledBookings = cleanerBookings.filter(b => b.status === 'cancelled');
-        const noShowBookings = cleanerBookings.filter(b => b.status === 'no_show');
+        const cancelledBookings = periodBookings.filter(b => b.status === 'cancelled');
+        const noShowBookings = periodBookings.filter(b => b.status === 'no_show');
         
         const totalRevenue = completedBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
         const totalEarnings = completedBookings.reduce((sum, b) => {
           return sum + Number((b as any).cleaner_actual_payment || 0);
         }, 0);
         
-        const thisMonthCompleted = completedBookings.filter(b => {
-          const date = new Date(b.scheduled_at);
-          return date >= monthStart && date <= monthEnd;
-        });
-        
-        const thisMonthEarnings = thisMonthCompleted.reduce((sum, b) => {
-          return sum + Number((b as any).cleaner_actual_payment || 0);
-        }, 0);
-        
-        const completionRate = cleanerBookings.length > 0 
+        const completionRate = periodBookings.length > 0 
           ? (completedBookings.length / (completedBookings.length + cancelledBookings.length + noShowBookings.length)) * 100
           : 0;
         
@@ -91,12 +99,12 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
           totalEarnings,
           avgRevenuePerJob: completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0,
           avgEarningsPerJob: completedBookings.length > 0 ? totalEarnings / completedBookings.length : 0,
-          thisMonthBookings: thisMonthCompleted.length,
-          thisMonthEarnings,
+          periodBookings: completedBookings.length,
+          periodEarnings: totalEarnings,
         };
       })
       .sort((a, b) => b.totalEarnings - a.totalEarnings);
-  }, [bookings, staff, now, monthStart, monthEnd]);
+  }, [bookings, staff, now, dateRange]);
 
   const topPerformer = cleanerStats[0];
   const totalTeamRevenue = cleanerStats.reduce((sum, c) => sum + c.totalRevenue, 0);
@@ -119,10 +127,71 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
     return 'bg-rose-500';
   };
 
+  const exportToCSV = () => {
+    const headers = ['Cleaner', 'Completed Jobs', 'Upcoming', 'Cancelled', 'No Shows', 'Completion Rate', 'Total Earnings', 'Avg/Job'];
+    const rows = cleanerStats.map(c => [
+      c.name,
+      c.completedBookings,
+      c.upcomingBookings,
+      c.cancelledBookings,
+      c.noShowBookings,
+      c.completionRate.toFixed(1) + '%',
+      c.totalEarnings.toFixed(2),
+      c.avgEarningsPerJob.toFixed(2),
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `cleaner-performance-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+  };
+
   return (
     <div className="space-y-6">
+      {/* Date Range Selector */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <CalendarIcon className="w-4 h-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
+                  </>
+                ) : (
+                  format(dateRange.from, 'MMM d, yyyy')
+                )
+              ) : (
+                'Select date range'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Button variant="outline" onClick={exportToCSV} className="gap-2">
+          <Download className="w-4 h-4" />
+          Export CSV
+        </Button>
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -268,10 +337,10 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <Calendar className="w-3 h-3" />
-                    This Month
+                    <CalendarIcon className="w-3 h-3" />
+                    In Period
                   </div>
-                  <p className="font-semibold">{cleaner.thisMonthBookings}</p>
+                  <p className="font-semibold">{cleaner.periodBookings}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
