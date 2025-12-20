@@ -1,5 +1,15 @@
 import { useState, useMemo } from 'react';
 import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -10,6 +20,7 @@ import {
   Loader2,
   Search,
   Edit,
+  GripVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,8 +34,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useBookings, BookingWithDetails } from '@/hooks/useBookings';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay } from 'date-fns';
+import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -51,7 +62,6 @@ const statusLabels: Record<string, string> = {
   no_show: 'no show',
 };
 
-// Default service colors
 const serviceColors = [
   '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
 ];
@@ -60,6 +70,36 @@ interface SchedulerCalendarProps {
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
   statusFilter?: 'all' | 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+interface DraggableBookingProps {
+  booking: BookingWithDetails;
+  index: number;
+  onClick: () => void;
+}
+
+function DraggableBooking({ booking, index, onClick }: DraggableBookingProps) {
+  const color = serviceColors[index % serviceColors.length];
+  
+  return (
+    <div
+      onClick={onClick}
+      className="booking-pill w-full text-left cursor-grab active:cursor-grabbing group"
+      style={{
+        backgroundColor: `${color}20`,
+        color: color,
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <div className="flex items-center gap-1">
+        <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-50 shrink-0" />
+        <span className="font-medium truncate">
+          {format(new Date(booking.scheduled_at), 'h:mm a')}
+        </span>{' '}
+        <span className="truncate">{booking.customer?.first_name || 'Customer'}</span>
+      </div>
+    </div>
+  );
 }
 
 export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilter = 'all' }: SchedulerCalendarProps) {
@@ -71,13 +111,21 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
+  const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
 
-  // Fetch all bookings
   const { data: allBookings = [], isLoading } = useBookings();
+  const updateBooking = useUpdateBooking();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const activeSearchTerm = searchTerm || localSearchTerm;
 
-  // Filter bookings based on search
   const searchResults = useMemo(() => {
     if (!activeSearchTerm.trim()) return [];
     
@@ -96,7 +144,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     }).sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
   }, [allBookings, activeSearchTerm]);
 
-  // Get bookings for the current view (month or week) with status filter
   const bookings = useMemo(() => {
     let start: Date, end: Date;
     
@@ -136,12 +183,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     
     const days: (Date | null)[] = [];
     
-    // Add padding for days before the first of the month
     for (let i = 0; i < startPadding; i++) {
       days.push(null);
     }
     
-    // Add all days of the month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
@@ -171,8 +216,47 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     return date.toDateString() === today.toDateString();
   };
 
-  const getServiceColor = (index: number) => {
-    return serviceColors[index % serviceColors.length];
+  const handleDragStart = (event: DragStartEvent) => {
+    const booking = allBookings.find(b => b.id === event.active.id);
+    if (booking) {
+      setActiveBooking(booking);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveBooking(null);
+
+    if (!over) return;
+
+    const bookingId = active.id as string;
+    const targetDateStr = over.id as string;
+
+    if (!targetDateStr.startsWith('day-')) return;
+
+    const targetDate = new Date(targetDateStr.replace('day-', ''));
+    const booking = allBookings.find(b => b.id === bookingId);
+
+    if (!booking) return;
+
+    const currentScheduled = new Date(booking.scheduled_at);
+    const newScheduled = setMinutes(
+      setHours(targetDate, currentScheduled.getHours()),
+      currentScheduled.getMinutes()
+    );
+
+    if (isSameDay(currentScheduled, newScheduled)) return;
+
+    try {
+      await updateBooking.mutateAsync({
+        id: bookingId,
+        scheduled_at: newScheduled.toISOString(),
+      });
+      toast.success(`Booking moved to ${format(newScheduled, 'MMM d, yyyy')}`);
+    } catch (error: any) {
+      toast.error('Failed to reschedule booking');
+      console.error(error);
+    }
   };
 
   const sendCleanerNotification = async (booking: BookingWithDetails) => {
@@ -253,304 +337,308 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm">
-      {/* Calendar Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">
-            {getHeaderTitle()}
-          </h2>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => navigate(-1)}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => navigate(1)}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-          <Button variant="outline" size="sm" onClick={goToToday}>
-            Today
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search bookings..."
-              value={activeSearchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9 w-64"
-              onFocus={() => activeSearchTerm && setSearchResultsOpen(true)}
-            />
-            
-            {/* Search Results Dropdown */}
-            {searchResultsOpen && activeSearchTerm && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-96 overflow-auto z-50">
-                {searchResults.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    No results found
-                  </div>
-                ) : (
-                  searchResults.slice(0, 10).map((booking) => (
-                    <button
-                      key={booking.id}
-                      className="w-full p-3 text-left hover:bg-muted/50 border-b border-border last:border-0"
-                      onClick={() => {
-                        setSelectedBooking(booking);
-                        setSearchResultsOpen(false);
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          {booking.customer 
-                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
-                            : 'Unknown'}
-                        </span>
-                        <Badge className={cn('text-xs', statusColors[booking.status])}>
-                          {statusLabels[booking.status] || booking.status}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex bg-secondary rounded-lg p-1">
-            <Button
-              variant={viewMode === 'month' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('month')}
-              className="h-7"
-            >
-              Month
-            </Button>
-            <Button
-              variant={viewMode === 'week' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('week')}
-              className="h-7"
-            >
-              Week
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="bg-card rounded-xl border border-border shadow-sm">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">
+              {getHeaderTitle()}
+            </h2>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => navigate(-1)}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => navigate(1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              Today
             </Button>
           </div>
-          <Button size="sm" className="gap-2" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Add Booking
-          </Button>
-        </div>
-      </div>
 
-      {/* Click outside to close search */}
-      {searchResultsOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setSearchResultsOpen(false)}
-        />
-      )}
-
-      {/* Day Headers */}
-      <div className="grid grid-cols-7 border-b border-border">
-        {DAYS.map((day) => (
-          <div
-            key={day}
-            className="py-3 text-center text-sm font-medium text-muted-foreground"
-          >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="grid grid-cols-7">
-        {isLoading ? (
-          <div className="col-span-7 flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          days.map((date, index) => (
-            <div
-              key={index}
-              className={cn(
-                'calendar-day',
-                viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[120px]',
-                date && isToday(date) && 'today',
-                !date && 'bg-muted/30'
-              )}
-            >
-              {date && (
-                <>
-                  <span
-                    className={cn(
-                      'text-sm font-medium mb-1',
-                      isToday(date) && 'text-primary'
-                    )}
-                  >
-                    {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
-                  </span>
-                  <div className="w-full space-y-1 overflow-hidden">
-                    {getBookingsForDate(date).slice(0, viewMode === 'week' ? 10 : 3).map((booking, bIndex) => (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search bookings..."
+                value={activeSearchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9 w-64"
+                onFocus={() => activeSearchTerm && setSearchResultsOpen(true)}
+              />
+              
+              {searchResultsOpen && activeSearchTerm && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-96 overflow-auto z-50">
+                  {searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      No results found
+                    </div>
+                  ) : (
+                    searchResults.slice(0, 10).map((booking) => (
                       <button
                         key={booking.id}
-                        onClick={() => setSelectedBooking(booking)}
-                        className="booking-pill w-full text-left"
-                        style={{
-                          backgroundColor: `${getServiceColor(bIndex)}20`,
-                          color: getServiceColor(bIndex),
-                          borderLeft: `3px solid ${getServiceColor(bIndex)}`,
+                        className="w-full p-3 text-left hover:bg-muted/50 border-b border-border last:border-0"
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setSearchResultsOpen(false);
                         }}
                       >
-                        <span className="font-medium">
-                          {format(new Date(booking.scheduled_at), 'h:mm a')}
-                        </span>{' '}
-                        {booking.customer?.first_name || 'Customer'}
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {booking.customer 
+                              ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                              : 'Unknown'}
+                          </span>
+                          <Badge className={cn('text-xs', statusColors[booking.status])}>
+                            {statusLabels[booking.status] || booking.status}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                        </div>
                       </button>
-                    ))}
-                    {getBookingsForDate(date).length > (viewMode === 'week' ? 10 : 3) && (
-                      <span className="text-xs text-muted-foreground pl-2">
-                        +{getBookingsForDate(date).length - (viewMode === 'week' ? 10 : 3)} more
-                      </span>
-                    )}
-                  </div>
-                </>
+                    ))
+                  )}
+                </div>
               )}
             </div>
-          ))
+
+            <div className="flex bg-secondary rounded-lg p-1">
+              <Button
+                variant={viewMode === 'month' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('month')}
+                className="h-7"
+              >
+                Month
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('week')}
+                className="h-7"
+              >
+                Week
+              </Button>
+            </div>
+            <Button size="sm" className="gap-2" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Add Booking
+            </Button>
+          </div>
+        </div>
+
+        {searchResultsOpen && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setSearchResultsOpen(false)}
+          />
         )}
-      </div>
 
-      {/* Booking Detail Dialog */}
-      <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Booking Details</DialogTitle>
-          </DialogHeader>
-          {selectedBooking && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold">
-                  {selectedBooking.service?.name || 'Cleaning Service'}
-                </span>
-                <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
-                  {statusLabels[selectedBooking.status] || selectedBooking.status}
-                </Badge>
-              </div>
-              
-              <div className="text-sm text-muted-foreground">
-                Booking #{selectedBooking.booking_number}
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">
-                      {selectedBooking.customer 
-                        ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
-                        : 'Unknown Customer'
-                      }
-                    </p>
-                    <p className="text-muted-foreground">
-                      {selectedBooking.customer?.email || 'No email'}
-                    </p>
-                  </div>
+        {/* Drag hint */}
+        <div className="px-4 py-2 bg-secondary/30 border-b border-border text-sm text-muted-foreground flex items-center gap-2">
+          <GripVertical className="w-4 h-4" />
+          Drag and drop bookings to reschedule them
+        </div>
+
+        {/* Day Headers */}
+        <div className="grid grid-cols-7 border-b border-border">
+          {DAYS.map((day) => (
+            <div
+              key={day}
+              className="py-3 text-center text-sm font-medium text-muted-foreground"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7">
+          {isLoading ? (
+            <div className="col-span-7 flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            days.map((date, index) => {
+              const dayBookings = date ? getBookingsForDate(date) : [];
+              return (
+                <div
+                  key={index}
+                  id={date ? `day-${format(date, 'yyyy-MM-dd')}` : `empty-${index}`}
+                  data-droppable={date ? 'true' : 'false'}
+                  className={cn(
+                    'calendar-day',
+                    viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[120px]',
+                    date && isToday(date) && 'today',
+                    !date && 'bg-muted/30'
+                  )}
+                >
+                  {date && (
+                    <>
+                      <span
+                        className={cn(
+                          'text-sm font-medium mb-1',
+                          isToday(date) && 'text-primary'
+                        )}
+                      >
+                        {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
+                      </span>
+                      <div className="w-full space-y-1 overflow-hidden">
+                        {dayBookings.slice(0, viewMode === 'week' ? 10 : 3).map((booking, bIndex) => (
+                          <div
+                            key={booking.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('bookingId', booking.id);
+                            }}
+                          >
+                            <DraggableBooking
+                              booking={booking}
+                              index={bIndex}
+                              onClick={() => setSelectedBooking(booking)}
+                            />
+                          </div>
+                        ))}
+                        {dayBookings.length > (viewMode === 'week' ? 10 : 3) && (
+                          <span className="text-xs text-muted-foreground pl-2">
+                            +{dayBookings.length - (viewMode === 'week' ? 10 : 3)} more
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeBooking && (
+            <div className="booking-pill bg-primary/20 text-primary border-l-4 border-primary px-2 py-1 rounded text-sm shadow-lg">
+              {format(new Date(activeBooking.scheduled_at), 'h:mm a')} - {activeBooking.customer?.first_name || 'Customer'}
+            </div>
+          )}
+        </DragOverlay>
+
+        {/* Booking Detail Dialog */}
+        <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Booking Details</DialogTitle>
+            </DialogHeader>
+            {selectedBooking && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold">
+                    {selectedBooking.service?.name || 'Cleaning Service'}
+                  </span>
+                  <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
+                    {statusLabels[selectedBooking.status] || selectedBooking.status}
+                  </Badge>
                 </div>
                 
-                <div className="flex items-center gap-3 text-sm">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">
-                      {format(new Date(selectedBooking.scheduled_at), 'MMMM d, yyyy')} at{' '}
-                      {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Duration: {selectedBooking.duration} minutes
-                    </p>
-                  </div>
+                <div className="text-sm text-muted-foreground">
+                  Booking #{selectedBooking.booking_number}
                 </div>
                 
-                {getFullAddress(selectedBooking) && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <p>{getFullAddress(selectedBooking)}</p>
-                  </div>
-                )}
-
-                {selectedBooking.staff && (
+                <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Assigned: {selectedBooking.staff.name}</p>
-                      <p className="text-muted-foreground">{selectedBooking.staff.email}</p>
+                      <p className="font-medium">
+                        {selectedBooking.customer 
+                          ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
+                          : 'Unknown Customer'
+                        }
+                      </p>
+                      <p className="text-muted-foreground">
+                        {selectedBooking.customer?.email || 'No email'}
+                      </p>
                     </div>
                   </div>
-                )}
-
-                {selectedBooking.notes && (
-                  <div className="p-3 bg-muted rounded-lg text-sm">
-                    <p className="font-medium mb-1">Notes:</p>
-                    <p className="text-muted-foreground">{selectedBooking.notes}</p>
+                  
+                  <div className="flex items-center gap-3 text-sm">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">
+                        {format(new Date(selectedBooking.scheduled_at), 'EEEE, MMMM d, yyyy')}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
+                  
+                  {getFullAddress(selectedBooking) && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <p>{getFullAddress(selectedBooking)}</p>
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-2xl font-bold">${selectedBooking.total_amount}</span>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
                     onClick={handleEditBooking}
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => sendCleanerNotification(selectedBooking)}
-                    disabled={sendingEmail || !selectedBooking.staff}
-                  >
-                    {sendingEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Mail className="w-4 h-4" />
-                    )}
-                    Notify Cleaner
-                  </Button>
+                  {selectedBooking.staff && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => sendCleanerNotification(selectedBooking)}
+                      disabled={sendingEmail}
+                    >
+                      {sendingEmail ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      Notify Cleaner
+                    </Button>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
 
-      <AddBookingDialog 
-        open={addDialogOpen || !!editingBooking} 
-        onOpenChange={(open) => {
-          if (!open) {
-            setAddDialogOpen(false);
-            setEditingBooking(null);
-          }
-        }}
-        booking={editingBooking}
-      />
-    </div>
+        {/* Add/Edit Booking Dialog */}
+        <AddBookingDialog
+          open={addDialogOpen || !!editingBooking}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAddDialogOpen(false);
+              setEditingBooking(null);
+            }
+          }}
+          booking={editingBooking}
+        />
+      </div>
+    </DndContext>
   );
 }

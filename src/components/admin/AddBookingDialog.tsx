@@ -557,14 +557,23 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
           // Send customer confirmation email if checkbox is checked
           if (sendConfirmationEmail && customerEmail) {
             try {
+              const scheduledDate = new Date(bookingData.scheduled_at);
               await supabase.functions.invoke('send-booking-email', {
                 body: {
-                  to: customerEmail,
                   customerName: customerName,
-                  serviceName: selectedService?.name,
-                  scheduledAt: bookingData.scheduled_at,
-                  totalAmount: totalAmount,
+                  customerEmail: customerEmail,
+                  customerPhone: customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone,
+                  serviceName: selectedService?.name || 'Cleaning Service',
+                  homeSize: squareFootage || 'Not specified',
+                  appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
+                  appointmentTime: format(scheduledDate, 'h:mm a'),
                   address: address,
+                  city: city,
+                  state: state,
+                  zipCode: zipCode,
+                  extras: selectedExtras,
+                  totalPrice: totalAmount,
+                  confirmationNumber: `FPC-${Date.now().toString(36).toUpperCase()}`,
                 }
               });
               toast.success('Confirmation email sent to customer');
