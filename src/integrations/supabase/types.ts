@@ -149,6 +149,8 @@ export type Database = {
           company_phone: string | null
           company_state: string | null
           company_zip: string | null
+          confirmation_email_body: string | null
+          confirmation_email_subject: string | null
           created_at: string
           currency: string | null
           id: string
@@ -160,6 +162,8 @@ export type Database = {
           notify_reminders: boolean | null
           notify_sms: boolean | null
           primary_color: string | null
+          reminder_email_body: string | null
+          reminder_email_subject: string | null
           require_deposit: boolean | null
           timezone: string | null
           updated_at: string
@@ -177,6 +181,8 @@ export type Database = {
           company_phone?: string | null
           company_state?: string | null
           company_zip?: string | null
+          confirmation_email_body?: string | null
+          confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -188,6 +194,8 @@ export type Database = {
           notify_reminders?: boolean | null
           notify_sms?: boolean | null
           primary_color?: string | null
+          reminder_email_body?: string | null
+          reminder_email_subject?: string | null
           require_deposit?: boolean | null
           timezone?: string | null
           updated_at?: string
@@ -205,6 +213,8 @@ export type Database = {
           company_phone?: string | null
           company_state?: string | null
           company_zip?: string | null
+          confirmation_email_body?: string | null
+          confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -216,6 +226,8 @@ export type Database = {
           notify_reminders?: boolean | null
           notify_sms?: boolean | null
           primary_color?: string | null
+          reminder_email_body?: string | null
+          reminder_email_subject?: string | null
           require_deposit?: boolean | null
           timezone?: string | null
           updated_at?: string

@@ -14,9 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2 } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
 
 interface BusinessSettings {
   id?: string;
@@ -46,6 +47,11 @@ interface BusinessSettings {
   // Branding settings
   primary_color: string;
   accent_color: string;
+  // Email templates
+  confirmation_email_subject: string;
+  confirmation_email_body: string;
+  reminder_email_subject: string;
+  reminder_email_body: string;
 }
 
 const defaultSettings: BusinessSettings = {
@@ -72,6 +78,10 @@ const defaultSettings: BusinessSettings = {
   notify_sms: false,
   primary_color: '#3b82f6',
   accent_color: '#14b8a6',
+  confirmation_email_subject: 'Your Booking Confirmation - {{booking_number}}',
+  confirmation_email_body: 'Hi {{customer_name}},\n\nThank you for booking with us!\n\nYour booking details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n- Total: ${{total_amount}}\n\nWe look forward to serving you!\n\nBest regards,\n{{company_name}}',
+  reminder_email_subject: 'Reminder: Your Cleaning is Tomorrow - {{booking_number}}',
+  reminder_email_body: 'Hi {{customer_name}},\n\nThis is a friendly reminder that your cleaning is scheduled for tomorrow.\n\nBooking Details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n\nIf you need to reschedule or have any questions, please contact us.\n\nSee you soon!\n{{company_name}}',
 };
 
 export default function SettingsPage() {
@@ -94,6 +104,7 @@ export default function SettingsPage() {
       if (error) throw error;
 
       if (data) {
+        const typedData = data as any;
         setSettings({
           id: data.id,
           company_name: data.company_name || '',
@@ -119,6 +130,10 @@ export default function SettingsPage() {
           notify_sms: data.notify_sms ?? false,
           primary_color: data.primary_color || '#3b82f6',
           accent_color: data.accent_color || '#14b8a6',
+          confirmation_email_subject: typedData.confirmation_email_subject || defaultSettings.confirmation_email_subject,
+          confirmation_email_body: typedData.confirmation_email_body || defaultSettings.confirmation_email_body,
+          reminder_email_subject: typedData.reminder_email_subject || defaultSettings.reminder_email_subject,
+          reminder_email_body: typedData.reminder_email_body || defaultSettings.reminder_email_body,
         });
       }
     } catch (error) {
@@ -156,7 +171,11 @@ export default function SettingsPage() {
         notify_sms: settings.notify_sms,
         primary_color: settings.primary_color,
         accent_color: settings.accent_color,
-      };
+        confirmation_email_subject: settings.confirmation_email_subject,
+        confirmation_email_body: settings.confirmation_email_body,
+        reminder_email_subject: settings.reminder_email_subject,
+        reminder_email_body: settings.reminder_email_body,
+      } as any;
 
       if (settings.id) {
         const { error } = await supabase
@@ -205,10 +224,11 @@ export default function SettingsPage() {
       subtitle="Manage your business preferences"
     >
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-xl grid-cols-5">
+        <TabsList className="grid w-full max-w-3xl grid-cols-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="booking">Booking</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="emails">Emails</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -470,6 +490,19 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Email Templates */}
+        <TabsContent value="emails" className="space-y-6">
+          <EmailTemplatesSettings
+            confirmationEmailSubject={settings.confirmation_email_subject}
+            confirmationEmailBody={settings.confirmation_email_body}
+            reminderEmailSubject={settings.reminder_email_subject}
+            reminderEmailBody={settings.reminder_email_body}
+            onUpdate={(field, value) => updateField(field as keyof BusinessSettings, value)}
+            onSave={saveSettings}
+            saving={saving}
+          />
         </TabsContent>
 
         {/* Branding */}
