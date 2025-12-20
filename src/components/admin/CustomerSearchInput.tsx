@@ -136,6 +136,7 @@ export function CustomerSearchInput({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               ref={inputRef}
+              autoComplete="off"
               type="text"
               value={searchTerm}
               onChange={(e) => {
@@ -153,7 +154,7 @@ export function CustomerSearchInput({
           {isOpen && (
             <div
               ref={dropdownRef}
-              className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-72 overflow-y-auto"
+              className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-96 overflow-y-auto min-h-[200px]"
             >
               {filteredCustomers.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
@@ -170,25 +171,35 @@ export function CustomerSearchInput({
                       key={customer.id}
                       onClick={() => handleSelectCustomer(customer)}
                       className={cn(
-                        "px-4 py-3 cursor-pointer flex items-center gap-3 transition-colors",
+                        "px-4 py-4 cursor-pointer flex items-center gap-4 transition-colors border-b border-border/30 last:border-0",
                         index === highlightedIndex 
                           ? "bg-primary text-primary-foreground" 
                           : "hover:bg-muted"
                       )}
                     >
-                      <User className="h-5 w-5 flex-shrink-0" />
+                      <User className="h-6 w-6 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-base">
+                        <p className="font-semibold text-lg leading-tight">
                           {customer.first_name} {customer.last_name}
                         </p>
                         <p className={cn(
-                          "text-sm",
+                          "text-sm mt-0.5",
                           index === highlightedIndex 
                             ? "text-primary-foreground/80" 
                             : "text-muted-foreground"
                         )}>
                           {customer.email}
                         </p>
+                        {customer.phone && (
+                          <p className={cn(
+                            "text-xs",
+                            index === highlightedIndex 
+                              ? "text-primary-foreground/70" 
+                              : "text-muted-foreground/70"
+                          )}>
+                            {customer.phone}
+                          </p>
+                        )}
                       </div>
                     </li>
                   ))}
