@@ -121,6 +121,9 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
   const [cleanerWageType, setCleanerWageType] = useState<string>('hourly');
   const [cleanerOverrideHours, setCleanerOverrideHours] = useState<string>('');
 
+  // Email confirmation checkbox
+  const [sendConfirmationEmail, setSendConfirmationEmail] = useState<boolean>(false);
+
   // Card state
   const [cardInfo, setCardInfo] = useState<CardInfo | null>(null);
   const [loadingCard, setLoadingCard] = useState(false);
@@ -549,6 +552,25 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
             });
           } catch (emailError) {
             console.error('Failed to send admin notification:', emailError);
+          }
+
+          // Send customer confirmation email if checkbox is checked
+          if (sendConfirmationEmail && customerEmail) {
+            try {
+              await supabase.functions.invoke('send-booking-email', {
+                body: {
+                  to: customerEmail,
+                  customerName: customerName,
+                  serviceName: selectedService?.name,
+                  scheduledAt: bookingData.scheduled_at,
+                  totalAmount: totalAmount,
+                  address: address,
+                }
+              });
+              toast.success('Confirmation email sent to customer');
+            } catch (emailError) {
+              console.error('Failed to send customer confirmation:', emailError);
+            }
           }
         }
       }
@@ -1268,7 +1290,20 @@ export function AddBookingDialog({ open, onOpenChange, defaultDate, booking, onD
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              {/* Email Confirmation Checkbox */}
+              <div className="flex items-center gap-2 mr-4 p-2 bg-secondary/30 rounded-lg">
+                <Checkbox 
+                  id="sendConfirmation" 
+                  checked={sendConfirmationEmail} 
+                  onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)} 
+                />
+                <Label htmlFor="sendConfirmation" className="text-sm cursor-pointer flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  Send confirmation email
+                </Label>
+              </div>
+              
               <Button 
                 variant="outline" 
                 onClick={() => onOpenChange(false)}

@@ -14,8 +14,11 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format, subMonths, isAfter } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProfitMarginReport } from '@/components/admin/ProfitMarginReport';
+import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerformanceDashboard';
 
 // Default service colors
 const defaultColors = [
@@ -116,6 +119,8 @@ export default function ReportsPage() {
     };
   }, [bookings, staff]);
 
+  const [activeTab, setActiveTab] = useState('overview');
+
   if (isLoading) {
     return (
       <AdminLayout title="Reports" subtitle="Loading...">
@@ -167,8 +172,17 @@ export default function ReportsPage() {
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* Tabs for different reports */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-secondary/50">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="profit-margin">Profit Margin</TabsTrigger>
+          <TabsTrigger value="cleaner-performance">Cleaner Performance</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Revenue Bar Chart */}
         <div className="bg-card rounded-xl border border-border shadow-sm p-4">
           <h3 className="font-semibold mb-4">Monthly Revenue</h3>
@@ -226,55 +240,65 @@ export default function ReportsPage() {
             )}
           </div>
         </div>
-      </div>
+          </div>
 
-      {/* Staff Performance Table */}
-      <div className="bg-card rounded-xl border border-border shadow-sm p-4">
-        <h3 className="font-semibold mb-4">Staff Performance</h3>
-        {staffStats.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No staff performance data available
+          {/* Staff Performance Table */}
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4">
+            <h3 className="font-semibold mb-4">Staff Performance</h3>
+            {staffStats.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No staff performance data available
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left border-b border-border">
+                      <th className="pb-3 font-medium text-muted-foreground">Staff Member</th>
+                      <th className="pb-3 font-medium text-muted-foreground text-right">Completed</th>
+                      <th className="pb-3 font-medium text-muted-foreground text-right">Upcoming</th>
+                      <th className="pb-3 font-medium text-muted-foreground text-right">Total Payment</th>
+                      <th className="pb-3 font-medium text-muted-foreground text-right">Avg/Booking</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffStats.map((staffMember, index) => (
+                      <tr key={staffMember.name} className="border-b border-border/50 last:border-0">
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                            <span className="font-medium">{staffMember.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 text-right">{staffMember.bookings}</td>
+                        <td className="py-3 text-right">
+                          <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
+                            {staffMember.upcomingCleans}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-semibold text-success">
+                          ${staffMember.payment.toLocaleString()}
+                        </td>
+                        <td className="py-3 text-right">
+                          ${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left border-b border-border">
-                  <th className="pb-3 font-medium text-muted-foreground">Staff Member</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Completed</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Upcoming</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Total Payment</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Avg/Booking</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffStats.map((staff, index) => (
-                  <tr key={staff.name} className="border-b border-border/50 last:border-0">
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
-                        <span className="font-medium">{staff.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 text-right">{staff.bookings}</td>
-                    <td className="py-3 text-right">
-                      <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
-                        {staff.upcomingCleans}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right font-semibold text-success">
-                      ${staff.payment.toLocaleString()}
-                    </td>
-                    <td className="py-3 text-right">
-                      ${staff.bookings > 0 ? (staff.payment / staff.bookings).toFixed(0) : 0}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="profit-margin">
+          <ProfitMarginReport bookings={bookings} />
+        </TabsContent>
+
+        <TabsContent value="cleaner-performance">
+          <CleanerPerformanceDashboard bookings={bookings} staff={staff} />
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 }
