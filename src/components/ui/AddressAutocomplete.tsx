@@ -82,7 +82,7 @@ export function AddressAutocomplete({
     let streetNumber = '';
     let route = '';
 
-    place.address_components?.forEach((component) => {
+    place.address_components?.forEach((component: any) => {
       const types = component.types;
       
       if (types.includes('street_number')) {
@@ -91,7 +91,14 @@ export function AddressAutocomplete({
       if (types.includes('route')) {
         route = component.long_name;
       }
-      if (types.includes('locality') || types.includes('sublocality')) {
+      // Check multiple types for city - Google may return different types
+      if (types.includes('locality')) {
+        components.city = component.long_name;
+      } else if (types.includes('sublocality_level_1') && !components.city) {
+        components.city = component.long_name;
+      } else if (types.includes('administrative_area_level_3') && !components.city) {
+        components.city = component.long_name;
+      } else if (types.includes('neighborhood') && !components.city) {
         components.city = component.long_name;
       }
       if (types.includes('administrative_area_level_1')) {
