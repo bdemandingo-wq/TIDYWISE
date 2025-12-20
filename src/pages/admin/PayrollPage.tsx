@@ -32,6 +32,7 @@ interface StaffWithPayroll {
   totalPay: number;
   ytdEarnings: number;
   requiresTaxFiling: boolean;
+  upcomingBookings: number;
 }
 
 export default function PayrollPage() {
@@ -53,14 +54,13 @@ export default function PayrollPage() {
     },
   });
 
-  // Fetch completed bookings for payroll calculation
+  // Fetch ALL bookings for selected date range (not just completed) to include all staff
   const { data: bookings = [] } = useQuery({
     queryKey: ['bookings-payroll', dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .eq('status', 'completed')
         .gte('scheduled_at', dateRange.from.toISOString())
         .lte('scheduled_at', dateRange.to.toISOString());
       if (error) throw error;
@@ -83,13 +83,13 @@ export default function PayrollPage() {
     },
   });
 
-  // Calculate payroll data
+  // Calculate payroll data - include ALL staff, even those without bookings
   const payrollData: StaffWithPayroll[] = useMemo(() => {
     return staff.map((s) => {
-      // Filter bookings for this staff member in date range
-      const staffBookings = bookings.filter((b) => b.staff_id === s.id);
+      // Filter completed bookings for this staff member in date range
+      const staffBookings = bookings.filter((b) => b.staff_id === s.id && b.status === 'completed');
       
-      // Calculate hours from bookings (duration is in minutes)
+      // Calculate hours from completed bookings (duration is in minutes)
       const totalMinutes = staffBookings.reduce((sum, b) => {
         const hours = b.cleaner_override_hours || (b.duration / 60);
         return sum + hours * 60;
@@ -106,8 +106,8 @@ export default function PayrollPage() {
         return sum + (hours * Number(wage));
       }, 0);
 
-      // Calculate YTD earnings
-      const ytdStaffBookings = ytdBookings.filter((b) => b.staff_id === s.id);
+      // Calculate YTD earnings from completed bookings
+      const ytdStaffBookings = ytdBookings.filter((b) => b.staff_id === s.id && b.status === 'completed');
       const ytdEarnings = ytdStaffBookings.reduce((sum, b) => {
         if (b.cleaner_actual_payment) {
           return sum + Number(b.cleaner_actual_payment);
@@ -116,6 +116,12 @@ export default function PayrollPage() {
         const wage = b.cleaner_wage || s.base_wage || s.hourly_rate || 0;
         return sum + (hours * Number(wage));
       }, 0);
+
+      // Count upcoming bookings for this staff
+      const upcomingBookings = bookings.filter(b => 
+        b.staff_id === s.id && 
+        !['completed', 'cancelled', 'no_show'].includes(b.status)
+      ).length;
 
       // Check if 1099 and over $600 threshold
       const requiresTaxFiling = s.tax_classification === '1099' && ytdEarnings >= 600;
@@ -131,6 +137,7 @@ export default function PayrollPage() {
         totalPay: Math.round(totalPay * 100) / 100,
         ytdEarnings: Math.round(ytdEarnings * 100) / 100,
         requiresTaxFiling,
+        upcomingBookings,
       };
     });
   }, [staff, bookings, ytdBookings]);
