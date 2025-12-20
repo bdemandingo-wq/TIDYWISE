@@ -14,11 +14,14 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, subMonths, isAfter } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfitMarginReport } from '@/components/admin/ProfitMarginReport';
 import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerformanceDashboard';
+import { ProfitByServiceChart } from '@/components/admin/ProfitByServiceChart';
+import { CleanerAvailabilityDashboard } from '@/components/admin/CleanerAvailabilityDashboard';
+import { supabase } from '@/integrations/supabase/client';
 
 // Default service colors
 const defaultColors = [
@@ -29,6 +32,15 @@ export default function ReportsPage() {
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
+  const [workingHours, setWorkingHours] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchWorkingHours = async () => {
+      const { data } = await supabase.from('working_hours').select('*');
+      if (data) setWorkingHours(data);
+    };
+    fetchWorkingHours();
+  }, []);
 
   const isLoading = bookingsLoading || servicesLoading || staffLoading;
 
@@ -136,8 +148,8 @@ export default function ReportsPage() {
       title="Reports"
       subtitle="Analytics and performance metrics"
     >
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Summary Stats - Uniform Card Size */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Total Revenue"
           value={`$${totalStats.totalRevenue.toLocaleString()}`}
@@ -178,116 +190,123 @@ export default function ReportsPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profit-margin">Profit Margin</TabsTrigger>
           <TabsTrigger value="cleaner-performance">Cleaner Performance</TabsTrigger>
+          <TabsTrigger value="cleaner-availability">Availability</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Charts Row */}
+          {/* Top Row - 2 Equal Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Revenue Bar Chart */}
-        <div className="bg-card rounded-xl border border-border shadow-sm p-4">
-          <h3 className="font-semibold mb-4">Monthly Revenue</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 32%, 91%)" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(0, 0%, 100%)',
-                    border: '1px solid hsl(214, 32%, 91%)',
-                    borderRadius: '8px',
-                  }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                />
-                <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Service Breakdown Pie Chart */}
-        <div className="bg-card rounded-xl border border-border shadow-sm p-4">
-          <h3 className="font-semibold mb-4">Revenue by Service</h3>
-          <div className="h-[300px]">
-            {serviceStats.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                No service data available
+            {/* Monthly Revenue Bar Chart */}
+            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
+              <h3 className="font-semibold mb-4">Monthly Revenue</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={serviceStats}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    dataKey="revenue"
-                    nameKey="name"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={false}
-                  >
-                    {serviceStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+            </div>
+
+            {/* Revenue by Service Pie Chart */}
+            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
+              <h3 className="font-semibold mb-4">Revenue by Service</h3>
+              <div className="h-[300px]">
+                {serviceStats.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    No service data available
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={serviceStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        dataKey="revenue"
+                        nameKey="name"
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        labelLine={false}
+                      >
+                        {serviceStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Staff Performance Table */}
-          <div className="bg-card rounded-xl border border-border shadow-sm p-4">
-            <h3 className="font-semibold mb-4">Staff Performance</h3>
-            {staffStats.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No staff performance data available
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left border-b border-border">
-                      <th className="pb-3 font-medium text-muted-foreground">Staff Member</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Completed</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Upcoming</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Total Payment</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Avg/Booking</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffStats.map((staffMember, index) => (
-                      <tr key={staffMember.name} className="border-b border-border/50 last:border-0">
-                        <td className="py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
-                            <span className="font-medium">{staffMember.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 text-right">{staffMember.bookings}</td>
-                        <td className="py-3 text-right">
-                          <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
-                            {staffMember.upcomingCleans}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right font-semibold text-success">
-                          ${staffMember.payment.toLocaleString()}
-                        </td>
-                        <td className="py-3 text-right">
-                          ${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}
-                        </td>
+          {/* Second Row - Profit by Service + Staff Performance */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Profit by Service */}
+            <ProfitByServiceChart bookings={bookings} />
+
+            {/* Staff Performance Table */}
+            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[420px] overflow-auto">
+              <h3 className="font-semibold mb-4">Staff Performance</h3>
+              {staffStats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No staff performance data available
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left border-b border-border">
+                        <th className="pb-3 font-medium text-muted-foreground">Staff Member</th>
+                        <th className="pb-3 font-medium text-muted-foreground text-right">Completed</th>
+                        <th className="pb-3 font-medium text-muted-foreground text-right">Upcoming</th>
+                        <th className="pb-3 font-medium text-muted-foreground text-right">Total Payment</th>
+                        <th className="pb-3 font-medium text-muted-foreground text-right">Avg/Booking</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {staffStats.map((staffMember, index) => (
+                        <tr key={staffMember.name} className="border-b border-border/50 last:border-0">
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                              <span className="font-medium">{staffMember.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 text-right">{staffMember.bookings}</td>
+                          <td className="py-3 text-right">
+                            <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
+                              {staffMember.upcomingCleans}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right font-semibold text-success">
+                            ${staffMember.payment.toLocaleString()}
+                          </td>
+                          <td className="py-3 text-right">
+                            ${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -297,6 +316,14 @@ export default function ReportsPage() {
 
         <TabsContent value="cleaner-performance">
           <CleanerPerformanceDashboard bookings={bookings} staff={staff} />
+        </TabsContent>
+
+        <TabsContent value="cleaner-availability">
+          <CleanerAvailabilityDashboard 
+            bookings={bookings} 
+            staff={staff} 
+            workingHours={workingHours}
+          />
         </TabsContent>
       </Tabs>
     </AdminLayout>
