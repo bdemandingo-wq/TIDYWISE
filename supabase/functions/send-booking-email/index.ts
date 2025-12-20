@@ -43,7 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
       booking.zipCode
     ].filter(Boolean).join(", ");
 
-    const extrasText = booking.extras.length > 0 
+    const extrasText = booking.extras && booking.extras.length > 0 
       ? booking.extras.join(", ") 
       : "None";
 
