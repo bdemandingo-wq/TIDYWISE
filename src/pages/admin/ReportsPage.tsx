@@ -15,7 +15,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useMemo } from 'react';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, isAfter } from 'date-fns';
 
 // Default service colors
 const defaultColors = [
@@ -46,17 +46,35 @@ export default function ReportsPage() {
     });
     const serviceStats = Array.from(serviceMap.values());
 
-    // Staff performance - use cleaner_actual_payment instead of revenue
-    const staffMap = new Map<string, { name: string; bookings: number; payment: number }>();
-    bookings.forEach(booking => {
-      if (!booking.staff) return;
-      const staffId = booking.staff.id;
-      const existing = staffMap.get(staffId) || { name: booking.staff.name, bookings: 0, payment: 0 };
-      existing.bookings += 1;
-      existing.payment += Number((booking as any).cleaner_actual_payment || 0);
-      staffMap.set(staffId, existing);
+    // Staff performance - include ALL staff members and show upcoming cleans
+    const now = new Date();
+    const staffStatsData = staff.map((s, index) => {
+      // Get all bookings for this staff member
+      const staffBookings = bookings.filter(b => b.staff?.id === s.id);
+      
+      // Calculate total payment from cleaner_actual_payment
+      const totalPayment = staffBookings.reduce((sum, b) => {
+        return sum + Number((b as any).cleaner_actual_payment || 0);
+      }, 0);
+      
+      // Count upcoming cleans (scheduled_at > now and not cancelled/completed)
+      const upcomingCleans = staffBookings.filter(b => {
+        const scheduledDate = new Date(b.scheduled_at);
+        return isAfter(scheduledDate, now) && 
+               !['completed', 'cancelled', 'no_show'].includes(b.status);
+      }).length;
+
+      // Count completed bookings
+      const completedBookings = staffBookings.filter(b => b.status === 'completed').length;
+
+      return {
+        name: s.name,
+        bookings: completedBookings,
+        upcomingCleans,
+        payment: totalPayment,
+      };
     });
-    const staffStats = Array.from(staffMap.values()).sort((a, b) => b.payment - a.payment);
+    const staffStats = staffStatsData.sort((a, b) => b.payment - a.payment);
 
     // Monthly data - last 6 months
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -96,7 +114,7 @@ export default function ReportsPage() {
         totalBookings,
       },
     };
-  }, [bookings]);
+  }, [bookings, staff]);
 
   if (isLoading) {
     return (
@@ -223,8 +241,9 @@ export default function ReportsPage() {
               <thead>
                 <tr className="text-left border-b border-border">
                   <th className="pb-3 font-medium text-muted-foreground">Staff Member</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Bookings</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Payment</th>
+                  <th className="pb-3 font-medium text-muted-foreground text-right">Completed</th>
+                  <th className="pb-3 font-medium text-muted-foreground text-right">Upcoming</th>
+                  <th className="pb-3 font-medium text-muted-foreground text-right">Total Payment</th>
                   <th className="pb-3 font-medium text-muted-foreground text-right">Avg/Booking</th>
                 </tr>
               </thead>
@@ -238,6 +257,11 @@ export default function ReportsPage() {
                       </div>
                     </td>
                     <td className="py-3 text-right">{staff.bookings}</td>
+                    <td className="py-3 text-right">
+                      <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
+                        {staff.upcomingCleans}
+                      </span>
+                    </td>
                     <td className="py-3 text-right font-semibold text-success">
                       ${staff.payment.toLocaleString()}
                     </td>
