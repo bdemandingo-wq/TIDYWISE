@@ -3,6 +3,7 @@ import { Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
+import { ThemeToggle } from '@/components/admin/ThemeToggle';
 
 interface AdminHeaderProps {
   title: string;
@@ -36,6 +37,9 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
 
             {/* Actions */}
             {actions}
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
 
             {/* Quick Add */}
             <Button size="sm" className="gap-2" onClick={() => setBookingDialogOpen(true)}>

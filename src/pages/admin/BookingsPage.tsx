@@ -49,7 +49,8 @@ import {
   DollarSign,
   Filter,
   CalendarRange,
-  X
+  X,
+  Mail
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -126,6 +127,7 @@ export default function BookingsPage() {
   const [captureConfirmBooking, setCaptureConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [paymentHistoryBooking, setPaymentHistoryBooking] = useState<BookingWithDetails | null>(null);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -453,6 +455,37 @@ export default function BookingsPage() {
       payment_status: 'pending',
     });
     setAddDialogOpen(true);
+  };
+
+  const handleSendReminder = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "No customer email found", variant: "destructive" });
+      return;
+    }
+
+    setSendingReminder(booking.id);
+    
+    try {
+      const { error } = await supabase.functions.invoke('send-booking-reminder', {
+        body: {
+          bookingId: booking.id,
+          customerEmail: booking.customer.email,
+          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          serviceName: booking.service?.name || 'Cleaning Service',
+          scheduledAt: booking.scheduled_at,
+          address: booking.address || '',
+          totalAmount: booking.total_amount,
+        }
+      });
+
+      if (error) throw error;
+      toast({ title: "Reminder Sent", description: `Email sent to ${booking.customer.email}` });
+    } catch (error: any) {
+      console.error('Failed to send reminder:', error);
+      toast({ title: "Error", description: error.message || "Failed to send reminder", variant: "destructive" });
+    } finally {
+      setSendingReminder(null);
+    }
   };
 
   const handleExport = async (type: 'csv' | 'json') => {
@@ -895,6 +928,18 @@ export default function BookingsPage() {
                               }}
                             >
                               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-blue-600" 
+                              onClick={() => handleSendReminder(booking)}
+                              disabled={sendingReminder === booking.id || !booking.customer?.email}
+                            >
+                              {sendingReminder === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Mail className="w-4 h-4" />
+                              )}
+                              Send Reminder Email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
