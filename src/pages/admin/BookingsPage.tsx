@@ -128,6 +128,7 @@ export default function BookingsPage() {
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [paymentHistoryBooking, setPaymentHistoryBooking] = useState<BookingWithDetails | null>(null);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
+  const [sendingCleanerNotification, setSendingCleanerNotification] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -485,6 +486,44 @@ export default function BookingsPage() {
       toast({ title: "Error", description: error.message || "Failed to send reminder", variant: "destructive" });
     } finally {
       setSendingReminder(null);
+    }
+  };
+
+  const handleSendCleanerNotification = async (booking: BookingWithDetails) => {
+    if (!booking.staff?.email) {
+      toast({ title: "Error", description: "No cleaner assigned or cleaner has no email", variant: "destructive" });
+      return;
+    }
+
+    setSendingCleanerNotification(booking.id);
+    
+    try {
+      const scheduledDate = new Date(booking.scheduled_at);
+      const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
+        .filter(Boolean)
+        .join(', ');
+
+      const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+        body: {
+          cleanerName: booking.staff.name,
+          cleanerEmail: booking.staff.email,
+          customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
+          customerPhone: booking.customer?.phone || 'N/A',
+          serviceName: booking.service?.name || 'Cleaning Service',
+          appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
+          appointmentTime: format(scheduledDate, 'h:mm a'),
+          address: fullAddress || 'Address not provided',
+          bookingNumber: booking.booking_number,
+        }
+      });
+
+      if (error) throw error;
+      toast({ title: "Notification Sent", description: `Email sent to ${booking.staff.name} (${booking.staff.email})` });
+    } catch (error: any) {
+      console.error('Failed to send cleaner notification:', error);
+      toast({ title: "Error", description: error.message || "Failed to send cleaner notification", variant: "destructive" });
+    } finally {
+      setSendingCleanerNotification(null);
     }
   };
 
@@ -986,7 +1025,19 @@ export default function BookingsPage() {
                               ) : (
                                 <Mail className="w-4 h-4" />
                               )}
-                              Send Reminder Email
+                              Send Customer Reminder
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-purple-600" 
+                              onClick={() => handleSendCleanerNotification(booking)}
+                              disabled={sendingCleanerNotification === booking.id || !booking.staff?.email}
+                            >
+                              {sendingCleanerNotification === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Mail className="w-4 h-4" />
+                              )}
+                              Notify Cleaner
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
