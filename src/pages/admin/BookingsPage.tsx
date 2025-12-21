@@ -50,7 +50,8 @@ import {
   Filter,
   CalendarRange,
   X,
-  Mail
+  Mail,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -130,6 +131,7 @@ export default function BookingsPage() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [sendingCleanerNotification, setSendingCleanerNotification] = useState<string | null>(null);
   const [bulkNotifyingCleaners, setBulkNotifyingCleaners] = useState(false);
+  const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -583,6 +585,77 @@ export default function BookingsPage() {
       }
     } finally {
       setBulkNotifyingCleaners(false);
+    }
+  };
+
+  // Notify all active cleaners about an open/unassigned job
+  const handleNotifyCleanersOpenJob = async (booking: BookingWithDetails) => {
+    if (booking.staff) {
+      toast({ title: "Already Assigned", description: "This job is already assigned to a cleaner.", variant: "destructive" });
+      return;
+    }
+
+    setNotifyingOpenJob(booking.id);
+
+    try {
+      // Get all active staff with emails
+      const { data: activeStaff, error: staffError } = await supabase
+        .from('staff')
+        .select('email, hourly_rate, base_wage')
+        .eq('is_active', true)
+        .not('email', 'is', null);
+
+      if (staffError) throw staffError;
+
+      if (!activeStaff || activeStaff.length === 0) {
+        toast({ title: "No Cleaners", description: "No active cleaners found to notify.", variant: "destructive" });
+        return;
+      }
+
+      const staffEmails = activeStaff.map(s => s.email).filter(Boolean);
+
+      // Calculate average potential earnings based on typical staff wage
+      const avgHourlyRate = activeStaff.reduce((sum, s) => sum + (s.hourly_rate || 0), 0) / activeStaff.length || 25;
+      const potentialEarnings = (booking.duration / 60) * avgHourlyRate;
+
+      const scheduledDate = new Date(booking.scheduled_at);
+      const fullAddress = [booking.address, booking.city, booking.state, booking.zip_code]
+        .filter(Boolean)
+        .join(', ');
+
+      // Fetch business settings for company name
+      const { data: settings } = await supabase
+        .from('business_settings')
+        .select('company_name')
+        .single();
+
+      const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
+        body: {
+          staffEmails,
+          jobDetails: {
+            booking_number: booking.booking_number,
+            service_name: booking.service?.name || 'Cleaning Service',
+            scheduled_date: format(scheduledDate, 'MMMM d, yyyy'),
+            scheduled_time: format(scheduledDate, 'h:mm a'),
+            address: fullAddress || 'Address not provided',
+            duration: booking.duration,
+            potential_earnings: potentialEarnings,
+          },
+          companyName: settings?.company_name || 'Your Cleaning Company',
+        }
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Cleaners Notified", 
+        description: `Sent notification to ${staffEmails.length} cleaner(s) about open job #${booking.booking_number}` 
+      });
+    } catch (error: any) {
+      console.error('Failed to notify cleaners:', error);
+      toast({ title: "Error", description: error.message || "Failed to notify cleaners", variant: "destructive" });
+    } finally {
+      setNotifyingOpenJob(null);
     }
   };
 
@@ -1107,6 +1180,21 @@ export default function BookingsPage() {
                               )}
                               Notify Cleaner
                             </DropdownMenuItem>
+                            {/* Notify All Cleaners for unassigned jobs */}
+                            {!booking.staff && (
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer text-green-600" 
+                                onClick={() => handleNotifyCleanersOpenJob(booking)}
+                                disabled={notifyingOpenJob === booking.id}
+                              >
+                                {notifyingOpenJob === booking.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Bell className="w-4 h-4" />
+                                )}
+                                Notify All Cleaners (Open Job)
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer text-amber-600"
