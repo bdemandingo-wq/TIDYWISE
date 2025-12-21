@@ -19,7 +19,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Mail } from 'lucide-react';
 
 interface AddStaffDialogProps {
   open: boolean;
@@ -30,7 +30,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
-  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; resetLink: string } | null>(null);
   const [copied, setCopied] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -62,6 +62,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
           tax_classification: formData.tax_classification,
           base_wage: formData.base_wage ? parseFloat(formData.base_wage) : undefined,
+          redirectUrl: `${window.location.origin}/staff/reset-password`,
         },
       });
 
@@ -75,12 +76,14 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
         throw new Error(data.error);
       }
 
-      // Show credentials
-      setCredentials({
-        email: formData.email,
-        tempPassword: data.tempPassword,
-      });
-      setShowCredentials(true);
+      // Show credentials with reset link
+      if (data.resetLink) {
+        setCredentials({
+          email: formData.email,
+          resetLink: data.resetLink,
+        });
+        setShowCredentials(true);
+      }
       
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Staff member created successfully');
@@ -111,10 +114,9 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     onOpenChange(false);
   };
 
-  const copyCredentials = () => {
+  const copyLink = () => {
     if (credentials) {
-      const text = `Email: ${credentials.email}\nTemporary Password: ${credentials.tempPassword}`;
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(credentials.resetLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -128,35 +130,41 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
             <DialogTitle>Staff Member Created</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-sm text-amber-800 font-medium">
-                ⚠️ Save these credentials before closing! They won't be shown again.
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-800 font-medium flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Send this link to {credentials.email}
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Share these credentials with the staff member. They should change their password after first login.
+              Share this password setup link with the new staff member. They'll use it to create their password and access the staff portal.
             </p>
-            <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-lg space-y-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Email</Label>
                 <p className="font-mono text-sm">{credentials.email}</p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Temporary Password</Label>
-                <p className="font-mono text-sm font-bold">{credentials.tempPassword}</p>
+                <Label className="text-xs text-muted-foreground">Password Setup Link</Label>
+                <p className="font-mono text-xs break-all bg-background p-2 rounded border mt-1">
+                  {credentials.resetLink}
+                </p>
               </div>
             </div>
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={copyCredentials}
+              onClick={copyLink}
             >
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Credentials'}
+              {copied ? 'Copied!' : 'Copy Setup Link'}
             </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              The link will expire after use. Staff can request a new link from the login page if needed.
+            </p>
           </div>
           <DialogFooter>
-            <Button onClick={handleCredentialsDone}>I've Saved the Credentials</Button>
+            <Button onClick={handleCredentialsDone}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
