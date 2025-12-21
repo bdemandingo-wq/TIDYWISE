@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
               Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: "TidyWise Cleaning <support@tidywisecleaning.com>",
+              from: "TidyWise Cleaning <onboarding@resend.dev>",
               to: [booking.customer.email],
               subject: `⏰ Reminder: Your ${serviceName} is in ${window.label}!`,
               html: `

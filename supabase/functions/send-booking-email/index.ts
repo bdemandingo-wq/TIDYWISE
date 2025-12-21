@@ -206,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TidyWise Cleaning <support@tidywisecleaning.com>",
+        from: "TidyWise Cleaning <onboarding@resend.dev>",
         to: [customerEmail],
         subject: `Booking Confirmed - ${booking.confirmationNumber || ""}`,
         html: emailHtml,
