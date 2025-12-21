@@ -112,10 +112,6 @@ const handler = async (req: Request): Promise<Response> => {
                     <h3 style="margin:0 0 15px 0;color:#1e5bb0;font-size:16px;">APPOINTMENT DETAILS</h3>
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Confirmation #</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.confirmationNumber || ""}</td>
-                      </tr>
-                      <tr>
                         <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Service</td>
                         <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.serviceName || "Cleaning Service"}</td>
                       </tr>
@@ -149,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
               </table>
               
               <p style="margin:0 0 20px 0;background-color:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107;">
-                <strong>Note:</strong> Please allow us a 2-hour window to deal with traffic, parking, and other surprises.
+                <strong>Note:</strong> Please allow us a 1-hour window to deal with traffic, parking, and other surprises.
               </p>
               
               <!-- Important Reminders -->
@@ -232,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "TidyWise Cleaning <support@jointidywise.com>",
         to: [customerEmail],
-        subject: `Booking Confirmed - ${booking.confirmationNumber || ""}`,
+        subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
         html: emailHtml,
       }),
     });
