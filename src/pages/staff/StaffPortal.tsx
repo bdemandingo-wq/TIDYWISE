@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles } from 'lucide-react';
+import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { CleanerAvailabilityManager } from '@/components/staff/CleanerAvailabilityManager';
 import { CleanerEarnings } from '@/components/staff/CleanerEarnings';
 import { JobHistoryCard } from '@/components/staff/JobHistoryCard';
+import { CleanerProfile } from '@/components/staff/CleanerProfile';
+import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
 
 interface Booking {
   id: string;
@@ -42,6 +44,8 @@ interface StaffInfo {
   name: string;
   email: string;
   phone: string | null;
+  bio: string | null;
+  avatar_url: string | null;
   hourly_rate: number | null;
   base_wage: number | null;
   tax_classification: string | null;
@@ -61,7 +65,7 @@ export default function StaffPortal() {
 
       const { data, error } = await supabase
         .from('staff')
-        .select('id, name, email, phone, hourly_rate, base_wage, tax_classification')
+        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, tax_classification')
         .eq('user_id', user.id)
         .single();
 
@@ -293,7 +297,7 @@ export default function StaffPortal() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="my-jobs" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
             <TabsTrigger value="my-jobs" className="gap-2">
               <Briefcase className="w-4 h-4 hidden sm:inline" />
               My Jobs
@@ -313,6 +317,10 @@ export default function StaffPortal() {
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping" />
               )}
             </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-2">
+              <Calendar className="w-4 h-4 hidden sm:inline" />
+              Calendar
+            </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4 hidden sm:inline" />
               History
@@ -324,6 +332,10 @@ export default function StaffPortal() {
             <TabsTrigger value="earnings" className="gap-2">
               <DollarSign className="w-4 h-4 hidden sm:inline" />
               Earnings
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="gap-2">
+              <User className="w-4 h-4 hidden sm:inline" />
+              Profile
             </TabsTrigger>
           </TabsList>
 
@@ -427,6 +439,24 @@ export default function StaffPortal() {
               <CleanerEarnings staffId={staffInfo.id} staffName={staffInfo.name} />
             ) : (
               <p className="text-muted-foreground">Loading earnings...</p>
+            )}
+          </TabsContent>
+
+          {/* Calendar Tab */}
+          <TabsContent value="calendar" className="space-y-4">
+            {staffInfo?.id ? (
+              <CleanerCalendar staffId={staffInfo.id} />
+            ) : (
+              <p className="text-muted-foreground">Loading calendar...</p>
+            )}
+          </TabsContent>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-4">
+            {staffInfo && user ? (
+              <CleanerProfile staffInfo={staffInfo} userId={user.id} />
+            ) : (
+              <p className="text-muted-foreground">Loading profile...</p>
             )}
           </TabsContent>
         </Tabs>
