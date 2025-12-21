@@ -88,12 +88,20 @@ serve(async (req) => {
       });
     }
 
+    const origin = req.headers.get("origin") ?? "";
+    const safeRedirectUrl =
+      redirectUrl && origin && redirectUrl.startsWith(origin)
+        ? redirectUrl
+        : origin
+          ? `${origin}/staff/reset-password`
+          : redirectUrl;
+
     // Generate password reset link
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: staffMember.email,
       options: {
-        redirectTo: redirectUrl || `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app')}/staff/reset-password`,
+        redirectTo: safeRedirectUrl,
       },
     });
 

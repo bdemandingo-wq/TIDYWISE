@@ -1,255 +1,241 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, HardHat } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Eye, EyeOff, HardHat, Loader2 } from "lucide-react";
+
+import { Seo } from "@/components/Seo";
+import { hasStaffOrAdminRole, requestStaffPasswordReset, signInStaff } from "@/features/staff-auth/staffAuth";
+
+const loginSchema = z.object({
+  email: z.string().trim().email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+type LoginValues = z.infer<typeof loginSchema>;
+
+const resetSchema = z.object({
+  email: z.string().trim().email("Enter a valid email"),
+});
+
+type ResetValues = z.infer<typeof resetSchema>;
 
 export default function StaffLoginPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-  const [sendingReset, setSendingReset] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+  const [resetOpen, setResetOpen] = useState(false);
+
+  const loginForm = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+    mode: "onSubmit",
   });
 
-  // Check if user is already logged in and has staff role
+  const resetForm = useForm<ResetValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { email: "" },
+    mode: "onSubmit",
+  });
+
+  const isSubmitting = loginForm.formState.isSubmitting;
+  const isSendingReset = resetForm.formState.isSubmitting;
+
+  const redirectUrl = useMemo(
+    () => `${window.location.origin}/staff/reset-password`,
+    []
+  );
+
+  // If already logged in, send staff/admin directly to portal.
   useEffect(() => {
-    const checkStaffAndRedirect = async () => {
+    const run = async () => {
       if (!user) return;
-
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .in('role', ['staff', 'admin']);
-
-      if (data && data.length > 0) {
-        navigate('/staff', { replace: true });
+      try {
+        const allowed = await hasStaffOrAdminRole(user.id);
+        if (allowed) navigate("/staff", { replace: true });
+      } catch {
+        // ignore
       }
     };
 
-    if (!authLoading && user) {
-      checkStaffAndRedirect();
-    }
-  }, [user, authLoading, navigate]);
+    if (!authLoading && user) run();
+  }, [authLoading, user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const onSubmitLogin = async (values: LoginValues) => {
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (authError) throw authError;
-
-      // Check if user has staff or admin role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .in('role', ['staff', 'admin']);
-
-      if (!roleData || roleData.length === 0) {
-        await supabase.auth.signOut();
-        throw new Error('You do not have access to the staff portal. Please contact your administrator.');
-      }
-
-      toast.success('Welcome back!');
-      navigate('/staff', { replace: true });
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
+      await signInStaff(values.email, values.password);
+      toast.success("Welcome back!");
+      navigate("/staff", { replace: true });
+    } catch (err: any) {
+      toast.error(err?.message || "Login failed");
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!forgotPasswordEmail) {
-      toast.error('Please enter your email address');
-      return;
-    }
-
-    setSendingReset(true);
-
+  const onSubmitReset = async (values: ResetValues) => {
     try {
-      const response = await supabase.functions.invoke('send-staff-password-reset', {
-        body: {
-          email: forgotPasswordEmail,
-          redirectUrl: `${window.location.origin}/staff/reset-password`,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to send reset email');
-      }
-
-      const data = response.data;
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      toast.success('Password reset email sent! Check your inbox.');
-      setShowForgotPassword(false);
-      setForgotPasswordEmail('');
-    } catch (error: any) {
-      console.error('Password reset error:', error);
-      toast.error(error.message || 'Failed to send reset email');
-    } finally {
-      setSendingReset(false);
+      await requestStaffPasswordReset(values.email, redirectUrl);
+      toast.success("If your email is invited as staff/admin, you'll receive a reset link shortly.");
+      setResetOpen(false);
+      resetForm.reset();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to send reset email");
     }
   };
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <Seo title="Staff Login | TidyWise" description="Staff portal login" canonicalPath="/staff/login" />
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-      <Card className="w-full max-w-md shadow-xl border-primary/10">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <HardHat className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">Staff Portal</CardTitle>
-            <CardDescription className="mt-2">
-              Sign in to access your jobs and schedule
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="p-0 h-auto text-xs text-muted-foreground hover:text-primary"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Forgot password?
-                </Button>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  required
-                  minLength={6}
-                  autoComplete="current-password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In to Portal
-            </Button>
-          </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Need access? Contact your administrator to get invited.
-          </p>
+    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center">
+      <Seo
+        title="Staff Login | TidyWise"
+        description="Sign in to the staff portal to manage jobs, availability, and earnings."
+        canonicalPath="/staff/login"
+      />
 
-          {/* Forgot Password Dialog */}
-          {showForgotPassword && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-md shadow-xl">
-                <CardHeader>
-                  <CardTitle>Reset Password</CardTitle>
-                  <CardDescription>
-                    Enter the email your administrator invited you with, and we’ll send a link to reset your password.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleForgotPassword} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="resetEmail">Email</Label>
-                      <Input
-                        id="resetEmail"
-                        type="email"
-                        placeholder="your.email@example.com"
-                        value={forgotPasswordEmail}
-                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                        required
-                        autoComplete="email"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => {
-                          setShowForgotPassword(false);
-                          setForgotPasswordEmail('');
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="flex-1" disabled={sendingReset}>
-                        {sendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Send Reset Link
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
+      <section className="w-full max-w-md">
+        <Card className="shadow-xl border-primary/10">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <HardHat className="w-8 h-8 text-primary-foreground" />
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            <div>
+              <CardTitle className="text-2xl font-bold">Staff Portal</CardTitle>
+              <CardDescription className="mt-2">
+                Sign in to access your jobs and schedule
+              </CardDescription>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={loginForm.handleSubmit(onSubmitLogin)} className="space-y-4" noValidate>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="your.email@example.com"
+                  {...loginForm.register("email")}
+                />
+                {loginForm.formState.errors.email?.message && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-xs text-muted-foreground hover:text-primary"
+                    onClick={() => setResetOpen(true)}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    {...loginForm.register("password")}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+                {loginForm.formState.errors.password?.message && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign In to Portal
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Need access? Contact your administrator to get invited.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter the email your administrator invited you with.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={resetForm.handleSubmit(onSubmitReset)} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="resetEmail">Email</Label>
+              <Input
+                id="resetEmail"
+                type="email"
+                autoComplete="email"
+                placeholder="your.email@example.com"
+                {...resetForm.register("email")}
+              />
+              {resetForm.formState.errors.email?.message && (
+                <p className="text-sm text-destructive">{resetForm.formState.errors.email.message}</p>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setResetOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSendingReset}>
+                {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Reset Link
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </main>
   );
 }
