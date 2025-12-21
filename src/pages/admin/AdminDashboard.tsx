@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
 import { ReportsOverview } from '@/components/admin/ReportsOverview';
@@ -6,10 +6,46 @@ import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2 } from 'lucide-react';
 import { isToday } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdminDashboard() {
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscriptions for bookings and customers
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const todayStats = useMemo(() => {
     const todayBookings = bookings.filter(b => {
