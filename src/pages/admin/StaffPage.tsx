@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, AlertTriangle } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 interface StaffMember {
   id: string;
@@ -49,6 +57,10 @@ export default function StaffPage() {
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  const [resendLinkDialogOpen, setResendLinkDialogOpen] = useState(false);
+  const [resendLinkData, setResendLinkData] = useState<{ name: string; email: string; link: string } | null>(null);
+  const [isResendingLink, setIsResendingLink] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const { data: staff = [], isLoading } = useStaff();
   const { data: services = [] } = useServices();
@@ -80,6 +92,55 @@ export default function StaffPage() {
   const handleDeleteClick = (member: StaffMember) => {
     setStaffToDelete(member);
     setDeleteDialogOpen(true);
+  };
+
+  const handleResendPasswordLink = async (member: StaffMember) => {
+    setIsResendingLink(true);
+    try {
+      const response = await supabase.functions.invoke('resend-staff-password-link', {
+        body: {
+          staffId: member.id,
+          redirectUrl: `${window.location.origin}/staff/reset-password`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to generate password link');
+      }
+
+      const data = response.data;
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setResendLinkData({
+        name: data.staffName,
+        email: data.staffEmail,
+        link: data.resetLink,
+      });
+      setResendLinkDialogOpen(true);
+      toast.success('Password reset link generated');
+    } catch (error) {
+      console.error('Error generating password link:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate password link');
+    } finally {
+      setIsResendingLink(false);
+    }
+  };
+
+  const copyLink = () => {
+    if (resendLinkData) {
+      navigator.clipboard.writeText(resendLinkData.link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleResendLinkDialogClose = () => {
+    setResendLinkDialogOpen(false);
+    setResendLinkData(null);
+    setCopied(false);
   };
 
   const handleConfirmDelete = async () => {
@@ -183,6 +244,13 @@ export default function StaffPage() {
                           <Edit className="w-4 h-4" /> Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => handleResendPasswordLink(member)}
+                          disabled={isResendingLink}
+                        >
+                          <KeyRound className="w-4 h-4" /> Resend Password Link
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
                           className="gap-2 text-destructive"
                           onClick={() => handleDeleteClick(member)}
                         >
@@ -245,6 +313,53 @@ export default function StaffPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={resendLinkDialogOpen} onOpenChange={handleResendLinkDialogClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Setup Link</DialogTitle>
+          </DialogHeader>
+          {resendLinkData && (
+            <div className="space-y-4 py-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 dark:bg-green-950 dark:border-green-800">
+                <p className="text-sm text-green-800 dark:text-green-200 font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Send this link to {resendLinkData.name}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Share this password setup link with the staff member. They'll use it to create or reset their password and access the staff portal.
+              </p>
+              <div className="bg-muted p-4 rounded-lg space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="font-mono text-sm">{resendLinkData.email}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Password Setup Link</Label>
+                  <p className="font-mono text-xs break-all bg-background p-2 rounded border mt-1">
+                    {resendLinkData.link}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={copyLink}
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy Setup Link'}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                The link will expire after use. You can generate a new one if needed.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={handleResendLinkDialogClose}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
