@@ -209,7 +209,7 @@ export default function StaffLoginPage() {
                 <CardHeader>
                   <CardTitle>Reset Password</CardTitle>
                   <CardDescription>
-                    Enter your email address and we'll send you a link to reset your password.
+                    Enter the email your administrator invited you with, and we’ll send a link to reset your password.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

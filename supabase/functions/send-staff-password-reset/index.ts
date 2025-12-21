@@ -131,7 +131,8 @@ serve(async (req) => {
     console.log("Generated reset link, sending email via Resend");
 
     // Send email via Resend
-    const primaryFrom = "TidyWise <noreply@tidywisecleaning.com>";
+    // Match the sender domain used by your existing confirmation emails
+    const primaryFrom = "TidyWise Cleaning <support@jointidywise.com>";
     const fallbackFrom = "TidyWise <onboarding@resend.dev>";
 
     const sendEmail = async (from: string) => {
