@@ -100,12 +100,12 @@ export function ScheduleStep() {
             <Users className="h-4 w-4 text-muted-foreground" />
             <Label className="text-sm font-medium">Assign Staff (Optional)</Label>
           </div>
-          <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+          <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
             <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
               <SelectValue placeholder="Select a cleaner (optional)" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              <SelectItem value="">Unassigned</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
               {staff?.filter(s => s.is_active).map((member) => (
                 <SelectItem key={member.id} value={member.id}>
                   {member.name}
