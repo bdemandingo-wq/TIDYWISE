@@ -37,16 +37,69 @@ serve(async (req) => {
 
     console.log("Processing password reset for:", email);
 
-    // Check if user exists and is a staff member
+    const origin = req.headers.get("origin") ?? "";
+    const safeRedirectUrl =
+      redirectUrl && origin && redirectUrl.startsWith(origin)
+        ? redirectUrl
+        : origin
+          ? `${origin}/staff/reset-password`
+          : redirectUrl;
+
+    // Find the auth user for this email and ensure they have staff/admin role.
+    let staffName = "Team Member";
+    let targetUserId: string | null = null;
+
+    // Prefer staff table (lets us personalize + links staff to auth user)
     const { data: staffMember } = await supabaseAdmin
       .from("staff")
-      .select("id, name, user_id")
+      .select("name, user_id")
       .eq("email", email)
       .maybeSingle();
 
-    if (!staffMember || !staffMember.user_id) {
+    if (staffMember?.user_id) {
+      targetUserId = staffMember.user_id;
+      staffName = staffMember.name || staffName;
+    } else {
+      // Fallback: allow admins to reset too (they may not exist in the staff table)
+      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+
+      if (usersError) {
+        console.error("Error listing users:", usersError);
+      } else {
+        const match = usersData?.users?.find(
+          (u) => (u.email ?? "").toLowerCase() === email.toLowerCase()
+        );
+        if (match) {
+          targetUserId = match.id;
+          const metaName = (match.user_metadata as Record<string, unknown> | null)?.full_name;
+          if (typeof metaName === "string" && metaName.trim()) staffName = metaName;
+        }
+      }
+    }
+
+    if (!targetUserId) {
       // Don't reveal if email exists or not for security
-      console.log("No staff member found for email:", email);
+      console.log("No account found for email:", email);
+      return new Response(
+        JSON.stringify({ success: true, message: "If an account exists, a reset email has been sent." }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const { data: roleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", targetUserId)
+      .in("role", ["staff", "admin"]);
+
+    if (!roleData || roleData.length === 0) {
+      console.log("User has no staff/admin role:", email);
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset email has been sent." }),
         {
@@ -61,7 +114,7 @@ serve(async (req) => {
       type: 'recovery',
       email,
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: safeRedirectUrl,
       },
     });
 
@@ -74,16 +127,19 @@ serve(async (req) => {
     }
 
     const resetLink = linkData.properties?.action_link;
-    const staffName = staffMember.name || "Team Member";
 
     console.log("Generated reset link, sending email via Resend");
 
     // Send email via Resend
-    const { error: emailError } = await resend.emails.send({
-      from: "TidyWise <noreply@tidywisecleaning.com>",
-      to: [email],
-      subject: "Reset Your Staff Portal Password",
-      html: `
+    const primaryFrom = "TidyWise <noreply@tidywisecleaning.com>";
+    const fallbackFrom = "TidyWise <onboarding@resend.dev>";
+
+    const sendEmail = async (from: string) => {
+      return await resend.emails.send({
+        from,
+        to: [email],
+        subject: "Reset Your Staff Portal Password",
+        html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -118,17 +174,24 @@ serve(async (req) => {
         </body>
         </html>
       `,
-    });
-
-    if (emailError) {
-      console.error("Error sending email:", emailError);
-      return new Response(JSON.stringify({ error: "Failed to send reset email" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
+    };
 
-    console.log("Password reset email sent successfully to:", email);
+    const primaryResult = await sendEmail(primaryFrom);
+    if (primaryResult?.error) {
+      console.error("Primary sender failed, retrying with fallback sender:", primaryResult.error);
+      const fallbackResult = await sendEmail(fallbackFrom);
+      if (fallbackResult?.error) {
+        console.error("Fallback sender also failed:", fallbackResult.error);
+        return new Response(JSON.stringify({ error: "Failed to send reset email" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("Password reset email sent via fallback sender to:", email);
+    } else {
+      console.log("Password reset email sent via primary sender to:", email);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Password reset email sent successfully" }),
