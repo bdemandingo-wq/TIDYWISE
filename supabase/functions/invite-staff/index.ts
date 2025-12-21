@@ -13,6 +13,7 @@ interface InviteStaffRequest {
   hourly_rate?: number;
   tax_classification?: 'w2' | '1099';
   base_wage?: number;
+  redirectUrl?: string;
 }
 
 serve(async (req) => {
@@ -61,7 +62,7 @@ serve(async (req) => {
       });
     }
 
-    const { email, name, phone, hourly_rate, tax_classification, base_wage }: InviteStaffRequest = await req.json();
+    const { email, name, phone, hourly_rate, tax_classification, base_wage, redirectUrl }: InviteStaffRequest = await req.json();
 
     if (!email || !name) {
       return new Response(JSON.stringify({ error: "Email and name are required" }), {
@@ -100,22 +101,30 @@ serve(async (req) => {
           });
         }
 
-        // Generate a new password for the reactivated user
-        const tempPassword = crypto.randomUUID().slice(0, 12);
-        
-        // Update the auth user's password if they exist
+        // Generate a password reset link for the reactivated user
+        let resetLink = null;
         if (existingStaff.user_id) {
-          await supabaseAdmin.auth.admin.updateUserById(existingStaff.user_id, {
-            password: tempPassword,
+          const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'recovery',
+            email,
+            options: {
+              redirectTo: redirectUrl || `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app')}/staff/reset-password`,
+            },
           });
+
+          if (linkError) {
+            console.error("Error generating recovery link:", linkError);
+          } else {
+            resetLink = linkData.properties?.action_link;
+          }
         }
 
         return new Response(
           JSON.stringify({
             success: true,
             staff: { ...existingStaff, is_active: true, name, phone, hourly_rate },
-            tempPassword,
-            message: "Staff member reactivated. They can log in with the new temporary password.",
+            resetLink,
+            message: "Staff member reactivated. Share the password reset link so they can set their password.",
             reactivated: true,
           }),
           {
@@ -132,10 +141,10 @@ serve(async (req) => {
       }
     }
 
-    // Generate a temporary password
-    const tempPassword = crypto.randomUUID().slice(0, 12);
+    // Generate a random temporary password (required for user creation, but user will reset it)
+    const tempPassword = crypto.randomUUID();
 
-    // Create auth user
+    // Create auth user with a random password (user will set their own via reset link)
     const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
@@ -191,22 +200,29 @@ serve(async (req) => {
       console.error("Error assigning role:", roleError);
     }
 
-    // Send password reset email so staff can set their own password
-    const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+    // Generate password reset link so staff can set their own password
+    const { data: linkData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
+      options: {
+        redirectTo: redirectUrl || `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app')}/staff/reset-password`,
+      },
     });
 
+    let resetLink = null;
     if (resetError) {
       console.error("Error generating recovery link:", resetError);
+    } else {
+      resetLink = linkData.properties?.action_link;
+      console.log("Generated reset link for new staff:", resetLink);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         staff: staffData,
-        tempPassword, // Return temp password so admin can share it
-        message: "Staff member created. They can log in with the temporary password and should reset it.",
+        resetLink,
+        message: "Staff member created. Share the password setup link so they can set their password.",
       }),
       {
         status: 200,
