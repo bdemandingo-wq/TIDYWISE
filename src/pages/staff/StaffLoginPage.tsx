@@ -87,17 +87,29 @@ export default function StaffLoginPage() {
     setSendingReset(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/staff/reset-password`,
+      const response = await supabase.functions.invoke('send-staff-password-reset', {
+        body: {
+          email: forgotPasswordEmail,
+          redirectUrl: `${window.location.origin}/staff/reset-password`,
+        },
       });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to send reset email');
+      }
+
+      const data = response.data;
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       toast.success('Password reset email sent! Check your inbox.');
       setShowForgotPassword(false);
       setForgotPasswordEmail('');
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Failed to send reset email');
     } finally {
       setSendingReset(false);
     }
