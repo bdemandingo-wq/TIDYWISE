@@ -86,46 +86,142 @@ const handler = async (req: Request): Promise<Response> => {
               Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: "TidyWise <onboarding@resend.dev>",
+              from: "TidyWise Cleaning <support@tidywisecleaning.com>",
               to: [booking.customer.email],
-              subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
+              subject: `⏰ Reminder: Your ${serviceName} is in ${window.label}!`,
               html: `
                 <!DOCTYPE html>
                 <html>
                 <head>
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Appointment Reminder</title>
                 </head>
-                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <div style="background: linear-gradient(135deg, #3b82f6 0%, #14b8a6 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px;">Appointment Reminder</h1>
-                  </div>
-                  
-                  <div style="background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
-                    <p style="font-size: 16px; margin-top: 0;">Hi ${customerName},</p>
-                    
-                    <p style="font-size: 16px;">This is a friendly reminder that your <strong>${serviceName}</strong> is scheduled in <strong>${window.label}</strong>.</p>
-                    
-                    <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                      <h3 style="margin-top: 0; color: #3b82f6;">Appointment Details</h3>
-                      <p style="margin: 8px 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
-                      <p style="margin: 8px 0;"><strong>🕐 Time:</strong> ${formattedTime}</p>
-                      <p style="margin: 8px 0;"><strong>🏠 Address:</strong> ${address}</p>
-                      <p style="margin: 8px 0;"><strong>📋 Service:</strong> ${serviceName}</p>
-                      ${booking.staff ? `<p style="margin: 8px 0;"><strong>👤 Cleaner:</strong> ${booking.staff.name}</p>` : ''}
-                      <p style="margin: 8px 0;"><strong>💰 Total:</strong> $${booking.total_amount}</p>
-                    </div>
-                    
-                    <p style="font-size: 14px; color: #64748b;">Please ensure access to the property is available at the scheduled time. If you need to reschedule or have any questions, please contact us.</p>
-                    
-                    <p style="font-size: 16px; margin-bottom: 0;">Thank you for choosing TidyWise!</p>
-                  </div>
-                  
-                  <div style="background: #1e293b; padding: 20px; border-radius: 0 0 12px 12px; text-align: center;">
-                    <p style="color: #94a3b8; margin: 0; font-size: 12px;">
-                      © ${new Date().getFullYear()} TidyWise. All rights reserved.
-                    </p>
-                  </div>
+                <body style="margin: 0; padding: 0; background-color: #f0f4f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f0f4f8;">
+                    <tr>
+                      <td style="padding: 40px 20px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
+                          
+                          <!-- Header with Logo -->
+                          <tr>
+                            <td style="background: linear-gradient(135deg, #1e5bb0 0%, #2d7dd2 50%, #3fa34d 100%); padding: 40px 40px 30px 40px; text-align: center;">
+                              <div style="font-size: 48px; font-weight: bold; color: #ffffff; letter-spacing: -2px; margin-bottom: 8px;">
+                                <span style="color: #ffffff;">Tidy</span><span style="color: #8cff8c;">Wise</span>
+                              </div>
+                              <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Professional Cleaning Services</p>
+                            </td>
+                          </tr>
+                          
+                          <!-- Reminder Banner -->
+                          <tr>
+                            <td style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); padding: 20px; text-align: center;">
+                              <span style="color: #ffffff; font-size: 20px; font-weight: 600;">⏰ Appointment in ${window.label}!</span>
+                            </td>
+                          </tr>
+                          
+                          <!-- Main Content -->
+                          <tr>
+                            <td style="padding: 40px;">
+                              <p style="font-size: 18px; color: #1a1a2e; margin: 0 0 20px 0;">Hi ${customerName},</p>
+                              <p style="font-size: 16px; color: #4a4a68; line-height: 1.6; margin: 0 0 30px 0;">
+                                Just a friendly reminder that your <strong>${serviceName}</strong> is coming up soon. We can't wait to make your space shine!
+                              </p>
+                              
+                              <!-- Countdown Box -->
+                              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 30px; border: 2px solid #f59e0b;">
+                                <span style="color: #92400e; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your appointment is in</span>
+                                <div style="color: #b45309; font-size: 36px; font-weight: bold; margin-top: 5px;">${window.label}</div>
+                              </div>
+                              
+                              <!-- Appointment Details Card -->
+                              <div style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px; border: 1px solid #e2e8f0;">
+                                <h3 style="color: #1e5bb0; font-size: 16px; margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 1px;">Appointment Details</h3>
+                                
+                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                  <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                                      <span style="color: #64748b; font-size: 14px;">📅 Date</span>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                                      <span style="color: #1a1a2e; font-weight: 600; font-size: 14px;">${formattedDate}</span>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                                      <span style="color: #64748b; font-size: 14px;">🕐 Time</span>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                                      <span style="color: #1a1a2e; font-weight: 600; font-size: 14px;">${formattedTime}</span>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                                      <span style="color: #64748b; font-size: 14px;">🏠 Address</span>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                                      <span style="color: #1a1a2e; font-weight: 600; font-size: 14px;">${address}</span>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                                      <span style="color: #64748b; font-size: 14px;">📋 Service</span>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                                      <span style="color: #1a1a2e; font-weight: 600; font-size: 14px;">${serviceName}</span>
+                                    </td>
+                                  </tr>
+                                  ${booking.staff ? `
+                                  <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
+                                      <span style="color: #64748b; font-size: 14px;">👤 Cleaner</span>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                                      <span style="color: #1a1a2e; font-weight: 600; font-size: 14px;">${booking.staff.name}</span>
+                                    </td>
+                                  </tr>
+                                  ` : ''}
+                                  <tr>
+                                    <td style="padding: 12px 0;">
+                                      <span style="color: #64748b; font-size: 14px;">💰 Total</span>
+                                    </td>
+                                    <td style="padding: 12px 0; text-align: right;">
+                                      <span style="color: #3fa34d; font-weight: bold; font-size: 18px;">$${booking.total_amount}</span>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </div>
+                              
+                              <!-- Important Note -->
+                              <div style="background: #f0f9ff; border-left: 4px solid #1e5bb0; padding: 15px 20px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
+                                <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.5;">
+                                  <strong>📍 Please ensure:</strong><br>
+                                  Access to the property is available at the scheduled time.
+                                </p>
+                              </div>
+                              
+                              <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 20px 0 0 0; text-align: center;">
+                                Need to reschedule? Reply to this email or contact us.<br>
+                                We're happy to help!
+                              </p>
+                            </td>
+                          </tr>
+                          
+                          <!-- Footer -->
+                          <tr>
+                            <td style="background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%); padding: 30px 40px; text-align: center;">
+                              <p style="color: #ffffff; font-size: 16px; font-weight: 600; margin: 0 0 5px 0;">TidyWise Cleaning</p>
+                              <p style="color: #94a3b8; font-size: 13px; margin: 0 0 15px 0;">Making spaces sparkle, one clean at a time</p>
+                              <p style="color: #64748b; font-size: 12px; margin: 0;">
+                                © ${new Date().getFullYear()} TidyWise. All rights reserved.
+                              </p>
+                            </td>
+                          </tr>
+                          
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
                 </body>
                 </html>
               `,
