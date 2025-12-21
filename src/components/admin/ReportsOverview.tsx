@@ -3,9 +3,7 @@ import { MetricChart } from './MetricChart';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { 
   format, 
-  subDays, 
   subWeeks, 
-  subMonths, 
   subYears, 
   startOfMonth, 
   startOfQuarter, 
@@ -13,8 +11,11 @@ import {
   eachDayOfInterval,
   eachWeekOfInterval,
   eachMonthOfInterval,
-  isWithinInterval,
-  parseISO
+  isSameDay,
+  isSameWeek,
+  isSameMonth,
+  startOfDay,
+  endOfDay
 } from 'date-fns';
 
 type TimePeriod = '1W' | '4W' | '1Y' | 'MTD' | 'QTD' | 'YTD' | 'ALL';
@@ -32,26 +33,26 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   const dateRange = useMemo(() => {
     const now = new Date();
     let start: Date;
-    let end = now;
+    const end = endOfDay(now);
 
     switch (period) {
       case '1W':
-        start = subWeeks(now, 1);
+        start = startOfDay(subWeeks(now, 1));
         break;
       case '4W':
-        start = subWeeks(now, 4);
+        start = startOfDay(subWeeks(now, 4));
         break;
       case '1Y':
-        start = subYears(now, 1);
+        start = startOfDay(subYears(now, 1));
         break;
       case 'MTD':
-        start = startOfMonth(now);
+        start = startOfDay(startOfMonth(now));
         break;
       case 'QTD':
-        start = startOfQuarter(now);
+        start = startOfDay(startOfQuarter(now));
         break;
       case 'YTD':
-        start = startOfYear(now);
+        start = startOfDay(startOfYear(now));
         break;
       case 'ALL':
       default:
@@ -60,7 +61,9 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
           ...bookings.map(b => new Date(b.scheduled_at)),
           ...customers.map(c => new Date(c.created_at))
         ];
-        start = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : subYears(now, 2);
+        start = dates.length > 0 
+          ? startOfDay(new Date(Math.min(...dates.map(d => d.getTime())))) 
+          : startOfDay(subYears(now, 2));
         break;
     }
 
@@ -74,7 +77,8 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const bookingDate = new Date(b.scheduled_at);
-      return isWithinInterval(bookingDate, { start: dateRange.start, end: dateRange.end }) &&
+      return bookingDate >= dateRange.start && 
+             bookingDate <= dateRange.end &&
              b.status !== 'cancelled';
     });
   }, [bookings, dateRange]);
@@ -82,7 +86,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
       const customerDate = new Date(c.created_at);
-      return isWithinInterval(customerDate, { start: dateRange.start, end: dateRange.end });
+      return customerDate >= dateRange.start && customerDate <= dateRange.end;
     });
   }, [customers, dateRange]);
 
@@ -91,28 +95,27 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     
     let intervals: Date[];
+    let matchFn: (bookingDate: Date, intervalDate: Date) => boolean;
     let formatStr: string;
     
     if (daysDiff <= 14) {
       intervals = eachDayOfInterval({ start, end });
+      matchFn = (bookingDate, intervalDate) => isSameDay(bookingDate, intervalDate);
       formatStr = 'yyyy-MM-dd';
     } else if (daysDiff <= 90) {
       intervals = eachWeekOfInterval({ start, end });
+      matchFn = (bookingDate, intervalDate) => isSameWeek(bookingDate, intervalDate);
       formatStr = 'yyyy-MM-dd';
     } else {
       intervals = eachMonthOfInterval({ start, end });
+      matchFn = (bookingDate, intervalDate) => isSameMonth(bookingDate, intervalDate);
       formatStr = 'yyyy-MM';
     }
 
     const grossVolume = intervals.map(date => {
-      const intervalEnd = daysDiff <= 14 ? date : 
-                          daysDiff <= 90 ? subDays(new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000), 1) :
-                          new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
-      const intervalBookings = filteredBookings.filter(b => {
-        const bDate = new Date(b.scheduled_at);
-        return bDate >= date && bDate <= intervalEnd;
-      });
+      const intervalBookings = filteredBookings.filter(b => 
+        matchFn(new Date(b.scheduled_at), date)
+      );
       
       return {
         date: format(date, formatStr),
@@ -122,18 +125,13 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
 
     const netVolume = grossVolume.map(d => ({
       ...d,
-      value: d.value * 0.94 // Approximate net after fees
+      value: Math.round(d.value * 0.97 * 100) / 100 // ~3% Stripe fees
     }));
 
     const newCustomers = intervals.map(date => {
-      const intervalEnd = daysDiff <= 14 ? date : 
-                          daysDiff <= 90 ? subDays(new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000), 1) :
-                          new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
-      const intervalCustomers = filteredCustomers.filter(c => {
-        const cDate = new Date(c.created_at);
-        return cDate >= date && cDate <= intervalEnd;
-      });
+      const intervalCustomers = filteredCustomers.filter(c => 
+        matchFn(new Date(c.created_at), date)
+      );
       
       return {
         date: format(date, formatStr),
@@ -142,14 +140,9 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     });
 
     const successfulPayments = intervals.map(date => {
-      const intervalEnd = daysDiff <= 14 ? date : 
-                          daysDiff <= 90 ? subDays(new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000), 1) :
-                          new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
-      const intervalBookings = filteredBookings.filter(b => {
-        const bDate = new Date(b.scheduled_at);
-        return bDate >= date && bDate <= intervalEnd && b.payment_status === 'paid';
-      });
+      const intervalBookings = filteredBookings.filter(b => 
+        matchFn(new Date(b.scheduled_at), date) && b.payment_status === 'paid'
+      );
       
       return {
         date: format(date, formatStr),
@@ -158,21 +151,16 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     });
 
     const spendPerCustomer = intervals.map(date => {
-      const intervalEnd = daysDiff <= 14 ? date : 
-                          daysDiff <= 90 ? subDays(new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000), 1) :
-                          new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
-      const intervalBookings = filteredBookings.filter(b => {
-        const bDate = new Date(b.scheduled_at);
-        return bDate >= date && bDate <= intervalEnd;
-      });
+      const intervalBookings = filteredBookings.filter(b => 
+        matchFn(new Date(b.scheduled_at), date)
+      );
       
       const uniqueCustomers = new Set(intervalBookings.map(b => b.customer?.id).filter(Boolean));
       const totalRevenue = intervalBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
       
       return {
         date: format(date, formatStr),
-        value: uniqueCustomers.size > 0 ? totalRevenue / uniqueCustomers.size : 0
+        value: uniqueCustomers.size > 0 ? Math.round((totalRevenue / uniqueCustomers.size) * 100) / 100 : 0
       };
     });
 
@@ -181,11 +169,13 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
 
   const totals = useMemo(() => {
     const grossVolume = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
-    const netVolume = grossVolume * 0.94;
+    const netVolume = Math.round(grossVolume * 0.97 * 100) / 100; // ~3% Stripe fees
     const newCustomersCount = filteredCustomers.length;
     const successfulPayments = filteredBookings.filter(b => b.payment_status === 'paid').length;
     const uniqueCustomers = new Set(filteredBookings.map(b => b.customer?.id).filter(Boolean));
-    const spendPerCustomer = uniqueCustomers.size > 0 ? grossVolume / uniqueCustomers.size : 0;
+    const spendPerCustomer = uniqueCustomers.size > 0 
+      ? Math.round((grossVolume / uniqueCustomers.size) * 100) / 100 
+      : 0;
 
     return { grossVolume, netVolume, newCustomersCount, successfulPayments, spendPerCustomer };
   }, [filteredBookings, filteredCustomers]);
