@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +39,17 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
+  if (!STRIPE_SECRET_KEY) {
+    console.error("Missing STRIPE_SECRET_KEY secret");
+    return new Response(
+      JSON.stringify({ error: "Payment service is not configured" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
+  }
+
   try {
     const data: InvoiceEmailRequest = await req.json();
     console.log("Invoice email request:", data);
@@ -53,6 +66,56 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+
+    // Initialize Stripe
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
+      apiVersion: "2025-08-27.basil",
+    });
+
+    // Check if customer exists in Stripe
+    const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+    let customerId: string | undefined;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      console.log("Found existing Stripe customer:", customerId);
+    } else {
+      // Create new customer
+      const newCustomer = await stripe.customers.create({
+        email: customerEmail,
+        name: customerName,
+      });
+      customerId = newCustomer.id;
+      console.log("Created new Stripe customer:", customerId);
+    }
+
+    // Create a Stripe Checkout session for this invoice payment
+    const origin = req.headers.get("origin") || "https://tidywisecleaning.com";
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Invoice #${data.invoiceNumber} - ${data.serviceName || 'Cleaning Service'}`,
+              description: data.address ? `Service at ${data.address}` : undefined,
+            },
+            unit_amount: Math.round(data.amount * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${origin}/payment-success?invoice=${data.invoiceNumber}`,
+      cancel_url: `${origin}/payment-canceled?invoice=${data.invoiceNumber}`,
+      metadata: {
+        invoice_number: String(data.invoiceNumber),
+        service_name: data.serviceName || '',
+      },
+    });
+
+    const paymentUrl = session.url;
+    console.log("Created Stripe checkout session:", session.id, "URL:", paymentUrl);
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -127,6 +190,22 @@ const handler = async (req: Request): Promise<Response> => {
                 </tr>
               </table>
               
+              <!-- Pay Now Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:20px;">
+                <tr>
+                  <td style="text-align:center;">
+                    <a href="${paymentUrl}" target="_blank" style="display:inline-block;background-color:#22c55e;color:#ffffff;font-size:18px;font-weight:bold;text-decoration:none;padding:16px 40px;border-radius:8px;box-shadow:0 4px 6px rgba(34,197,94,0.3);">
+                      💳 Pay Now - $${data.amount.toFixed(2)}
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="text-align:center;padding-top:10px;">
+                    <p style="margin:0;font-size:12px;color:#666;">Secure payment powered by Stripe</p>
+                  </td>
+                </tr>
+              </table>
+              
               ${data.notes ? `
               <div style="background-color:#fff3cd;padding:15px;border-radius:6px;border-left:4px solid #ffc107;margin-bottom:20px;">
                 <strong>Notes:</strong><br>
@@ -176,7 +255,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Use the default Resend sender until tidywisecleaning.com is verified.
         from: "TidyWise Cleaning <onboarding@resend.dev>",
         to: [customerEmail],
-        subject: `Invoice #${data.invoiceNumber} from TidyWise`,
+        subject: `Invoice #${data.invoiceNumber} from TidyWise - Pay Online`,
         html: emailHtml,
       }),
     });
@@ -196,7 +275,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Invoice email sent successfully:", responseData);
 
     return new Response(
-      JSON.stringify({ success: true, emailId: responseData?.id }),
+      JSON.stringify({ 
+        success: true, 
+        emailId: responseData?.id,
+        paymentUrl: paymentUrl,
+        stripeSessionId: session.id,
+      }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
