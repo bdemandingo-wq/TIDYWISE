@@ -172,7 +172,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TidyWise Cleaning <support@tidywisecleaning.com>",
+        // Resend requires the "from" domain to be verified.
+        // Use the default Resend sender until tidywisecleaning.com is verified.
+        from: "TidyWise Cleaning <onboarding@resend.dev>",
         to: [customerEmail],
         subject: `Invoice #${data.invoiceNumber} from TidyWise`,
         html: emailHtml,
