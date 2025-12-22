@@ -22,6 +22,7 @@ import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerforman
 import { ProfitByServiceChart } from '@/components/admin/ProfitByServiceChart';
 import { CleanerAvailabilityDashboard } from '@/components/admin/CleanerAvailabilityDashboard';
 import { supabase } from '@/integrations/supabase/client';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 // Default service colors
 const defaultColors = [
@@ -33,6 +34,7 @@ export default function ReportsPage() {
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
   const [workingHours, setWorkingHours] = useState<any[]>([]);
+  const { isTestMode, maskName } = useTestMode();
 
   useEffect(() => {
     const fetchWorkingHours = async () => {
@@ -152,7 +154,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Total Revenue"
-          value={`$${totalStats.totalRevenue.toLocaleString()}`}
+          value={isTestMode ? '$X,XXX' : `$${totalStats.totalRevenue.toLocaleString()}`}
           change={18}
           changeLabel="vs last month"
           trend="up"
@@ -160,7 +162,7 @@ export default function ReportsPage() {
         />
         <StatCard
           title="Total Bookings"
-          value={totalStats.totalBookings}
+          value={isTestMode ? 'XX' : totalStats.totalBookings}
           change={12}
           changeLabel="vs last month"
           trend="up"
@@ -168,7 +170,7 @@ export default function ReportsPage() {
         />
         <StatCard
           title="Avg Booking Value"
-          value={`$${totalStats.avgBookingValue.toFixed(0)}`}
+          value={isTestMode ? '$XXX' : `$${totalStats.avgBookingValue.toFixed(0)}`}
           change={5}
           changeLabel="vs last month"
           trend="up"
@@ -176,7 +178,7 @@ export default function ReportsPage() {
         />
         <StatCard
           title="Completion Rate"
-          value={`${totalStats.conversionRate}%`}
+          value={isTestMode ? 'XX%' : `${totalStats.conversionRate}%`}
           change={3}
           changeLabel="vs last month"
           trend="up"
@@ -285,20 +287,20 @@ export default function ReportsPage() {
                           <td className="py-3">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
-                              <span className="font-medium">{staffMember.name}</span>
+                              <span className="font-medium">{maskName(staffMember.name)}</span>
                             </div>
                           </td>
-                          <td className="py-3 text-right">{staffMember.bookings}</td>
+                          <td className="py-3 text-right">{isTestMode ? 'X' : staffMember.bookings}</td>
                           <td className="py-3 text-right">
                             <span className="px-2 py-1 rounded-full text-xs bg-info/10 text-info">
-                              {staffMember.upcomingCleans}
+                              {isTestMode ? 'X' : staffMember.upcomingCleans}
                             </span>
                           </td>
                           <td className="py-3 text-right font-semibold text-success">
-                            ${staffMember.payment.toLocaleString()}
+                            {isTestMode ? '$XXX' : `$${staffMember.payment.toLocaleString()}`}
                           </td>
                           <td className="py-3 text-right">
-                            ${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}
+                            {isTestMode ? '$XX' : `$${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}`}
                           </td>
                         </tr>
                       ))}

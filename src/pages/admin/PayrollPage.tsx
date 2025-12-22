@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, isWithinInterval } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Users, Clock, Calculator, TrendingUp, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface StaffWithPayroll {
   id: string;
@@ -57,6 +58,7 @@ export default function PayrollPage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const { isTestMode, maskName, maskEmail } = useTestMode();
 
   // Fetch staff
   const { data: staff = [] } = useQuery({
@@ -321,7 +323,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Payroll</p>
-                <p className="text-2xl font-bold">${totalPayroll.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{isTestMode ? '$X,XXX.XX' : `$${totalPayroll.toFixed(2)}`}</p>
               </div>
             </div>
           </CardContent>
@@ -334,7 +336,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Hours</p>
-                <p className="text-2xl font-bold">{totalHours.toFixed(1)}</p>
+                <p className="text-2xl font-bold">{isTestMode ? 'XX.X' : totalHours.toFixed(1)}</p>
               </div>
             </div>
           </CardContent>
@@ -347,7 +349,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Cleans Completed</p>
-                <p className="text-2xl font-bold">{totalCleans}</p>
+                <p className="text-2xl font-bold">{isTestMode ? 'XX' : totalCleans}</p>
               </div>
             </div>
           </CardContent>
@@ -360,7 +362,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg Pay/Clean</p>
-                <p className="text-2xl font-bold">${avgPayPerClean.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{isTestMode ? '$XX.XX' : `$${avgPayPerClean.toFixed(2)}`}</p>
               </div>
             </div>
           </CardContent>
@@ -379,7 +381,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">1099 Filing Required</p>
-                <p className="text-2xl font-bold">{contractorsNeedingFiling}</p>
+                <p className="text-2xl font-bold">{isTestMode ? 'X' : contractorsNeedingFiling}</p>
               </div>
             </div>
           </CardContent>
@@ -439,8 +441,8 @@ export default function PayrollPage() {
                     <TableRow key={staff.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{staff.name}</p>
-                          <p className="text-xs text-muted-foreground">{staff.email}</p>
+                          <p className="font-medium">{maskName(staff.name)}</p>
+                          <p className="text-xs text-muted-foreground">{maskEmail(staff.email)}</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -449,18 +451,18 @@ export default function PayrollPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        ${(staff.base_wage || staff.hourly_rate || 0).toFixed(2)}/hr
+                        {isTestMode ? '$XX.XX/hr' : `$${(staff.base_wage || staff.hourly_rate || 0).toFixed(2)}/hr`}
                       </TableCell>
-                      <TableCell className="text-right">{staff.completedCleans}</TableCell>
-                      <TableCell className="text-right">{staff.totalHours}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X' : staff.completedCleans}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X.X' : staff.totalHours}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        ${staff.totalPay.toFixed(2)}
+                        {isTestMode ? '$XXX.XX' : `$${staff.totalPay.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right">
-                        ${staff.avgPayPerClean.toFixed(2)}
+                        {isTestMode ? '$XX.XX' : `$${staff.avgPayPerClean.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right">
-                        ${staff.ytdEarnings.toFixed(2)}
+                        {isTestMode ? '$X,XXX.XX' : `$${staff.ytdEarnings.toFixed(2)}`}
                       </TableCell>
                       <TableCell>
                         {staff.requiresTaxFiling && (

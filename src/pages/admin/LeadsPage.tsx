@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, MapPin, UserPlus, MoreHorizontal, Trash2, Edit } from 'lucide-react';
+import { Plus, Mail, Phone, MapPin, UserPlus, MoreHorizontal, Trash2, Edit, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,15 +160,49 @@ export default function LeadsPage() {
     converted: leads.filter(l => l.status === 'converted').length,
   };
 
+  const exportLeadsExcel = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Service Interest', 'Source', 'Status', 'Created'];
+    const rows = filteredLeads.map(lead => [
+      lead.name,
+      lead.email,
+      lead.phone || '',
+      lead.address || '',
+      lead.city || '',
+      lead.state || '',
+      lead.zip_code || '',
+      lead.service_interest || '',
+      lead.source,
+      lead.status,
+      format(new Date(lead.created_at), 'yyyy-MM-dd'),
+    ]);
+
+    // Create CSV with proper Excel formatting
+    const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Leads exported successfully');
+  };
+
   return (
     <AdminLayout
       title="Leads"
       subtitle={`${leads.length} total leads`}
       actions={
-        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Add Lead
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportLeadsExcel}>
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+          <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Add Lead
+          </Button>
+        </div>
       }
     >
       {/* Stats */}

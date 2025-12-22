@@ -37,6 +37,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface StaffMember {
   id: string;
@@ -65,6 +66,7 @@ export default function StaffPage() {
   const { data: staff = [], isLoading } = useStaff();
   const { data: services = [] } = useServices();
   const queryClient = useQueryClient();
+  const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
 
   const filteredStaff = staff.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,10 +218,12 @@ export default function StaffPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-semibold">{member.name}</h3>
+                        <h3 className="font-semibold">{maskName(member.name)}</h3>
                         <div className="flex items-center gap-2">
                           {(member.base_wage || member.hourly_rate) && (
-                            <span className="text-sm text-muted-foreground">${member.base_wage || member.hourly_rate}/hr</span>
+                            <span className="text-sm text-muted-foreground">
+                              {isTestMode ? '$XX/hr' : `$${member.base_wage || member.hourly_rate}/hr`}
+                            </span>
                           )}
                           <Badge variant={member.tax_classification === '1099' ? 'secondary' : 'default'} className="text-xs">
                             {member.tax_classification === '1099' ? '1099' : 'W-2'}
@@ -264,12 +268,12 @@ export default function StaffPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="truncate">{member.email}</span>
+                      <span className="truncate">{maskEmail(member.email)}</span>
                     </div>
                     {member.phone && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span>{member.phone}</span>
+                        <span>{maskPhone(member.phone)}</span>
                       </div>
                     )}
                     {member.bio && (

@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes, parseISO } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -270,7 +270,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     if (!targetDateStr.startsWith('day-')) return;
 
-    const targetDate = new Date(targetDateStr.replace('day-', ''));
+    // Parse the date string properly to avoid timezone offset issues
+    const targetDate = parseISO(targetDateStr.replace('day-', ''));
     const booking = allBookings.find(b => b.id === bookingId);
 
     if (!booking) return;

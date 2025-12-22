@@ -142,12 +142,12 @@ export default function QuotesPage() {
 
   return (
     <AdminLayout
-      title="Quotes"
-      subtitle={`${quotes.length} total quotes`}
+      title="Invoices"
+      subtitle={`${quotes.length} total invoices`}
       actions={
         <Button className="gap-2" onClick={() => setDialogOpen(true)}>
           <Plus className="w-4 h-4" />
-          New Quote
+          New Invoice
         </Button>
       }
     >

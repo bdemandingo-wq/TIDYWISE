@@ -295,7 +295,9 @@ export default function FinancePage() {
               <DollarSign className="w-4 h-4 text-green-500" />
               <span className="text-xs text-muted-foreground">Total Sales</span>
             </div>
-            <p className="text-xl font-bold text-green-600">${metrics.totalSales.toFixed(2)}</p>
+            <p className="text-xl font-bold text-green-600">
+              {isTestMode ? '$X,XXX.XX' : `$${metrics.totalSales.toFixed(2)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -304,7 +306,9 @@ export default function FinancePage() {
               <CreditCard className="w-4 h-4 text-orange-500" />
               <span className="text-xs text-muted-foreground">Processing Fees</span>
             </div>
-            <p className="text-xl font-bold text-orange-600">-${metrics.totalFees.toFixed(2)}</p>
+            <p className="text-xl font-bold text-orange-600">
+              {isTestMode ? '-$XXX.XX' : `-$${metrics.totalFees.toFixed(2)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -313,7 +317,9 @@ export default function FinancePage() {
               <Receipt className="w-4 h-4 text-blue-500" />
               <span className="text-xs text-muted-foreground">Cleaner Pay</span>
             </div>
-            <p className="text-xl font-bold text-blue-600">-${metrics.totalCleanerPay.toFixed(2)}</p>
+            <p className="text-xl font-bold text-blue-600">
+              {isTestMode ? '-$X,XXX.XX' : `-$${metrics.totalCleanerPay.toFixed(2)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -322,7 +328,9 @@ export default function FinancePage() {
               <TrendingDown className="w-4 h-4 text-red-500" />
               <span className="text-xs text-muted-foreground">Refunds</span>
             </div>
-            <p className="text-xl font-bold text-red-600">-${metrics.totalRefunds.toFixed(2)}</p>
+            <p className="text-xl font-bold text-red-600">
+              {isTestMode ? '-$X.XX' : `-$${metrics.totalRefunds.toFixed(2)}`}
+            </p>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
@@ -335,7 +343,7 @@ export default function FinancePage() {
               "text-xl font-bold",
               metrics.netProfit >= 0 ? "text-primary" : "text-red-600"
             )}>
-              ${metrics.netProfit.toFixed(2)}
+              {isTestMode ? '$X,XXX.XX' : `$${metrics.netProfit.toFixed(2)}`}
             </p>
           </CardContent>
         </Card>
@@ -349,7 +357,7 @@ export default function FinancePage() {
               "text-xl font-bold",
               metrics.profitMargin >= 20 ? "text-green-600" : metrics.profitMargin >= 10 ? "text-yellow-600" : "text-red-600"
             )}>
-              {metrics.profitMargin.toFixed(1)}%
+              {isTestMode ? 'XX.X%' : `${metrics.profitMargin.toFixed(1)}%`}
             </p>
           </CardContent>
         </Card>
