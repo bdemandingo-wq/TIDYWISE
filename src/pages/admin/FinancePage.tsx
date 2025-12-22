@@ -451,10 +451,10 @@ export default function FinancePage() {
                   {salesTaxByZip.map((row) => (
                     <TableRow key={row.zip_code}>
                       <TableCell className="font-medium">{row.zip_code}</TableCell>
-                      <TableCell className="text-right">{row.count}</TableCell>
-                      <TableCell className="text-right">${row.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X' : row.count}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? '$XXX.XX' : `$${row.total.toFixed(2)}`}</TableCell>
                       <TableCell className="text-right font-medium text-primary">
-                        ${row.estimated_tax.toFixed(2)}
+                        {isTestMode ? '$XX.XX' : `$${row.estimated_tax.toFixed(2)}`}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -480,35 +480,35 @@ export default function FinancePage() {
               <div className="space-y-4 max-w-md">
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="font-medium">Total Sales (Gross)</span>
-                  <span className="text-lg font-bold text-green-600">+${metrics.totalSales.toFixed(2)}</span>
+                  <span className="text-lg font-bold text-green-600">{isTestMode ? '+$X,XXX.XX' : `+$${metrics.totalSales.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Processing Fees</span>
-                  <span className="text-orange-600">-${metrics.totalFees.toFixed(2)}</span>
+                  <span className="text-orange-600">{isTestMode ? '-$XXX.XX' : `-$${metrics.totalFees.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b bg-muted/50 px-3 rounded">
                   <span className="font-medium">Net Revenue</span>
-                  <span className="font-bold">${metrics.netRevenue.toFixed(2)}</span>
+                  <span className="font-bold">{isTestMode ? '$X,XXX.XX' : `$${metrics.netRevenue.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Cleaner Pay</span>
-                  <span className="text-blue-600">-${metrics.totalCleanerPay.toFixed(2)}</span>
+                  <span className="text-blue-600">{isTestMode ? '-$X,XXX.XX' : `-$${metrics.totalCleanerPay.toFixed(2)}`}</span>
                 </div>
                 {Object.entries(metrics.expensesByCategory).map(([category, amount]) => (
                   <div key={category} className="flex justify-between items-center py-3 border-b">
                     <span className="text-muted-foreground">Less: {category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                    <span className="text-muted-foreground">-${(amount as number).toFixed(2)}</span>
+                    <span className="text-muted-foreground">{isTestMode ? '-$XXX.XX' : `-$${(amount as number).toFixed(2)}`}</span>
                   </div>
                 ))}
                 {Object.keys(metrics.expensesByCategory).length === 0 && (
                   <div className="flex justify-between items-center py-3 border-b">
                     <span className="text-muted-foreground">Less: Expenses</span>
-                    <span className="text-muted-foreground">-$0.00</span>
+                    <span className="text-muted-foreground">{isTestMode ? '-$XXX.XX' : '-$0.00'}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Refunds</span>
-                  <span className="text-red-600">-${metrics.totalRefunds.toFixed(2)}</span>
+                  <span className="text-red-600">{isTestMode ? '-$X.XX' : `-$${metrics.totalRefunds.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-4 bg-primary/10 px-3 rounded-lg">
                   <span className="text-lg font-bold">Net Profit</span>
@@ -516,7 +516,7 @@ export default function FinancePage() {
                     "text-xl font-bold",
                     metrics.netProfit >= 0 ? "text-primary" : "text-red-600"
                   )}>
-                    ${metrics.netProfit.toFixed(2)}
+                    {isTestMode ? '$X,XXX.XX' : `$${metrics.netProfit.toFixed(2)}`}
                   </span>
                 </div>
               </div>

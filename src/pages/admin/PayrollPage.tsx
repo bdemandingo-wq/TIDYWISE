@@ -517,19 +517,19 @@ export default function PayrollPage() {
                         {format(new Date(b.scheduled_at), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>#{b.booking_number}</TableCell>
-                      <TableCell className="font-medium">{b.staff_name}</TableCell>
-                      <TableCell>{b.customer_name}</TableCell>
-                      <TableCell className="text-right">{b.hours_worked.toFixed(2)}</TableCell>
+                      <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>
+                      <TableCell>{maskName(b.customer_name)}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
                           {b.wage_type}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate.toFixed(2)}`}
+                        {isTestMode ? '$XX.XX' : (b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate.toFixed(2)}`)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        ${b.calculated_pay.toFixed(2)}
+                        {isTestMode ? '$XXX.XX' : `$${b.calculated_pay.toFixed(2)}`}
                       </TableCell>
                     </TableRow>
                   ))}

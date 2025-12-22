@@ -39,6 +39,7 @@ import { toast } from 'sonner';
 import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBookings';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes, parseISO } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -148,6 +149,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
+  const { isTestMode, maskName, maskEmail, maskAddress } = useTestMode();
 
   const { data: allBookings = [], isLoading } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -440,7 +442,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
                             {booking.customer 
-                              ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                              ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
                               : 'Unknown'}
                           </span>
                           <Badge className={cn('text-xs', statusColors[booking.status])}>
@@ -599,12 +601,12 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                     <div>
                       <p className="font-medium">
                         {selectedBooking.customer 
-                          ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
+                          ? maskName(`${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`)
                           : 'Unknown Customer'
                         }
                       </p>
                       <p className="text-muted-foreground">
-                        {selectedBooking.customer?.email || 'No email'}
+                        {selectedBooking.customer ? maskEmail(selectedBooking.customer.email) : 'No email'}
                       </p>
                     </div>
                   </div>
@@ -624,7 +626,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   {getFullAddress(selectedBooking) && (
                     <div className="flex items-center gap-3 text-sm">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <p>{getFullAddress(selectedBooking)}</p>
+                      <p>{maskAddress(getFullAddress(selectedBooking))}</p>
                     </div>
                   )}
                 </div>

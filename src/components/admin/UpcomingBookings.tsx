@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { EditCustomerDialog } from './EditCustomerDialog';
 import { AddBookingDialog } from './AddBookingDialog';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface UpcomingBookingsProps {
   bookings: BookingWithDetails[];
@@ -50,6 +51,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<BookingWithDetails['customer'] | null>(null);
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
+  const { isTestMode, maskName, maskEmail, maskAddress, maskAmount } = useTestMode();
 
   const upcomingBookings = useMemo(() => {
     const today = new Date();
@@ -178,15 +180,15 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <button 
-                        className="flex items-center gap-1 hover:text-primary transition-colors"
-                        onClick={(e) => handleCustomerClick(booking, e)}
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        <span className="truncate">
-                          {booking.customer 
-                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
-                            : 'Unknown'}
+                        <button 
+                          className="flex items-center gap-1 hover:text-primary transition-colors"
+                          onClick={(e) => handleCustomerClick(booking, e)}
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span className="truncate">
+                            {booking.customer 
+                              ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
+                              : 'Unknown'}
                         </span>
                       </button>
                       <div className="flex items-center gap-1">
@@ -233,12 +235,12 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                     <div>
                       <p className="font-medium">
                         {selectedBooking.customer 
-                          ? `${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`
+                          ? maskName(`${selectedBooking.customer.first_name} ${selectedBooking.customer.last_name}`)
                           : 'Unknown Customer'
                         }
                       </p>
                       <p className="text-muted-foreground">
-                        {selectedBooking.customer?.email || 'No email'}
+                        {selectedBooking.customer ? maskEmail(selectedBooking.customer.email) : 'No email'}
                       </p>
                     </div>
                   </div>
@@ -265,7 +267,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                 {getFullAddress(selectedBooking) && (
                   <div className="flex items-center gap-3 text-sm">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <p>{getFullAddress(selectedBooking)}</p>
+                    <p>{maskAddress(getFullAddress(selectedBooking))}</p>
                   </div>
                 )}
 
@@ -273,15 +275,15 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                   <div className="flex items-center gap-3 text-sm">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Assigned: {selectedBooking.staff.name}</p>
-                      <p className="text-muted-foreground">{selectedBooking.staff.email}</p>
+                      <p className="font-medium">Assigned: {maskName(selectedBooking.staff.name)}</p>
+                      <p className="text-muted-foreground">{maskEmail(selectedBooking.staff.email)}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-2xl font-bold">${selectedBooking.total_amount}</span>
+                <span className="text-2xl font-bold">{maskAmount(selectedBooking.total_amount)}</span>
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 

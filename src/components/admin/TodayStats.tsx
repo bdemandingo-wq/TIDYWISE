@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface TodayStatsProps {
   grossVolume: number;
@@ -10,6 +11,7 @@ interface TodayStatsProps {
 export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps) {
   const [isPulsing, setIsPulsing] = useState(false);
   const [prevValues, setPrevValues] = useState({ grossVolume, payments, customers });
+  const { isTestMode } = useTestMode();
 
   // Detect changes and trigger pulse animation
   useEffect(() => {
@@ -45,7 +47,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
               "text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
-              ${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {isTestMode ? '$X,XXX.XX' : `$${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           </div>
           <div className="text-center px-4">
@@ -54,7 +56,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
               "text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
-              {payments}
+              {isTestMode ? 'XX' : payments}
             </p>
           </div>
           <div className="text-center px-4">
@@ -63,7 +65,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
               "text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
-              {customers}
+              {isTestMode ? 'XX' : customers}
             </p>
           </div>
         </div>

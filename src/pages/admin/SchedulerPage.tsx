@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 type StatusFilter = 'all' | 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -30,6 +31,7 @@ export default function SchedulerPage() {
   const { data: bookings = [] } = useBookings();
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const { maskName } = useTestMode();
 
   const handleExport = async (type: 'csv' | 'json') => {
     setExporting(true);
@@ -146,7 +148,7 @@ export default function SchedulerPage() {
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: staffColors[index % staffColors.length] }}
               />
-              <span className="text-sm">{s.name}</span>
+              <span className="text-sm">{maskName(s.name)}</span>
             </div>
           ))}
         </div>

@@ -17,6 +17,7 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 type TimePeriod = '1W' | '4W' | '1Y' | 'MTD' | 'QTD' | 'YTD' | 'ALL';
 
@@ -27,6 +28,7 @@ interface ReportsOverviewProps {
 
 export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   const [period, setPeriod] = useState<TimePeriod>('ALL');
+  const { isTestMode } = useTestMode();
 
   const periods: TimePeriod[] = ['1W', '4W', '1Y', 'MTD', 'QTD', 'YTD', 'ALL'];
 
@@ -207,40 +209,40 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       <div className="space-y-2">
         <MetricChart
           title="Gross volume"
-          value={totals.grossVolume}
+          value={isTestMode ? 'X.XK' : totals.grossVolume}
           data={chartData.grossVolume}
           dateRange={dateRangeLabel}
-          isCurrency
+          isCurrency={!isTestMode}
         />
         
         <MetricChart
           title="Net volume from sales"
-          value={totals.netVolume}
+          value={isTestMode ? 'X.XK' : totals.netVolume}
           data={chartData.netVolume}
           dateRange={dateRangeLabel}
-          isCurrency
+          isCurrency={!isTestMode}
         />
         
         <MetricChart
           title="New customers"
-          value={totals.newCustomersCount}
+          value={isTestMode ? 'XX' : totals.newCustomersCount}
           data={chartData.newCustomers}
           dateRange={dateRangeLabel}
         />
         
         <MetricChart
           title="Successful payments"
-          value={totals.successfulPayments}
+          value={isTestMode ? 'XX' : totals.successfulPayments}
           data={chartData.successfulPayments}
           dateRange={dateRangeLabel}
         />
         
         <MetricChart
           title="Spend per customer"
-          value={totals.spendPerCustomer}
+          value={isTestMode ? 'XXX' : totals.spendPerCustomer}
           data={chartData.spendPerCustomer}
           dateRange={dateRangeLabel}
-          isCurrency
+          isCurrency={!isTestMode}
         />
       </div>
     </div>

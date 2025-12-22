@@ -39,6 +39,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface Lead {
   id: string;
@@ -70,6 +71,7 @@ export default function LeadsPage() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
+  const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -278,15 +280,15 @@ export default function LeadsPage() {
               ) : (
                 filteredLeads.map((lead) => (
                   <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.name}</TableCell>
+                    <TableCell className="font-medium">{maskName(lead.name)}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
-                          <Mail className="w-3 h-3" /> {lead.email}
+                          <Mail className="w-3 h-3" /> {maskEmail(lead.email)}
                         </div>
                         {lead.phone && (
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Phone className="w-3 h-3" /> {lead.phone}
+                            <Phone className="w-3 h-3" /> {maskPhone(lead.phone)}
                           </div>
                         )}
                       </div>
