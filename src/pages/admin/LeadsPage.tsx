@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, MapPin, UserPlus, MoreHorizontal, Trash2, Edit, Download } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,10 +66,22 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   lost: { label: 'Lost', color: 'bg-gray-500' },
 };
 
+const SOURCE_OPTIONS = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'website', label: 'Website' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'google', label: 'Google' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'other', label: 'Other' },
+];
+
 export default function LeadsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [showFunnel, setShowFunnel] = useState(false);
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
 
@@ -151,17 +163,58 @@ export default function LeadsPage() {
     toast.success('Lead converted to customer');
   };
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+      const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
+      return matchesSearch && matchesStatus && matchesSource;
+    });
+  }, [leads, searchTerm, statusFilter, sourceFilter]);
 
   const stats = {
     total: leads.length,
     new: leads.filter(l => l.status === 'new').length,
+    contacted: leads.filter(l => l.status === 'contacted').length,
     qualified: leads.filter(l => l.status === 'qualified').length,
     converted: leads.filter(l => l.status === 'converted').length,
+    lost: leads.filter(l => l.status === 'lost').length,
   };
+
+  const funnelData = useMemo(() => {
+    const stages = ['new', 'contacted', 'qualified', 'converted'];
+    const counts = stages.map(s => leads.filter(l => l.status === s).length);
+    const maxCount = Math.max(...counts, 1);
+    
+    return stages.map((stage, i) => ({
+      stage,
+      label: STATUS_CONFIG[stage].label,
+      count: counts[i],
+      percentage: maxCount > 0 ? Math.round((counts[i] / maxCount) * 100) : 0,
+      conversionRate: i > 0 && counts[i - 1] > 0 
+        ? Math.round((counts[i] / counts[i - 1]) * 100) 
+        : 100,
+    }));
+  }, [leads]);
+
+  const sourceBreakdown = useMemo(() => {
+    const sources: Record<string, { total: number; converted: number }> = {};
+    leads.forEach(lead => {
+      if (!sources[lead.source]) {
+        sources[lead.source] = { total: 0, converted: 0 };
+      }
+      sources[lead.source].total++;
+      if (lead.status === 'converted') {
+        sources[lead.source].converted++;
+      }
+    });
+    return Object.entries(sources).map(([source, data]) => ({
+      source,
+      ...data,
+      rate: data.total > 0 ? Math.round((data.converted / data.total) * 100) : 0,
+    })).sort((a, b) => b.total - a.total);
+  }, [leads]);
 
   const exportLeadsExcel = () => {
     const headers = ['Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Service Interest', 'Source', 'Status', 'Notes', 'Message', 'Created'];
@@ -181,7 +234,6 @@ export default function LeadsPage() {
       format(new Date(lead.created_at), 'yyyy-MM-dd'),
     ]);
 
-    // Create CSV with proper Excel formatting
     const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -199,6 +251,14 @@ export default function LeadsPage() {
       subtitle={`${leads.length} total leads`}
       actions={
         <div className="flex gap-2">
+          <Button 
+            variant={showFunnel ? "default" : "outline"} 
+            className="gap-2" 
+            onClick={() => setShowFunnel(!showFunnel)}
+          >
+            <TrendingDown className="w-4 h-4" />
+            Funnel Report
+          </Button>
           <Button variant="outline" className="gap-2" onClick={exportLeadsExcel}>
             <Download className="w-4 h-4" />
             Export Excel
@@ -210,8 +270,87 @@ export default function LeadsPage() {
         </div>
       }
     >
+      {/* Lead Funnel Report */}
+      {showFunnel && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Lead Conversion Funnel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {funnelData.map((stage, i) => (
+                  <div key={stage.stage} className="relative">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{stage.label}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {stage.count} leads
+                        {i > 0 && (
+                          <span className="ml-2 text-xs">
+                            ({stage.conversionRate}% from {funnelData[i-1].label})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-8 bg-muted rounded-md overflow-hidden">
+                      <div 
+                        className={`h-full ${STATUS_CONFIG[stage.stage].color} transition-all duration-500`}
+                        style={{ width: `${stage.percentage}%` }}
+                      />
+                    </div>
+                    {i < funnelData.length - 1 && (
+                      <div className="flex justify-center py-1">
+                        <ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Overall Conversion Rate</span>
+                  <span className="text-lg font-bold text-green-600">
+                    {stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-sm text-muted-foreground">Lost Leads</span>
+                  <span className="text-sm text-destructive">{stats.lost}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Leads by Source</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {sourceBreakdown.map((item) => (
+                  <div key={item.source} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <span className="font-medium capitalize">{item.source}</span>
+                      <div className="text-sm text-muted-foreground">
+                        {item.total} leads · {item.converted} converted
+                      </div>
+                    </div>
+                    <Badge variant={item.rate >= 50 ? "default" : item.rate >= 25 ? "secondary" : "outline"}>
+                      {item.rate}% rate
+                    </Badge>
+                  </div>
+                ))}
+                {sourceBreakdown.length === 0 && (
+                  <p className="text-muted-foreground text-center py-4">No lead data yet</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total</p>
@@ -226,6 +365,12 @@ export default function LeadsPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Contacted</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats.contacted}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Qualified</p>
             <p className="text-2xl font-bold text-purple-600">{stats.qualified}</p>
           </CardContent>
@@ -236,16 +381,54 @@ export default function LeadsPage() {
             <p className="text-2xl font-bold text-green-600">{stats.converted}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Lost</p>
+            <p className="text-2xl font-bold text-muted-foreground">{stats.lost}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 mb-4">
         <Input
           placeholder="Search leads..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <SelectTrigger className="w-[150px]">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCE_OPTIONS.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(statusFilter !== 'all' || sourceFilter !== 'all') && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => { setStatusFilter('all'); setSourceFilter('all'); }}
+          >
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {/* Table */}
