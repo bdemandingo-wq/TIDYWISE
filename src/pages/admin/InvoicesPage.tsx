@@ -28,12 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, FileText, Send, Check, X, Trash2, Edit, Copy } from 'lucide-react';
+import { Plus, FileText, Send, Check, X, Trash2, Edit, Copy, Loader2, Mail } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { useCustomers, useServices } from '@/hooks/useBookings';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface Quote {
   id: string;

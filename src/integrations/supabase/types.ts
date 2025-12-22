@@ -256,6 +256,42 @@ export type Database = {
         }
         Relationships: []
       }
+      client_feedback: {
+        Row: {
+          created_at: string
+          customer_name: string
+          feedback_date: string
+          followup_needed: boolean | null
+          id: string
+          is_resolved: boolean | null
+          issue_description: string | null
+          resolution: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          feedback_date?: string
+          followup_needed?: boolean | null
+          id?: string
+          is_resolved?: boolean | null
+          issue_description?: string | null
+          resolution?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          feedback_date?: string
+          followup_needed?: boolean | null
+          id?: string
+          is_resolved?: boolean | null
+          issue_description?: string | null
+          resolution?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -492,6 +528,51 @@ export type Database = {
           state?: string | null
           updated_at?: string
           zip_code?: string | null
+        }
+        Relationships: []
+      }
+      operations_tracker: {
+        Row: {
+          closed_deals: number | null
+          cold_calls_made: number | null
+          cold_emails_sent: number | null
+          created_at: string
+          id: string
+          incoming_calls: number | null
+          jobs_completed: number | null
+          leads_followed_up: number | null
+          notes: string | null
+          revenue_booked: number | null
+          track_date: string
+          updated_at: string
+        }
+        Insert: {
+          closed_deals?: number | null
+          cold_calls_made?: number | null
+          cold_emails_sent?: number | null
+          created_at?: string
+          id?: string
+          incoming_calls?: number | null
+          jobs_completed?: number | null
+          leads_followed_up?: number | null
+          notes?: string | null
+          revenue_booked?: number | null
+          track_date?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_deals?: number | null
+          cold_calls_made?: number | null
+          cold_emails_sent?: number | null
+          created_at?: string
+          id?: string
+          incoming_calls?: number | null
+          jobs_completed?: number | null
+          leads_followed_up?: number | null
+          notes?: string | null
+          revenue_booked?: number | null
+          track_date?: string
+          updated_at?: string
         }
         Relationships: []
       }
