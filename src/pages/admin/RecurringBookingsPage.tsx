@@ -469,12 +469,15 @@ function RecurringBookingDialog({
           </div>
           <div>
             <Label>Assign Cleaner</Label>
-            <Select value={formData.staff_id} onValueChange={(v) => setFormData({ ...formData, staff_id: v })}>
+            <Select 
+              value={formData.staff_id || "unassigned"} 
+              onValueChange={(v) => setFormData({ ...formData, staff_id: v === "unassigned" ? "" : v })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {staff.filter(s => s.is_active).map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
