@@ -69,6 +69,7 @@ import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDia
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -137,6 +138,7 @@ export default function BookingsPage() {
   const { data: staffList = [] } = useStaff();
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
+  const { isTestMode, maskName, maskEmail, maskAmount, maskAddress } = useTestMode();
 
   // Sort bookings: upcoming first (chronologically), then past
   const sortedBookings = useMemo(() => {
@@ -994,18 +996,18 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                             <span className="text-sm font-semibold text-primary">
-                              {booking.customer?.first_name?.[0] || '?'}
+                              {isTestMode ? 'J' : (booking.customer?.first_name?.[0] || '?')}
                             </span>
                           </div>
                           <div>
                             <p className="font-medium text-foreground">
                               {booking.customer 
-                                ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                                ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
                                 : 'Unknown'
                               }
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {booking.customer?.email || 'No email'}
+                              {maskEmail(booking.customer?.email || 'No email')}
                             </p>
                           </div>
                         </div>
@@ -1073,7 +1075,7 @@ export default function BookingsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-bold text-foreground">${booking.total_amount}</span>
+                        <span className="font-bold text-foreground">{maskAmount(booking.total_amount)}</span>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

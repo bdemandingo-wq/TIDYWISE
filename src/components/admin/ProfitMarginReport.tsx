@@ -17,6 +17,7 @@ import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'd
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface ProfitMarginReportProps {
   bookings: BookingWithDetails[];
@@ -40,6 +41,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date()),
   });
+  const { isTestMode, maskName, maskAmount } = useTestMode();
 
   const profitData = useMemo(() => {
     return bookings
@@ -200,7 +202,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-foreground">${summaryStats.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalRevenue.toLocaleString()}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                 <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -214,7 +216,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Cleaner Pay</p>
-                <p className="text-2xl font-bold text-foreground">${summaryStats.totalCleanerPay.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalCleanerPay.toLocaleString()}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                 <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -228,7 +230,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className="text-2xl font-bold text-foreground">${summaryStats.totalProfit.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalProfit.toLocaleString()}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -266,11 +268,11 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             </CardHeader>
             <CardContent>
               <p className="font-semibold">{summaryStats.mostProfitable.serviceName}</p>
-              <p className="text-sm text-muted-foreground">{summaryStats.mostProfitable.customerName}</p>
+              <p className="text-sm text-muted-foreground">{maskName(summaryStats.mostProfitable.customerName)}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-lg font-bold text-emerald-600">{summaryStats.mostProfitable.marginPercent.toFixed(1)}%</span>
+                <span className="text-lg font-bold text-emerald-600">{isTestMode ? 'XX.X%' : `${summaryStats.mostProfitable.marginPercent.toFixed(1)}%`}</span>
                 <span className="text-sm text-muted-foreground">margin</span>
-                <span className="text-sm text-foreground">${summaryStats.mostProfitable.profit.toFixed(2)} profit</span>
+                <span className="text-sm text-foreground">{maskAmount(summaryStats.mostProfitable.profit)}</span>
               </div>
             </CardContent>
           </Card>
@@ -286,11 +288,11 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             </CardHeader>
             <CardContent>
               <p className="font-semibold">{summaryStats.leastProfitable.serviceName}</p>
-              <p className="text-sm text-muted-foreground">{summaryStats.leastProfitable.customerName}</p>
+              <p className="text-sm text-muted-foreground">{maskName(summaryStats.leastProfitable.customerName)}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-lg font-bold text-rose-600">{summaryStats.leastProfitable.marginPercent.toFixed(1)}%</span>
+                <span className="text-lg font-bold text-rose-600">{isTestMode ? 'XX.X%' : `${summaryStats.leastProfitable.marginPercent.toFixed(1)}%`}</span>
                 <span className="text-sm text-muted-foreground">margin</span>
-                <span className="text-sm text-foreground">${summaryStats.leastProfitable.profit.toFixed(2)} profit</span>
+                <span className="text-sm text-foreground">{maskAmount(summaryStats.leastProfitable.profit)}</span>
               </div>
             </CardContent>
           </Card>
@@ -328,16 +330,16 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">#{item.bookingNumber}</TableCell>
                       <TableCell>{format(item.scheduledAt, 'MMM d, yyyy')}</TableCell>
-                      <TableCell>{item.customerName}</TableCell>
+                      <TableCell>{maskName(item.customerName)}</TableCell>
                       <TableCell>{item.serviceName}</TableCell>
-                      <TableCell className="text-right">${item.revenue.toFixed(2)}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">${item.cleanerPay.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{maskAmount(item.revenue)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{maskAmount(item.cleanerPay)}</TableCell>
                       <TableCell className={cn("text-right font-semibold", getMarginColor(item.marginPercent))}>
-                        ${item.profit.toFixed(2)}
+                        {maskAmount(item.profit)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge className={cn("font-medium", badge.variant)}>
-                          {item.marginPercent.toFixed(1)}%
+                          {isTestMode ? 'XX.X%' : `${item.marginPercent.toFixed(1)}%`}
                         </Badge>
                       </TableCell>
                     </TableRow>
