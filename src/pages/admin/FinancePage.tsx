@@ -29,6 +29,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface Transaction {
   id: string;
@@ -50,6 +51,7 @@ export default function FinancePage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const { maskName, maskAmount, isTestMode } = useTestMode();
 
   // Fetch completed bookings with payment data
   const { data: bookings = [] } = useQuery({
@@ -203,9 +205,10 @@ export default function FinancePage() {
   };
 
   const exportAnnualIncome = () => {
-    const headers = ['Period', 'Total Sales', 'Processing Fees', 'Net Revenue', 'Cleaner Pay', 'Expenses', 'Refunds', 'Net Profit', 'Profit Margin %'];
+    // Use proper CSV format with quoted headers to ensure all columns show
+    const headers = ['"Period"', '"Total Sales"', '"Processing Fees"', '"Net Revenue"', '"Cleaner Pay"', '"Expenses"', '"Refunds"', '"Net Profit"', '"Profit Margin %"'];
     const rows = [[
-      `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`,
+      `"${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}"`,
       metrics.totalSales.toFixed(2),
       metrics.totalFees.toFixed(2),
       metrics.netRevenue.toFixed(2),
@@ -387,19 +390,19 @@ export default function FinancePage() {
                         {format(new Date(t.scheduled_at), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>#{t.booking_number}</TableCell>
-                      <TableCell>{t.customer_name}</TableCell>
+                      <TableCell>{maskName(t.customer_name)}</TableCell>
                       <TableCell>{t.service_name}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        ${t.gross_amount.toFixed(2)}
+                        {isTestMode ? '$XXX.XX' : `$${t.gross_amount.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right text-orange-600">
-                        -${t.processing_fee.toFixed(2)}
+                        {isTestMode ? '-$X.XX' : `-$${t.processing_fee.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${t.net_amount.toFixed(2)}
+                        {isTestMode ? '$XXX.XX' : `$${t.net_amount.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right text-blue-600">
-                        ${t.cleaner_pay.toFixed(2)}
+                        {isTestMode ? '$XX.XX' : `$${t.cleaner_pay.toFixed(2)}`}
                       </TableCell>
                       <TableCell>
                         <Badge variant={t.payment_status === 'paid' ? 'default' : 'secondary'}>

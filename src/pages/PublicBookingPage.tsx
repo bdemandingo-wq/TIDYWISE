@@ -382,10 +382,8 @@ export default function PublicBookingPage() {
                       disabled={(date) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        const tomorrow = new Date(today);
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        // Block today and Sundays - requires at least 1 day notice
-                        return date < tomorrow || date.getDay() === 0;
+                        // Only block past dates and Sundays
+                        return date < today || date.getDay() === 0;
                       }}
                       className="rounded-md border"
                     />

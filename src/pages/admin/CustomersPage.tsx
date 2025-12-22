@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Eye, Edit, Trash2, CreditCard } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
+  const { maskName, maskEmail, maskPhone, maskAddress } = useTestMode();
 
   const handleDeleteClick = (customer: { id: string; first_name: string; last_name: string }) => {
     setCustomerToDelete({ id: customer.id, name: `${customer.first_name} ${customer.last_name}` });
@@ -127,7 +129,7 @@ export default function CustomersPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{customer.first_name} {customer.last_name}</p>
+                        <p className="font-medium">{maskName(`${customer.first_name} ${customer.last_name}`)}</p>
                         <p className="text-sm text-muted-foreground">
                           Since {new Date(customer.created_at).toLocaleDateString()}
                         </p>
@@ -138,12 +140,12 @@ export default function CustomersPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
                         <Mail className="w-3.5 h-3.5 text-muted-foreground" />
-                        {customer.email}
+                        {maskEmail(customer.email)}
                       </div>
                       {customer.phone && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                          {customer.phone}
+                          {maskPhone(customer.phone)}
                         </div>
                       )}
                     </div>
@@ -153,7 +155,7 @@ export default function CustomersPage() {
                       <div className="flex items-center gap-2 text-sm max-w-[200px]">
                         <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                         <span className="truncate">
-                          {customer.address}{customer.city ? `, ${customer.city}` : ''}{customer.state ? `, ${customer.state}` : ''}
+                          {maskAddress(`${customer.address}${customer.city ? `, ${customer.city}` : ''}${customer.state ? `, ${customer.state}` : ''}`)}
                         </span>
                       </div>
                     ) : (
