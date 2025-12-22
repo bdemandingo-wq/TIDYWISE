@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
   TableBody,
@@ -20,12 +21,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp } from 'lucide-react';
+import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { cn } from '@/lib/utils';
 
 interface OperationsEntry {
   id: string;
@@ -43,6 +45,7 @@ interface OperationsEntry {
 export default function OperationsTrackerPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const queryClient = useQueryClient();
   const { isTestMode, maskAmount } = useTestMode();
 
@@ -251,28 +254,103 @@ export default function OperationsTrackerPage() {
         </Card>
       </div>
 
-      {/* Monthly Summary */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base">Monthly Summary ({format(new Date(), 'MMMM yyyy')})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-secondary/50 rounded-lg">
-              <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.calls}</p>
-              <p className="text-sm text-muted-foreground">Total Calls</p>
+      {/* Calendar and Monthly Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Calendar */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarDays className="w-4 h-4" />
+              Select Date
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => {
+                setSelectedDate(date);
+                if (date) {
+                  const existingEntry = entries.find(e => isSameDay(parseISO(e.track_date), date));
+                  if (existingEntry) {
+                    setEditingEntry(existingEntry);
+                  } else {
+                    setEditingEntry(null);
+                  }
+                  setDialogOpen(true);
+                }
+              }}
+              className={cn("p-3 pointer-events-auto")}
+              modifiers={{
+                hasEntry: entries.map(e => parseISO(e.track_date)),
+              }}
+              modifiersStyles={{
+                hasEntry: {
+                  backgroundColor: 'hsl(var(--primary) / 0.15)',
+                  fontWeight: 'bold',
+                  borderRadius: '50%',
+                },
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Monthly Summary */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Monthly Summary ({format(new Date(), 'MMMM yyyy')})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.calls}</p>
+                <p className="text-sm text-muted-foreground">Total Calls</p>
+              </div>
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.deals}</p>
+                <p className="text-sm text-muted-foreground">Total Closes</p>
+              </div>
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <p className="text-3xl font-bold text-emerald-600">{maskAmount(stats.monthlyTotals.revenue)}</p>
+                <p className="text-sm text-muted-foreground">Total Revenue</p>
+              </div>
             </div>
-            <div className="text-center p-4 bg-secondary/50 rounded-lg">
-              <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.deals}</p>
-              <p className="text-sm text-muted-foreground">Total Closes</p>
-            </div>
-            <div className="text-center p-4 bg-secondary/50 rounded-lg">
-              <p className="text-3xl font-bold text-emerald-600">{maskAmount(stats.monthlyTotals.revenue)}</p>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            
+            {/* Selected Date Details */}
+            {selectedDate && (
+              <div className="mt-4 p-4 border rounded-lg">
+                <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</h4>
+                {(() => {
+                  const dayEntry = entries.find(e => isSameDay(parseISO(e.track_date), selectedDate));
+                  if (dayEntry) {
+                    return (
+                      <div className="grid grid-cols-4 gap-2 text-sm">
+                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-950 rounded">
+                          <p className="font-bold">{isTestMode ? 'X' : dayEntry.incoming_calls}</p>
+                          <p className="text-xs text-muted-foreground">Calls</p>
+                        </div>
+                        <div className="text-center p-2 bg-green-50 dark:bg-green-950 rounded">
+                          <p className="font-bold">{isTestMode ? 'X' : dayEntry.closed_deals}</p>
+                          <p className="text-xs text-muted-foreground">Deals</p>
+                        </div>
+                        <div className="text-center p-2 bg-emerald-50 dark:bg-emerald-950 rounded">
+                          <p className="font-bold">{maskAmount(Number(dayEntry.revenue_booked))}</p>
+                          <p className="text-xs text-muted-foreground">Revenue</p>
+                        </div>
+                        <div className="text-center p-2 bg-teal-50 dark:bg-teal-950 rounded">
+                          <p className="font-bold">{isTestMode ? 'X' : dayEntry.jobs_completed}</p>
+                          <p className="text-xs text-muted-foreground">Jobs</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return <p className="text-sm text-muted-foreground">No entry for this date. Click to add one.</p>;
+                })()}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Daily Entries Table */}
       <Card>
@@ -358,6 +436,7 @@ export default function OperationsTrackerPage() {
           if (!open) setEditingEntry(null);
         }}
         entry={editingEntry}
+        defaultDate={selectedDate}
         onSave={(data) => {
           if (editingEntry) {
             updateMutation.mutate({ id: editingEntry.id, ...data });
@@ -374,15 +453,23 @@ function OperationsDialog({
   open,
   onOpenChange,
   entry,
+  defaultDate,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entry: OperationsEntry | null;
+  defaultDate?: Date;
   onSave: (data: Partial<OperationsEntry>) => void;
 }) {
+  const getInitialDate = () => {
+    if (entry?.track_date) return entry.track_date;
+    if (defaultDate) return format(defaultDate, 'yyyy-MM-dd');
+    return format(new Date(), 'yyyy-MM-dd');
+  };
+
   const [formData, setFormData] = useState({
-    track_date: entry?.track_date || format(new Date(), 'yyyy-MM-dd'),
+    track_date: getInitialDate(),
     incoming_calls: entry?.incoming_calls?.toString() || '0',
     closed_deals: entry?.closed_deals?.toString() || '0',
     revenue_booked: entry?.revenue_booked?.toString() || '0',
@@ -393,7 +480,7 @@ function OperationsDialog({
     notes: entry?.notes || '',
   });
 
-  // Reset form when entry changes
+  // Reset form when entry or defaultDate changes
   useState(() => {
     if (entry) {
       setFormData({
@@ -409,7 +496,7 @@ function OperationsDialog({
       });
     } else {
       setFormData({
-        track_date: format(new Date(), 'yyyy-MM-dd'),
+        track_date: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         incoming_calls: '0',
         closed_deals: '0',
         revenue_booked: '0',
