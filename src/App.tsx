@@ -26,6 +26,8 @@ import RecurringBookingsPage from "./pages/admin/RecurringBookingsPage";
 import LeadsPage from "./pages/admin/LeadsPage";
 import InventoryPage from "./pages/admin/InventoryPage";
 import InvoicesPage from "./pages/admin/InvoicesPage";
+import OperationsTrackerPage from "./pages/admin/OperationsTrackerPage";
+import ClientFeedbackPage from "./pages/admin/ClientFeedbackPage";
 import StaffPortal from "./pages/staff/StaffPortal";
 import StaffLoginPage from "./pages/staff/StaffLoginPage";
 import StaffResetPasswordPage from "./pages/staff/StaffResetPasswordPage";
@@ -69,7 +71,8 @@ const App = () => (
                 <Route path="/admin/leads" element={<ProtectedRoute><LeadsPage /></ProtectedRoute>} />
                 <Route path="/admin/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
                 <Route path="/admin/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-
+                <Route path="/admin/operations" element={<ProtectedRoute><OperationsTrackerPage /></ProtectedRoute>} />
+                <Route path="/admin/feedback" element={<ProtectedRoute><ClientFeedbackPage /></ProtectedRoute>} />
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

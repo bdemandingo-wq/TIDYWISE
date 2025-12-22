@@ -42,6 +42,8 @@ const navigation = [
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Leads', href: '/admin/leads', icon: Target },
   { name: 'Invoices', href: '/admin/invoices', icon: FileText },
+  { name: 'Operations', href: '/admin/operations', icon: MapPin },
+  { name: 'Feedback', href: '/admin/feedback', icon: MessageSquare },
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Staff', href: '/admin/staff', icon: UserCircle },
   { name: 'Inventory', href: '/admin/inventory', icon: Package },
