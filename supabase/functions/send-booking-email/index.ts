@@ -219,7 +219,8 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    const res = await fetch("https://api.resend.com/emails", {
+    // Send to customer
+    const customerEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -233,21 +234,55 @@ const handler = async (req: Request): Promise<Response> => {
       }),
     });
 
-    let data: any = null;
+    let customerData: any = null;
     try {
-      data = await res.json();
+      customerData = await customerEmailResponse.json();
     } catch (_e) {
-      data = null;
+      customerData = null;
     }
 
-    if (!res.ok) {
-      console.error("Resend API error:", { status: res.status, data });
-      throw new Error(data?.message || `Failed to send email (status ${res.status})`);
+    if (!customerEmailResponse.ok) {
+      console.error("Resend API error (customer):", { status: customerEmailResponse.status, data: customerData });
+      throw new Error(customerData?.message || `Failed to send customer email (status ${customerEmailResponse.status})`);
     }
 
-    console.log("Customer email sent successfully:", data);
+    console.log("Customer email sent successfully:", customerData);
 
-    return new Response(JSON.stringify({ success: true, emailId: data?.id }), {
+    // Send notification to admin
+    const adminNotificationHtml = `
+      <h2>New Booking Received</h2>
+      <p><strong>Customer:</strong> ${customerName || "N/A"}</p>
+      <p><strong>Email:</strong> ${customerEmail}</p>
+      <p><strong>Phone:</strong> ${booking.customerPhone || "N/A"}</p>
+      <p><strong>Service:</strong> ${booking.serviceName || "N/A"}</p>
+      <p><strong>Date:</strong> ${booking.appointmentDate || "N/A"}</p>
+      <p><strong>Time:</strong> ${booking.appointmentTime || "N/A"}</p>
+      <p><strong>Address:</strong> ${fullAddress || "N/A"}</p>
+      <p><strong>Total:</strong> $${booking.totalPrice ?? "N/A"}</p>
+      <p><strong>Extras:</strong> ${extrasText}</p>
+    `;
+
+    try {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "TidyWise Booking System <support@jointidywise.com>",
+          to: ["support@tidywisecleaning.com"],
+          subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
+          html: adminNotificationHtml,
+        }),
+      });
+      console.log("Admin notification sent successfully");
+    } catch (adminError) {
+      console.error("Failed to send admin notification:", adminError);
+      // Don't throw - admin notification is secondary
+    }
+
+    return new Response(JSON.stringify({ success: true, emailId: customerData?.id }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
