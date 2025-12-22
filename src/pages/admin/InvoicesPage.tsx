@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, FileText, Send, Check, X, Trash2, Edit, Copy, Loader2, Mail } from 'lucide-react';
+import { Plus, FileText, Send, Check, Trash2, Edit, Loader2, Mail } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -66,7 +66,9 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 export default function QuotesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
 
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
@@ -134,6 +136,39 @@ export default function QuotesPage() {
     updateMutation.mutate({ id: quote.id, status: 'accepted' });
   };
 
+  const sendInvoiceEmail = async (quote: Quote) => {
+    if (!quote.customer?.email) {
+      toast.error('No customer email found');
+      return;
+    }
+
+    setSendingInvoice(quote.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-invoice', {
+        body: {
+          customerName: `${quote.customer.first_name} ${quote.customer.last_name}`,
+          customerEmail: quote.customer.email,
+          invoiceNumber: quote.quote_number,
+          serviceName: quote.service?.name || 'Cleaning Service',
+          amount: quote.total_amount,
+          address: quote.address,
+          validUntil: quote.valid_until ? format(new Date(quote.valid_until), 'MMM d, yyyy') : undefined,
+          notes: quote.notes,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Invoice sent to ${quote.customer.email}`);
+      updateMutation.mutate({ id: quote.id, status: 'sent' });
+    } catch (error: any) {
+      console.error('Failed to send invoice:', error);
+      toast.error(error.message || 'Failed to send invoice');
+    } finally {
+      setSendingInvoice(null);
+    }
+  };
+
   const stats = {
     total: quotes.length,
     pending: quotes.filter(q => q.status === 'draft' || q.status === 'sent').length,
@@ -178,7 +213,7 @@ export default function QuotesPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Value</p>
-            <p className="text-2xl font-bold">${stats.totalValue.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{isTestMode ? '$XXX.XX' : `$${stats.totalValue.toFixed(2)}`}</p>
           </CardContent>
         </Card>
       </div>
@@ -218,8 +253,8 @@ export default function QuotesPage() {
                     <TableCell>
                       {quote.customer ? (
                         <div>
-                          <p>{quote.customer.first_name} {quote.customer.last_name}</p>
-                          <p className="text-sm text-muted-foreground">{quote.customer.email}</p>
+                          <p>{maskName(`${quote.customer.first_name} ${quote.customer.last_name}`)}</p>
+                          <p className="text-sm text-muted-foreground">{maskEmail(quote.customer.email)}</p>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>
@@ -227,8 +262,8 @@ export default function QuotesPage() {
                     </TableCell>
                     <TableCell>{quote.service?.name || '-'}</TableCell>
                     <TableCell className="text-right font-medium">
-                      ${quote.total_amount.toFixed(2)}
-                      {quote.discount_percent > 0 && (
+                      {maskAmount(quote.total_amount)}
+                      {!isTestMode && quote.discount_percent > 0 && (
                         <span className="text-sm text-green-600 ml-1">(-{quote.discount_percent}%)</span>
                       )}
                     </TableCell>
@@ -242,6 +277,22 @@ export default function QuotesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        {quote.customer?.email && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600"
+                            onClick={() => sendInvoiceEmail(quote)}
+                            disabled={sendingInvoice === quote.id}
+                            title="Send invoice email"
+                          >
+                            {sendingInvoice === quote.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Mail className="w-4 h-4" />
+                            )}
+                          </Button>
+                        )}
                         {quote.status === 'draft' && (
                           <Button
                             variant="ghost"

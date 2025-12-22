@@ -11,6 +11,7 @@ import { isAfter, format, startOfMonth, endOfMonth, isWithinInterval, subMonths 
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { useTestMode } from '@/contexts/TestModeContext';
 
 interface CleanerPerformanceDashboardProps {
   bookings: BookingWithDetails[];
@@ -50,6 +51,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date()),
   });
+  const { isTestMode, maskName, maskAmount } = useTestMode();
 
   const cleanerStats = useMemo(() => {
     return staff
@@ -211,7 +213,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Team Revenue</p>
-                <p className="text-2xl font-bold text-foreground">${totalTeamRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${totalTeamRevenue.toLocaleString()}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                 <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -225,7 +227,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid Out</p>
-                <p className="text-2xl font-bold text-foreground">${totalTeamEarnings.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${totalTeamEarnings.toLocaleString()}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <DollarSign className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -265,14 +267,14 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
               <Avatar className="h-12 w-12">
                 <AvatarImage src={topPerformer.avatarUrl || undefined} />
                 <AvatarFallback className="bg-amber-100 text-amber-700">
-                  {topPerformer.name.split(' ').map(n => n[0]).join('')}
+                  {maskName(topPerformer.name).split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <p className="font-semibold text-lg">{topPerformer.name}</p>
+                <p className="font-semibold text-lg">{maskName(topPerformer.name)}</p>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{topPerformer.completedBookings} jobs completed</span>
-                  <span className="text-amber-600 font-semibold">${topPerformer.totalEarnings.toLocaleString()} earned</span>
+                  <span className="text-amber-600 font-semibold">{maskAmount(topPerformer.totalEarnings)}</span>
                 </div>
               </div>
               <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">
@@ -289,14 +291,14 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
           <Card key={cleaner.id} className="border-border/50">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-4">
-                <Avatar className="h-10 w-10">
+              <Avatar className="h-10 w-10">
                   <AvatarImage src={cleaner.avatarUrl || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary">
-                    {cleaner.name.split(' ').map(n => n[0]).join('')}
+                    {maskName(cleaner.name).split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{cleaner.name}</p>
+                  <p className="font-semibold truncate">{maskName(cleaner.name)}</p>
                   <p className="text-sm text-muted-foreground">
                     {cleaner.upcomingBookings} upcoming
                   </p>
@@ -347,14 +349,14 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                     <DollarSign className="w-3 h-3" />
                     Total Earned
                   </div>
-                  <p className="font-semibold text-emerald-600">${cleaner.totalEarnings.toLocaleString()}</p>
+                  <p className="font-semibold text-emerald-600">{maskAmount(cleaner.totalEarnings)}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                     <Clock className="w-3 h-3" />
                     Avg/Job
                   </div>
-                  <p className="font-semibold">${cleaner.avgEarningsPerJob.toFixed(0)}</p>
+                  <p className="font-semibold">{maskAmount(cleaner.avgEarningsPerJob)}</p>
                 </div>
               </div>
 
