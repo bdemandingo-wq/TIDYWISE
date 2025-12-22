@@ -34,10 +34,15 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const timeSlots = [
-  '08:00', '09:00', '10:00', '11:00', '12:00',
-  '13:00', '14:00', '15:00', '16:00', '17:00'
-];
+// Generate 30-minute time slots from 8:00 AM to 5:00 PM in 12-hour format
+const timeSlots = Array.from({ length: 19 }, (_, i) => {
+  const totalMinutes = 8 * 60 + i * 30;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+});
 
 export default function PublicBookingPage() {
   const [step, setStep] = useState(1);
@@ -374,7 +379,14 @@ export default function PublicBookingPage() {
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
-                      disabled={(date) => date < new Date() || date.getDay() === 0}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const tomorrow = new Date(today);
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        // Block today and Sundays - requires at least 1 day notice
+                        return date < tomorrow || date.getDay() === 0;
+                      }}
                       className="rounded-md border"
                     />
                   </CardContent>

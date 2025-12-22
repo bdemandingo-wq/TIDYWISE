@@ -1,8 +1,9 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, CheckCircle } from 'lucide-react';
+import { FileText, CheckCircle, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { squareFootageRanges, bedroomOptions, bathroomOptions, frequencyOptions, extras as extrasData } from '@/data/pricingData';
@@ -23,6 +24,8 @@ export function ServiceStep() {
     selectedExtras,
     toggleExtra,
     extrasTotal,
+    totalAmount,
+    setTotalAmount,
   } = useBookingForm();
 
   return (
@@ -53,6 +56,26 @@ export function ServiceStep() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Price Override */}
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Adjust Price (Override)
+            </Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Enter actual price"
+              value={totalAmount || ''}
+              onChange={(e) => setTotalAmount(parseFloat(e.target.value) || 0)}
+              className="mt-2 h-11 bg-secondary/30 border-border/50"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave empty to use calculated price, or enter actual price to charge
+            </p>
           </div>
 
           <div>

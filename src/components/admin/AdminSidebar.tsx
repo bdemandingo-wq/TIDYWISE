@@ -42,7 +42,6 @@ const navigation = [
   { name: 'Finance', href: '/admin/finance', icon: Receipt },
   { name: 'Expenses', href: '/admin/expenses', icon: Package },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
-  { name: 'Staff Portal', href: '/staff', icon: HardHat },
 ];
 
 interface AdminSidebarProps {
