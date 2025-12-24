@@ -285,12 +285,45 @@ export default function StaffPortal() {
         .eq('id', bookingId);
 
       if (error) throw error;
+
+      // Auto-send review request when job is completed
+      if (status === 'completed') {
+        try {
+          // Get booking details for review request
+          const { data: bookingData } = await supabase
+            .from('bookings')
+            .select(`
+              id, 
+              customer:customers(id, email, first_name, last_name),
+              service:services(name)
+            `)
+            .eq('id', bookingId)
+            .single();
+
+          if (bookingData?.customer?.email) {
+            await supabase.functions.invoke('send-review-request', {
+              body: {
+                bookingId: bookingData.id,
+                customerId: bookingData.customer.id,
+                customerEmail: bookingData.customer.email,
+                customerName: `${bookingData.customer.first_name} ${bookingData.customer.last_name}`,
+                serviceName: bookingData.service?.name || 'Cleaning',
+              },
+            });
+          }
+        } catch (reviewError) {
+          console.error('Failed to send review request:', reviewError);
+          // Don't fail the status update if review request fails
+        }
+      }
+
+      return { status };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['staff-bookings'] });
       const statusMessages: Record<string, string> = {
         in_progress: 'Job started!',
-        completed: 'Job marked as completed!',
+        completed: 'Job completed! Review request sent to customer.',
       };
       toast.success(statusMessages[variables.status] || 'Status updated');
     },
@@ -413,6 +446,7 @@ export default function StaffPortal() {
                     key={booking.id}
                     booking={booking}
                     staffInfo={{
+                      id: staffInfo?.id,
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
                       percentage_rate: staffInfo?.percentage_rate || null,

@@ -511,6 +511,40 @@ export default function SettingsPage() {
           />
         </TabsContent>
 
+        {/* Reviews Settings */}
+        <TabsContent value="reviews" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star className="w-5 h-5" />
+                Review Settings
+              </CardTitle>
+              <CardDescription>
+                Configure your Google review settings for customer feedback
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="googleReviewUrl">Google Review URL</Label>
+                <Input
+                  id="googleReviewUrl"
+                  placeholder="https://g.page/r/your-business/review"
+                  value={settings.google_review_url}
+                  onChange={(e) => updateField('google_review_url', e.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  When customers rate 4+ stars, they'll be prompted to leave a review on Google.
+                  Get your link from Google Business Profile.
+                </p>
+              </div>
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Branding */}
         <TabsContent value="branding" className="space-y-6">
           <Card>
