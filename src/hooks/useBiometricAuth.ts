@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { NativeBiometric, BiometryType } from 'capacitor-native-biometric';
 import { toast } from 'sonner';
 
 const CREDENTIALS_SERVER = 'app.tidywise.staff';
@@ -10,13 +9,26 @@ interface BiometricCredentials {
   password: string;
 }
 
+// Lazy load the biometric plugin only when needed
+const getBiometricPlugin = async () => {
+  try {
+    const { NativeBiometric } = await import('capacitor-native-biometric');
+    return NativeBiometric;
+  } catch (error) {
+    console.log('Biometric plugin not available:', error);
+    return null;
+  }
+};
+
 export function useBiometricAuth() {
   const [isAvailable, setIsAvailable] = useState(false);
-  const [biometryType, setBiometryType] = useState<BiometryType | null>(null);
+  const [biometryType, setBiometryType] = useState<number | null>(null);
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false);
 
   useEffect(() => {
-    checkBiometricAvailability();
+    if (Capacitor.isNativePlatform()) {
+      checkBiometricAvailability();
+    }
   }, []);
 
   const checkBiometricAvailability = async () => {
@@ -25,6 +37,9 @@ export function useBiometricAuth() {
     }
 
     try {
+      const NativeBiometric = await getBiometricPlugin();
+      if (!NativeBiometric) return;
+
       const result = await NativeBiometric.isAvailable();
       setIsAvailable(result.isAvailable);
       setBiometryType(result.biometryType);
@@ -42,7 +57,9 @@ export function useBiometricAuth() {
 
   const checkStoredCredentials = async (): Promise<boolean> => {
     try {
-      // Try to get credentials - if it fails, no credentials stored
+      const NativeBiometric = await getBiometricPlugin();
+      if (!NativeBiometric) return false;
+
       await NativeBiometric.getCredentials({ server: CREDENTIALS_SERVER });
       return true;
     } catch {
@@ -54,6 +71,9 @@ export function useBiometricAuth() {
     if (!isAvailable) return false;
 
     try {
+      const NativeBiometric = await getBiometricPlugin();
+      if (!NativeBiometric) return false;
+
       await NativeBiometric.setCredentials({
         username: email,
         password: password,
@@ -71,6 +91,9 @@ export function useBiometricAuth() {
     if (!isAvailable || !hasStoredCredentials) return null;
 
     try {
+      const NativeBiometric = await getBiometricPlugin();
+      if (!NativeBiometric) return null;
+
       // Verify with biometrics first
       await NativeBiometric.verifyIdentity({
         reason: 'Sign in to TidyWise',
@@ -96,6 +119,9 @@ export function useBiometricAuth() {
 
   const deleteCredentials = async (): Promise<boolean> => {
     try {
+      const NativeBiometric = await getBiometricPlugin();
+      if (!NativeBiometric) return false;
+
       await NativeBiometric.deleteCredentials({
         server: CREDENTIALS_SERVER,
       });
@@ -108,16 +134,18 @@ export function useBiometricAuth() {
   };
 
   const getBiometryTypeName = (): string => {
+    // BiometryType enum values from capacitor-native-biometric
+    // 1 = TOUCH_ID, 2 = FACE_ID, 3 = FINGERPRINT, 4 = FACE_AUTHENTICATION, 5 = IRIS_AUTHENTICATION
     switch (biometryType) {
-      case BiometryType.FACE_ID:
+      case 2: // FACE_ID
         return 'Face ID';
-      case BiometryType.TOUCH_ID:
+      case 1: // TOUCH_ID
         return 'Touch ID';
-      case BiometryType.FINGERPRINT:
+      case 3: // FINGERPRINT
         return 'Fingerprint';
-      case BiometryType.FACE_AUTHENTICATION:
+      case 4: // FACE_AUTHENTICATION
         return 'Face Recognition';
-      case BiometryType.IRIS_AUTHENTICATION:
+      case 5: // IRIS_AUTHENTICATION
         return 'Iris';
       default:
         return 'Biometric';

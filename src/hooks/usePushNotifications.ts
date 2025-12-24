@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// Lazy load the push notifications plugin
+const getPushPlugin = async () => {
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    return PushNotifications;
+  } catch (error) {
+    console.log('Push notifications plugin not available:', error);
+    return null;
+  }
+};
 
 export function usePushNotifications(staffId?: string) {
   const [token, setToken] = useState<string | null>(null);
@@ -20,6 +29,9 @@ export function usePushNotifications(staffId?: string) {
 
   const initPushNotifications = async () => {
     try {
+      const PushNotifications = await getPushPlugin();
+      if (!PushNotifications) return;
+
       // Request permission
       const permStatus = await PushNotifications.requestPermissions();
       
@@ -32,13 +44,13 @@ export function usePushNotifications(staffId?: string) {
       await PushNotifications.register();
 
       // On success, we should receive the token
-      PushNotifications.addListener('registration', async (token: Token) => {
-        console.log('Push registration success, token:', token.value);
-        setToken(token.value);
+      PushNotifications.addListener('registration', async (tokenData: { value: string }) => {
+        console.log('Push registration success, token:', tokenData.value);
+        setToken(tokenData.value);
         
         // Save token to database if we have a staff ID
         if (staffId) {
-          await saveTokenToDatabase(token.value);
+          await saveTokenToDatabase(tokenData.value);
         }
       });
 
@@ -48,7 +60,7 @@ export function usePushNotifications(staffId?: string) {
       });
 
       // Handle incoming notifications when app is in foreground
-      PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+      PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
         console.log('Push notification received:', notification);
         toast.info(notification.title || 'New notification', {
           description: notification.body,
@@ -56,12 +68,11 @@ export function usePushNotifications(staffId?: string) {
       });
 
       // Handle notification tap
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
         console.log('Push notification action performed:', notification);
         // Navigate to relevant screen based on notification data
         const data = notification.notification.data;
         if (data?.bookingId) {
-          // Could use router to navigate
           window.location.href = `/staff?booking=${data.bookingId}`;
         }
       });
@@ -74,8 +85,6 @@ export function usePushNotifications(staffId?: string) {
     if (!staffId) return;
 
     try {
-      // For now, we'll store this in staff notes or a dedicated field
-      // You might want to create a push_tokens table for this
       console.log('Would save push token for staff:', staffId, pushToken);
       // Future: save to database
     } catch (error) {
@@ -88,6 +97,9 @@ export function usePushNotifications(staffId?: string) {
       toast.error('Push notifications only work on native apps');
       return false;
     }
+
+    const PushNotifications = await getPushPlugin();
+    if (!PushNotifications) return false;
 
     const permStatus = await PushNotifications.requestPermissions();
     return permStatus.receive === 'granted';
