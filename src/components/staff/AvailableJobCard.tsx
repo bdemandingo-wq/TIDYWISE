@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
 
 interface StaffInfo {
   hourly_rate: number | null;
@@ -51,10 +51,12 @@ interface Props {
   staffInfo: StaffInfo;
   onAssign: (bookingId: string) => void;
   isAssigning: boolean;
+  claimingBookingId?: string | null;
 }
 
-export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: Props) {
+export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, claimingBookingId }: Props) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;
 
   // Calculate potential earnings based on staff pay type
   const calculatePotentialEarnings = (): { amount: number; type: string } => {
@@ -192,10 +194,19 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: 
           <Button
             className="w-full mt-2 gap-2 bg-green-600 hover:bg-green-700"
             onClick={handleClaimClick}
-            disabled={isAssigning}
+            disabled={isClaimingThisJob}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            {isAssigning ? 'Claiming Job...' : 'Claim This Job'}
+            {isClaimingThisJob ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Claiming Job...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                Claim This Job
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
