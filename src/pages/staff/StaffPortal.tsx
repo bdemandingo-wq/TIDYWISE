@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ export default function StaffPortal() {
   const queryClient = useQueryClient();
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const [newJobAlert, setNewJobAlert] = useState(false);
+  const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
 
   // Get staff record for current user
   useEffect(() => {
@@ -225,27 +227,44 @@ export default function StaffPortal() {
   const assignToSelf = useMutation({
     mutationFn: async (bookingId: string) => {
       if (!staffInfo?.id) throw new Error('Staff ID not found');
+      setClaimingBookingId(bookingId);
 
       const { data, error } = await supabase
         .from('bookings')
         .update({ staff_id: staffInfo.id })
         .eq('id', bookingId)
         .is('staff_id', null) // Only claim if still unassigned
-        .select();
+        .select(`
+          booking_number,
+          scheduled_at,
+          service:services(name),
+          customer:customers(first_name, last_name)
+        `);
 
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error('Job was already claimed by someone else');
       }
-      return data;
+      return data[0];
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setClaimingBookingId(null);
       // Invalidate both assigned and unassigned queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['staff-bookings', 'assigned'] });
       queryClient.invalidateQueries({ queryKey: ['staff-bookings', 'unassigned'] });
-      toast.success('Job claimed successfully!');
+      
+      const serviceName = (data.service as { name: string } | null)?.name || 'Job';
+      const customer = data.customer as { first_name: string; last_name: string } | null;
+      const customerName = customer ? `${customer.first_name} ${customer.last_name}` : '';
+      const scheduledDate = data.scheduled_at ? format(new Date(data.scheduled_at), 'EEE, MMM d') : '';
+      
+      toast.success(`Job #${data.booking_number} Claimed!`, {
+        description: `${serviceName}${customerName ? ` for ${customerName}` : ''}${scheduledDate ? ` on ${scheduledDate}` : ''}`,
+        duration: 5000,
+      });
     },
     onError: (error: Error) => {
+      setClaimingBookingId(null);
       if (error.message === 'Job was already claimed by someone else') {
         toast.error('This job was already claimed by another cleaner');
         queryClient.invalidateQueries({ queryKey: ['staff-bookings', 'unassigned'] });
@@ -430,6 +449,7 @@ export default function StaffPortal() {
                     }}
                     onAssign={(id) => assignToSelf.mutate(id)}
                     isAssigning={assignToSelf.isPending}
+                    claimingBookingId={claimingBookingId}
                   />
                 ))}
               </div>
