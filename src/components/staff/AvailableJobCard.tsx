@@ -1,6 +1,17 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp } from 'lucide-react';
 
@@ -43,6 +54,8 @@ interface Props {
 }
 
 export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: Props) {
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
   // Calculate potential earnings based on staff pay type
   const calculatePotentialEarnings = (): { amount: number; type: string } => {
     // If booking has specific cleaner wage set
@@ -88,93 +101,140 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: 
 
   const earnings = calculatePotentialEarnings();
 
+  const handleClaimClick = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmClaim = () => {
+    setShowConfirmDialog(false);
+    onAssign(booking.id);
+  };
+
   return (
-    <Card className="hover:shadow-md transition-shadow border-2 border-dashed border-green-200 dark:border-green-900">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
-            <p className="text-sm text-muted-foreground">{booking.service?.name}</p>
-          </div>
-          <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-            Open
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Potential Earnings - Highlighted */}
-        <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
-              <DollarSign className="w-4 h-4" />
-              <span>Potential Earnings</span>
+    <>
+      <Card className="hover:shadow-md transition-shadow border-2 border-dashed border-green-200 dark:border-green-900">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
+              <p className="text-sm text-muted-foreground">{booking.service?.name}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="font-bold text-lg text-green-700 dark:text-green-300">
-                ${earnings.amount.toFixed(2)}
+            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+              Open
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Potential Earnings - Highlighted */}
+          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                <DollarSign className="w-4 h-4" />
+                <span>Potential Earnings</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="font-bold text-lg text-green-700 dark:text-green-300">
+                  ${earnings.amount.toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">{earnings.type}</p>
+          </div>
+
+          {/* Property Details */}
+          <div className="flex flex-wrap gap-2 text-xs">
+            {booking.square_footage && (
+              <Badge variant="outline" className="bg-background">
+                {booking.square_footage} sq ft
+              </Badge>
+            )}
+            {booking.bedrooms && (
+              <Badge variant="outline" className="bg-background">
+                {booking.bedrooms} bed
+              </Badge>
+            )}
+            {booking.bathrooms && (
+              <Badge variant="outline" className="bg-background">
+                {booking.bathrooms} bath
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <span>{format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span>
+              {format(new Date(booking.scheduled_at), 'h:mm a')} ({booking.duration} min)
+            </span>
+          </div>
+          {booking.customer && (
+            <div className="flex items-center gap-2 text-sm">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span>
+                {booking.customer.first_name} {booking.customer.last_name}
               </span>
             </div>
-          </div>
-          <p className="text-xs text-green-600 dark:text-green-400 mt-1">{earnings.type}</p>
-        </div>
+          )}
+          {booking.address && (
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <span>
+                {booking.address}
+                {booking.city ? `, ${booking.city}` : ''}
+                {booking.state ? `, ${booking.state}` : ''}
+              </span>
+            </div>
+          )}
+          <Button
+            className="w-full mt-2 gap-2 bg-green-600 hover:bg-green-700"
+            onClick={handleClaimClick}
+            disabled={isAssigning}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {isAssigning ? 'Claiming Job...' : 'Claim This Job'}
+          </Button>
+        </CardContent>
+      </Card>
 
-        {/* Property Details */}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {booking.square_footage && (
-            <Badge variant="outline" className="bg-background">
-              {booking.square_footage} sq ft
-            </Badge>
-          )}
-          {booking.bedrooms && (
-            <Badge variant="outline" className="bg-background">
-              {booking.bedrooms} bed
-            </Badge>
-          )}
-          {booking.bathrooms && (
-            <Badge variant="outline" className="bg-background">
-              {booking.bathrooms} bath
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span>{format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Clock className="w-4 h-4 text-muted-foreground" />
-          <span>
-            {format(new Date(booking.scheduled_at), 'h:mm a')} ({booking.duration} min)
-          </span>
-        </div>
-        {booking.customer && (
-          <div className="flex items-center gap-2 text-sm">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span>
-              {booking.customer.first_name} {booking.customer.last_name}
-            </span>
-          </div>
-        )}
-        {booking.address && (
-          <div className="flex items-start gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <span>
-              {booking.address}
-              {booking.city ? `, ${booking.city}` : ''}
-              {booking.state ? `, ${booking.state}` : ''}
-            </span>
-          </div>
-        )}
-        <Button
-          className="w-full mt-2 gap-2 bg-green-600 hover:bg-green-700"
-          onClick={() => onAssign(booking.id)}
-          disabled={isAssigning}
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          {isAssigning ? 'Claiming Job...' : 'Claim This Job'}
-        </Button>
-      </CardContent>
-    </Card>
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Job Claim</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>You are about to claim job #{booking.booking_number}.</p>
+              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-green-700 dark:text-green-300">Your Pay</span>
+                  <span className="font-bold text-xl text-green-700 dark:text-green-300">
+                    ${earnings.amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm">
+                <strong>Date:</strong> {format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')} at {format(new Date(booking.scheduled_at), 'h:mm a')}
+              </p>
+              {booking.address && (
+                <p className="text-sm">
+                  <strong>Location:</strong> {booking.address}{booking.city ? `, ${booking.city}` : ''}{booking.state ? `, ${booking.state}` : ''}
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmClaim}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Confirm & Claim Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
