@@ -21,7 +21,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, FileText, Trash2, Download } from 'lucide-react';
+import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff } from 'lucide-react';
 
 interface StaffMember {
   id: string;
@@ -37,6 +37,7 @@ interface StaffMember {
   tax_document_url?: string | null;
   ssn_last4?: string | null;
   ein?: string | null;
+  user_id?: string | null;
 }
 
 interface EditStaffDialogProps {
@@ -49,6 +50,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -203,6 +207,34 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     } catch (error) {
       console.error('Error downloading document:', error);
       toast.error('Failed to download tax document');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!staff?.user_id || !newPassword) return;
+    
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-staff-password', {
+        body: { userId: staff.user_id, newPassword }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Password reset successfully');
+      setNewPassword('');
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -379,6 +411,43 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               placeholder="Brief description..."
               rows={3}
             />
+          </div>
+
+          {/* Password Reset Section */}
+          <div className="space-y-2 pt-4 border-t">
+            <Label className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Reset Password
+            </Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  minLength={6}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleResetPassword}
+                disabled={isResettingPassword || !newPassword || newPassword.length < 6}
+              >
+                {isResettingPassword ? 'Resetting...' : 'Reset'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Minimum 6 characters. Give these credentials to the staff member.</p>
           </div>
 
           <div className="flex items-center justify-between">
