@@ -21,6 +21,9 @@ import { ProfitMarginReport } from '@/components/admin/ProfitMarginReport';
 import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerformanceDashboard';
 import { ProfitByServiceChart } from '@/components/admin/ProfitByServiceChart';
 import { CleanerAvailabilityDashboard } from '@/components/admin/CleanerAvailabilityDashboard';
+import { CustomerLifetimeValue } from '@/components/admin/CustomerLifetimeValue';
+import { StaffProductivityMetrics } from '@/components/admin/StaffProductivityMetrics';
+import { RevenueForecasting } from '@/components/admin/RevenueForecasting';
 import { supabase } from '@/integrations/supabase/client';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { Button } from '@/components/ui/button';
@@ -39,6 +42,8 @@ export default function ReportsPage() {
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
   const [workingHours, setWorkingHours] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [recurringBookings, setRecurringBookings] = useState<any[]>([]);
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: subMonths(startOfMonth(new Date()), 5),
@@ -46,11 +51,17 @@ export default function ReportsPage() {
   });
 
   useEffect(() => {
-    const fetchWorkingHours = async () => {
-      const { data } = await supabase.from('working_hours').select('*');
-      if (data) setWorkingHours(data);
+    const fetchData = async () => {
+      const [workingHoursRes, customersRes, recurringRes] = await Promise.all([
+        supabase.from('working_hours').select('*'),
+        supabase.from('customers').select('id, first_name, last_name, email, created_at'),
+        supabase.from('recurring_bookings').select('total_amount, frequency, is_active')
+      ]);
+      if (workingHoursRes.data) setWorkingHours(workingHoursRes.data);
+      if (customersRes.data) setCustomers(customersRes.data);
+      if (recurringRes.data) setRecurringBookings(recurringRes.data);
     };
-    fetchWorkingHours();
+    fetchData();
   }, []);
 
   const isLoading = bookingsLoading || servicesLoading || staffLoading;
@@ -242,8 +253,11 @@ export default function ReportsPage() {
 
       {/* Tabs for different reports */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-secondary/50">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="clv">Customer LTV</TabsTrigger>
+          <TabsTrigger value="staff-productivity">Staff Productivity</TabsTrigger>
+          <TabsTrigger value="forecasting">Revenue Forecast</TabsTrigger>
           <TabsTrigger value="profit-margin">Profit Margin</TabsTrigger>
           <TabsTrigger value="cleaner-performance">Cleaner Performance</TabsTrigger>
           <TabsTrigger value="cleaner-availability">Availability</TabsTrigger>
@@ -364,6 +378,18 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="clv">
+          <CustomerLifetimeValue bookings={bookings} customers={customers} />
+        </TabsContent>
+
+        <TabsContent value="staff-productivity">
+          <StaffProductivityMetrics bookings={bookings} staff={staff} />
+        </TabsContent>
+
+        <TabsContent value="forecasting">
+          <RevenueForecasting bookings={bookings} recurringBookings={recurringBookings} />
         </TabsContent>
 
         <TabsContent value="profit-margin">
