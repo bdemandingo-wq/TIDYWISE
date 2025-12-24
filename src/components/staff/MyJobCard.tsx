@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, TrendingUp } from 'lucide-react';
+import { BookingPhotoUpload } from './BookingPhotoUpload';
 
 interface StaffInfo {
   hourly_rate: number | null;
@@ -35,7 +36,7 @@ interface Booking {
 
 interface Props {
   booking: Booking;
-  staffInfo: StaffInfo;
+  staffInfo: StaffInfo & { id?: string };
   onUpdateStatus?: (bookingId: string, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show') => void;
   isUpdating?: boolean;
 }
@@ -186,14 +187,20 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           {mapsUrl && (
-            <Button variant="outline" size="sm" asChild className="flex-1 gap-2">
+            <Button variant="outline" size="sm" asChild className="gap-2">
               <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
                 <Navigation className="w-4 h-4" />
                 Directions
               </a>
             </Button>
+          )}
+          {staffInfo.id && booking.status === 'in_progress' && (
+            <BookingPhotoUpload 
+              bookingId={booking.id} 
+              staffId={staffInfo.id} 
+            />
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (
             <Button
