@@ -14,6 +14,145 @@ export type Database = {
   }
   public: {
     Tables: {
+      automated_campaigns: {
+        Row: {
+          body: string
+          created_at: string
+          days_inactive: number | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          name: string
+          subject: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          days_inactive?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name: string
+          subject: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          days_inactive?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name?: string
+          subject?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      booking_checklist_items: {
+        Row: {
+          booking_checklist_id: string
+          checklist_item_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_completed: boolean | null
+          notes: string | null
+          photo_url: string | null
+          title: string
+        }
+        Insert: {
+          booking_checklist_id: string
+          checklist_item_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          notes?: string | null
+          photo_url?: string | null
+          title: string
+        }
+        Update: {
+          booking_checklist_id?: string
+          checklist_item_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          notes?: string | null
+          photo_url?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_checklist_items_booking_checklist_id_fkey"
+            columns: ["booking_checklist_id"]
+            isOneToOne: false
+            referencedRelation: "booking_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checklist_items_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_checklists: {
+        Row: {
+          booking_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          staff_id: string | null
+          template_id: string | null
+        }
+        Insert: {
+          booking_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          staff_id?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          booking_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          staff_id?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_checklists_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checklists_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checklists_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_photos: {
         Row: {
           booking_id: string
@@ -304,6 +443,130 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_emails: {
+        Row: {
+          campaign_id: string | null
+          clicked_at: string | null
+          customer_id: string | null
+          email: string
+          id: string
+          opened_at: string | null
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          customer_id?: string | null
+          email: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          customer_id?: string | null
+          email?: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "automated_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_emails_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          requires_photo: boolean | null
+          sort_order: number | null
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          requires_photo?: boolean | null
+          sort_order?: number | null
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          requires_photo?: boolean | null
+          sort_order?: number | null
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          service_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          service_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_notifications: {
         Row: {
           booking_id: string | null
@@ -431,6 +694,7 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          credits: number | null
           email: string
           first_name: string
           id: string
@@ -446,6 +710,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          credits?: number | null
           email: string
           first_name: string
           id?: string
@@ -461,6 +726,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          credits?: number | null
           email?: string
           first_name?: string
           id?: string
@@ -981,6 +1247,69 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          credit_amount: number
+          credit_awarded: boolean | null
+          expires_at: string | null
+          id: string
+          referral_code: string
+          referred_customer_id: string | null
+          referred_email: string
+          referred_name: string | null
+          referrer_customer_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          credit_amount?: number
+          credit_awarded?: boolean | null
+          expires_at?: string | null
+          id?: string
+          referral_code: string
+          referred_customer_id?: string | null
+          referred_email: string
+          referred_name?: string | null
+          referrer_customer_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          credit_amount?: number
+          credit_awarded?: boolean | null
+          expires_at?: string | null
+          id?: string
+          referral_code?: string
+          referred_customer_id?: string | null
+          referred_email?: string
+          referred_name?: string | null
+          referrer_customer_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_customer_id_fkey"
+            columns: ["referred_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_customer_id_fkey"
+            columns: ["referrer_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
