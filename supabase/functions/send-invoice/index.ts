@@ -253,7 +253,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         // Resend requires the "from" domain to be verified.
         // Use the default Resend sender until tidywisecleaning.com is verified.
-        from: "TidyWise Cleaning <onboarding@resend.dev>",
+        from: "TidyWise Cleaning <noreply@jointidywise.com>",
         to: [customerEmail],
         subject: `Invoice #${data.invoiceNumber} from TidyWise - Pay Online`,
         html: emailHtml,
