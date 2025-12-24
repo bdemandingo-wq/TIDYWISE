@@ -31,6 +31,7 @@ import ClientFeedbackPage from "./pages/admin/ClientFeedbackPage";
 import StaffPortal from "./pages/staff/StaffPortal";
 import StaffLoginPage from "./pages/staff/StaffLoginPage";
 import StaffResetPasswordPage from "./pages/staff/StaffResetPasswordPage";
+import ReviewPage from "./pages/ReviewPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,9 +46,10 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                {/* Public Routes */}
+              {/* Public Routes */}
                 <Route path="/" element={<PublicBookingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/review/:token" element={<ReviewPage />} />
 
                 {/* Staff Portal */}
                 <Route path="/staff/login" element={<StaffLoginPage />} />

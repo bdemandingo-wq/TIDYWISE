@@ -1,5 +1,8 @@
 project_id = "slwfkaqczvwvvvavkgpr"
 
+[functions.send-review-request]
+verify_jwt = false
+
 [functions.send-booking-email]
 verify_jwt = false
 
