@@ -105,8 +105,8 @@ export const extras = [
   { id: 'appliances', name: 'Appliances', price: 50, note: '', icon: 'Refrigerator' },
   { id: 'baseboards', name: 'Baseboards', price: 40, note: '', icon: 'LayoutGrid' },
   { id: 'walls', name: 'Walls', price: 25, note: '', icon: 'Sparkles' },
-  { id: 'carpet', name: 'Carpet Clean', price: 0, note: 'Custom', icon: 'LayoutGrid' },
-  { id: 'upholstery', name: 'Upholstery', price: 0, note: 'Custom', icon: 'Sofa' },
+  { id: 'carpet', name: 'Carpet Clean', price: 0, note: 'Custom Pricing', icon: 'LayoutGrid' },
+  { id: 'upholstery', name: 'Upholstery', price: 0, note: 'Custom Pricing', icon: 'Sofa' },
   { id: 'laundry', name: 'Laundry', price: 10, note: '', icon: 'Shirt' },
   { id: 'dishes', name: 'Dishes', price: 15, note: '', icon: 'UtensilsCrossed' },
 ];
