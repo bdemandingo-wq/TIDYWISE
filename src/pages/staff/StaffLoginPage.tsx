@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Capacitor } from "@capacitor/core";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, EyeOff, HardHat, Loader2 } from "lucide-react";
+import { Eye, EyeOff, HardHat, Loader2, Fingerprint } from "lucide-react";
 
 import { Seo } from "@/components/Seo";
 import { hasStaffOrAdminRole, requestStaffPasswordReset, signInStaff } from "@/features/staff-auth/staffAuth";
@@ -39,9 +41,17 @@ type ResetValues = z.infer<typeof resetSchema>;
 export default function StaffLoginPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { 
+    isAvailable: biometricAvailable, 
+    hasStoredCredentials, 
+    getBiometryTypeName,
+    storeCredentials,
+    authenticateAndGetCredentials 
+  } = useBiometricAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const loginForm = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -81,10 +91,37 @@ export default function StaffLoginPage() {
   const onSubmitLogin = async (values: LoginValues) => {
     try {
       await signInStaff(values.email, values.password);
+      
+      // Offer to save credentials for biometric login on native platforms
+      if (biometricAvailable && !hasStoredCredentials && Capacitor.isNativePlatform()) {
+        const saved = await storeCredentials(values.email, values.password);
+        if (saved) {
+          toast.success(`${getBiometryTypeName()} enabled for quick login!`);
+        }
+      }
+      
       toast.success("Welcome back!");
       navigate("/staff", { replace: true });
     } catch (err: any) {
       toast.error(err?.message || "Login failed");
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!biometricAvailable || !hasStoredCredentials) return;
+    
+    setBiometricLoading(true);
+    try {
+      const credentials = await authenticateAndGetCredentials();
+      if (credentials) {
+        await signInStaff(credentials.email, credentials.password);
+        toast.success("Welcome back!");
+        navigate("/staff", { replace: true });
+      }
+    } catch (err: any) {
+      toast.error("Biometric login failed. Please use your password.");
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -191,6 +228,24 @@ export default function StaffLoginPage() {
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In to Portal
               </Button>
+
+              {/* Biometric Login Button - only show on native with stored credentials */}
+              {biometricAvailable && hasStoredCredentials && Capacitor.isNativePlatform() && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleBiometricLogin}
+                  disabled={biometricLoading}
+                >
+                  {biometricLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Fingerprint className="h-4 w-4" />
+                  )}
+                  Sign in with {getBiometryTypeName()}
+                </Button>
+              )}
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">

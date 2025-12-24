@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Camera, Upload, X, CheckCircle, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, CheckCircle, Loader2, ImageIcon } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNativeCamera } from '@/hooks/useNativeCamera';
 
 interface BookingPhotoUploadProps {
   bookingId: string;
@@ -17,6 +19,8 @@ export function BookingPhotoUpload({ bookingId, staffId, onPhotoUploaded }: Book
   const [photoType, setPhotoType] = useState<'before' | 'after'>('after');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  const { isNative, isLoading: cameraLoading, takePicture, pickFromGallery } = useNativeCamera();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,6 +38,22 @@ export function BookingPhotoUpload({ bookingId, staffId, onPhotoUploaded }: Book
 
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleNativeCamera = async () => {
+    const result = await takePicture('camera');
+    if (result) {
+      setPreviewUrl(result.dataUrl);
+      setSelectedFile(result.file || null);
+    }
+  };
+
+  const handleNativeGallery = async () => {
+    const result = await pickFromGallery();
+    if (result) {
+      setPreviewUrl(result.dataUrl);
+      setSelectedFile(result.file || null);
+    }
   };
 
   const handleUpload = async () => {
@@ -122,17 +142,50 @@ export function BookingPhotoUpload({ bookingId, staffId, onPhotoUploaded }: Book
 
           {/* Upload Area */}
           {!previewUrl ? (
-            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-              <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">Click to select or take a photo</p>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-            </label>
+            isNative && Capacitor.isNativePlatform() ? (
+              /* Native camera buttons */
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2"
+                  onClick={handleNativeCamera}
+                  disabled={cameraLoading}
+                >
+                  {cameraLoading ? (
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                  ) : (
+                    <>
+                      <Camera className="w-8 h-8" />
+                      <span>Take Photo</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2"
+                  onClick={handleNativeGallery}
+                  disabled={cameraLoading}
+                >
+                  <ImageIcon className="w-8 h-8" />
+                  <span>Choose from Gallery</span>
+                </Button>
+              </div>
+            ) : (
+              /* Web file input fallback */
+              <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <Upload className="w-10 h-10 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Click to select or take a photo</p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </label>
+            )
           ) : (
             <div className="relative">
               <img
