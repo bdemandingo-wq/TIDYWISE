@@ -13,6 +13,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -51,7 +52,8 @@ import {
   CalendarRange,
   X,
   Mail,
-  Bell
+  Bell,
+  Settings2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -66,6 +68,7 @@ import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, diffe
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
 import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
+import { BulkEditCleanerWages } from '@/components/admin/BulkEditCleanerWages';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
@@ -108,6 +111,7 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 };
 
 export default function BookingsPage() {
+  const [activeTab, setActiveTab] = useState('bookings');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -730,60 +734,74 @@ export default function BookingsPage() {
         </Button>
       }
     >
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in">
-        <div className="group relative bg-gradient-to-br from-card to-secondary/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Calendar className="w-5 h-5 text-primary" />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-secondary/50">
+          <TabsTrigger value="bookings" className="gap-2">
+            <Calendar className="w-4 h-4" />
+            All Bookings
+          </TabsTrigger>
+          <TabsTrigger value="cleaner-wages" className="gap-2">
+            <Settings2 className="w-4 h-4" />
+            Cleaner Wages
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bookings" className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+            <div className="group relative bg-gradient-to-br from-card to-secondary/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Total</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{stats.total}</p>
               </div>
-              <span className="text-sm font-medium text-muted-foreground">Total</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-          </div>
-        </div>
-        
-        <div className="group relative bg-gradient-to-br from-card to-amber-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-amber-100 rounded-xl">
-                <Clock className="w-5 h-5 text-amber-600" />
+            
+            <div className="group relative bg-gradient-to-br from-card to-amber-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-amber-100 rounded-xl">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Pending Payment</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{stats.pending}</p>
               </div>
-              <span className="text-sm font-medium text-muted-foreground">Pending Payment</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{stats.pending}</p>
-          </div>
-        </div>
-        
-        <div className="group relative bg-gradient-to-br from-card to-blue-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-100 rounded-xl">
-                <User className="w-5 h-5 text-blue-600" />
+            
+            <div className="group relative bg-gradient-to-br from-card to-blue-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-100 rounded-xl">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Uncleaned</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{stats.confirmed}</p>
               </div>
-              <span className="text-sm font-medium text-muted-foreground">Uncleaned</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{stats.confirmed}</p>
-          </div>
-        </div>
-        
-        <div className="group relative bg-gradient-to-br from-card to-emerald-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-100 rounded-xl">
-                <DollarSign className="w-5 h-5 text-emerald-600" />
+            
+            <div className="group relative bg-gradient-to-br from-card to-emerald-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-emerald-100 rounded-xl">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">Clean Completed</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
               </div>
-              <span className="text-sm font-medium text-muted-foreground">Clean Completed</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
           </div>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
@@ -1280,8 +1298,13 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+        </TabsContent>
 
-      {/* Dialogs */}
+        <TabsContent value="cleaner-wages">
+          <BulkEditCleanerWages />
+        </TabsContent>
+      </Tabs>
+
       <AddBookingDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
