@@ -859,11 +859,13 @@ export type Database = {
           booking_id: string | null
           created_at: string
           customer_id: string | null
+          google_review_url: string | null
           id: string
           opened_at: string | null
           platform: string | null
           rating: number | null
           responded_at: string | null
+          review_link_token: string | null
           review_text: string | null
           sent_at: string | null
           status: string | null
@@ -872,11 +874,13 @@ export type Database = {
           booking_id?: string | null
           created_at?: string
           customer_id?: string | null
+          google_review_url?: string | null
           id?: string
           opened_at?: string | null
           platform?: string | null
           rating?: number | null
           responded_at?: string | null
+          review_link_token?: string | null
           review_text?: string | null
           sent_at?: string | null
           status?: string | null
@@ -885,11 +889,13 @@ export type Database = {
           booking_id?: string | null
           created_at?: string
           customer_id?: string | null
+          google_review_url?: string | null
           id?: string
           opened_at?: string | null
           platform?: string | null
           rating?: number | null
           responded_at?: string | null
+          review_link_token?: string | null
           review_text?: string | null
           sent_at?: string | null
           status?: string | null

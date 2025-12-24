@@ -53,7 +53,8 @@ import {
   X,
   Mail,
   Bell,
-  Settings2
+  Settings2,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -137,6 +138,7 @@ export default function BookingsPage() {
   const [sendingCleanerNotification, setSendingCleanerNotification] = useState<string | null>(null);
   const [bulkNotifyingCleaners, setBulkNotifyingCleaners] = useState(false);
   const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
+  const [sendingReviewRequest, setSendingReviewRequest] = useState<string | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -707,6 +709,41 @@ export default function BookingsPage() {
     }
   };
 
+  const handleSendReviewRequest = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "No customer email found", variant: "destructive" });
+      return;
+    }
+
+    if (booking.status !== 'completed') {
+      toast({ title: "Cannot Send Review", description: "Review requests can only be sent for completed bookings", variant: "destructive" });
+      return;
+    }
+
+    setSendingReviewRequest(booking.id);
+    
+    try {
+      const { error } = await supabase.functions.invoke('send-review-request', {
+        body: {
+          bookingId: booking.id,
+          customerId: (booking as any).customer_id || booking.customer?.id,
+          customerEmail: booking.customer.email,
+          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          serviceName: booking.service?.name || 'Cleaning Service',
+          googleReviewUrl: null,
+        }
+      });
+
+      if (error) throw error;
+      toast({ title: "Review Request Sent", description: `Email sent to ${booking.customer.email}` });
+    } catch (error: any) {
+      console.error('Failed to send review request:', error);
+      toast({ title: "Error", description: error.message || "Failed to send review request", variant: "destructive" });
+    } finally {
+      setSendingReviewRequest(null);
+    }
+  };
+
   if (error) {
     return (
       <AdminLayout title="Bookings" subtitle="Error loading bookings">
@@ -1213,6 +1250,21 @@ export default function BookingsPage() {
                                   <Bell className="w-4 h-4" />
                                 )}
                                 Notify All Cleaners (Open Job)
+                              </DropdownMenuItem>
+                            )}
+                            {/* Send Review Request - only for completed bookings */}
+                            {booking.status === 'completed' && (
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer text-amber-600" 
+                                onClick={() => handleSendReviewRequest(booking)}
+                                disabled={sendingReviewRequest === booking.id || !booking.customer?.email}
+                              >
+                                {sendingReviewRequest === booking.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Star className="w-4 h-4" />
+                                )}
+                                Send Review Request
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
