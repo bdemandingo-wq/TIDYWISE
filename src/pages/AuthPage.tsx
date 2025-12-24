@@ -25,11 +25,26 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
         if (error) throw error;
+        
+        // Check if user is admin - staff should not log in here
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('role', 'admin')
+          .single();
+        
+        if (!roleData) {
+          // Not an admin - sign them out and show error
+          await supabase.auth.signOut();
+          throw new Error('Access denied. Staff members should use the Staff Portal to log in.');
+        }
+        
         toast.success('Logged in successfully');
         navigate('/admin');
       } else {
