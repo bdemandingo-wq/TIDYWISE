@@ -68,7 +68,7 @@ export default function InventoryPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; unit: string; cost_per_unit: number; supplier?: string }) => {
+    mutationFn: async (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string }) => {
       const { error } = await supabase.from('inventory_items').insert([data]);
       if (error) throw error;
     },
@@ -185,7 +185,7 @@ export default function InventoryPage() {
                 <TableHead>Item</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Min Qty</TableHead>
+                <TableHead className="text-right">Low Stock Min</TableHead>
                 <TableHead className="text-right">Cost/Unit</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="w-[120px]">Actions</TableHead>
@@ -218,11 +218,11 @@ export default function InventoryPage() {
                     <TableCell className="capitalize">{item.category}</TableCell>
                     <TableCell className="text-right">
                       <span className={item.quantity <= item.min_quantity ? 'text-amber-600 font-medium' : ''}>
-                        {item.quantity} {item.unit}
+                        {item.quantity}
                       </span>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {item.min_quantity} {item.unit}
+                      {item.min_quantity}
                     </TableCell>
                     <TableCell className="text-right">${item.cost_per_unit.toFixed(2)}</TableCell>
                     <TableCell>{item.supplier || '-'}</TableCell>
@@ -327,7 +327,7 @@ function InventoryDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: InventoryItem | null;
-  onSave: (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; unit: string; cost_per_unit: number; supplier?: string }) => void;
+  onSave: (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string }) => void;
 }) {
   const [formData, setFormData] = useState({
     name: item?.name || '',
@@ -335,7 +335,6 @@ function InventoryDialog({
     category: item?.category || 'supplies',
     quantity: item?.quantity?.toString() || '0',
     min_quantity: item?.min_quantity?.toString() || '5',
-    unit: item?.unit || 'units',
     cost_per_unit: item?.cost_per_unit?.toString() || '0',
     supplier: item?.supplier || '',
   });
@@ -388,11 +387,10 @@ function InventoryDialog({
               </Select>
             </div>
             <div>
-              <Label>Unit</Label>
+              <Label>Supplier</Label>
               <Input
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                placeholder="units, bottles, etc."
+                value={formData.supplier}
+                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
               />
             </div>
           </div>
@@ -406,7 +404,7 @@ function InventoryDialog({
               />
             </div>
             <div>
-              <Label>Min Quantity</Label>
+              <Label>Low Stock Min Qty</Label>
               <Input
                 type="number"
                 value={formData.min_quantity}
@@ -414,23 +412,14 @@ function InventoryDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Cost per Unit</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.cost_per_unit}
-                onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Supplier</Label>
-              <Input
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-              />
-            </div>
+          <div>
+            <Label>Cost per Unit</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.cost_per_unit}
+              onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
+            />
           </div>
         </div>
         <DialogFooter>

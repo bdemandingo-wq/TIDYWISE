@@ -29,6 +29,9 @@ interface Booking {
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
   cleaner_actual_payment: number | null;
+  square_footage: string | null;
+  bedrooms: string | null;
+  bathrooms: string | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -48,6 +51,7 @@ interface StaffInfo {
   avatar_url: string | null;
   hourly_rate: number | null;
   base_wage: number | null;
+  percentage_rate: number | null;
   tax_classification: string | null;
 }
 
@@ -65,7 +69,7 @@ export default function StaffPortal() {
 
       const { data, error } = await supabase
         .from('staff')
-        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, tax_classification')
+        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification')
         .eq('user_id', user.id)
         .single();
 
@@ -175,6 +179,7 @@ export default function StaffPortal() {
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+          square_footage, bedrooms, bathrooms,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)
@@ -392,6 +397,7 @@ export default function StaffPortal() {
                     staffInfo={{
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
+                      percentage_rate: staffInfo?.percentage_rate || null,
                     }}
                     onAssign={(id) => assignToSelf.mutate(id)}
                     isAssigning={assignToSelf.isPending}

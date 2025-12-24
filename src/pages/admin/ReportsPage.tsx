@@ -15,7 +15,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useMemo, useState, useEffect } from 'react';
-import { format, subMonths, isAfter } from 'date-fns';
+import { format, subMonths, isAfter, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfitMarginReport } from '@/components/admin/ProfitMarginReport';
 import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerformanceDashboard';
@@ -23,6 +23,10 @@ import { ProfitByServiceChart } from '@/components/admin/ProfitByServiceChart';
 import { CleanerAvailabilityDashboard } from '@/components/admin/CleanerAvailabilityDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as DatePicker } from '@/components/ui/calendar';
+import { CalendarIcon } from 'lucide-react';
 
 // Default service colors
 const defaultColors = [
@@ -35,6 +39,10 @@ export default function ReportsPage() {
   const { data: staff = [], isLoading: staffLoading } = useStaff();
   const [workingHours, setWorkingHours] = useState<any[]>([]);
   const { isTestMode, maskName } = useTestMode();
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: subMonths(startOfMonth(new Date()), 5),
+    to: endOfMonth(new Date()),
+  });
 
   useEffect(() => {
     const fetchWorkingHours = async () => {
@@ -46,14 +54,22 @@ export default function ReportsPage() {
 
   const isLoading = bookingsLoading || servicesLoading || staffLoading;
 
+  // Filter bookings by date range
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const bookingDate = new Date(b.scheduled_at);
+      return isWithinInterval(bookingDate, { start: dateRange.from, end: dateRange.to });
+    });
+  }, [bookings, dateRange]);
+
   const { serviceStats, staffStats, monthlyData, totalStats } = useMemo(() => {
     // Service breakdown - include all bookings for revenue tracking
     const serviceMap = new Map<string, { name: string; count: number; revenue: number; color: string }>();
-    bookings.forEach((booking, index) => {
+    filteredBookings.forEach((booking, index) => {
       const serviceId = booking.service?.id || 'unknown';
       const existing = serviceMap.get(serviceId) || { 
         name: booking.service?.name || 'Unknown Service', 
-        count: 0, 
+        count: 0,
         revenue: 0,
         color: defaultColors[index % defaultColors.length]
       };
@@ -66,8 +82,8 @@ export default function ReportsPage() {
     // Staff performance - include ALL staff members and show upcoming cleans
     const now = new Date();
     const staffStatsData = staff.map((s, index) => {
-      // Get all bookings for this staff member
-      const staffBookings = bookings.filter(b => b.staff?.id === s.id);
+      // Get all bookings for this staff member within date range
+      const staffBookings = filteredBookings.filter(b => b.staff?.id === s.id);
       
       // Calculate total payment from cleaner_actual_payment
       const totalPayment = staffBookings.reduce((sum, b) => {
@@ -93,7 +109,7 @@ export default function ReportsPage() {
     });
     const staffStats = staffStatsData.sort((a, b) => b.payment - a.payment);
 
-    // Monthly data - last 6 months
+    // Monthly data - within date range
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyData = [];
     for (let i = 5; i >= 0; i--) {
@@ -101,22 +117,23 @@ export default function ReportsPage() {
       const monthIndex = monthDate.getMonth();
       const year = monthDate.getFullYear();
       
-      const monthBookings = bookings.filter(b => {
+      const monthBookings = filteredBookings.filter(b => {
         const bookingDate = new Date(b.scheduled_at);
         return bookingDate.getMonth() === monthIndex && bookingDate.getFullYear() === year;
       });
-      
-      monthlyData.push({
-        month: months[monthIndex],
-        revenue: monthBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
-        bookings: monthBookings.length,
-      });
+      if (monthBookings.length > 0 || i < 3) {
+        monthlyData.push({
+          month: months[monthIndex],
+          revenue: monthBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
+          bookings: monthBookings.length,
+        });
+      }
     }
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
-    const completedBookings = bookings.filter(b => b.status === 'completed');
-    const avgBookingValue = bookings.length > 0 ? totalRevenue / bookings.length : 0;
-    const totalBookings = bookings.length;
+    const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    const completedBookings = filteredBookings.filter(b => b.status === 'completed');
+    const avgBookingValue = filteredBookings.length > 0 ? totalRevenue / filteredBookings.length : 0;
+    const totalBookings = filteredBookings.length;
     const conversionRate = totalBookings > 0 ? Math.round((completedBookings.length / totalBookings) * 100) : 0;
 
     return {
@@ -131,7 +148,7 @@ export default function ReportsPage() {
         totalBookings,
       },
     };
-  }, [bookings, staff]);
+  }, [filteredBookings, staff]);
 
   const [activeTab, setActiveTab] = useState('overview');
 

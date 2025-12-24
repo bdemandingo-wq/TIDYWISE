@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { TestModeProvider } from "@/contexts/TestModeContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import PublicBookingPage from "./pages/PublicBookingPage";
 import AuthPage from "./pages/AuthPage";
@@ -54,25 +54,25 @@ const App = () => (
                 <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                 <Route path="/staff" element={<StaffRoute><StaffPortal /></StaffRoute>} />
 
-                {/* Admin Routes (Protected) */}
-                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/admin/scheduler" element={<ProtectedRoute><SchedulerPage /></ProtectedRoute>} />
-                <Route path="/admin/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />
-                <Route path="/admin/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-                <Route path="/admin/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-                <Route path="/admin/staff" element={<ProtectedRoute><StaffPage /></ProtectedRoute>} />
-                <Route path="/admin/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
-                <Route path="/admin/finance" element={<ProtectedRoute><FinancePage /></ProtectedRoute>} />
-                <Route path="/admin/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
-                <Route path="/admin/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-                <Route path="/admin/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                <Route path="/admin/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-                <Route path="/admin/recurring" element={<ProtectedRoute><RecurringBookingsPage /></ProtectedRoute>} />
-                <Route path="/admin/leads" element={<ProtectedRoute><LeadsPage /></ProtectedRoute>} />
-                <Route path="/admin/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
-                <Route path="/admin/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
-                <Route path="/admin/operations" element={<ProtectedRoute><OperationsTrackerPage /></ProtectedRoute>} />
-                <Route path="/admin/feedback" element={<ProtectedRoute><ClientFeedbackPage /></ProtectedRoute>} />
+                {/* Admin Routes (Admin-only) */}
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/scheduler" element={<AdminRoute><SchedulerPage /></AdminRoute>} />
+                <Route path="/admin/bookings" element={<AdminRoute><BookingsPage /></AdminRoute>} />
+                <Route path="/admin/customers" element={<AdminRoute><CustomersPage /></AdminRoute>} />
+                <Route path="/admin/services" element={<AdminRoute><ServicesPage /></AdminRoute>} />
+                <Route path="/admin/staff" element={<AdminRoute><StaffPage /></AdminRoute>} />
+                <Route path="/admin/payroll" element={<AdminRoute><PayrollPage /></AdminRoute>} />
+                <Route path="/admin/finance" element={<AdminRoute><FinancePage /></AdminRoute>} />
+                <Route path="/admin/expenses" element={<AdminRoute><ExpensesPage /></AdminRoute>} />
+                <Route path="/admin/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
+                <Route path="/admin/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+                <Route path="/admin/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
+                <Route path="/admin/recurring" element={<AdminRoute><RecurringBookingsPage /></AdminRoute>} />
+                <Route path="/admin/leads" element={<AdminRoute><LeadsPage /></AdminRoute>} />
+                <Route path="/admin/inventory" element={<AdminRoute><InventoryPage /></AdminRoute>} />
+                <Route path="/admin/invoices" element={<AdminRoute><InvoicesPage /></AdminRoute>} />
+                <Route path="/admin/operations" element={<AdminRoute><OperationsTrackerPage /></AdminRoute>} />
+                <Route path="/admin/feedback" element={<AdminRoute><ClientFeedbackPage /></AdminRoute>} />
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

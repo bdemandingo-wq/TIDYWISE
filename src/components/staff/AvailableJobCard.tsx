@@ -7,6 +7,7 @@ import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp } f
 interface StaffInfo {
   hourly_rate: number | null;
   base_wage: number | null;
+  percentage_rate: number | null;
 }
 
 interface Booking {
@@ -21,6 +22,9 @@ interface Booking {
   total_amount: number;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
+  square_footage: string | null;
+  bedrooms: string | null;
+  bathrooms: string | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -57,19 +61,19 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: 
       }
     }
 
-    // Fall back to staff's default rates
+    // Fall back to staff's default rates - check percentage first
+    if (staffInfo.percentage_rate) {
+      return {
+        amount: (booking.total_amount * staffInfo.percentage_rate) / 100,
+        type: `${staffInfo.percentage_rate}% of job`,
+      };
+    }
+
     if (staffInfo.hourly_rate) {
       const hours = booking.duration / 60;
       return {
         amount: staffInfo.hourly_rate * hours,
         type: `$${staffInfo.hourly_rate}/hr`,
-      };
-    }
-
-    if (staffInfo.base_wage) {
-      return {
-        amount: staffInfo.base_wage,
-        type: 'Flat rate',
       };
     }
 
@@ -111,6 +115,25 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning }: 
             </div>
           </div>
           <p className="text-xs text-green-600 dark:text-green-400 mt-1">{earnings.type}</p>
+        </div>
+
+        {/* Property Details */}
+        <div className="flex flex-wrap gap-2 text-xs">
+          {booking.square_footage && (
+            <Badge variant="outline" className="bg-background">
+              {booking.square_footage} sq ft
+            </Badge>
+          )}
+          {booking.bedrooms && (
+            <Badge variant="outline" className="bg-background">
+              {booking.bedrooms} bed
+            </Badge>
+          )}
+          {booking.bathrooms && (
+            <Badge variant="outline" className="bg-background">
+              {booking.bathrooms} bath
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-sm">

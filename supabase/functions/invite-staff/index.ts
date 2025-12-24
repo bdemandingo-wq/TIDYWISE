@@ -11,8 +11,8 @@ interface InviteStaffRequest {
   name: string;
   phone?: string;
   hourly_rate?: number;
+  percentage_rate?: number;
   tax_classification?: 'w2' | '1099';
-  base_wage?: number;
   redirectUrl?: string;
 }
 
@@ -62,7 +62,7 @@ serve(async (req) => {
       });
     }
 
-    const { email, name, phone, hourly_rate, tax_classification, base_wage, redirectUrl }: InviteStaffRequest = await req.json();
+    const { email, name, phone, hourly_rate, percentage_rate, tax_classification, redirectUrl }: InviteStaffRequest = await req.json();
 
     if (!email || !name) {
       return new Response(JSON.stringify({ error: "Email and name are required" }), {
@@ -87,9 +87,9 @@ serve(async (req) => {
             name,
             phone: phone || null,
             hourly_rate: hourly_rate || null,
+            percentage_rate: percentage_rate || null,
             is_active: true,
             tax_classification: tax_classification || 'w2',
-            base_wage: base_wage || null,
           })
           .eq("id", existingStaff.id);
 
@@ -171,9 +171,9 @@ serve(async (req) => {
         name,
         phone: phone || null,
         hourly_rate: hourly_rate || null,
+        percentage_rate: percentage_rate || null,
         is_active: true,
         tax_classification: tax_classification || 'w2',
-        base_wage: base_wage || null,
       })
       .select()
       .single();

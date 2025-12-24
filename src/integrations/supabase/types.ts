@@ -952,6 +952,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          percentage_rate: number | null
           phone: string | null
           ssn_last4: string | null
           tax_classification: string | null
@@ -970,6 +971,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          percentage_rate?: number | null
           phone?: string | null
           ssn_last4?: string | null
           tax_classification?: string | null
@@ -988,6 +990,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          percentage_rate?: number | null
           phone?: string | null
           ssn_last4?: string | null
           tax_classification?: string | null

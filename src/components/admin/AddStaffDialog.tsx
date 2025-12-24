@@ -38,8 +38,8 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     email: '',
     phone: '',
     hourly_rate: '',
+    percentage_rate: '',
     tax_classification: 'w2' as 'w2' | '1099',
-    base_wage: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,8 +60,8 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
           name: formData.name,
           phone: formData.phone || undefined,
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
+          percentage_rate: formData.percentage_rate ? parseFloat(formData.percentage_rate) : undefined,
           tax_classification: formData.tax_classification,
-          base_wage: formData.base_wage ? parseFloat(formData.base_wage) : undefined,
           redirectUrl: `${window.location.origin}/staff/reset-password`,
         },
       });
@@ -89,7 +89,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       toast.success('Staff member created successfully');
       
       // Reset form
-      setFormData({ name: '', email: '', phone: '', hourly_rate: '', tax_classification: 'w2', base_wage: '' });
+      setFormData({ name: '', email: '', phone: '', hourly_rate: '', percentage_rate: '', tax_classification: 'w2' });
     } catch (error) {
       console.error('Error creating staff:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create staff member');
@@ -101,7 +101,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const handleClose = () => {
     // Only reset credentials if user explicitly closes the dialog
     if (!showCredentials) {
-      setFormData({ name: '', email: '', phone: '', hourly_rate: '', tax_classification: 'w2', base_wage: '' });
+      setFormData({ name: '', email: '', phone: '', hourly_rate: '', percentage_rate: '', tax_classification: 'w2' });
     }
     onOpenChange(false);
   };
@@ -110,7 +110,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     setShowCredentials(false);
     setCredentials(null);
     setCopied(false);
-    setFormData({ name: '', email: '', phone: '', hourly_rate: '', tax_classification: 'w2', base_wage: '' });
+    setFormData({ name: '', email: '', phone: '', hourly_rate: '', percentage_rate: '', tax_classification: 'w2' });
     onOpenChange(false);
   };
 
@@ -230,18 +230,6 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="base_wage">Base Wage ($)</Label>
-              <Input
-                id="base_wage"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.base_wage}
-                onChange={(e) => setFormData({ ...formData, base_wage: e.target.value })}
-                placeholder="25.00"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
               <Input
                 id="hourly_rate"
@@ -249,9 +237,25 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
                 step="0.01"
                 min="0"
                 value={formData.hourly_rate}
-                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value, percentage_rate: '' })}
                 placeholder="25.00"
+                disabled={!!formData.percentage_rate}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="percentage_rate">Percentage (%)</Label>
+              <Input
+                id="percentage_rate"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={formData.percentage_rate}
+                onChange={(e) => setFormData({ ...formData, percentage_rate: e.target.value, hourly_rate: '' })}
+                placeholder="50"
+                disabled={!!formData.hourly_rate}
+              />
+              <p className="text-xs text-muted-foreground">% of job total</p>
             </div>
           </div>
 

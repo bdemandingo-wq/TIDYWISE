@@ -29,6 +29,7 @@ interface StaffMember {
   email: string;
   phone: string | null;
   hourly_rate: number | null;
+  percentage_rate?: number | null;
   bio: string | null;
   is_active: boolean;
   tax_classification?: string | null;
@@ -55,10 +56,10 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     email: '',
     phone: '',
     hourly_rate: '',
+    percentage_rate: '',
     bio: '',
     is_active: true,
     tax_classification: 'w2' as 'w2' | '1099',
-    base_wage: '',
     tax_document_url: '',
     ssn_last4: '',
     ein: '',
@@ -71,10 +72,10 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         email: staff.email,
         phone: staff.phone || '',
         hourly_rate: staff.hourly_rate?.toString() || '',
+        percentage_rate: staff.percentage_rate?.toString() || '',
         bio: staff.bio || '',
         is_active: staff.is_active,
         tax_classification: (staff.tax_classification as 'w2' | '1099') || 'w2',
-        base_wage: staff.base_wage?.toString() || '',
         tax_document_url: staff.tax_document_url || '',
         ssn_last4: staff.ssn_last4 || '',
         ein: staff.ein || '',
@@ -95,10 +96,10 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           name: formData.name,
           phone: formData.phone || null,
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+          percentage_rate: formData.percentage_rate ? parseFloat(formData.percentage_rate) : null,
           bio: formData.bio || null,
           is_active: formData.is_active,
           tax_classification: formData.tax_classification,
-          base_wage: formData.base_wage ? parseFloat(formData.base_wage) : null,
           tax_document_url: formData.tax_document_url || null,
           ssn_last4: formData.ssn_last4 || null,
           ein: formData.ein || null,
@@ -266,18 +267,6 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-base_wage">Base Wage ($)</Label>
-              <Input
-                id="edit-base_wage"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.base_wage}
-                onChange={(e) => setFormData({ ...formData, base_wage: e.target.value })}
-                placeholder="25.00"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit-hourly_rate">Hourly Rate ($)</Label>
               <Input
                 id="edit-hourly_rate"
@@ -285,9 +274,25 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
                 step="0.01"
                 min="0"
                 value={formData.hourly_rate}
-                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value, percentage_rate: '' })}
                 placeholder="25.00"
+                disabled={!!formData.percentage_rate}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-percentage_rate">Percentage (%)</Label>
+              <Input
+                id="edit-percentage_rate"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={formData.percentage_rate}
+                onChange={(e) => setFormData({ ...formData, percentage_rate: e.target.value, hourly_rate: '' })}
+                placeholder="50"
+                disabled={!!formData.hourly_rate}
+              />
+              <p className="text-xs text-muted-foreground">% of job total</p>
             </div>
           </div>
 
