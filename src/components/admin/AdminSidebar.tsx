@@ -19,7 +19,6 @@ import {
   FileText,
   MessageSquare,
   MapPin,
-  Gift,
   Mail,
   CheckSquare,
 } from 'lucide-react';
@@ -44,7 +43,6 @@ const navigation = [
   { name: 'Recurring', href: '/admin/recurring', icon: Repeat },
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Leads', href: '/admin/leads', icon: Target },
-  { name: 'Referrals', href: '/admin/referrals', icon: Gift },
   { name: 'Invoices', href: '/admin/invoices', icon: FileText },
   { name: 'Operations', href: '/admin/operations', icon: MapPin },
   { name: 'Feedback', href: '/admin/feedback', icon: MessageSquare },

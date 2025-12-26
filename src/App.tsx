@@ -28,7 +28,7 @@ import InventoryPage from "./pages/admin/InventoryPage";
 import InvoicesPage from "./pages/admin/InvoicesPage";
 import OperationsTrackerPage from "./pages/admin/OperationsTrackerPage";
 import ClientFeedbackPage from "./pages/admin/ClientFeedbackPage";
-import ReferralsPage from "./pages/admin/ReferralsPage";
+
 import CampaignsPage from "./pages/admin/CampaignsPage";
 import ChecklistsPage from "./pages/admin/ChecklistsPage";
 import StaffPortal from "./pages/staff/StaffPortal";
@@ -78,7 +78,7 @@ const App = () => (
                 <Route path="/admin/invoices" element={<AdminRoute><InvoicesPage /></AdminRoute>} />
                 <Route path="/admin/operations" element={<AdminRoute><OperationsTrackerPage /></AdminRoute>} />
                 <Route path="/admin/feedback" element={<AdminRoute><ClientFeedbackPage /></AdminRoute>} />
-                <Route path="/admin/referrals" element={<AdminRoute><ReferralsPage /></AdminRoute>} />
+                
                 <Route path="/admin/campaigns" element={<AdminRoute><CampaignsPage /></AdminRoute>} />
                 <Route path="/admin/checklists" element={<AdminRoute><ChecklistsPage /></AdminRoute>} />
                 {/* Catch-all */}
