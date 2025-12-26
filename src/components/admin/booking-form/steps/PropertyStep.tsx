@@ -2,7 +2,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin } from 'lucide-react';
-import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 import { useBookingForm } from '../BookingFormContext';
 
 export function PropertyStep() {
@@ -34,17 +33,13 @@ export function PropertyStep() {
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6 space-y-5">
           <div>
-            <Label className="text-sm font-medium">Street Address</Label>
-            <AddressAutocomplete
+            <Label htmlFor="address" className="text-sm font-medium">Street Address</Label>
+            <Input
+              id="address"
               value={address}
-              onChange={setAddress}
-              onAddressSelect={(addressData) => {
-                setAddress(addressData.address);
-                setCity(addressData.city);
-                setState(addressData.state);
-                setZipCode(addressData.zipCode);
-              }}
-              placeholder="Start typing address..."
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 Main Street"
+              className="mt-2 h-11 bg-secondary/30 border-border/50"
             />
           </div>
           
