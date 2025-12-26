@@ -155,6 +155,8 @@ export default function RecurringBookingsPage() {
       nextDate = addWeeks(nextDate, 1);
     } else if (recurring.frequency === 'biweekly') {
       nextDate = addWeeks(nextDate, 2);
+    } else if (recurring.frequency === 'triweekly') {
+      nextDate = addWeeks(nextDate, 3);
     } else {
       nextDate = addMonths(nextDate, 1);
     }
@@ -495,6 +497,7 @@ function RecurringBookingDialog({
               <SelectContent>
                 <SelectItem value="weekly">Weekly</SelectItem>
                 <SelectItem value="biweekly">Bi-Weekly</SelectItem>
+                <SelectItem value="triweekly">Tri-Weekly</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
               </SelectContent>
             </Select>
