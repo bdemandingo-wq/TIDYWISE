@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Users, Gift, DollarSign, Send, Copy, Check, Loader2 } from 'lucide-react';
+import { Users, Gift, DollarSign, Send, Copy, Check, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ReferralsPage() {
@@ -84,7 +84,26 @@ export default function ReferralsPage() {
       setReferredName('');
     },
     onError: (error: Error) => {
+      console.error('Referral creation error:', error);
       toast.error(`Failed to create referral: ${error.message}`);
+    }
+  });
+
+  // Delete referral mutation
+  const deleteReferral = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('referrals')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['referrals'] });
+      toast.success('Referral deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete referral: ${error.message}`);
     }
   });
 
@@ -271,12 +290,13 @@ export default function ReferralsPage() {
                 <th className="pb-3 font-medium text-muted-foreground">Status</th>
                 <th className="pb-3 font-medium text-muted-foreground text-right">Credit</th>
                 <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                <th className="pb-3 font-medium text-muted-foreground w-[60px]"></th>
               </tr>
             </thead>
             <tbody>
               {referrals.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
                     No referrals yet. Send your first invite!
                   </td>
                 </tr>
@@ -317,6 +337,20 @@ export default function ReferralsPage() {
                     </td>
                     <td className="py-3 text-muted-foreground">
                       {format(new Date(referral.created_at), 'MMM d, yyyy')}
+                    </td>
+                    <td className="py-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (confirm('Delete this referral?')) {
+                            deleteReferral.mutate(referral.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))

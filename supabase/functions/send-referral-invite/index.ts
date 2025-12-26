@@ -13,6 +13,7 @@ serve(async (req) => {
 
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
     if (!RESEND_API_KEY) {
       throw new Error("RESEND_API_KEY is not configured");
     }
@@ -22,6 +23,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { referralId } = await req.json();
+    console.log("Processing referral ID:", referralId);
 
     // Get referral details with referrer info
     const { data: referral, error: referralError } = await supabase
@@ -111,10 +113,15 @@ serve(async (req) => {
       }),
     });
 
+    console.log("Resend API response status:", emailResponse.status);
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
+      console.error("Resend API error:", errorText);
       throw new Error(`Failed to send email: ${errorText}`);
     }
+
+    const emailResult = await emailResponse.json();
+    console.log("Email sent successfully:", emailResult);
 
     return new Response(
       JSON.stringify({ success: true }),
