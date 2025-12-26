@@ -24,6 +24,23 @@ import {
   ChevronUp,
   Pencil
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ChecklistItem {
   id?: string;
@@ -48,6 +65,68 @@ const emptyFormData: TemplateFormData = {
   items: []
 };
 
+// Sortable Item Component
+interface SortableItemProps {
+  item: ChecklistItem;
+  index: number;
+  onRemove: (index: number) => void;
+}
+
+function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `item-${index}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 bg-card border rounded-lg"
+    >
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </button>
+      <span className="text-sm font-medium text-muted-foreground w-6">{index + 1}.</span>
+      <div className="flex-1">
+        <p className="font-medium">{item.title}</p>
+        {item.description && (
+          <p className="text-sm text-muted-foreground">{item.description}</p>
+        )}
+      </div>
+      {item.requires_photo && (
+        <Badge variant="outline" className="gap-1">
+          <Camera className="w-3 h-3" />
+          Photo
+        </Badge>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(index)}
+      >
+        <Trash2 className="w-4 h-4 text-destructive" />
+      </Button>
+    </div>
+  );
+}
+
 export default function ChecklistsPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,6 +134,31 @@ export default function ChecklistsPage() {
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [formData, setFormData] = useState<TemplateFormData>(emptyFormData);
   const [newItem, setNewItem] = useState({ title: '', description: '', requires_photo: false });
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = parseInt(String(active.id).replace('item-', ''));
+      const newIndex = parseInt(String(over.id).replace('item-', ''));
+
+      setFormData(prev => ({
+        ...prev,
+        items: arrayMove(prev.items, oldIndex, newIndex).map((item, idx) => ({
+          ...item,
+          sort_order: idx
+        }))
+      }));
+    }
+  };
 
   // Fetch templates with items
   const { data: templates = [], isLoading } = useQuery({
@@ -337,38 +441,38 @@ export default function ChecklistsPage() {
 
             {/* Checklist Items */}
             <div className="border-t pt-4">
-              <Label className="mb-3 block">Checklist Items ({formData.items.length})</Label>
+              <Label className="mb-3 block">
+                Checklist Items ({formData.items.length})
+                {formData.items.length > 1 && (
+                  <span className="text-xs font-normal text-muted-foreground ml-2">
+                    Drag to reorder
+                  </span>
+                )}
+              </Label>
               
-              {/* Added items list */}
+              {/* Added items list with drag and drop */}
               {formData.items.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {formData.items.map((item, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-                      <GripVertical className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-muted-foreground w-6">{index + 1}.</span>
-                      <div className="flex-1">
-                        <p className="font-medium">{item.title}</p>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
-                        )}
-                      </div>
-                      {item.requires_photo && (
-                        <Badge variant="outline" className="gap-1">
-                          <Camera className="w-3 h-3" />
-                          Photo
-                        </Badge>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeItemFromForm(index)}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={formData.items.map((_, index) => `item-${index}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2 mb-4">
+                      {formData.items.map((item, index) => (
+                        <SortableChecklistItem
+                          key={`item-${index}`}
+                          item={item}
+                          index={index}
+                          onRemove={removeItemFromForm}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               )}
               
               {/* Add new item form */}
