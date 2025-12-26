@@ -9,6 +9,7 @@ import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ProtectedOrgRoute } from "@/components/ProtectedOrgRoute";
 import { StaffRoute } from "@/components/StaffRoute";
+import LandingPage from "./pages/LandingPage";
 import PublicBookingPage from "./pages/PublicBookingPage";
 import AuthPage from "./pages/AuthPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -51,8 +52,9 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<PublicBookingPage />} />
+                {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/review/:token" element={<ReviewPage />} />
