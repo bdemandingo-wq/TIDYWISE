@@ -7,6 +7,8 @@ interface SubscriptionStatus {
   trial_active: boolean;
   trial_end: string | null;
   subscription_end: string | null;
+  payment_failed?: boolean;
+  message?: string;
 }
 
 interface AuthContextType {

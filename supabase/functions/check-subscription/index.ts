@@ -67,15 +67,36 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active or trialing subscriptions
+    // Check for active, trialing, or past_due subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      limit: 1,
+      limit: 10,
     });
     
     const activeSubscription = subscriptions.data.find(
       (sub: any) => sub.status === "active" || sub.status === "trialing"
     );
+    
+    const pastDueSubscription = subscriptions.data.find(
+      (sub: any) => sub.status === "past_due"
+    );
+    
+    // If past_due, block access
+    if (!activeSubscription && pastDueSubscription) {
+      logStep("Subscription is past_due - blocking access");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        trial_active: false,
+        product_id: null,
+        subscription_end: null,
+        trial_end: null,
+        payment_failed: true,
+        message: "Your subscription payment has failed. Please update your payment method to continue."
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
     
     if (!activeSubscription) {
       logStep("No active subscription found");

@@ -25,7 +25,8 @@ import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth, isSameDay, subDays } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +47,10 @@ export default function OperationsTrackerPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: subDays(new Date(), 30),
+    to: new Date()
+  });
   const queryClient = useQueryClient();
   const { isTestMode, maskAmount } = useTestMode();
 
@@ -173,12 +178,45 @@ export default function OperationsTrackerPage() {
     link.click();
   };
 
+  // Filter entries by date range
+  const filteredEntries = useMemo(() => {
+    return entries.filter(e => {
+      const date = parseISO(e.track_date);
+      return isWithinInterval(date, { start: dateRange.from, end: dateRange.to });
+    });
+  }, [entries, dateRange]);
+
   return (
     <AdminLayout
       title="Operations Tracker"
       subtitle="Track daily calls, deals, and revenue"
       actions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {/* Date Range Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <CalendarDays className="w-4 h-4" />
+                {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d, yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setDateRange({ from: range.from, to: range.to });
+                  } else if (range?.from) {
+                    setDateRange({ from: range.from, to: range.from });
+                  }
+                }}
+                numberOfMonths={2}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          
           <Button variant="outline" onClick={exportToExcel} className="gap-2">
             <Download className="w-4 h-4" />
             Export
@@ -377,14 +415,14 @@ export default function OperationsTrackerPage() {
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
-              ) : entries.length === 0 ? (
+              ) : filteredEntries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    No entries yet. Start tracking your daily operations!
+                    No entries for this date range. Try adjusting the dates or add a new entry.
                   </TableCell>
                 </TableRow>
               ) : (
-                entries.map((entry) => (
+                filteredEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">
                       {format(parseISO(entry.track_date), 'EEE, MMM d')}

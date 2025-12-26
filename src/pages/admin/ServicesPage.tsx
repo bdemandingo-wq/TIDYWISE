@@ -356,7 +356,7 @@ export default function ServicesPage() {
             <CardHeader>
               <CardTitle>Complete Pricing by Square Footage</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Goal: 1 cleaner should produce $50-$70 per hour in revenue. Click any price to edit.
+                Click any price to edit.
               </p>
             </CardHeader>
             <CardContent>

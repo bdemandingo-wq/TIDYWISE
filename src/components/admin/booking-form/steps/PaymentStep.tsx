@@ -199,14 +199,25 @@ export function PaymentStep() {
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => loadCardInfo(customerEmail)}
-                  className="h-9 w-9 p-0"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => loadCardInfo(customerEmail)}
+                    className="h-9 w-9 p-0"
+                    title="Refresh card"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCardInfo({ hasCard: false })}
+                    className="text-xs"
+                  >
+                    Add New Card
+                  </Button>
+                </div>
               </div>
             </div>
           ) : customerEmail ? (

@@ -19,7 +19,6 @@ import {
   X
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
-import { PricingImport } from "@/components/landing/PricingImport";
 import { PrivacyPolicyDialog } from "@/components/legal/PrivacyPolicyDialog";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 
@@ -392,9 +391,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Pricing Import Section */}
-      <PricingImport />
 
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary">
