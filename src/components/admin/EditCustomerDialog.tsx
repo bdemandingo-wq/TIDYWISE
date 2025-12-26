@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { Loader2, User, Mail, Phone, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 
 interface Customer {
   id: string;
@@ -63,20 +62,6 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
     }
   }, [customer]);
 
-  const handleAddressSelect = (components: {
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  }) => {
-    setFormData(prev => ({
-      ...prev,
-      address: components.address,
-      city: components.city,
-      state: components.state,
-      zip_code: components.zipCode,
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,14 +167,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
 
           {/* Address */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-1">
+            <Label htmlFor="address" className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" /> Address
             </Label>
-            <AddressAutocomplete
+            <Input
+              id="address"
               value={formData.address}
-              onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
-              onAddressSelect={handleAddressSelect}
-              placeholder="Start typing address..."
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="123 Main Street"
             />
           </div>
 

@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, User, Mail, Phone, MapPin } from 'lucide-react';
 import { useCreateCustomer } from '@/hooks/useBookings';
-import { AddressAutocomplete } from '@/components/ui/AddressAutocomplete';
 
 interface AddCustomerDialogProps {
   open: boolean;
@@ -36,20 +35,6 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
   
   const [submitting, setSubmitting] = useState(false);
 
-  const handleAddressSelect = (components: {
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  }) => {
-    setFormData(prev => ({
-      ...prev,
-      address: components.address,
-      city: components.city,
-      state: components.state,
-      zip_code: components.zipCode,
-    }));
-  };
 
   const resetForm = () => {
     setFormData({
@@ -161,14 +146,14 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
 
           {/* Address */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-1">
+            <Label htmlFor="address" className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" /> Address
             </Label>
-            <AddressAutocomplete
+            <Input
+              id="address"
               value={formData.address}
-              onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
-              onAddressSelect={handleAddressSelect}
-              placeholder="Start typing address..."
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="123 Main Street"
             />
           </div>
 
