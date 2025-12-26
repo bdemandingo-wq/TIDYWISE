@@ -21,6 +21,8 @@ import {
   MapPin,
   Mail,
   CheckSquare,
+  CreditCard,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -55,6 +57,8 @@ const navigation = [
   { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'Subscription', href: '/dashboard/subscription', icon: Sparkles },
+  { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
 ];
 
 interface AdminSidebarProps {
