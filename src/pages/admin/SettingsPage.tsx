@@ -14,10 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Mail, Star } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Mail, Star, Upload, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
+import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface BusinessSettings {
   id?: string;
@@ -43,7 +45,6 @@ interface BusinessSettings {
   notify_new_booking: boolean;
   notify_reminders: boolean;
   notify_cancellations: boolean;
-  notify_sms: boolean;
   // Branding settings
   primary_color: string;
   accent_color: string;
@@ -77,7 +78,6 @@ const defaultSettings: BusinessSettings = {
   notify_new_booking: true,
   notify_reminders: true,
   notify_cancellations: true,
-  notify_sms: false,
   primary_color: '#3b82f6',
   accent_color: '#14b8a6',
   confirmation_email_subject: 'Your Booking Confirmation - {{booking_number}}',
@@ -88,9 +88,21 @@ const defaultSettings: BusinessSettings = {
 };
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const { organization, refetch: refetchOrganization } = useOrganization();
   const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -130,7 +142,6 @@ export default function SettingsPage() {
           notify_new_booking: data.notify_new_booking ?? true,
           notify_reminders: data.notify_reminders ?? true,
           notify_cancellations: data.notify_cancellations ?? true,
-          notify_sms: data.notify_sms ?? false,
           primary_color: data.primary_color || '#3b82f6',
           accent_color: data.accent_color || '#14b8a6',
           confirmation_email_subject: typedData.confirmation_email_subject || defaultSettings.confirmation_email_subject,
@@ -172,7 +183,6 @@ export default function SettingsPage() {
         notify_new_booking: settings.notify_new_booking,
         notify_reminders: settings.notify_reminders,
         notify_cancellations: settings.notify_cancellations,
-        notify_sms: settings.notify_sms,
         primary_color: settings.primary_color,
         accent_color: settings.accent_color,
         confirmation_email_subject: settings.confirmation_email_subject,
@@ -200,6 +210,15 @@ export default function SettingsPage() {
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
+      // If logo changed, update organization too
+      if (settings.logo_url && organization?.id) {
+        await supabase
+          .from('organizations')
+          .update({ logo_url: settings.logo_url })
+          .eq('id', organization.id);
+        refetchOrganization();
+      }
+
       toast.success('Settings saved successfully');
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -211,6 +230,84 @@ export default function SettingsPage() {
 
   const updateField = (field: keyof BusinessSettings, value: string | number | boolean) => {
     setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${organization?.id || 'default'}-${Date.now()}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('booking-photos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('booking-photos')
+        .getPublicUrl(filePath);
+
+      updateField('logo_url', publicUrl);
+      toast.success('Logo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast.success('Password updated successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      toast.error(error.message || 'Failed to update password');
+    } finally {
+      setUpdatingPassword(false);
+    }
   };
 
   if (loading) {
@@ -229,9 +326,8 @@ export default function SettingsPage() {
       subtitle="Manage your business preferences"
     >
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-4xl grid-cols-7">
+        <TabsList className="grid w-full max-w-3xl grid-cols-6">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="booking">Booking</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
@@ -356,84 +452,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Booking Settings */}
-        <TabsContent value="booking" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Preferences</CardTitle>
-              <CardDescription>
-                Configure how customers can book your services
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Allow Online Booking</p>
-                  <p className="text-sm text-muted-foreground">
-                    Let customers book services through your website
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.allow_online_booking}
-                  onCheckedChange={(checked) => updateField('allow_online_booking', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Require Deposit</p>
-                  <p className="text-sm text-muted-foreground">
-                    Collect a deposit when booking is made
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.require_deposit}
-                  onCheckedChange={(checked) => updateField('require_deposit', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Minimum Notice (hours)</Label>
-                  <Input
-                    type="number"
-                    value={settings.minimum_notice_hours}
-                    onChange={(e) => updateField('minimum_notice_hours', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cancellation Window (hours)</Label>
-                  <Input
-                    type="number"
-                    value={settings.cancellation_window_hours}
-                    onChange={(e) => updateField('cancellation_window_hours', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Buffer Between Bookings (min)</Label>
-                  <Input
-                    type="number"
-                    value={settings.booking_buffer_minutes}
-                    onChange={(e) => updateField('booking_buffer_minutes', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Max Advance Booking (days)</Label>
-                  <Input
-                    type="number"
-                    value={settings.max_advance_booking_days}
-                    onChange={(e) => updateField('max_advance_booking_days', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Notifications */}
         <TabsContent value="notifications" className="space-y-6">
           <Card>
@@ -477,17 +495,6 @@ export default function SettingsPage() {
                 <Switch
                   checked={settings.notify_cancellations}
                   onCheckedChange={(checked) => updateField('notify_cancellations', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">SMS Notifications</p>
-                  <p className="text-sm text-muted-foreground">Receive SMS for urgent updates</p>
-                </div>
-                <Switch
-                  checked={settings.notify_sms}
-                  onCheckedChange={(checked) => updateField('notify_sms', checked)}
                 />
               </div>
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
@@ -663,6 +670,23 @@ export default function SettingsPage() {
                   Get your link from Google Business Profile.
                 </p>
               </div>
+              
+              {/* Feedback note */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      What happens with ratings under 4 stars?
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                      Ratings of 3 stars or below will be sent to your <strong>Feedback</strong> tab instead of Google. 
+                      This allows you to address customer concerns privately before they become public reviews.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
@@ -683,43 +707,98 @@ export default function SettingsPage() {
                 Customize the look and feel of your booking page
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Logo URL</Label>
-                <Input
-                  value={settings.logo_url}
-                  onChange={(e) => updateField('logo_url', e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                />
+            <CardContent className="space-y-6">
+              {/* Logo Upload */}
+              <div className="space-y-3">
+                <Label>Company Logo</Label>
+                <div className="flex items-center gap-4">
+                  {settings.logo_url ? (
+                    <div className="w-20 h-20 rounded-lg border bg-background overflow-hidden flex items-center justify-center">
+                      <img 
+                        src={settings.logo_url} 
+                        alt="Company logo" 
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg border bg-muted flex items-center justify-center">
+                      <Upload className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <Label htmlFor="logo-upload" className="cursor-pointer">
+                      <Button variant="outline" className="gap-2" asChild disabled={uploadingLogo}>
+                        <span>
+                          {uploadingLogo ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              Upload Logo
+                            </>
+                          )}
+                        </span>
+                      </Button>
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      PNG, JPG up to 2MB. This logo will appear in your sidebar.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              
+              <Separator />
+              
+              {/* Color Pickers */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
                   <Label>Primary Color</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
+                    <Input
+                      type="color"
+                      value={settings.primary_color}
+                      onChange={(e) => updateField('primary_color', e.target.value)}
+                      className="w-14 h-10 p-1 cursor-pointer"
+                    />
                     <Input
                       value={settings.primary_color}
                       onChange={(e) => updateField('primary_color', e.target.value)}
-                    />
-                    <div
-                      className="w-10 h-10 rounded-lg border"
-                      style={{ backgroundColor: settings.primary_color }}
+                      placeholder="#3b82f6"
+                      className="flex-1"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">Used for buttons and key actions</p>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label>Accent Color</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
+                    <Input
+                      type="color"
+                      value={settings.accent_color}
+                      onChange={(e) => updateField('accent_color', e.target.value)}
+                      className="w-14 h-10 p-1 cursor-pointer"
+                    />
                     <Input
                       value={settings.accent_color}
                       onChange={(e) => updateField('accent_color', e.target.value)}
-                    />
-                    <div
-                      className="w-10 h-10 rounded-lg border"
-                      style={{ backgroundColor: settings.accent_color }}
+                      placeholder="#14b8a6"
+                      className="flex-1"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">Used for highlights and secondary elements</p>
                 </div>
               </div>
+              
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
@@ -734,37 +813,57 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="w-5 h-5" />
-                Security Settings
+                Change Password
               </CardTitle>
               <CardDescription>
-                Manage your account security preferences
+                Update your account password
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                </div>
-                <Switch />
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label>Current Password</Label>
-                <Input type="password" />
-              </div>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>New Password</Label>
-                  <Input type="password" />
+                  <div className="relative">
+                    <Input 
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Confirm Password</Label>
-                  <Input type="password" />
+                  <div className="relative">
+                    <Input 
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <Button className="gap-2">
-                <Save className="w-4 h-4" />
+              <Button 
+                className="gap-2" 
+                onClick={handlePasswordUpdate}
+                disabled={updatingPassword || !newPassword || !confirmPassword}
+              >
+                {updatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Update Password
               </Button>
             </CardContent>

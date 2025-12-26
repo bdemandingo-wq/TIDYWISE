@@ -16,28 +16,20 @@ import {
   Menu,
   Repeat,
   Target,
-  FileText,
   MessageSquare,
   MapPin,
-  Mail,
   CheckSquare,
   CreditCard,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { supabase } from '@/integrations/supabase/client';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -57,6 +49,7 @@ const navigation = [
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Subscription', href: '/dashboard/subscription', icon: Sparkles },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
+  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
 ];
 
 interface AdminSidebarProps {
@@ -71,7 +64,22 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const { organization, isOwner } = useOrganization();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchLogo = async () => {
+      const { data } = await supabase
+        .from('business_settings')
+        .select('logo_url')
+        .limit(1)
+        .maybeSingle();
+      
+      if (data?.logo_url) {
+        setLogoUrl(data.logo_url);
+      }
+    };
+    fetchLogo();
+  }, []);
   const handleLogout = async () => {
     await signOut();
     navigate('/');
@@ -94,9 +102,15 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-          <Calendar className="w-5 h-5 text-primary-foreground" />
-        </div>
+        {logoUrl ? (
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-background">
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-primary-foreground" />
+          </div>
+        )}
         {(isOpen || isMobile) && (
           <span className="text-lg font-bold text-sidebar-foreground">{businessName}</span>
         )}
