@@ -96,8 +96,8 @@ export default function AuthPage() {
           </CardTitle>
           <CardDescription>
             {isLogin
-              ? 'Sign in to manage your cleaning business'
-              : 'Create your account and set up your business'}
+              ? 'Sign in to manage your business'
+              : 'Create your account to access all features'}
           </CardDescription>
         </CardHeader>
         <CardContent>
