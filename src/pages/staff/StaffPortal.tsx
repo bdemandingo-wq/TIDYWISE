@@ -336,7 +336,7 @@ export default function StaffPortal() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth');
+    navigate('/');
   };
 
   if (!user) {

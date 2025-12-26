@@ -72,7 +72,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/auth');
+    navigate('/');
   };
 
   const userInitials = user?.user_metadata?.full_name
