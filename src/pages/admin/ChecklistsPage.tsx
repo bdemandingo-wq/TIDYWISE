@@ -212,14 +212,14 @@ export default function ChecklistsPage() {
               <div>
                 <Label>Assign to Service (optional)</Label>
                 <Select
-                  value={formData.service_id}
-                  onValueChange={value => setFormData({ ...formData, service_id: value })}
+                  value={formData.service_id || "all"}
+                  onValueChange={value => setFormData({ ...formData, service_id: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All services" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All services</SelectItem>
+                    <SelectItem value="all">All services</SelectItem>
                     {services.map(s => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
