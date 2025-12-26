@@ -108,14 +108,6 @@ export default function PaymentIntegrationPage() {
                   <p className="text-sm text-muted-foreground mt-1">
                     If you don't have a Stripe account yet, create one for free. It takes just a few minutes.
                   </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3"
-                    onClick={() => window.open("https://dashboard.stripe.com/login", "_blank")}
-                  >
-                    Log in to Stripe <ExternalLink className="ml-2 h-3 w-3" />
-                  </Button>
                 </div>
               </div>
 
@@ -146,14 +138,6 @@ export default function PaymentIntegrationPage() {
                     <li>• <strong>Publishable key</strong> (starts with <code className="bg-muted px-1 rounded">pk_</code>)</li>
                     <li>• <strong>Secret key</strong> (starts with <code className="bg-muted px-1 rounded">sk_</code>)</li>
                   </ul>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3"
-                    onClick={() => window.open("https://dashboard.stripe.com/apikeys", "_blank")}
-                  >
-                    Open Stripe API Keys <ExternalLink className="ml-2 h-3 w-3" />
-                  </Button>
                 </div>
               </div>
 

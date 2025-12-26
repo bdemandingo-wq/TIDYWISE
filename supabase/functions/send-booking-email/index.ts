@@ -57,16 +57,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending booking confirmation email to:", customerEmail);
 
-    // Fetch business settings to get sender email and company name
+    // Fetch business settings to get sender email, company name, logo, and colors
     let senderEmail = "support@jointidywise.com";
     let companyName = "TidyWise";
+    let logoUrl = "";
+    let primaryColor = "#1e5bb0";
+    let accentColor = "#14b8a6";
     
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && booking.organizationId) {
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: settings } = await supabase
         .from('business_settings')
-        .select('company_email, company_name')
-        .eq('organization_id', booking.organizationId)
+        .select('company_email, company_name, logo_url, primary_color, accent_color')
+        .limit(1)
         .maybeSingle();
       
       if (settings?.company_email) {
@@ -75,6 +78,15 @@ const handler = async (req: Request): Promise<Response> => {
       }
       if (settings?.company_name) {
         companyName = settings.company_name;
+      }
+      if (settings?.logo_url) {
+        logoUrl = settings.logo_url;
+      }
+      if (settings?.primary_color) {
+        primaryColor = settings.primary_color;
+      }
+      if (settings?.accent_color) {
+        accentColor = settings.accent_color;
       }
     }
 
@@ -90,6 +102,11 @@ const handler = async (req: Request): Promise<Response> => {
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
 
+    // Build logo HTML if available
+    const logoHtml = logoUrl 
+      ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:200px;margin-bottom:10px;" />`
+      : `<div style="font-size:32px;font-weight:bold;color:#ffffff;">${companyName}</div>`;
+
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -98,129 +115,126 @@ const handler = async (req: Request): Promise<Response> => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Booking Confirmation</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#333333;line-height:1.6;">
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#333333;line-height:1.6;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
     <tr>
       <td style="padding:20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
           
-          <!-- Header -->
+          <!-- Header with Logo -->
           <tr>
-            <td style="background-color:#1e5bb0;padding:30px;text-align:center;">
-              <div style="font-size:32px;font-weight:bold;color:#ffffff;">
-                ${companyName}
-              </div>
-              <p style="color:#ffffff;font-size:14px;margin:5px 0 0 0;">Professional Cleaning Services</p>
+            <td style="background:linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);padding:40px 30px;text-align:center;">
+              ${logoHtml}
+              <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:10px 0 0 0;letter-spacing:0.5px;">Professional Cleaning Services</p>
             </td>
           </tr>
           
           <!-- Success Banner -->
           <tr>
-            <td style="background-color:#3fa34d;padding:15px;text-align:center;">
+            <td style="background-color:#22c55e;padding:16px;text-align:center;">
               <span style="color:#ffffff;font-size:18px;font-weight:600;">✓ Booking Confirmed!</span>
             </td>
           </tr>
           
           <!-- Main Content -->
           <tr>
-            <td style="padding:30px;">
-              <p style="font-size:16px;margin:0 0 15px 0;">Hi ${customerName || "there"},</p>
+            <td style="padding:40px 30px;">
+              <p style="font-size:18px;margin:0 0 20px 0;color:#1f2937;">Hi ${customerName || "there"},</p>
               
-              <p style="margin:0 0 15px 0;">Thank you very much for booking with us. <strong>You're all set!</strong></p>
+              <p style="margin:0 0 15px 0;font-size:15px;color:#4b5563;">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
               
-              <p style="margin:0 0 20px 0;">Please double check the date, time, and address to make sure it's correct.</p>
+              <p style="margin:0 0 25px 0;font-size:15px;color:#4b5563;">Please review the details below to ensure everything is correct.</p>
               
-              <!-- Appointment Details -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9f9f9;border-radius:8px;margin-bottom:20px;">
+              <!-- Appointment Details Card -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;margin-bottom:25px;border:1px solid #e5e7eb;">
                 <tr>
-                  <td style="padding:20px;">
-                    <h3 style="margin:0 0 15px 0;color:#1e5bb0;font-size:16px;">APPOINTMENT DETAILS</h3>
+                  <td style="padding:25px;">
+                    <h3 style="margin:0 0 20px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Appointment Details</h3>
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Service</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.serviceName || "Cleaning Service"}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;width:40%;">Service</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.serviceName || "Cleaning Service"}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Date</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.appointmentDate || ""}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Date</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.appointmentDate || ""}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Time</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.appointmentTime || ""}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Time</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.appointmentTime || ""}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Address</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${fullAddress || booking.address || ""}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Address</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${fullAddress || booking.address || ""}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Home Size</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${booking.homeSize || "Not specified"}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Home Size</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.homeSize || "Not specified"}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Extras</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${extrasText}</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Extras</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${extrasText}</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;color:#666;">Total</td>
-                        <td style="padding:8px 0;text-align:right;font-weight:bold;font-size:18px;color:#3fa34d;">$${booking.totalPrice ?? ""}</td>
+                        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Total</td>
+                        <td style="padding:12px 0;text-align:right;font-weight:bold;font-size:20px;color:#22c55e;">$${booking.totalPrice ?? ""}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
               </table>
               
-              <p style="margin:0 0 20px 0;background-color:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107;">
-                <strong>Note:</strong> Please allow us a 1-hour window to deal with traffic, parking, and other surprises.
-              </p>
+              <!-- Note Box -->
+              <div style="background-color:#fef3c7;padding:16px 20px;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:30px;">
+                <p style="margin:0;font-size:14px;color:#92400e;"><strong>Note:</strong> Please allow us a 1-hour window to deal with traffic, parking, and other surprises.</p>
+              </div>
               
               <!-- Important Reminders -->
-              <h3 style="margin:25px 0 15px 0;color:#1e5bb0;font-size:16px;border-bottom:2px solid #1e5bb0;padding-bottom:8px;">IMPORTANT REMINDERS</h3>
-              <ul style="margin:0 0 20px 0;padding-left:20px;">
+              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Important Reminders</h3>
+              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
                 <li style="margin-bottom:10px;">If you would like to add extras not included in your cleaning, please notify us as quickly as possible.</li>
-                <li style="margin-bottom:10px;">Communicate your expectations with your cleaner when they arrive. Please do a review with the cleaner(s) prior to letting them go. They are paid by the job and will not leave until you are satisfied.</li>
+                <li style="margin-bottom:10px;">Communicate your expectations with your cleaner when they arrive. Please do a review with the cleaner(s) prior to letting them go.</li>
                 <li style="margin-bottom:10px;">Make sure the cleaner(s) has space to clean. Children, pets, and other adults in the way can be hazardous.</li>
                 <li style="margin-bottom:10px;">We recommend minimizing clutter as much as possible. The cleaners will need access to surfaces to clean.</li>
                 <li style="margin-bottom:10px;"><strong>Please be home when the cleaners finish cleaning.</strong> If the client is not home for the final walkthrough, they surrender the right to a reclean.</li>
               </ul>
               
               <!-- Pricing & Adjustments -->
-              <h3 style="margin:25px 0 15px 0;color:#1e5bb0;font-size:16px;border-bottom:2px solid #1e5bb0;padding-bottom:8px;">PRICING &amp; ADJUSTMENTS</h3>
-              <p style="margin:0 0 15px 0;">The price quoted is based on the home being accurately represented at the time of booking.</p>
-              <p style="margin:0 0 20px 0;">At times, it is impossible for us to know if a home will require a more in-depth cleaning until the cleaner arrives on-site. If the cleaner determines a more in-depth cleaning is needed, the cost may be subject to increase. <strong>This will never be done without a conversation and your consent.</strong></p>
+              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Pricing &amp; Adjustments</h3>
+              <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">The price quoted is based on the home being accurately represented at the time of booking.</p>
+              <p style="margin:0 0 25px 0;font-size:14px;color:#4b5563;">If the cleaner determines a more in-depth cleaning is needed, the cost may be subject to increase. <strong>This will never be done without a conversation and your consent.</strong></p>
               
               <!-- Cancellation Policy -->
-              <h3 style="margin:25px 0 15px 0;color:#1e5bb0;font-size:16px;border-bottom:2px solid #1e5bb0;padding-bottom:8px;">CANCELLATION &amp; RESCHEDULING POLICY</h3>
-              <p style="margin:0 0 10px 0;">We enforce a <strong>1 full business day</strong> cancellation or modification rule.</p>
-              <ul style="margin:0 0 20px 0;padding-left:20px;">
+              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Cancellation &amp; Rescheduling Policy</h3>
+              <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">We enforce a <strong>1 full business day</strong> cancellation or modification rule.</p>
+              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
                 <li style="margin-bottom:8px;">More than 1 full business day notice → <strong>No fee</strong></li>
                 <li style="margin-bottom:8px;">Less than 1 full business day notice → <strong>$50 rebooking/cancellation fee</strong></li>
                 <li style="margin-bottom:8px;">Less than 24 hours before appointment OR unable to gain access → <strong>100% of appointment cost</strong></li>
-                <li style="margin-bottom:8px;">No running water or electricity on-site → <strong>100% of appointment cost</strong></li>
               </ul>
               
               <!-- Payment Info -->
-              <h3 style="margin:25px 0 15px 0;color:#1e5bb0;font-size:16px;border-bottom:2px solid #1e5bb0;padding-bottom:8px;">PAYMENT INFORMATION</h3>
-              <ul style="margin:0 0 20px 0;padding-left:20px;">
+              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Payment Information</h3>
+              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
                 <li style="margin-bottom:8px;">We collect your credit card information the day you book with us.</li>
                 <li style="margin-bottom:8px;">Funds will not be withdrawn until <strong>after</strong> your appointment has been completed.</li>
                 <li style="margin-bottom:8px;">A hold will be put on the cost of your appointment 24 hours before your booking to ensure funds are available.</li>
               </ul>
               
               <!-- Satisfaction Policy -->
-              <h3 style="margin:25px 0 15px 0;color:#1e5bb0;font-size:16px;border-bottom:2px solid #1e5bb0;padding-bottom:8px;">SATISFACTION POLICY</h3>
-              <ul style="margin:0 0 20px 0;padding-left:20px;">
+              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Satisfaction Policy</h3>
+              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
                 <li style="margin-bottom:8px;">If you are not happy with the service, you have a <strong>24-hour period</strong> to notify us.</li>
-                <li style="margin-bottom:8px;">The cleaner(s) will return to handle any issues at no additional charge, provided there has been a post-clean walkthrough completed.</li>
+                <li style="margin-bottom:8px;">The cleaner(s) will return to handle any issues at no additional charge.</li>
                 <li style="margin-bottom:8px;">There are no refunds for any services provided.</li>
-                <li style="margin-bottom:8px;">Cleaners will not move furniture or appliances over 20 lbs for safety and insurance reasons.</li>
               </ul>
               
-              <hr style="border:none;border-top:1px solid #e0e0e0;margin:25px 0;">
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:30px 0;">
               
-              <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#666;">
+              <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#6b7280;">
                 Questions? Reply to this email or contact us anytime.
               </p>
-              <p style="margin:0;text-align:center;font-size:16px;font-weight:bold;color:#1e5bb0;">
+              <p style="margin:0;text-align:center;font-size:16px;font-weight:bold;color:${primaryColor};">
                 Thank you for choosing ${companyName}!
               </p>
             </td>
@@ -228,9 +242,9 @@ const handler = async (req: Request): Promise<Response> => {
           
           <!-- Footer -->
           <tr>
-            <td style="background-color:#333333;padding:20px;text-align:center;">
-              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
-              <p style="color:#999999;font-size:12px;margin:0;">
+            <td style="background-color:#1f2937;padding:25px;text-align:center;">
+              <p style="color:#ffffff;font-size:16px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
+              <p style="color:#9ca3af;font-size:12px;margin:0;">
                 © ${new Date().getFullYear()} ${companyName}. All rights reserved.
               </p>
             </td>
@@ -296,7 +310,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
         body: JSON.stringify({
           from: `${companyName} Booking System <${senderEmail}>`,
-          to: ["support@tidywisecleaning.com"],
+          to: [senderEmail],
           subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
           html: adminNotificationHtml,
         }),

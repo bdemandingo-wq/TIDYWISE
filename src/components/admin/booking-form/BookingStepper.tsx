@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,7 +17,8 @@ import {
   Copy,
   Mail,
   Check,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -50,6 +51,21 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [emailConfigured, setEmailConfigured] = useState(false);
+
+  // Check if business email is configured
+  useEffect(() => {
+    const checkEmailConfig = async () => {
+      const { data } = await supabase
+        .from('business_settings')
+        .select('company_email')
+        .limit(1)
+        .maybeSingle();
+      
+      setEmailConfigured(!!(data?.company_email && data.company_email.trim().length > 0));
+    };
+    checkEmailConfig();
+  }, []);
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
@@ -403,12 +419,25 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   <Checkbox 
                     id="sendConfirmation" 
                     checked={sendConfirmationEmail} 
-                    onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)} 
+                    onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
+                    disabled={!emailConfigured}
                   />
-                  <Label htmlFor="sendConfirmation" className="text-sm cursor-pointer flex items-center gap-1.5">
+                  <Label 
+                    htmlFor="sendConfirmation" 
+                    className={cn(
+                      "text-sm cursor-pointer flex items-center gap-1.5",
+                      !emailConfigured && "text-muted-foreground cursor-not-allowed"
+                    )}
+                  >
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     Send email
                   </Label>
+                  {!emailConfigured && (
+                    <span className="text-xs text-amber-600 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Configure email in Settings first
+                    </span>
+                  )}
                 </div>
 
                 {booking && (
@@ -418,16 +447,21 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   </Button>
                 )}
 
-                <Button 
-                  variant="secondary" 
-                  onClick={() => handleSubmit(true)} 
-                  disabled={savingDraft || submitting}
-                  className="h-11"
-                >
-                  {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Draft
-                </Button>
+                <div className="relative group">
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => handleSubmit(true)} 
+                    disabled={savingDraft || submitting}
+                    className="h-11"
+                  >
+                    {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Draft
+                  </Button>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-popover border rounded-lg shadow-lg text-xs text-muted-foreground z-50">
+                    Drafts appear in your Bookings list with "pending payment" status
+                  </div>
+                </div>
 
                 <Button 
                   onClick={() => handleSubmit(false)} 
