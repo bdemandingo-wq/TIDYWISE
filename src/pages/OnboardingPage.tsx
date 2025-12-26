@@ -26,6 +26,8 @@ import {
   Shirt,
   Dumbbell,
   Camera,
+  Plus,
+  X,
   Check
 } from 'lucide-react';
 import { industryTemplates, IndustryType, getIndustryTemplate } from '@/data/industryTemplates';
@@ -71,6 +73,10 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryType | null>(null);
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
+  const [customServices, setCustomServices] = useState<{ name: string; description: string }[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDescription, setNewServiceDescription] = useState('');
 
   // Read industry from sessionStorage if set from landing page
   useEffect(() => {
@@ -127,6 +133,35 @@ export default function OnboardingPage() {
   const deselectAllServices = () => {
     setSelectedServices(new Set());
   };
+
+  const addCustomService = () => {
+    if (!newServiceName.trim()) return;
+    
+    const newService = {
+      name: newServiceName.trim(),
+      description: newServiceDescription.trim() || 'Custom service',
+    };
+    
+    setCustomServices([...customServices, newService]);
+    setSelectedServices(new Set([...selectedServices, newService.name]));
+    setNewServiceName('');
+    setNewServiceDescription('');
+    setShowAddForm(false);
+  };
+
+  const removeCustomService = (serviceName: string) => {
+    setCustomServices(customServices.filter(s => s.name !== serviceName));
+    const newSelected = new Set(selectedServices);
+    newSelected.delete(serviceName);
+    setSelectedServices(newSelected);
+  };
+
+  const allServices = [
+    ...(currentTemplate?.services || []),
+    ...customServices.map(s => ({ ...s, price: 0, duration: 60 }))
+  ];
+
+  const totalServicesCount = allServices.length;
 
   const handleSubmit = async () => {
     if (!user || !businessName.trim() || !selectedIndustry) return;
@@ -208,28 +243,41 @@ export default function OnboardingPage() {
         }
       }
 
-      // Create selected services
-      if (template && selectedServices.size > 0) {
-        const servicesToCreate = template.services
-          .filter(s => selectedServices.has(s.name))
-          .map(service => ({
-            organization_id: orgData.id,
-            name: service.name,
-            description: service.description,
-            price: service.price,
-            duration: service.duration,
-            deposit_amount: service.depositAmount || 0,
-            is_active: true,
-          }));
+      // Create selected services from template
+      const templateServices = template?.services
+        .filter(s => selectedServices.has(s.name))
+        .map(service => ({
+          organization_id: orgData.id,
+          name: service.name,
+          description: service.description,
+          price: service.price,
+          duration: service.duration,
+          deposit_amount: service.depositAmount || 0,
+          is_active: true,
+        })) || [];
 
-        if (servicesToCreate.length > 0) {
-          const { error: servicesError } = await supabase
-            .from('services')
-            .insert(servicesToCreate);
+      // Add custom services
+      const customServiceInserts = customServices
+        .filter(s => selectedServices.has(s.name))
+        .map(service => ({
+          organization_id: orgData.id,
+          name: service.name,
+          description: service.description,
+          price: 0,
+          duration: 60,
+          deposit_amount: 0,
+          is_active: true,
+        }));
 
-          if (servicesError) {
-            console.error('Error creating services:', servicesError);
-          }
+      const allServicesToCreate = [...templateServices, ...customServiceInserts];
+
+      if (allServicesToCreate.length > 0) {
+        const { error: servicesError } = await supabase
+          .from('services')
+          .insert(allServicesToCreate);
+
+        if (servicesError) {
+          console.error('Error creating services:', servicesError);
         }
       }
 
@@ -382,7 +430,7 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {selectedServices.size} of {currentTemplate.services.length} services selected
+                  {selectedServices.size} of {totalServicesCount} services selected
                 </p>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={selectAllServices}>
@@ -394,7 +442,8 @@ export default function OnboardingPage() {
                 </div>
               </div>
               
-              <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
+              <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2">
+                {/* Template services */}
                 {currentTemplate.services.map((service) => {
                   const isSelected = selectedServices.has(service.name);
                   return (
@@ -423,7 +472,102 @@ export default function OnboardingPage() {
                     </button>
                   );
                 })}
+
+                {/* Custom services */}
+                {customServices.map((service) => {
+                  const isSelected = selectedServices.has(service.name);
+                  return (
+                    <div
+                      key={service.name}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-lg border transition-all",
+                        isSelected 
+                          ? "border-primary bg-primary/5" 
+                          : "border-border"
+                      )}
+                    >
+                      <button
+                        onClick={() => toggleService(service.name)}
+                        className="flex items-center gap-3 flex-1 text-left"
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                          isSelected 
+                            ? "border-primary bg-primary" 
+                            : "border-muted-foreground"
+                        )}>
+                          {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground">{service.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{service.description}</p>
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeCustomService(service.name)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
+
+              {/* Add custom service form */}
+              {showAddForm ? (
+                <div className="border border-border rounded-lg p-4 space-y-3 bg-secondary/30">
+                  <div className="space-y-2">
+                    <Label htmlFor="newServiceName">Service Name</Label>
+                    <Input
+                      id="newServiceName"
+                      placeholder="e.g., Express Service"
+                      value={newServiceName}
+                      onChange={(e) => setNewServiceName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newServiceDescription">Description (optional)</Label>
+                    <Input
+                      id="newServiceDescription"
+                      placeholder="Brief description of the service"
+                      value={newServiceDescription}
+                      onChange={(e) => setNewServiceDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewServiceName('');
+                        setNewServiceDescription('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={addCustomService}
+                      disabled={!newServiceName.trim()}
+                    >
+                      Add Service
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowAddForm(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Custom Service
+                </Button>
+              )}
 
               <p className="text-xs text-muted-foreground text-center">
                 You can always add, edit, or remove services later from the Services page.
