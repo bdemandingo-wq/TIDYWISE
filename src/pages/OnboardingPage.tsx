@@ -13,24 +13,12 @@ import {
   Building2, 
   ArrowRight, 
   ArrowLeft, 
-  CheckCircle2, 
-  Sparkles,
-  Building,
-  Dog,
-  Leaf,
-  Scissors,
-  Car,
-  Droplets,
-  Wrench,
-  PaintBucket,
-  Shirt,
-  Dumbbell,
-  Camera,
   Plus,
   X,
-  Check
+  Check,
+  CheckCircle2
 } from 'lucide-react';
-import { industryTemplates, IndustryType, getIndustryTemplate } from '@/data/industryTemplates';
+import { getIndustryTemplate } from '@/data/industryTemplates';
 import { cn } from '@/lib/utils';
 
 function slugify(input: string) {
@@ -47,22 +35,8 @@ function randomSuffix(length = 5) {
   return Math.random().toString(36).slice(2, 2 + length);
 }
 
-const industryIcons: Record<IndustryType, typeof Sparkles> = {
-  "Home Cleaning": Sparkles,
-  "Office Cleaning": Building,
-  "Pet Grooming": Dog,
-  "Lawn Care": Leaf,
-  "Hair Salon": Scissors,
-  "Car Wash": Car,
-  "Pool Service": Droplets,
-  "Handyman": Wrench,
-  "Painting": PaintBucket,
-  "Laundry Service": Shirt,
-  "Personal Training": Dumbbell,
-  "Photography": Camera,
-};
-
-const industries = Object.keys(industryTemplates) as IndustryType[];
+// Cleaning-only template
+const cleaningTemplate = getIndustryTemplate("Home Cleaning")!;
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -71,30 +45,16 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [businessName, setBusinessName] = useState('');
-  const [selectedIndustry, setSelectedIndustry] = useState<IndustryType | null>(null);
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [customServices, setCustomServices] = useState<{ name: string; description: string }[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDescription, setNewServiceDescription] = useState('');
 
-  // Read industry from sessionStorage if set from landing page
+  // Pre-select all cleaning services on mount
   useEffect(() => {
-    const storedIndustry = sessionStorage.getItem('selectedIndustry');
-    if (storedIndustry && industries.includes(storedIndustry as IndustryType)) {
-      setSelectedIndustry(storedIndustry as IndustryType);
-    }
+    setSelectedServices(new Set(cleaningTemplate.services.map(s => s.name)));
   }, []);
-
-  // When industry changes, pre-select all services
-  useEffect(() => {
-    if (selectedIndustry) {
-      const template = getIndustryTemplate(selectedIndustry);
-      if (template) {
-        setSelectedServices(new Set(template.services.map(s => s.name)));
-      }
-    }
-  }, [selectedIndustry]);
 
   // If the user already has a business, never let them re-onboard.
   useEffect(() => {
@@ -112,8 +72,6 @@ export default function OnboardingPage() {
 
   const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
-  const currentTemplate = selectedIndustry ? getIndustryTemplate(selectedIndustry) : null;
-
   const toggleService = (serviceName: string) => {
     const newSelected = new Set(selectedServices);
     if (newSelected.has(serviceName)) {
@@ -125,9 +83,7 @@ export default function OnboardingPage() {
   };
 
   const selectAllServices = () => {
-    if (currentTemplate) {
-      setSelectedServices(new Set(currentTemplate.services.map(s => s.name)));
-    }
+    setSelectedServices(new Set(cleaningTemplate.services.map(s => s.name)));
   };
 
   const deselectAllServices = () => {
@@ -157,14 +113,14 @@ export default function OnboardingPage() {
   };
 
   const allServices = [
-    ...(currentTemplate?.services || []),
+    ...cleaningTemplate.services,
     ...customServices.map(s => ({ ...s, price: 0, duration: 60 }))
   ];
 
   const totalServicesCount = allServices.length;
 
   const handleSubmit = async () => {
-    if (!user || !businessName.trim() || !selectedIndustry) return;
+    if (!user || !businessName.trim()) return;
 
     setLoading(true);
     try {
@@ -221,30 +177,20 @@ export default function OnboardingPage() {
       });
 
       // Create service categories if defined
-      const template = getIndustryTemplate(selectedIndustry);
-      let categoryMap: Record<string, string> = {};
-      
-      if (template?.categories && template.categories.length > 0) {
-        const categoryInserts = template.categories.map((cat, index) => ({
+      if (cleaningTemplate.categories && cleaningTemplate.categories.length > 0) {
+        const categoryInserts = cleaningTemplate.categories.map((cat, index) => ({
           organization_id: orgData.id,
           name: cat,
           color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5],
         }));
 
-        const { data: categories, error: catError } = await supabase
+        await supabase
           .from('service_categories')
-          .insert(categoryInserts)
-          .select();
-
-        if (!catError && categories) {
-          categories.forEach((cat: any) => {
-            categoryMap[cat.name] = cat.id;
-          });
-        }
+          .insert(categoryInserts);
       }
 
       // Create selected services from template
-      const templateServices = template?.services
+      const templateServices = cleaningTemplate.services
         .filter(s => selectedServices.has(s.name))
         .map(service => ({
           organization_id: orgData.id,
@@ -254,7 +200,7 @@ export default function OnboardingPage() {
           duration: service.duration,
           deposit_amount: service.depositAmount || 0,
           is_active: true,
-        })) || [];
+        }));
 
       // Add custom services
       const customServiceInserts = customServices
@@ -281,9 +227,6 @@ export default function OnboardingPage() {
         }
       }
 
-      // Clear the stored industry
-      sessionStorage.removeItem('selectedIndustry');
-
       toast.success('Business created successfully with your services!');
       await refetch();
       navigate('/dashboard');
@@ -296,10 +239,9 @@ export default function OnboardingPage() {
   };
 
   const canProceedStep1 = businessName.trim().length >= 2;
-  const canProceedStep2 = selectedIndustry !== null;
-  const canProceedStep3 = selectedServices.size > 0;
+  const canProceedStep2 = selectedServices.size > 0;
 
-  const totalSteps = 3;
+  const totalSteps = 2;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -308,16 +250,15 @@ export default function OnboardingPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Set Up Your Business</CardTitle>
+          <CardTitle className="text-2xl font-bold">Set Up Your Cleaning Business</CardTitle>
           <CardDescription>
             {step === 1 && "Let's start with your business name"}
-            {step === 2 && "Select your industry to get started with templates"}
-            {step === 3 && "Choose which services you want to offer"}
+            {step === 2 && "Choose which cleaning services you want to offer"}
           </CardDescription>
           
           {/* Progress indicator */}
           <div className="flex items-center justify-center gap-2 mt-4">
-            {[1, 2, 3].map((s) => (
+            {[1, 2].map((s) => (
               <div 
                 key={s}
                 className={cn(
@@ -358,75 +299,13 @@ export default function OnboardingPage() {
                 disabled={!canProceedStep1}
                 onClick={() => setStep(2)}
               >
-                Continue <ArrowRight className="ml-2 h-4 w-4" />
+                Choose Services <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           )}
 
-          {/* Step 2: Industry Selection */}
+          {/* Step 2: Service Selection */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {industries.map((industry) => {
-                  const Icon = industryIcons[industry];
-                  const isSelected = selectedIndustry === industry;
-                  return (
-                    <button
-                      key={industry}
-                      onClick={() => setSelectedIndustry(industry)}
-                      className={cn(
-                        "relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                        isSelected 
-                          ? "border-primary bg-primary/5 shadow-md" 
-                          : "border-border hover:border-primary/50 hover:bg-secondary/50"
-                      )}
-                    >
-                      {isSelected && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        </div>
-                      )}
-                      <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center",
-                        isSelected ? "bg-primary/20" : "bg-secondary"
-                      )}>
-                        <Icon className={cn(
-                          "h-6 w-6",
-                          isSelected ? "text-primary" : "text-muted-foreground"
-                        )} />
-                      </div>
-                      <span className={cn(
-                        "text-sm font-medium text-center",
-                        isSelected ? "text-primary" : "text-foreground"
-                      )}>
-                        {industry}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
-                  onClick={() => setStep(1)}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                </Button>
-                <Button 
-                  className="flex-1" 
-                  disabled={!canProceedStep2}
-                  onClick={() => setStep(3)}
-                >
-                  Continue <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Service Selection */}
-          {step === 3 && currentTemplate && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
@@ -444,7 +323,7 @@ export default function OnboardingPage() {
               
               <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2">
                 {/* Template services */}
-                {currentTemplate.services.map((service) => {
+                {cleaningTemplate.services.map((service) => {
                   const isSelected = selectedServices.has(service.name);
                   return (
                     <button
@@ -583,7 +462,7 @@ export default function OnboardingPage() {
                 </Button>
                 <Button 
                   className="flex-1" 
-                  disabled={loading || !canProceedStep3}
+                  disabled={loading || !canProceedStep2}
                   onClick={handleSubmit}
                 >
                   {loading ? (
