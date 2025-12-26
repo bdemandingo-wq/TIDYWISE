@@ -402,27 +402,23 @@ export default function OnboardingPage() {
                       key={service.name}
                       onClick={() => toggleService(service.name)}
                       className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg border transition-all text-left",
+                        "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                         isSelected 
                           ? "border-primary bg-primary/5" 
                           : "border-border hover:border-primary/50"
                       )}
                     >
                       <div className={cn(
-                        "w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
                         isSelected 
                           ? "border-primary bg-primary" 
                           : "border-muted-foreground"
                       )}>
-                        {isSelected && <Check className="h-4 w-4 text-primary-foreground" />}
+                        {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground">{service.name}</p>
                         <p className="text-sm text-muted-foreground truncate">{service.description}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-semibold text-foreground">${service.price}</p>
-                        <p className="text-xs text-muted-foreground">{service.duration} min</p>
                       </div>
                     </button>
                   );
