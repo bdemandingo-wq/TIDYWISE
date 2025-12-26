@@ -92,10 +92,27 @@ serve(async (req) => {
     }
 
     const isTrialing = activeSubscription.status === "trialing";
-    const subscriptionEnd = new Date(activeSubscription.current_period_end * 1000).toISOString();
-    const trialEnd = activeSubscription.trial_end 
-      ? new Date(activeSubscription.trial_end * 1000).toISOString() 
-      : null;
+    
+    // Safely parse subscription end date
+    let subscriptionEnd: string | null = null;
+    if (activeSubscription.current_period_end && typeof activeSubscription.current_period_end === 'number') {
+      try {
+        subscriptionEnd = new Date(activeSubscription.current_period_end * 1000).toISOString();
+      } catch (e) {
+        logStep("Warning: Could not parse current_period_end", { value: activeSubscription.current_period_end });
+      }
+    }
+    
+    // Safely parse trial end date
+    let trialEnd: string | null = null;
+    if (activeSubscription.trial_end && typeof activeSubscription.trial_end === 'number') {
+      try {
+        trialEnd = new Date(activeSubscription.trial_end * 1000).toISOString();
+      } catch (e) {
+        logStep("Warning: Could not parse trial_end", { value: activeSubscription.trial_end });
+      }
+    }
+    
     const productId = activeSubscription.items.data[0]?.price?.product;
     
     logStep("Active subscription found", { 
