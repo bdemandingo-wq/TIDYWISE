@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,18 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  
+  // Get email from navigation state (from landing page)
+  const stateEmail = (location.state as { email?: string })?.email || '';
+  
+  // Default to signup mode if coming from landing page with email
+  const [isLogin, setIsLogin] = useState(!stateEmail);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    email: stateEmail,
     password: '',
     fullName: '',
   });
