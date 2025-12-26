@@ -29,6 +29,7 @@ import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMont
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface OperationsEntry {
   id: string;
@@ -53,6 +54,7 @@ export default function OperationsTrackerPage() {
   });
   const queryClient = useQueryClient();
   const { isTestMode, maskAmount } = useTestMode();
+  const { organization } = useOrganization();
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['operations-tracker'],
@@ -68,10 +70,13 @@ export default function OperationsTrackerPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: Omit<OperationsEntry, 'id'>) => {
-      // Use upsert to handle duplicate dates - update if exists, insert if not
+      if (!organization?.id) {
+        throw new Error('No organization found');
+      }
+      // Insert with organization_id
       const { error } = await supabase
         .from('operations_tracker')
-        .upsert([data], { onConflict: 'track_date' });
+        .insert([{ ...data, organization_id: organization.id }]);
       if (error) throw error;
     },
     onSuccess: () => {

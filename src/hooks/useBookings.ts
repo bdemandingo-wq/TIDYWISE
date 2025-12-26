@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface BookingWithDetails {
   id: string;
@@ -23,7 +24,7 @@ export interface BookingWithDetails {
   bedrooms: string | null;
   bathrooms: string | null;
   square_footage: string | null;
-  extras: string[] | null;
+  extras: Json | null;
   is_draft: boolean;
   created_at: string;
   updated_at: string;
@@ -70,7 +71,7 @@ export interface CreateBookingData {
   bedrooms?: string;
   bathrooms?: string;
   square_footage?: string;
-  extras?: string[];
+  extras?: Json;
   is_draft?: boolean;
 }
 

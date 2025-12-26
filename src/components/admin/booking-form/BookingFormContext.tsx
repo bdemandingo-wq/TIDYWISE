@@ -268,7 +268,15 @@ export function BookingFormProvider({
     setBedrooms(booking.bedrooms || '1');
     setBathrooms(booking.bathrooms || '1');
     setSquareFootage(booking.square_footage || '');
-    setSelectedExtras(booking.extras || []);
+    // Handle extras which can be array of objects or strings from Json type
+    const rawExtras = booking.extras;
+    let extrasStringArray: string[] = [];
+    if (Array.isArray(rawExtras)) {
+      extrasStringArray = rawExtras.map((e: unknown) => 
+        typeof e === 'string' ? e : (e as Record<string, unknown>)?.id as string || ''
+      ).filter(Boolean);
+    }
+    setSelectedExtras(extrasStringArray);
     const bookingAny = booking as any;
     setCleanerWage(bookingAny.cleaner_wage ? String(bookingAny.cleaner_wage) : '');
     setCleanerWageType(bookingAny.cleaner_wage_type || 'hourly');
