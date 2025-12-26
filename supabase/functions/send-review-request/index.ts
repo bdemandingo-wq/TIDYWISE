@@ -17,6 +17,7 @@ interface ReviewRequestPayload {
   customerName: string;
   serviceName: string;
   googleReviewUrl?: string;
+  organizationId?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -34,7 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const payload: ReviewRequestPayload = await req.json();
-    const { bookingId, customerId, customerEmail, customerName, serviceName, googleReviewUrl } = payload;
+    const { bookingId, customerId, customerEmail, customerName, serviceName, googleReviewUrl, organizationId } = payload;
 
     if (!customerEmail || !bookingId) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -44,6 +45,24 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Fetch business settings for sender email and company name
+    let senderEmail = "support@jointidywise.com";
+    let companyName = "TidyWise";
+    
+    const settingsQuery = organizationId 
+      ? supabase.from('business_settings').select('company_email, company_name, google_review_url').eq('organization_id', organizationId).maybeSingle()
+      : supabase.from('business_settings').select('company_email, company_name, google_review_url').limit(1).maybeSingle();
+    
+    const { data: settings } = await settingsQuery;
+    
+    if (settings?.company_email) {
+      senderEmail = settings.company_email;
+      console.log("Using custom sender email:", senderEmail);
+    }
+    if (settings?.company_name) {
+      companyName = settings.company_name;
+    }
     
     // Generate unique token for this review request
     const token = crypto.randomUUID();
@@ -60,13 +79,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get default Google review URL from business settings if not provided
     let finalGoogleUrl = googleReviewUrl;
-    if (!finalGoogleUrl) {
-      const { data: settings } = await supabase
-        .from("business_settings")
-        .select("google_review_url")
-        .limit(1)
-        .single();
-      finalGoogleUrl = settings?.google_review_url || null;
+    if (!finalGoogleUrl && settings?.google_review_url) {
+      finalGoogleUrl = settings.google_review_url;
     }
 
     // Create review request record
@@ -107,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="background-color:#1e5bb0;padding:30px;text-align:center;">
               <div style="font-size:32px;font-weight:bold;color:#ffffff;">
-                TidyWise
+                ${companyName}
               </div>
               <p style="color:#ffffff;font-size:14px;margin:5px 0 0 0;">Professional Cleaning Services</p>
             </td>
@@ -163,9 +177,9 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Footer -->
           <tr>
             <td style="background-color:#333333;padding:20px;text-align:center;">
-              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">TidyWise Cleaning</p>
+              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
               <p style="color:#999999;font-size:12px;margin:0;">
-                © ${new Date().getFullYear()} TidyWise. All rights reserved.
+                © ${new Date().getFullYear()} ${companyName}. All rights reserved.
               </p>
             </td>
           </tr>
@@ -185,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TidyWise Cleaning <support@jointidywise.com>",
+        from: `${companyName} <${senderEmail}>`,
         to: [customerEmail],
         subject: `How was your ${serviceName}? We'd love your feedback!`,
         html: emailHtml,

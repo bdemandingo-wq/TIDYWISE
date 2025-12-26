@@ -24,6 +24,7 @@ const getReminderEmailHtml = (
   formattedTime: string,
   address: string,
   totalAmount: number | null,
+  companyName: string,
   staffName?: string,
   windowLabel?: string
 ) => {
@@ -46,7 +47,7 @@ const getReminderEmailHtml = (
           <!-- Header -->
           <tr>
             <td style="background-color:#1e5bb0;padding:25px;text-align:center;">
-              <div style="font-size:28px;font-weight:bold;color:#ffffff;">TidyWise</div>
+              <div style="font-size:28px;font-weight:bold;color:#ffffff;">${companyName}</div>
               <p style="color:#ffffff;font-size:13px;margin:5px 0 0 0;">Professional Cleaning Services</p>
             </td>
           </tr>
@@ -117,9 +118,9 @@ const getReminderEmailHtml = (
           <!-- Footer -->
           <tr>
             <td style="background-color:#333333;padding:20px;text-align:center;">
-              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">TidyWise Cleaning</p>
+              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
               <p style="color:#999999;font-size:12px;margin:0;">
-                © ${new Date().getFullYear()} TidyWise. All rights reserved.
+                © ${new Date().getFullYear()} ${companyName}. All rights reserved.
               </p>
             </td>
           </tr>
@@ -145,6 +146,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!RESEND_API_KEY) {
       throw new Error("Missing RESEND_API_KEY");
+    }
+
+    // Fetch business settings for sender email
+    let senderEmail = "support@jointidywise.com";
+    let companyName = "TidyWise";
+    
+    const { data: settings } = await supabase
+      .from('business_settings')
+      .select('company_email, company_name')
+      .limit(1)
+      .maybeSingle();
+    
+    if (settings?.company_email) {
+      senderEmail = settings.company_email;
+      console.log("Using custom sender email:", senderEmail);
+    }
+    if (settings?.company_name) {
+      companyName = settings.company_name;
     }
 
     // If invoked from the admin UI, we send an immediate reminder for the provided booking.
@@ -193,6 +212,7 @@ const handler = async (req: Request): Promise<Response> => {
         formattedTime,
         address,
         totalAmount,
+        companyName,
         undefined,
         undefined
       );
@@ -204,7 +224,7 @@ const handler = async (req: Request): Promise<Response> => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "TidyWise Cleaning <support@jointidywise.com>",
+          from: `${companyName} <${senderEmail}>`,
           to: [payload.customerEmail],
           subject: `Reminder: Your ${serviceName} on ${formattedDate}`,
           html: emailHtml,
@@ -300,6 +320,7 @@ const handler = async (req: Request): Promise<Response> => {
             formattedTime,
             address,
             booking.total_amount,
+            companyName,
             booking.staff?.name,
             window.label
           );
@@ -311,7 +332,7 @@ const handler = async (req: Request): Promise<Response> => {
               Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: "TidyWise Cleaning <support@jointidywise.com>",
+              from: `${companyName} <${senderEmail}>`,
               to: [booking.customer.email],
               subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
               html: emailHtml,

@@ -500,6 +500,53 @@ export default function SettingsPage() {
 
         {/* Email Templates */}
         <TabsContent value="emails" className="space-y-6">
+          {/* Email Sender Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Email Sender Settings
+              </CardTitle>
+              <CardDescription>
+                Configure the email address that customers will see when receiving emails
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-2">
+                  Important: Custom Email Domain Setup
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                  To send emails from your own domain (e.g., hello@yourbusiness.com), you need to verify your domain:
+                </p>
+                <ol className="text-sm text-amber-700 dark:text-amber-300 list-decimal list-inside space-y-1">
+                  <li>Go to <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-medium">resend.com/domains</a></li>
+                  <li>Add your domain and copy the DNS records</li>
+                  <li>Add the DNS records to your domain provider (GoDaddy, Namecheap, etc.)</li>
+                  <li>Wait for verification (usually 5-30 minutes)</li>
+                  <li>Once verified, enter your email below</li>
+                </ol>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="senderEmail">Sender Email Address</Label>
+                <Input
+                  id="senderEmail"
+                  type="email"
+                  value={settings.company_email}
+                  onChange={(e) => updateField('company_email', e.target.value)}
+                  placeholder="hello@yourbusiness.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This email will appear as the "From" address on all emails sent to customers. Must be from a verified domain.
+                </p>
+              </div>
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            </CardContent>
+          </Card>
+          
           <EmailTemplatesSettings
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
