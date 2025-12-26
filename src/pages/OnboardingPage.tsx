@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -10,12 +10,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, Building2 } from 'lucide-react';
 
+function slugify(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function randomSuffix(length = 5) {
+  return Math.random().toString(36).slice(2, 2 + length);
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refetch } = useOrganization();
+  const { organization, loading: orgLoading, refetch } = useOrganization();
   const [loading, setLoading] = useState(false);
   const [businessName, setBusinessName] = useState('');
+
+  // If the user already has a business, never let them re-onboard.
+  useEffect(() => {
+    if (!orgLoading && organization) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [orgLoading, organization, navigate]);
+
+  // If not logged in, send to auth.
+  useEffect(() => {
+    if (!orgLoading && !user) {
+      navigate('/auth', { replace: true });
+    }
+  }, [orgLoading, user, navigate]);
+
+  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,18 +53,40 @@ export default function OnboardingPage() {
 
     setLoading(true);
     try {
-      // Create the organization
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: businessName.trim(),
-          owner_id: user.id,
-          slug: businessName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        })
-        .select()
-        .single();
+      const name = businessName.trim();
+      const initialSlug = slugify(name);
 
-      if (orgError) throw orgError;
+      // Try a few times in case the slug is taken.
+      let orgData: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const slug = attempt === 0 ? initialSlug : `${initialSlug}-${randomSuffix()}`;
+
+        const { data, error } = await supabase
+          .from('organizations')
+          .insert({
+            name,
+            owner_id: user.id,
+            slug,
+          })
+          .select()
+          .single();
+
+        if (!error) {
+          orgData = data;
+          break;
+        }
+
+        // Slug conflict: retry with a different slug.
+        if (error.code === '23505' && (error.message || '').includes('organizations_slug_key')) {
+          continue;
+        }
+
+        throw error;
+      }
+
+      if (!orgData) {
+        throw new Error('Business name is already taken. Please choose a different business name.');
+      }
 
       // Create the membership for the owner
       const { error: memberError } = await supabase
@@ -50,7 +102,7 @@ export default function OnboardingPage() {
       // Create default business settings
       await supabase.from('business_settings').insert({
         organization_id: orgData.id,
-        company_name: businessName.trim(),
+        company_name: name,
       });
 
       toast.success('Business created successfully!');

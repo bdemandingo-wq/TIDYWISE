@@ -47,7 +47,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         .select('organization_id, role')
         .eq('user_id', user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (membershipError || !membershipData) {
         setOrganization(null);
