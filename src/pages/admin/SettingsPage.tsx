@@ -511,35 +511,114 @@ export default function SettingsPage() {
                 Configure the email address that customers will see when receiving emails
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-2">
-                  Important: Custom Email Domain Setup
+            <CardContent className="space-y-6">
+              {/* Current Status */}
+              <div className="p-4 bg-secondary/50 rounded-lg">
+                <p className="text-sm font-medium mb-1">Current Sender Email</p>
+                <p className="text-lg font-semibold text-primary">
+                  {settings.company_email || 'Not configured (using default)'}
                 </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
-                  To send emails from your own domain (e.g., hello@yourbusiness.com), you need to verify your domain:
-                </p>
-                <ol className="text-sm text-amber-700 dark:text-amber-300 list-decimal list-inside space-y-1">
-                  <li>Go to <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-medium">resend.com/domains</a></li>
-                  <li>Add your domain and copy the DNS records</li>
-                  <li>Add the DNS records to your domain provider (GoDaddy, Namecheap, etc.)</li>
-                  <li>Wait for verification (usually 5-30 minutes)</li>
-                  <li>Once verified, enter your email below</li>
-                </ol>
+                {!settings.company_email && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Emails are currently sent from our default address. Set up your own domain below.
+                  </p>
+                )}
               </div>
+
+              {/* Setup Instructions */}
+              <div className="p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-base text-amber-800 dark:text-amber-200 font-semibold mb-3">
+                  📧 How to Send Emails from Your Own Domain
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
+                  To have emails appear from your business (e.g., <strong>bookings@yourcompany.com</strong>), 
+                  you need to verify domain ownership. This is an industry security requirement to prevent spam.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-sm font-bold text-amber-800 dark:text-amber-200">1</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Create a Resend Account</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Go to <a href="https://resend.com/signup" target="_blank" rel="noopener noreferrer" className="underline font-medium">resend.com/signup</a> and 
+                        create a free account (10,000 emails/month free).
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-sm font-bold text-amber-800 dark:text-amber-200">2</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Add Your Domain</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Go to <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-medium">resend.com/domains</a> → 
+                        Click "Add Domain" → Enter your domain (e.g., yourcompany.com)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-sm font-bold text-amber-800 dark:text-amber-200">3</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Copy DNS Records</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Resend will show you 3-4 DNS records (TXT and MX records). Copy each one.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-sm font-bold text-amber-800 dark:text-amber-200">4</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Add Records to Your Domain</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Log into where you bought your domain (GoDaddy, Namecheap, Google Domains, Squarespace, etc.) → 
+                        Go to DNS settings → Add the records Resend gave you.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-sm font-bold text-amber-800 dark:text-amber-200">5</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Wait for Verification</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Click "Verify" in Resend. It usually takes 5-30 minutes. You'll see a green ✓ when verified.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-sm font-bold text-green-800 dark:text-green-200">✓</div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Enter Your Email Below</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Once verified, enter any email using that domain below (e.g., bookings@yourcompany.com, 
+                        hello@yourcompany.com). All customer emails will now come from this address!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Input */}
               <div className="space-y-2">
-                <Label htmlFor="senderEmail">Sender Email Address</Label>
+                <Label htmlFor="senderEmail" className="text-base font-medium">Your Sender Email Address</Label>
                 <Input
                   id="senderEmail"
                   type="email"
                   value={settings.company_email}
                   onChange={(e) => updateField('company_email', e.target.value)}
-                  placeholder="hello@yourbusiness.com"
+                  placeholder="bookings@yourcompany.com"
+                  className="h-12 text-base"
                 />
-                <p className="text-xs text-muted-foreground">
-                  This email will appear as the "From" address on all emails sent to customers. Must be from a verified domain.
+                <p className="text-sm text-muted-foreground">
+                  This email appears as the "From" address on booking confirmations, reminders, review requests, and all other customer emails.
+                  Customers can reply directly to this address.
                 </p>
               </div>
+              
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes
