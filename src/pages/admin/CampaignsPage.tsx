@@ -13,13 +13,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Mail, Send, Clock, CheckCircle, Users, Plus, Play, Loader2, MailOpen, Trash2, Upload, UserPlus } from 'lucide-react';
+import { Mail, Send, Clock, CheckCircle, Users, Plus, Play, Loader2, MailOpen, Trash2, Upload, UserPlus, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+
+interface Campaign {
+  id: string;
+  name: string;
+  type: string;
+  subject: string;
+  body: string;
+  days_inactive: number | null;
+  is_active: boolean | null;
+  last_run_at: string | null;
+}
 
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isManualEmailDialogOpen, setIsManualEmailDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [previewCampaign, setPreviewCampaign] = useState<Campaign | null>(null);
+  const [previewEmails, setPreviewEmails] = useState<string[]>([]);
+  const [previewMode, setPreviewMode] = useState<'auto' | 'manual'>('auto');
   const [manualEmails, setManualEmails] = useState("");
   const [selectedCampaignForManual, setSelectedCampaignForManual] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -183,6 +200,48 @@ export default function CampaignsPage() {
       }
     };
     input.click();
+  };
+
+  // Open preview before sending
+  const handleOpenPreview = async (campaign: Campaign, mode: 'auto' | 'manual', emails?: string[]) => {
+    setPreviewCampaign(campaign);
+    setPreviewMode(mode);
+    
+    if (mode === 'manual' && emails) {
+      setPreviewEmails(emails);
+    } else {
+      // For auto mode, we'd fetch the list of qualifying customers
+      // For now just show a placeholder
+      setPreviewEmails(['(All qualifying customers based on campaign rules)']);
+    }
+    
+    setIsPreviewDialogOpen(true);
+  };
+
+  const handleConfirmSend = () => {
+    if (!previewCampaign) return;
+    
+    if (previewMode === 'manual' && selectedCampaignForManual) {
+      const emails = manualEmails
+        .split(/[,\n\s]+/)
+        .map(e => e.trim())
+        .filter(e => e && e.includes('@'));
+      sendToManualEmails.mutate({ campaignId: selectedCampaignForManual, emails });
+    } else {
+      runCampaign.mutate(previewCampaign.id);
+    }
+    
+    setIsPreviewDialogOpen(false);
+    setPreviewCampaign(null);
+  };
+
+  // Format email body for preview (convert markdown-like syntax)
+  const formatEmailBody = (body: string) => {
+    return body
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/{{customer_name}}/g, '<span class="text-primary">[Customer Name]</span>')
+      .replace(/{{company_name}}/g, '<span class="text-primary">[Company Name]</span>')
+      .replace(/\n/g, '<br/>');
   };
 
   const getCampaignStats = (campaignId: string) => {
@@ -380,14 +439,111 @@ export default function CampaignsPage() {
             </Button>
             <Button
               className="w-full gap-2"
-              onClick={handleSendManualEmails}
-              disabled={!manualEmails.trim() || sendToManualEmails.isPending}
+              onClick={() => {
+                const campaign = campaigns.find(c => c.id === selectedCampaignForManual);
+                if (campaign) {
+                  const emails = manualEmails
+                    .split(/[,\n\s]+/)
+                    .map(e => e.trim())
+                    .filter(e => e && e.includes('@'));
+                  if (emails.length > 0) {
+                    handleOpenPreview(campaign, 'manual', emails);
+                    setIsManualEmailDialogOpen(false);
+                  } else {
+                    toast.error('Please enter valid email addresses');
+                  }
+                }
+              }}
+              disabled={!manualEmails.trim()}
             >
-              {sendToManualEmails.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              <Send className="w-4 h-4" />
-              Send Emails
+              <Eye className="w-4 h-4" />
+              Preview Email
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" />
+              Email Preview
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewCampaign && (
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {/* Recipients */}
+              <div className="bg-secondary/30 rounded-lg p-4">
+                <Label className="text-xs text-muted-foreground">Recipients</Label>
+                <div className="mt-1">
+                  {previewMode === 'manual' ? (
+                    <div className="flex flex-wrap gap-1">
+                      {previewEmails.slice(0, 5).map((email, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {email}
+                        </Badge>
+                      ))}
+                      {previewEmails.length > 5 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{previewEmails.length - 5} more
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      All customers matching campaign criteria ({previewCampaign.type === 'inactive_customer' 
+                        ? `inactive for ${previewCampaign.days_inactive}+ days` 
+                        : previewCampaign.type})
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Email Preview */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-secondary/50 px-4 py-3 border-b">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Subject:</span>
+                    <span className="font-medium">{previewCampaign.subject}</span>
+                  </div>
+                </div>
+                <ScrollArea className="h-[300px]">
+                  <div className="p-6">
+                    <div 
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                      dangerouslySetInnerHTML={{ __html: formatEmailBody(previewCampaign.body) }}
+                    />
+                  </div>
+                </ScrollArea>
+              </div>
+
+              <Separator />
+
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setIsPreviewDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 gap-2"
+                  onClick={handleConfirmSend}
+                  disabled={runCampaign.isPending || sendToManualEmails.isPending}
+                >
+                  {(runCampaign.isPending || sendToManualEmails.isPending) && (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  )}
+                  <Send className="w-4 h-4" />
+                  Send {previewMode === 'manual' ? `to ${previewEmails.length} recipients` : 'Campaign'}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -477,15 +633,11 @@ export default function CampaignsPage() {
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() => runCampaign.mutate(campaign.id)}
+                      onClick={() => handleOpenPreview(campaign, 'auto')}
                       disabled={runCampaign.isPending}
                     >
-                      {runCampaign.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
-                      Run Now
+                      <Eye className="w-4 h-4" />
+                      Preview & Run
                     </Button>
                     <Button
                       variant="ghost"

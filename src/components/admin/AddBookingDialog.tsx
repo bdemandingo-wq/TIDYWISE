@@ -5,10 +5,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar as CalendarIcon, Lock, Sparkles } from 'lucide-react';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { BookingFormProvider } from './booking-form/BookingFormContext';
 import { BookingStepper } from './booking-form/BookingStepper';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddBookingDialogProps {
   open: boolean;
@@ -25,6 +27,12 @@ export function AddBookingDialog({
   booking, 
   onDuplicate 
 }: AddBookingDialogProps) {
+  const { subscription, setShowSubscriptionDialog } = useAuth();
+  const isSubscribed = subscription?.subscribed ?? false;
+
+  // If editing existing booking, allow it. Only block new bookings for non-subscribers.
+  const shouldBlockNewBooking = !booking && !isSubscribed;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20 border-border/50 flex flex-col">
@@ -43,13 +51,35 @@ export function AddBookingDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto mt-4">
-          <BookingFormProvider defaultDate={defaultDate} booking={booking}>
-            <BookingStepper 
-              booking={booking} 
-              onClose={() => onOpenChange(false)}
-              onDuplicate={onDuplicate}
-            />
-          </BookingFormProvider>
+          {shouldBlockNewBooking ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="p-4 rounded-full bg-muted mb-4">
+                <Lock className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
+              <p className="text-muted-foreground mb-4 max-w-sm">
+                Creating new bookings requires an active subscription. Start your free 2-month trial to unlock this feature.
+              </p>
+              <Button 
+                onClick={() => {
+                  onOpenChange(false);
+                  setShowSubscriptionDialog(true);
+                }} 
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Start Free Trial
+              </Button>
+            </div>
+          ) : (
+            <BookingFormProvider defaultDate={defaultDate} booking={booking}>
+              <BookingStepper 
+                booking={booking} 
+                onClose={() => onOpenChange(false)}
+                onDuplicate={onDuplicate}
+              />
+            </BookingFormProvider>
+          )}
         </div>
       </DialogContent>
     </Dialog>
