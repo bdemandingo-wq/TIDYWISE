@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +21,8 @@ import {
   GripVertical, 
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Pencil
 } from 'lucide-react';
 
 interface ChecklistItem {
@@ -32,16 +33,27 @@ interface ChecklistItem {
   sort_order: number;
 }
 
+interface TemplateFormData {
+  id?: string;
+  name: string;
+  description: string;
+  service_id: string;
+  items: ChecklistItem[];
+}
+
+const emptyFormData: TemplateFormData = {
+  name: '',
+  description: '',
+  service_id: '',
+  items: []
+};
+
 export default function ChecklistsPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    service_id: '',
-    items: [] as ChecklistItem[]
-  });
+  const [formData, setFormData] = useState<TemplateFormData>(emptyFormData);
   const [newItem, setNewItem] = useState({ title: '', description: '', requires_photo: false });
 
   // Fetch templates with items
@@ -79,7 +91,7 @@ export default function ChecklistsPage() {
 
   // Create template
   const createTemplate = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: TemplateFormData) => {
       const { data: template, error } = await supabase
         .from('checklist_templates')
         .insert({
@@ -113,11 +125,61 @@ export default function ChecklistsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checklist-templates'] });
       toast.success('Checklist template created!');
-      setIsDialogOpen(false);
-      setFormData({ name: '', description: '', service_id: '', items: [] });
+      closeDialog();
     },
     onError: (error: Error) => {
       toast.error(`Failed to create template: ${error.message}`);
+    }
+  });
+
+  // Update template
+  const updateTemplate = useMutation({
+    mutationFn: async (data: TemplateFormData) => {
+      if (!data.id) throw new Error('Template ID required');
+
+      // Update template
+      const { error } = await supabase
+        .from('checklist_templates')
+        .update({
+          name: data.name,
+          description: data.description,
+          service_id: data.service_id || null
+        })
+        .eq('id', data.id);
+      
+      if (error) throw error;
+
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('checklist_items')
+        .delete()
+        .eq('template_id', data.id);
+      
+      if (deleteError) throw deleteError;
+
+      // Insert new items
+      if (data.items.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('checklist_items')
+          .insert(
+            data.items.map((item, index) => ({
+              template_id: data.id,
+              title: item.title,
+              description: item.description || null,
+              requires_photo: item.requires_photo,
+              sort_order: index
+            }))
+          );
+        if (itemsError) throw itemsError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checklist-templates'] });
+      toast.success('Checklist template updated!');
+      closeDialog();
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update template: ${error.message}`);
     }
   });
 
@@ -150,6 +212,39 @@ export default function ChecklistsPage() {
     }
   });
 
+  const openCreateDialog = () => {
+    setEditingTemplate(null);
+    setFormData(emptyFormData);
+    setNewItem({ title: '', description: '', requires_photo: false });
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (template: any) => {
+    setEditingTemplate(template.id);
+    setFormData({
+      id: template.id,
+      name: template.name,
+      description: template.description || '',
+      service_id: template.service_id || '',
+      items: template.items.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || '',
+        requires_photo: item.requires_photo,
+        sort_order: item.sort_order
+      }))
+    });
+    setNewItem({ title: '', description: '', requires_photo: false });
+    setIsDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingTemplate(null);
+    setFormData(emptyFormData);
+    setNewItem({ title: '', description: '', requires_photo: false });
+  };
+
   const addItemToForm = () => {
     if (!newItem.title.trim()) return;
     setFormData({
@@ -166,6 +261,16 @@ export default function ChecklistsPage() {
     });
   };
 
+  const handleSubmit = () => {
+    if (editingTemplate) {
+      updateTemplate.mutate(formData);
+    } else {
+      createTemplate.mutate(formData);
+    }
+  };
+
+  const isSubmitting = createTemplate.isPending || updateTemplate.isPending;
+
   if (isLoading) {
     return (
       <AdminLayout title="Cleaning Checklists" subtitle="Loading...">
@@ -181,94 +286,66 @@ export default function ChecklistsPage() {
       title="Cleaning Checklists"
       subtitle="Digital checklists for quality assurance"
       actions={
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Create Checklist
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create Checklist Template</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Template Name</Label>
-                <Input
-                  placeholder="Standard Home Cleaning Checklist"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Description (optional)</Label>
-                <Textarea
-                  placeholder="Describe what this checklist covers..."
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Assign to Service (optional)</Label>
-                <Select
-                  value={formData.service_id || "all"}
-                  onValueChange={value => setFormData({ ...formData, service_id: value === "all" ? "" : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All services" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All services</SelectItem>
-                    {services.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <Button className="gap-2" onClick={openCreateDialog}>
+          <Plus className="w-4 h-4" />
+          Create Checklist
+        </Button>
+      }
+    >
+      {/* Dialog for Create/Edit */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTemplate ? 'Edit Checklist Template' : 'Create Checklist Template'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Template Name</Label>
+              <Input
+                placeholder="Standard Home Cleaning Checklist"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea
+                placeholder="Describe what this checklist covers..."
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Assign to Service (optional)</Label>
+              <Select
+                value={formData.service_id || "all"}
+                onValueChange={value => setFormData({ ...formData, service_id: value === "all" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All services</SelectItem>
+                  {services.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Checklist Items */}
-              <div className="border-t pt-4">
-                <Label className="mb-3 block">Checklist Items</Label>
-                
-                {/* Add new item form */}
-                <div className="bg-muted/50 p-4 rounded-lg mb-4 space-y-3">
-                  <Input
-                    placeholder="Item title (e.g., 'Clean kitchen counters')"
-                    value={newItem.title}
-                    onChange={e => setNewItem({ ...newItem, title: e.target.value })}
-                  />
-                  <Input
-                    placeholder="Optional description"
-                    value={newItem.description}
-                    onChange={e => setNewItem({ ...newItem, description: e.target.value })}
-                  />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="requires-photo"
-                        checked={newItem.requires_photo}
-                        onCheckedChange={(checked) => 
-                          setNewItem({ ...newItem, requires_photo: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor="requires-photo" className="flex items-center gap-2 cursor-pointer">
-                        <Camera className="w-4 h-4" />
-                        Photo suggested (optional)
-                      </Label>
-                    </div>
-                    <Button type="button" size="sm" onClick={addItemToForm} disabled={!newItem.title.trim()}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Item
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Added items list */}
-                <div className="space-y-2">
+            {/* Checklist Items */}
+            <div className="border-t pt-4">
+              <Label className="mb-3 block">Checklist Items ({formData.items.length})</Label>
+              
+              {/* Added items list */}
+              {formData.items.length > 0 && (
+                <div className="space-y-2 mb-4">
                   {formData.items.map((item, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                       <GripVertical className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground w-6">{index + 1}.</span>
                       <div className="flex-1">
                         <p className="font-medium">{item.title}</p>
                         {item.description && (
@@ -292,21 +369,58 @@ export default function ChecklistsPage() {
                     </div>
                   ))}
                 </div>
+              )}
+              
+              {/* Add new item form */}
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                <Input
+                  placeholder="Item title (e.g., 'Clean kitchen counters')"
+                  value={newItem.title}
+                  onChange={e => setNewItem({ ...newItem, title: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItemToForm())}
+                />
+                <Input
+                  placeholder="Optional description"
+                  value={newItem.description}
+                  onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+                />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="requires-photo"
+                      checked={newItem.requires_photo}
+                      onCheckedChange={(checked) => 
+                        setNewItem({ ...newItem, requires_photo: checked as boolean })
+                      }
+                    />
+                    <Label htmlFor="requires-photo" className="flex items-center gap-2 cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      Photo suggested (optional)
+                    </Label>
+                  </div>
+                  <Button type="button" size="sm" onClick={addItemToForm} disabled={!newItem.title.trim()}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
               </div>
-
-              <Button
-                className="w-full"
-                onClick={() => createTemplate.mutate(formData)}
-                disabled={!formData.name || formData.items.length === 0 || createTemplate.isPending}
-              >
-                {createTemplate.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                Create Checklist ({formData.items.length} items)
-              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      }
-    >
+
+            <Button
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={!formData.name || formData.items.length === 0 || isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editingTemplate 
+                ? `Update Checklist (${formData.items.length} items)` 
+                : `Create Checklist (${formData.items.length} items)`
+              }
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Card className="p-4">
@@ -353,7 +467,7 @@ export default function ChecklistsPage() {
             <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold mb-2">No checklists yet</h3>
             <p className="text-muted-foreground mb-4">Create checklist templates for your cleaning staff</p>
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+            <Button onClick={openCreateDialog} className="gap-2">
               <Plus className="w-4 h-4" />
               Create Checklist
             </Button>
@@ -385,8 +499,8 @@ export default function ChecklistsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mr-2">
                         <Label htmlFor={`active-${template.id}`} className="text-sm">
                           Active
                         </Label>
@@ -401,7 +515,18 @@ export default function ChecklistsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteTemplate.mutate(template.id)}
+                        onClick={() => openEditDialog(template)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (confirm('Delete this checklist template?')) {
+                            deleteTemplate.mutate(template.id);
+                          }
+                        }}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
