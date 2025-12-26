@@ -162,7 +162,7 @@ export function PricingImport() {
                     <div className="flex items-center justify-center gap-4">
                       <Input
                         type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.ods,.ppt,.pptx,.xml,.json"
                         onChange={handleFileSelect}
                         className="hidden"
                         id="pricing-file"

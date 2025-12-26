@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { PricingImport } from "@/components/landing/PricingImport";
+import { PrivacyPolicyDialog } from "@/components/legal/PrivacyPolicyDialog";
+import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 
 const cleaningConfig = {
   jobLabel: "Cleans",
@@ -117,7 +119,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="TidyWise - The Perfect Platform to Grow Your Cleaning Business"
+        title="TIDYWISE - The Perfect Platform to Grow Your Cleaning Business"
         description="Complete business management platform for cleaning companies. Smart scheduling, team management, payments, and analytics built specifically for house cleaners."
         canonicalPath="/"
       />
@@ -127,12 +129,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <img 
-                src="/images/tidywise-logo.png" 
-                alt="TidyWise" 
-                className="h-8 w-auto"
-              />
-              <span className="font-bold text-xl text-foreground">TidyWise</span>
+              <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </div>
 
             {/* Desktop Navigation */}
@@ -269,7 +266,7 @@ export default function LandingPage() {
               Everything you need to run your cleaning business
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              We're not just booking software. TidyWise is the complete platform with everything you need to grow your cleaning company.
+              We're not just booking software. TIDYWISE is the complete platform with everything you need to grow your cleaning company.
             </p>
           </div>
 
@@ -370,7 +367,7 @@ export default function LandingPage() {
               Trusted by cleaning businesses everywhere
             </h2>
             <p className="text-lg text-muted-foreground">
-              Join thousands of cleaning companies already using TidyWise
+              Join thousands of cleaning companies already using TIDYWISE
             </p>
           </div>
 
@@ -406,7 +403,7 @@ export default function LandingPage() {
             Ready to grow your cleaning business?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Join thousands of cleaning companies that trust TidyWise to manage their operations.
+            Join thousands of cleaning companies that trust TIDYWISE to manage their operations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
@@ -435,12 +432,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img 
-                  src="/images/tidywise-logo.png" 
-                  alt="TidyWise" 
-                  className="h-8 w-auto"
-                />
-                <span className="font-bold text-xl text-foreground">TidyWise</span>
+                <span className="font-bold text-xl text-foreground">TIDYWISE</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 The complete platform to grow your cleaning business.
@@ -451,20 +443,31 @@ export default function LandingPage() {
               <ul className="space-y-2">
                 <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a></li>
                 <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground">Testimonials</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-foreground">Pricing</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-4">Company</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-foreground">About</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-foreground">Contact</a></li>
-                <li><a href="#" className="text-sm text-muted-foreground hover:text-foreground">Privacy</a></li>
+                <li>
+                  <a href="mailto:support@tidywisecleaning.com" className="text-sm text-muted-foreground hover:text-foreground">
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <PrivacyPolicyDialog>
+                    <button className="text-sm text-muted-foreground hover:text-foreground">Privacy</button>
+                  </PrivacyPolicyDialog>
+                </li>
+                <li>
+                  <TermsOfServiceDialog>
+                    <button className="text-sm text-muted-foreground hover:text-foreground">Terms</button>
+                  </TermsOfServiceDialog>
+                </li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border mt-12 pt-8 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} TidyWise. All rights reserved.
+            © {new Date().getFullYear()} TIDYWISE. All rights reserved.
           </div>
         </div>
       </footer>
