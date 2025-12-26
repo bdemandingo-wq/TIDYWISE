@@ -9,15 +9,19 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Mail, Send, Clock, CheckCircle, Users, Plus, Play, Loader2, MailOpen } from 'lucide-react';
+import { Mail, Send, Clock, CheckCircle, Users, Plus, Play, Loader2, MailOpen, Trash2, Upload, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isManualEmailDialogOpen, setIsManualEmailDialogOpen] = useState(false);
+  const [manualEmails, setManualEmails] = useState("");
+  const [selectedCampaignForManual, setSelectedCampaignForManual] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: 'inactive_customer',
@@ -69,6 +73,24 @@ export default function CampaignsPage() {
     }
   });
 
+  // Delete campaign
+  const deleteCampaign = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('automated_campaigns')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Campaign deleted!');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete campaign: ${error.message}`);
+    }
+  });
+
   // Toggle campaign active status
   const toggleCampaign = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
@@ -100,6 +122,68 @@ export default function CampaignsPage() {
       toast.error(`Failed to run campaign: ${error.message}`);
     }
   });
+
+  // Send to manual emails
+  const sendToManualEmails = useMutation({
+    mutationFn: async ({ campaignId, emails }: { campaignId: string; emails: string[] }) => {
+      const { data, error } = await supabase.functions.invoke('send-followup-campaign', {
+        body: { campaignId, customEmails: emails }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign-emails'] });
+      toast.success(`Emails sent to ${data.emailsSent} recipients!`);
+      setIsManualEmailDialogOpen(false);
+      setManualEmails("");
+      setSelectedCampaignForManual(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to send emails: ${error.message}`);
+    }
+  });
+
+  const handleSendManualEmails = () => {
+    if (!selectedCampaignForManual) return;
+    
+    // Parse emails (comma, newline, or space separated)
+    const emails = manualEmails
+      .split(/[,\n\s]+/)
+      .map(e => e.trim())
+      .filter(e => e && e.includes('@'));
+    
+    if (emails.length === 0) {
+      toast.error('Please enter valid email addresses');
+      return;
+    }
+    
+    sendToManualEmails.mutate({ campaignId: selectedCampaignForManual, emails });
+  };
+
+  const handleImportList = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.txt';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result as string;
+          // Parse CSV or text file for emails
+          const emails = text
+            .split(/[,\n\r]+/)
+            .map(line => line.trim())
+            .filter(e => e && e.includes('@'));
+          setManualEmails(emails.join('\n'));
+          toast.success(`Imported ${emails.length} email addresses`);
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
 
   const getCampaignStats = (campaignId: string) => {
     const emails = emailStats.filter(e => e.campaign_id === campaignId);
@@ -271,6 +355,42 @@ export default function CampaignsPage() {
         </Card>
       </div>
 
+      {/* Manual Email Dialog */}
+      <Dialog open={isManualEmailDialogOpen} onOpenChange={setIsManualEmailDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send to Custom Email List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Email Addresses</Label>
+              <Textarea
+                rows={6}
+                placeholder="Enter emails (one per line, or comma-separated)&#10;example@email.com&#10;another@email.com"
+                value={manualEmails}
+                onChange={e => setManualEmails(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Separate emails with commas, spaces, or new lines
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleImportList} className="w-full gap-2">
+              <Upload className="w-4 h-4" />
+              Import from CSV/TXT File
+            </Button>
+            <Button
+              className="w-full gap-2"
+              onClick={handleSendManualEmails}
+              disabled={!manualEmails.trim() || sendToManualEmails.isPending}
+            >
+              {sendToManualEmails.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Send className="w-4 h-4" />
+              Send Emails
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Campaigns List */}
       <div className="space-y-4">
         {campaigns.length === 0 ? (
@@ -345,6 +465,18 @@ export default function CampaignsPage() {
                       variant="outline"
                       size="sm"
                       className="gap-2"
+                      onClick={() => {
+                        setSelectedCampaignForManual(campaign.id);
+                        setIsManualEmailDialogOpen(true);
+                      }}
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Manual
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
                       onClick={() => runCampaign.mutate(campaign.id)}
                       disabled={runCampaign.isPending}
                     >
@@ -354,6 +486,15 @@ export default function CampaignsPage() {
                         <Play className="w-4 h-4" />
                       )}
                       Run Now
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => deleteCampaign.mutate(campaign.id)}
+                      disabled={deleteCampaign.isPending}
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>

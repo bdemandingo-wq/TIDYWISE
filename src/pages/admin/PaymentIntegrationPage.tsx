@@ -12,18 +12,21 @@ import {
   Eye,
   EyeOff,
   Save,
-  AlertCircle
+  AlertCircle,
+  Loader2,
+  TestTube
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export default function PaymentIntegrationPage() {
   const [publishableKey, setPublishableKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const handleSaveKeys = async () => {
+  const handleTestConnection = async () => {
     if (!publishableKey.startsWith("pk_")) {
       toast.error("Publishable key should start with 'pk_'");
       return;
@@ -33,17 +36,43 @@ export default function PaymentIntegrationPage() {
       return;
     }
 
+    setIsTesting(true);
+    try {
+      // Test the publishable key by loading Stripe
+      const { loadStripe } = await import("@stripe/stripe-js");
+      const stripe = await loadStripe(publishableKey);
+      
+      if (stripe) {
+        setIsConnected(true);
+        toast.success("Stripe connection successful! Keys are valid.");
+      } else {
+        throw new Error("Failed to initialize Stripe");
+      }
+    } catch (error: any) {
+      setIsConnected(false);
+      toast.error("Connection failed. Please verify your keys are correct.");
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSaveKeys = async () => {
+    if (!isConnected) {
+      toast.error("Please test your connection first");
+      return;
+    }
+
     setIsSaving(true);
     try {
       // Store publishable key in localStorage for frontend use
       localStorage.setItem("stripe_publishable_key", publishableKey);
       
       // Note: Secret key should be stored securely on the backend
-      // For now, we'll show a success message and guide the user
       toast.success("Publishable key saved! For security, please contact support to configure your secret key on the server.");
       
       setPublishableKey("");
       setSecretKey("");
+      setIsConnected(false);
     } catch (error) {
       toast.error("Failed to save keys. Please try again.");
     } finally {
@@ -83,9 +112,9 @@ export default function PaymentIntegrationPage() {
                     variant="outline" 
                     size="sm" 
                     className="mt-3"
-                    onClick={() => window.open("https://dashboard.stripe.com/register", "_blank")}
+                    onClick={() => window.open("https://dashboard.stripe.com/login", "_blank")}
                   >
-                    Create Stripe Account <ExternalLink className="ml-2 h-3 w-3" />
+                    Log in to Stripe <ExternalLink className="ml-2 h-3 w-3" />
                   </Button>
                 </div>
               </div>
@@ -211,14 +240,39 @@ export default function PaymentIntegrationPage() {
               </div>
             </div>
 
-            <Button 
-              onClick={handleSaveKeys} 
-              disabled={!publishableKey || !secretKey || isSaving}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isSaving ? "Saving..." : "Save API Keys"}
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleTestConnection} 
+                disabled={!publishableKey || !secretKey || isTesting}
+                variant="outline"
+                className="flex-1"
+              >
+                {isTesting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <TestTube className="h-4 w-4 mr-2" />
+                )}
+                {isTesting ? "Testing..." : "Test Connection"}
+              </Button>
+              <Button 
+                onClick={handleSaveKeys} 
+                disabled={!isConnected || isSaving}
+                className="flex-1"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save API Keys"}
+              </Button>
+            </div>
+            
+            {isConnected && (
+              <div className="bg-success/10 border border-success/20 rounded-lg p-4 flex gap-3">
+                <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">Connection Verified</p>
+                  <p className="text-muted-foreground">Your Stripe keys are valid. You can now save them.</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

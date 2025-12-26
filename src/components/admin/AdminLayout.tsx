@@ -1,6 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
+import { SubscriptionDialog } from './SubscriptionDialog';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 interface AdminLayoutProps {
@@ -12,6 +14,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -26,6 +29,12 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
           {children}
         </main>
       </div>
+      
+      <SubscriptionDialog 
+        open={showSubscriptionDialog}
+        onOpenChange={setShowSubscriptionDialog}
+        onSubscriptionActive={checkSubscription}
+      />
     </div>
   );
 }
