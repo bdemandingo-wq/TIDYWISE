@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "TidyWise <onboarding@resend.dev>",
-        to: ["support@tidywisecleaning.com"],
+        to: ["agencyfootprintllc@gmail.com"],
         subject: subject,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
