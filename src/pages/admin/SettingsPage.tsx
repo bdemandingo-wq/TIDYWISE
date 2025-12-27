@@ -200,6 +200,11 @@ export default function SettingsPage() {
         resend_api_key: settings.resend_api_key,
       } as any;
 
+      if (!organization?.id) {
+        throw new Error('No organization found');
+      }
+
+      // Upsert: try update first, then insert if no row exists
       if (settings.id) {
         const { error } = await supabase
           .from('business_settings')
@@ -208,12 +213,13 @@ export default function SettingsPage() {
 
         if (error) throw error;
       } else {
-        if (!organization?.id) {
-          throw new Error('No organization found');
-        }
+        // Use upsert with unique organization_id constraint
         const { data, error } = await supabase
           .from('business_settings')
-          .insert({ ...settingsData, organization_id: organization.id })
+          .upsert(
+            { ...settingsData, organization_id: organization.id },
+            { onConflict: 'organization_id', ignoreDuplicates: false }
+          )
           .select()
           .single();
 
