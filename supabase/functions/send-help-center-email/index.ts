@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,7 @@ interface HelpCenterEmailRequest {
   name: string;
   email: string;
   message: string;
+  organization_id: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -19,7 +21,34 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { type, name, email, message }: HelpCenterEmailRequest = await req.json();
+    const { type, name, email, message, organization_id }: HelpCenterEmailRequest = await req.json();
+
+    if (!organization_id) {
+      throw new Error("Organization ID is required");
+    }
+
+    // Create Supabase client to fetch org's Resend API key
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch the organization's Resend API key and email from business_settings
+    const { data: settings, error: settingsError } = await supabase
+      .from("business_settings")
+      .select("resend_api_key, company_email")
+      .eq("organization_id", organization_id)
+      .single();
+
+    if (settingsError || !settings) {
+      console.error("Error fetching business settings:", settingsError);
+      throw new Error("Could not fetch organization settings");
+    }
+
+    if (!settings.resend_api_key) {
+      throw new Error("Resend API key not configured. Please add your Resend API key in Settings.");
+    }
+
+    const recipientEmail = settings.company_email || email;
 
     const isIdea = type === 'idea';
     const subject = isIdea 
@@ -30,17 +59,15 @@ const handler = async (req: Request): Promise<Response> => {
       ? 'New Feature Idea Submission' 
       : 'New Support Request';
 
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Authorization": `Bearer ${settings.resend_api_key}`,
       },
       body: JSON.stringify({
-        from: "TidyWise <onboarding@resend.dev>",
-        to: ["agencyfootprintllc@gmail.com"],
+        from: "Support <onboarding@resend.dev>",
+        to: [recipientEmail],
         subject: subject,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -58,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-            <p style="color: #6b7280; font-size: 12px;">This email was sent from the TidyWise Help Center.</p>
+            <p style="color: #6b7280; font-size: 12px;">This email was sent from your Help Center.</p>
           </div>
         `,
       }),

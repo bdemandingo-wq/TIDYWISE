@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, HelpCircle, Mail, Lightbulb, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
+import { useOrganization } from '@/contexts/OrganizationContext';
 interface HelpVideo {
   id: string;
   title: string;
@@ -19,6 +19,7 @@ interface HelpVideo {
 }
 
 export default function HelpPage() {
+  const { organization } = useOrganization();
   const [videos, setVideos] = useState<HelpVideo[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -70,6 +71,7 @@ export default function HelpPage() {
           name: contactName.trim(),
           email: contactEmail.trim(),
           message: contactMessage.trim(),
+          organization_id: organization?.id,
         },
       });
       
@@ -102,6 +104,7 @@ export default function HelpPage() {
           name: ideaName.trim(),
           email: ideaEmail.trim(),
           message: ideaMessage.trim(),
+          organization_id: organization?.id,
         },
       });
       

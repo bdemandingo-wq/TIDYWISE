@@ -55,6 +55,8 @@ interface BusinessSettings {
   reminder_email_body: string;
   // Reviews
   google_review_url: string;
+  // Email integration
+  resend_api_key: string;
 }
 
 const defaultSettings: BusinessSettings = {
@@ -85,6 +87,7 @@ const defaultSettings: BusinessSettings = {
   reminder_email_subject: 'Reminder: Your Cleaning is Tomorrow - {{booking_number}}',
   reminder_email_body: 'Hi {{customer_name}},\n\nThis is a friendly reminder that your cleaning is scheduled for tomorrow.\n\nBooking Details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n\nIf you need to reschedule or have any questions, please contact us.\n\nSee you soon!\n{{company_name}}',
   google_review_url: '',
+  resend_api_key: '',
 };
 
 export default function SettingsPage() {
@@ -149,6 +152,7 @@ export default function SettingsPage() {
           reminder_email_subject: typedData.reminder_email_subject || defaultSettings.reminder_email_subject,
           reminder_email_body: typedData.reminder_email_body || defaultSettings.reminder_email_body,
           google_review_url: typedData.google_review_url || '',
+          resend_api_key: typedData.resend_api_key || '',
         });
       }
     } catch (error) {
@@ -190,6 +194,7 @@ export default function SettingsPage() {
         reminder_email_subject: settings.reminder_email_subject,
         reminder_email_body: settings.reminder_email_body,
         google_review_url: settings.google_review_url,
+        resend_api_key: settings.resend_api_key,
       } as any;
 
       if (settings.id) {
@@ -610,6 +615,23 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Resend API Key */}
+              <div className="space-y-2">
+                <Label htmlFor="resendApiKey" className="text-base font-medium">Resend API Key</Label>
+                <Input
+                  id="resendApiKey"
+                  type="password"
+                  value={settings.resend_api_key}
+                  onChange={(e) => updateField('resend_api_key', e.target.value)}
+                  placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="h-12 text-base font-mono"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Get your API key from <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline">resend.com/api-keys</a>. 
+                  This is required to send emails from your account.
+                </p>
               </div>
 
               {/* Email Input */}

@@ -394,6 +394,7 @@ export type Database = {
           reminder_email_body: string | null
           reminder_email_subject: string | null
           require_deposit: boolean | null
+          resend_api_key: string | null
           timezone: string | null
           updated_at: string
         }
@@ -428,6 +429,7 @@ export type Database = {
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
           require_deposit?: boolean | null
+          resend_api_key?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -462,6 +464,7 @@ export type Database = {
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
           require_deposit?: boolean | null
+          resend_api_key?: string | null
           timezone?: string | null
           updated_at?: string
         }
