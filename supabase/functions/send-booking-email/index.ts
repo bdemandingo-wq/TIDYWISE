@@ -258,8 +258,11 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    // Send to customer
-    const customerEmailResponse = await fetch("https://api.resend.com/emails", {
+    // Default fallback sender for unverified domains
+    const fallbackSender = "onboarding@resend.dev";
+    
+    // Try sending with custom domain first, fallback to default if domain not verified
+    let customerEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -278,6 +281,32 @@ const handler = async (req: Request): Promise<Response> => {
       customerData = await customerEmailResponse.json();
     } catch (_e) {
       customerData = null;
+    }
+
+    // If domain not verified, retry with fallback sender
+    if (!customerEmailResponse.ok && customerData?.message?.includes("not verified")) {
+      console.log("Custom domain not verified, using fallback sender:", fallbackSender);
+      
+      customerEmailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: `${companyName} <${fallbackSender}>`,
+          to: [customerEmail],
+          reply_to: senderEmail,
+          subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
+          html: emailHtml,
+        }),
+      });
+
+      try {
+        customerData = await customerEmailResponse.json();
+      } catch (_e) {
+        customerData = null;
+      }
     }
 
     if (!customerEmailResponse.ok) {
@@ -302,6 +331,8 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     try {
+      // Use fallback for admin notification too if custom domain not verified
+      const adminFrom = senderEmail.includes("@resend.dev") ? senderEmail : fallbackSender;
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -309,7 +340,7 @@ const handler = async (req: Request): Promise<Response> => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: `${companyName} Booking System <${senderEmail}>`,
+          from: `${companyName} Booking System <${adminFrom}>`,
           to: [senderEmail],
           subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
           html: adminNotificationHtml,
