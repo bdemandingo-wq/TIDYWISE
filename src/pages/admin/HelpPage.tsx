@@ -23,17 +23,14 @@ export default function HelpPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (orgId) {
-      fetchVideos();
-    }
-  }, [orgId]);
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
     try {
       const { data, error } = await supabase
         .from('help_videos')
         .select('*')
-        .eq('organization_id', orgId)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
