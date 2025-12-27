@@ -87,7 +87,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!settings.company_email) {
       throw new Error(
-        "Company email not configured. Please set your sender email in Settings → Emails."
+        "Company email not configured. Please set your business email in Settings → Emails to receive inquiries."
       );
     }
 
@@ -100,9 +100,11 @@ const handler = async (req: Request): Promise<Response> => {
       ? "New Feature Idea Submission"
       : "New Support Request";
 
-    const fromName = settings.company_name?.trim() || "Support";
-    const primaryFrom = `${fromName} <${settings.company_email}>`;
-    const fallbackFrom = `${fromName} <onboarding@resend.dev>`;
+    const fromName = settings.company_name?.trim() || "Help Center";
+    // Always use onboarding@resend.dev as sender (guaranteed to work)
+    // Send TO company_email so the business receives inquiries at their email
+    const senderFrom = `${fromName} <onboarding@resend.dev>`;
+    const recipientTo = settings.company_email;
 
     const sendResendEmail = async (from: string, toEmail: string) => {
       let lastRes: Response | null = null;
@@ -171,50 +173,30 @@ const handler = async (req: Request): Promise<Response> => {
       return { res: lastRes!, json: lastJson };
     };
 
-    const extractTestingRecipient = (text: string) => {
-      const match = text.match(
-        /\(([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\)/i
-      );
-      return match?.[1] ?? null;
-    };
+    // Send email to the company's business email
+    console.log("Sending Help Center email to:", recipientTo, "from:", senderFrom);
+    
+    let { res, json } = await sendResendEmail(senderFrom, recipientTo);
 
-    let { res, json } = await sendResendEmail(primaryFrom, settings.company_email);
-
-    // Helper to check error type
-    const getErrorType = (message: string | undefined): "testing" | "domain" | "other" => {
-      if (!message) return "other";
-      const lower = message.toLowerCase();
-      if (lower.includes("only send testing emails")) return "testing";
-      if (lower.includes("domain is not verified")) return "domain";
-      return "other";
-    };
-
-    // Handle Resend errors with appropriate fallbacks
+    // Handle Resend testing mode restriction
     if (!res.ok) {
       const messageText = (json as any)?.message;
-      const errorType = getErrorType(messageText);
-
-      if (errorType === "testing") {
-        // In testing mode, Resend only allows sending TO the account owner's email
-        const allowedTo = extractTestingRecipient(messageText);
-
+      const lower = messageText?.toLowerCase() || "";
+      
+      if (lower.includes("only send testing emails")) {
+        // Extract allowed recipient from error message
+        const match = messageText.match(/\(([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\)/i);
+        const allowedTo = match?.[1];
+        
         if (allowedTo) {
-          console.warn(
-            "Resend testing restriction detected. Redirecting to:",
-            allowedTo,
-            "Original recipient was:",
-            settings.company_email
-          );
-
-          // Use fallback sender AND the allowed recipient
-          ({ res, json } = await sendResendEmail(fallbackFrom, allowedTo));
-
+          console.warn("Resend testing mode. Redirecting to allowed recipient:", allowedTo);
+          ({ res, json } = await sendResendEmail(senderFrom, allowedTo));
+          
           if (res.ok) {
             return new Response(
               JSON.stringify({
                 ...json,
-                warning:
-                  `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain at resend.com/domains to send to ${settings.company_email}.`,
+                warning: `Resend is in testing mode. Email sent to ${allowedTo} instead of ${recipientTo}. Verify your domain at resend.com/domains to send to any address.`,
               }),
               {
                 status: 200,
@@ -222,65 +204,14 @@ const handler = async (req: Request): Promise<Response> => {
               }
             );
           }
-
-          // If it still failed, log and throw
-          console.error("Resend API error after testing fallback:", json);
-          throw new Error(
-            `Resend is in testing mode. Email was attempted to ${allowedTo} but failed. Please verify your domain at resend.com/domains.`
-          );
-        }
-      } else if (errorType === "domain") {
-        // Domain not verified - try with fallback sender
-        console.warn(
-          "Resend domain not verified for sender:",
-          primaryFrom,
-          "Retrying with fallback sender:",
-          fallbackFrom
-        );
-
-        ({ res, json } = await sendResendEmail(fallbackFrom, settings.company_email));
-
-        if (res.ok) {
-          return new Response(
-            JSON.stringify({
-              ...json,
-              warning:
-                "Sender domain not verified in Resend. Email was sent using a fallback sender. Verify your domain to remove this warning.",
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-
-        // If fallback also failed due to testing mode, handle that
-        const fallbackMessage = (json as any)?.message;
-        if (getErrorType(fallbackMessage) === "testing") {
-          const allowedTo = extractTestingRecipient(fallbackMessage);
-          if (allowedTo) {
-            ({ res, json } = await sendResendEmail(fallbackFrom, allowedTo));
-            if (res.ok) {
-              return new Response(
-                JSON.stringify({
-                  ...json,
-                  warning:
-                    `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain at resend.com/domains.`,
-                }),
-                {
-                  status: 200,
-                  headers: { "Content-Type": "application/json", ...corsHeaders },
-                }
-              );
-            }
-          }
         }
       }
-
+      
       console.error("Resend API error:", json);
       throw new Error((json as any)?.message || "Failed to send email");
     }
 
+    console.log("Email sent successfully to:", recipientTo);
     return new Response(JSON.stringify(json), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
