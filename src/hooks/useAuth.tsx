@@ -17,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   subscription: SubscriptionStatus | null;
-  checkSubscription: () => Promise<void>;
+  checkSubscription: (accessToken?: string) => Promise<void>;
   showSubscriptionDialog: boolean;
   setShowSubscriptionDialog: (show: boolean) => void;
 }
@@ -31,69 +31,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
 
-  const checkSubscription = async () => {
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setSubscription(null);
+    setShowSubscriptionDialog(false);
+  };
+
+  const checkSubscription = async (accessToken?: string) => {
     try {
-      // Get current session to ensure we have a valid token
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession?.access_token) {
-        console.log("No valid session for subscription check");
-        return;
-      }
-      
+      const token =
+        accessToken ??
+        (await supabase.auth.getSession()).data.session?.access_token;
+
+      if (!token) return;
+
       const { data, error } = await supabase.functions.invoke("check-subscription", {
         headers: {
-          Authorization: `Bearer ${currentSession.access_token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
+
       if (error) throw error;
+
       setSubscription(data);
-      
-      // If not subscribed, show dialog
-      if (!data?.subscribed) {
-        setShowSubscriptionDialog(true);
-      } else {
-        setShowSubscriptionDialog(false);
+      setShowSubscriptionDialog(!data?.subscribed);
+    } catch (error: any) {
+      const status = error?.context?.status;
+      const msg = String(error?.message ?? "");
+
+      // If the stored session is stale/invalid, clear it so the app can recover.
+      if (
+        status === 401 ||
+        msg.includes("Auth session missing") ||
+        msg.includes("session_not_found")
+      ) {
+        await signOut();
+        return;
       }
-    } catch (error) {
+
       console.error("Error checking subscription:", error);
     }
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let mounted = true;
+
+    // Listen for auth changes (sync only)
+    const {
+      data: { subscription: authSub },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Check subscription when session exists
-      if (session?.user) {
-        checkSubscription();
-      }
     });
 
-    // Listen for auth changes
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        // Check subscription on login
-        if (_event === 'SIGNED_IN' && session?.user) {
-          checkSubscription();
-        }
-      }
-    );
+    // Get initial session AFTER listener is set
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    return () => authSub.unsubscribe();
+    return () => {
+      mounted = false;
+      authSub.unsubscribe();
+    };
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setSubscription(null);
-    setShowSubscriptionDialog(false);
-  };
+  useEffect(() => {
+    if (!session?.access_token) {
+      setSubscription(null);
+      setShowSubscriptionDialog(false);
+      return;
+    }
+
+    const t = window.setTimeout(async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user) {
+        await signOut();
+        return;
+      }
+
+      await checkSubscription(session.access_token);
+    }, 0);
+
+    return () => window.clearTimeout(t);
+  }, [session?.access_token]);
 
   return (
     <AuthContext.Provider value={{ 
