@@ -151,14 +151,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     let { res, json } = await sendResendEmail(primaryFrom, settings.company_email);
 
-    // If Resend is in "testing" mode, it only allows sending to the account owner's email.
+    // Helper to check error type
+    const getErrorType = (message: string | undefined): "testing" | "domain" | "other" => {
+      if (!message) return "other";
+      const lower = message.toLowerCase();
+      if (lower.includes("only send testing emails")) return "testing";
+      if (lower.includes("domain is not verified")) return "domain";
+      return "other";
+    };
+
+    // Handle Resend errors with appropriate fallbacks
     if (!res.ok) {
       const messageText = (json as any)?.message;
-      const isTestingRestriction =
-        typeof messageText === "string" &&
-        messageText.toLowerCase().includes("only send testing emails");
+      const errorType = getErrorType(messageText);
 
-      if (isTestingRestriction) {
+      if (errorType === "testing") {
+        // In testing mode, Resend only allows sending TO the account owner's email
         const allowedTo = extractTestingRecipient(messageText);
 
         if (allowedTo) {
@@ -169,6 +177,7 @@ const handler = async (req: Request): Promise<Response> => {
             settings.company_email
           );
 
+          // Use fallback sender AND the allowed recipient
           ({ res, json } = await sendResendEmail(fallbackFrom, allowedTo));
 
           if (res.ok) {
@@ -176,7 +185,7 @@ const handler = async (req: Request): Promise<Response> => {
               JSON.stringify({
                 ...json,
                 warning:
-                  `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain in Resend to send to ${settings.company_email}.`,
+                  `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain at resend.com/domains to send to ${settings.company_email}.`,
               }),
               {
                 status: 200,
@@ -184,18 +193,15 @@ const handler = async (req: Request): Promise<Response> => {
               }
             );
           }
+
+          // If it still failed, log and throw
+          console.error("Resend API error after testing fallback:", json);
+          throw new Error(
+            `Resend is in testing mode. Email was attempted to ${allowedTo} but failed. Please verify your domain at resend.com/domains.`
+          );
         }
-      }
-    }
-
-    // If the domain for settings.company_email isn't verified in Resend, retry with Resend's test sender.
-    if (!res.ok) {
-      const messageText = (json as any)?.message;
-      const isDomainNotVerified =
-        typeof messageText === "string" &&
-        messageText.toLowerCase().includes("domain is not verified");
-
-      if (isDomainNotVerified) {
+      } else if (errorType === "domain") {
+        // Domain not verified - try with fallback sender
         console.warn(
           "Resend domain not verified for sender:",
           primaryFrom,
@@ -217,6 +223,28 @@ const handler = async (req: Request): Promise<Response> => {
               headers: { "Content-Type": "application/json", ...corsHeaders },
             }
           );
+        }
+
+        // If fallback also failed due to testing mode, handle that
+        const fallbackMessage = (json as any)?.message;
+        if (getErrorType(fallbackMessage) === "testing") {
+          const allowedTo = extractTestingRecipient(fallbackMessage);
+          if (allowedTo) {
+            ({ res, json } = await sendResendEmail(fallbackFrom, allowedTo));
+            if (res.ok) {
+              return new Response(
+                JSON.stringify({
+                  ...json,
+                  warning:
+                    `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain at resend.com/domains.`,
+                }),
+                {
+                  status: 200,
+                  headers: { "Content-Type": "application/json", ...corsHeaders },
+                }
+              );
+            }
+          }
         }
       }
 
