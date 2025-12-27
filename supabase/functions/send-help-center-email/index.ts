@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
     const primaryFrom = `${fromName} <${settings.company_email}>`;
     const fallbackFrom = `${fromName} <onboarding@resend.dev>`;
 
-    const sendResendEmail = async (from: string) => {
+    const sendResendEmail = async (from: string, toEmail: string) => {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -113,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
         body: JSON.stringify({
           from,
-          to: [settings.company_email],
+          to: [toEmail],
           reply_to: email,
           subject,
           html: `
@@ -142,7 +142,51 @@ const handler = async (req: Request): Promise<Response> => {
       return { res, json };
     };
 
-    let { res, json } = await sendResendEmail(primaryFrom);
+    const extractTestingRecipient = (text: string) => {
+      const match = text.match(
+        /\(([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\)/i
+      );
+      return match?.[1] ?? null;
+    };
+
+    let { res, json } = await sendResendEmail(primaryFrom, settings.company_email);
+
+    // If Resend is in "testing" mode, it only allows sending to the account owner's email.
+    if (!res.ok) {
+      const messageText = (json as any)?.message;
+      const isTestingRestriction =
+        typeof messageText === "string" &&
+        messageText.toLowerCase().includes("only send testing emails");
+
+      if (isTestingRestriction) {
+        const allowedTo = extractTestingRecipient(messageText);
+
+        if (allowedTo) {
+          console.warn(
+            "Resend testing restriction detected. Redirecting to:",
+            allowedTo,
+            "Original recipient was:",
+            settings.company_email
+          );
+
+          ({ res, json } = await sendResendEmail(fallbackFrom, allowedTo));
+
+          if (res.ok) {
+            return new Response(
+              JSON.stringify({
+                ...json,
+                warning:
+                  `Resend is in testing mode; the email was sent to ${allowedTo}. Verify your domain in Resend to send to ${settings.company_email}.`,
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json", ...corsHeaders },
+              }
+            );
+          }
+        }
+      }
+    }
 
     // If the domain for settings.company_email isn't verified in Resend, retry with Resend's test sender.
     if (!res.ok) {
@@ -159,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
           fallbackFrom
         );
 
-        ({ res, json } = await sendResendEmail(fallbackFrom));
+        ({ res, json } = await sendResendEmail(fallbackFrom, settings.company_email));
 
         if (res.ok) {
           return new Response(
