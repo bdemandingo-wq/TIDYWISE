@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Play, Trash2, Loader2, Video, GripVertical, HelpCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Trash2, Loader2, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -25,14 +21,6 @@ export default function HelpPage() {
   
   const [videos, setVideos] = useState<HelpVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  
-  const [newVideo, setNewVideo] = useState({
-    title: '',
-    description: '',
-    loom_url: ''
-  });
 
   useEffect(() => {
     if (orgId) {
@@ -55,57 +43,6 @@ export default function HelpPage() {
       toast.error('Failed to load help videos');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const extractLoomEmbedUrl = (url: string) => {
-    // Handle various Loom URL formats
-    const shareMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
-    const embedMatch = url.match(/loom\.com\/embed\/([a-zA-Z0-9]+)/);
-    
-    if (shareMatch) {
-      return `https://www.loom.com/embed/${shareMatch[1]}`;
-    }
-    if (embedMatch) {
-      return url;
-    }
-    return url;
-  };
-
-  const handleAddVideo = async () => {
-    if (!newVideo.title.trim() || !newVideo.loom_url.trim()) {
-      toast.error('Please fill in title and Loom URL');
-      return;
-    }
-
-    if (!newVideo.loom_url.includes('loom.com')) {
-      toast.error('Please enter a valid Loom URL');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('help_videos')
-        .insert({
-          organization_id: orgId,
-          title: newVideo.title.trim(),
-          description: newVideo.description.trim() || null,
-          loom_url: extractLoomEmbedUrl(newVideo.loom_url.trim()),
-          sort_order: videos.length
-        });
-
-      if (error) throw error;
-
-      toast.success('Help video added');
-      setNewVideo({ title: '', description: '', loom_url: '' });
-      setIsDialogOpen(false);
-      fetchVideos();
-    } catch (error) {
-      console.error('Error adding video:', error);
-      toast.error('Failed to add video');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -144,70 +81,11 @@ export default function HelpPage() {
       subtitle="Upload Loom videos to help your team learn the platform"
     >
       <div className="space-y-6">
-        {/* Header with Add Button */}
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-muted-foreground">
-              Add tutorial videos to help staff members understand how to use the system.
-            </p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Video
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Help Video</DialogTitle>
-                <DialogDescription>
-                  Add a Loom video to help your team
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Video Title</Label>
-                  <Input
-                    id="title"
-                    value={newVideo.title}
-                    onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })}
-                    placeholder="e.g., How to Create a Booking"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (optional)</Label>
-                  <Textarea
-                    id="description"
-                    value={newVideo.description}
-                    onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })}
-                    placeholder="Brief description of what this video covers"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="loom_url">Loom Video URL</Label>
-                  <Input
-                    id="loom_url"
-                    value={newVideo.loom_url}
-                    onChange={(e) => setNewVideo({ ...newVideo, loom_url: e.target.value })}
-                    placeholder="https://www.loom.com/share/..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Paste the share link from Loom (e.g., https://www.loom.com/share/abc123)
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddVideo} disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Video'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+        {/* Header */}
+        <div>
+          <p className="text-muted-foreground">
+            Tutorial videos to help staff members understand how to use the system.
+          </p>
         </div>
 
         {/* Videos Grid */}
@@ -218,13 +96,9 @@ export default function HelpPage() {
                 <HelpCircle className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">No Help Videos Yet</h3>
-              <p className="text-muted-foreground max-w-md mb-4">
-                Upload Loom tutorial videos to help your team learn how to use the platform effectively.
+              <p className="text-muted-foreground max-w-md">
+                No tutorial videos have been added yet.
               </p>
-              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Your First Video
-              </Button>
             </CardContent>
           </Card>
         ) : (
