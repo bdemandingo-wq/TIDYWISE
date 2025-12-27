@@ -65,7 +65,7 @@ export default function HelpPage() {
     
     setContactLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-help-center-email', {
+      const { data, error } = await supabase.functions.invoke('send-help-center-email', {
         body: {
           type: 'contact',
           name: contactName.trim(),
@@ -74,16 +74,26 @@ export default function HelpPage() {
           organization_id: organization?.id,
         },
       });
-      
+
       if (error) throw error;
-      
-      toast.success('Message sent! We\'ll get back to you soon.');
+
+      const warning = (data as any)?.warning as string | undefined;
+      if (warning) {
+        toast.success('Message sent (testing mode)', { description: warning });
+      } else {
+        toast.success('Message sent! We\'ll get back to you soon.');
+      }
       setContactName('');
       setContactEmail('');
       setContactMessage('');
     } catch (error) {
+      const msg = String((error as any)?.message ?? '').toLowerCase();
       console.error('Error sending contact message:', error);
-      toast.error('Failed to send message. Please try again.');
+      if (msg.includes('too many requests') || msg.includes('rate limit')) {
+        toast.error('Too many requests. Please wait a few seconds and try again.');
+      } else {
+        toast.error('Failed to send message. Please try again.');
+      }
     } finally {
       setContactLoading(false);
     }
@@ -98,7 +108,7 @@ export default function HelpPage() {
     
     setIdeaLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-help-center-email', {
+      const { data, error } = await supabase.functions.invoke('send-help-center-email', {
         body: {
           type: 'idea',
           name: ideaName.trim(),
@@ -107,16 +117,26 @@ export default function HelpPage() {
           organization_id: organization?.id,
         },
       });
-      
+
       if (error) throw error;
-      
-      toast.success('Thank you for your idea! We appreciate your feedback.');
+
+      const warning = (data as any)?.warning as string | undefined;
+      if (warning) {
+        toast.success('Idea submitted (testing mode)', { description: warning });
+      } else {
+        toast.success('Thank you for your idea! We appreciate your feedback.');
+      }
       setIdeaName('');
       setIdeaEmail('');
       setIdeaMessage('');
     } catch (error) {
+      const msg = String((error as any)?.message ?? '').toLowerCase();
       console.error('Error sending idea:', error);
-      toast.error('Failed to send idea. Please try again.');
+      if (msg.includes('too many requests') || msg.includes('rate limit')) {
+        toast.error('Too many requests. Please wait a few seconds and try again.');
+      } else {
+        toast.error('Failed to send idea. Please try again.');
+      }
     } finally {
       setIdeaLoading(false);
     }

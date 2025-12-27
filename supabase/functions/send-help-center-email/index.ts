@@ -105,41 +105,70 @@ const handler = async (req: Request): Promise<Response> => {
     const fallbackFrom = `${fromName} <onboarding@resend.dev>`;
 
     const sendResendEmail = async (from: string, toEmail: string) => {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${settings.resend_api_key}`,
-        },
-        body: JSON.stringify({
-          from,
-          to: [toEmail],
-          reply_to: email,
-          subject,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">${heading}</h1>
-              
-              <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0;"><strong>From:</strong> ${name}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-                <p style="margin: 0;"><strong>Type:</strong> ${isIdea ? "Feature Idea" : "Support Request"}</p>
-              </div>
-              
-              <h2 style="color: #333; margin-top: 30px;">Message:</h2>
-              <div style="background: #fff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-                <p style="white-space: pre-wrap; margin: 0;">${message}</p>
-              </div>
-              
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-              <p style="color: #6b7280; font-size: 12px;">This email was sent from your Help Center.</p>
-            </div>
-          `,
-        }),
-      });
+      let lastRes: Response | null = null;
+      let lastJson: any = {};
 
-      const json = await res.json().catch(() => ({}));
-      return { res, json };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${settings.resend_api_key}`,
+          },
+          body: JSON.stringify({
+            from,
+            to: [toEmail],
+            reply_to: email,
+            subject,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">${heading}</h1>
+                
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0 0 10px 0;"><strong>From:</strong> ${name}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+                  <p style="margin: 0;"><strong>Type:</strong> ${isIdea ? "Feature Idea" : "Support Request"}</p>
+                </div>
+                
+                <h2 style="color: #333; margin-top: 30px;">Message:</h2>
+                <div style="background: #fff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                  <p style="white-space: pre-wrap; margin: 0;">${message}</p>
+                </div>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+                <p style="color: #6b7280; font-size: 12px;">This email was sent from your Help Center.</p>
+              </div>
+            `,
+          }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        lastRes = res;
+        lastJson = json;
+
+        // Resend rate limit (often 2 req/sec in testing/free)
+        if (res.status === 429 && attempt < 2) {
+          const retryAfter = res.headers.get("retry-after");
+          const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+          const retryAfterMs = !Number.isNaN(retryAfterSeconds)
+            ? Math.max(500, retryAfterSeconds * 1000)
+            : 800 * (attempt + 1);
+
+          console.warn(
+            "Resend rate limited. Retrying in",
+            retryAfterMs,
+            "ms. Attempt",
+            attempt + 1,
+            "of 3"
+          );
+          await new Promise((r) => setTimeout(r, retryAfterMs));
+          continue;
+        }
+
+        return { res, json };
+      }
+
+      return { res: lastRes!, json: lastJson };
     };
 
     const extractTestingRecipient = (text: string) => {
@@ -257,9 +286,14 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
+    const message = error?.message || "Failed to send email";
+    const lower = String(message).toLowerCase();
+    const status =
+      lower.includes("too many requests") || lower.includes("rate limit") ? 429 : 500;
+
     console.error("Error in send-help-center-email function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: message }), {
+      status,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
