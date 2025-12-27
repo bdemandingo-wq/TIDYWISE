@@ -135,6 +135,7 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
+              <Button variant="ghost" onClick={() => navigate("/staff/login")}>Staff Portal</Button>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
               <Button onClick={() => navigate("/auth")}>Start Free Trial</Button>
             </div>
@@ -154,6 +155,7 @@ export default function LandingPage() {
               <div className="flex flex-col gap-4">
                 <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
                 <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
+                <Button variant="ghost" className="justify-start" onClick={() => navigate("/staff/login")}>Staff Portal</Button>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
                 <Button onClick={() => navigate("/auth")}>Start Free Trial</Button>
               </div>
