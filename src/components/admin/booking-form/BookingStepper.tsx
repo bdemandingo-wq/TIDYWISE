@@ -52,35 +52,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [emailConfigured, setEmailConfigured] = useState(false);
 
   const { organizationId } = useOrgId();
-
-  // Check if business email is configured (for this organization)
-  useEffect(() => {
-    const checkEmailConfig = async () => {
-      if (!organizationId) {
-        setEmailConfigured(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('business_settings')
-        .select('company_email')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Failed to check email config:', error);
-        setEmailConfigured(false);
-        return;
-      }
-
-      setEmailConfigured(!!(data?.company_email && data.company_email.trim().length > 0));
-    };
-
-    checkEmailConfig();
-  }, [organizationId]);
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
@@ -433,28 +406,18 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             {currentStep === STEPS.length - 1 ? (
               <>
                 <div className="flex items-center gap-2 mr-4 p-2 bg-secondary/30 rounded-lg">
-                  <Checkbox 
-                    id="sendConfirmation" 
-                    checked={sendConfirmationEmail} 
+                  <Checkbox
+                    id="sendConfirmation"
+                    checked={sendConfirmationEmail}
                     onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
-                    disabled={!emailConfigured}
                   />
-                  <Label 
-                    htmlFor="sendConfirmation" 
-                    className={cn(
-                      "text-sm cursor-pointer flex items-center gap-1.5",
-                      !emailConfigured && "text-muted-foreground cursor-not-allowed"
-                    )}
+                  <Label
+                    htmlFor="sendConfirmation"
+                    className="text-sm cursor-pointer flex items-center gap-1.5"
                   >
                     <Mail className="w-4 h-4 text-muted-foreground" />
-                    Send email
+                    Send confirmation email
                   </Label>
-                  {!emailConfigured && (
-                    <span className="text-xs text-amber-600 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Configure email in Settings first
-                    </span>
-                  )}
                 </div>
 
                 {booking && (
