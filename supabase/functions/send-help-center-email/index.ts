@@ -101,9 +101,9 @@ const handler = async (req: Request): Promise<Response> => {
       : "New Support Request";
 
     const fromName = settings.company_name?.trim() || "Help Center";
-    // Use verified sender domain: support@tidywise.org
+    // Use verified sender domain: support@tidywisecleaning.com
     // Send TO company_email so the business receives inquiries at their email
-    const senderFrom = `${fromName} <support@tidywise.org>`;
+    const senderFrom = `${fromName} <support@tidywisecleaning.com>`;
     const recipientTo = settings.company_email;
 
     const sendResendEmail = async (from: string, toEmail: string) => {
