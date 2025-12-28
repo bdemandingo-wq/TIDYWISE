@@ -286,10 +286,14 @@ const handler = async (req: Request): Promise<Response> => {
       customerData = null;
     }
 
-    // If domain not verified, retry with fallback sender
-    if (!customerEmailResponse.ok && customerData?.message?.includes("not verified")) {
-      console.log("Custom domain not verified, using fallback sender:", fallbackSender);
-      
+    // If sending fails with a custom sender (often due to unverified domain), retry with fallback sender
+    if (!customerEmailResponse.ok && senderEmail !== fallbackSender) {
+      console.log("Customer email failed with custom sender; retrying with fallback sender", {
+        status: customerEmailResponse.status,
+        message: customerData?.message,
+        senderEmail,
+      });
+
       customerEmailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
