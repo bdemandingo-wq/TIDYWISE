@@ -149,9 +149,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch business settings for sender email
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     let organizationId: string | null = null;
     
     // Try to get organization_id from payload if available
@@ -171,7 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (settings?.company_email) {
       senderEmail = settings.company_email;
-      console.log("Using custom sender email:", senderEmail);
+      console.log("Using sender email:", senderEmail);
     }
     if (settings?.company_name) {
       companyName = settings.company_name;
@@ -246,24 +249,11 @@ const handler = async (req: Request): Promise<Response> => {
 
       let data = await res.json();
       
-      // If domain not verified, fallback to onboarding@resend.dev
+      // If domain not verified, return helpful error (each org needs their own verified domain)
       if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
-        console.log("Custom domain not verified, falling back to onboarding@resend.dev");
-        res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: `${companyName} <onboarding@resend.dev>`,
-            to: [payload.customerEmail],
-            reply_to: senderEmail,
-            subject: `Reminder: Your ${serviceName} on ${formattedDate}`,
-            html: emailHtml,
-          }),
-        });
-        data = await res.json();
+        const domain = senderEmail.split('@')[1];
+        console.error(`Domain ${domain} is not verified on Resend`);
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
       }
       
       if (!res.ok) {
@@ -377,24 +367,11 @@ const handler = async (req: Request): Promise<Response> => {
 
           let data = await res.json();
 
-          // If domain not verified, fallback to onboarding@resend.dev
+          // If domain not verified, log error and skip (each org needs their own verified domain)
           if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
-            console.log("Custom domain not verified, falling back to onboarding@resend.dev");
-            res = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-              },
-              body: JSON.stringify({
-                from: `${companyName} <onboarding@resend.dev>`,
-                to: [booking.customer.email],
-                reply_to: senderEmail,
-                subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
-                html: emailHtml,
-              }),
-            });
-            data = await res.json();
+            const domain = senderEmail.split('@')[1];
+            console.error(`Domain ${domain} is not verified on Resend - skipping reminder for booking #${booking.booking_number}`);
+            continue;
           }
 
           if (!res.ok) {
