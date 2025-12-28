@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
 import { supabase } from '@/integrations/supabase/client';
-import { extras as extrasData, cleaningServices, squareFootageRanges, frequencyOptions } from '@/data/pricingData';
+import { extras as extrasData, cleaningServices, squareFootageRanges, frequencyOptions, getConditionPrice, getPetPrice, getBedroomBathroomPrice } from '@/data/pricingData';
 
 interface CardInfo {
   hasCard: boolean;
@@ -41,6 +41,11 @@ interface BookingFormState {
   frequency: string;
   selectedExtras: string[];
   
+  // New pricing fields
+  pricingMode: 'sqft' | 'bedroom';
+  homeCondition: number;
+  petOption: string;
+  
   // Schedule
   selectedDate: Date | undefined;
   selectedTime: string;
@@ -71,6 +76,8 @@ interface BookingFormContextType extends BookingFormState {
   customerEmail: string;
   customerName: string;
   extrasTotal: number;
+  conditionTotal: number;
+  petTotal: number;
   
   // Setters
   setCustomerTab: (tab: 'existing' | 'new') => void;
@@ -88,6 +95,9 @@ interface BookingFormContextType extends BookingFormState {
   setBathrooms: (bathrooms: string) => void;
   setFrequency: (frequency: string) => void;
   toggleExtra: (extraId: string) => void;
+  setPricingMode: (mode: 'sqft' | 'bedroom') => void;
+  setHomeCondition: (condition: number) => void;
+  setPetOption: (option: string) => void;
   setSelectedDate: (date: Date | undefined) => void;
   setSelectedTime: (time: string) => void;
   setSelectedStaffId: (id: string) => void;
@@ -151,6 +161,11 @@ export function BookingFormProvider({
   const [frequency, setFrequency] = useState('one_time');
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   
+  // New pricing fields
+  const [pricingMode, setPricingMode] = useState<'sqft' | 'bedroom'>('sqft');
+  const [homeCondition, setHomeCondition] = useState(1);
+  const [petOption, setPetOption] = useState('no_pets');
+  
   // Schedule state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
   const [selectedTime, setSelectedTime] = useState('');
@@ -183,6 +198,9 @@ export function BookingFormProvider({
     const extra = extrasData.find(e => e.id === extraId);
     return sum + (extra?.price || 0);
   }, 0);
+  
+  const conditionTotal = getConditionPrice(homeCondition);
+  const petTotal = getPetPrice(petOption);
 
   const updateNewCustomer = (field: keyof typeof initialNewCustomer, value: string) => {
     setNewCustomer(prev => ({ ...prev, [field]: value }));
@@ -237,6 +255,9 @@ export function BookingFormProvider({
     setCleanerWage('');
     setCleanerWageType('hourly');
     setCleanerOverrideHours('');
+    setPricingMode('sqft');
+    setHomeCondition(1);
+    setPetOption('no_pets');
   };
 
   const prefillFromBooking = (booking: BookingWithDetails) => {
@@ -361,6 +382,9 @@ export function BookingFormProvider({
       bathrooms,
       frequency,
       selectedExtras,
+      pricingMode,
+      homeCondition,
+      petOption,
       selectedDate,
       selectedTime,
       selectedStaffId,
@@ -384,6 +408,8 @@ export function BookingFormProvider({
       customerEmail,
       customerName,
       extrasTotal,
+      conditionTotal,
+      petTotal,
       
       // Setters
       setCustomerTab,
@@ -401,6 +427,9 @@ export function BookingFormProvider({
       setBathrooms,
       setFrequency,
       toggleExtra,
+      setPricingMode,
+      setHomeCondition,
+      setPetOption,
       setSelectedDate,
       setSelectedTime,
       setSelectedStaffId,

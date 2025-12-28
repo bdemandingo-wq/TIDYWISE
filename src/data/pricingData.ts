@@ -111,6 +111,47 @@ export const extras = [
   { id: 'dishes', name: 'Dishes', price: 15, note: '', icon: 'UtensilsCrossed' },
 ];
 
+// Pet options
+export const petOptions = [
+  { id: 'no_pets', label: 'No Pets', price: 0 },
+  { id: '1_pet', label: '1 Pet', price: 15 },
+  { id: '2_pets', label: '2 Pets', price: 25 },
+  { id: '3_plus_pets', label: '3+ Pets', price: 40 },
+];
+
+// Home condition options (1-5 scale)
+export const homeConditionOptions = [
+  { id: 1, label: '1 - Excellent (light cleaning needed)', price: 0 },
+  { id: 2, label: '2 - Good (normal upkeep)', price: 0 },
+  { id: 3, label: '3 - Fair (some areas need attention)', price: 25 },
+  { id: 4, label: '4 - Needs Work (heavy cleaning)', price: 50 },
+  { id: 5, label: '5 - Very Dirty (deep cleaning required)', price: 75 },
+];
+
+// Bedroom/Bathroom pricing (alternative to square footage)
+export const bedroomPricing = [
+  { bedrooms: '1', bathrooms: '1', basePrice: 120 },
+  { bedrooms: '1', bathrooms: '1.5', basePrice: 135 },
+  { bedrooms: '2', bathrooms: '1', basePrice: 150 },
+  { bedrooms: '2', bathrooms: '1.5', basePrice: 165 },
+  { bedrooms: '2', bathrooms: '2', basePrice: 180 },
+  { bedrooms: '3', bathrooms: '1', basePrice: 190 },
+  { bedrooms: '3', bathrooms: '1.5', basePrice: 200 },
+  { bedrooms: '3', bathrooms: '2', basePrice: 215 },
+  { bedrooms: '3', bathrooms: '2.5', basePrice: 230 },
+  { bedrooms: '4', bathrooms: '2', basePrice: 250 },
+  { bedrooms: '4', bathrooms: '2.5', basePrice: 270 },
+  { bedrooms: '4', bathrooms: '3', basePrice: 290 },
+  { bedrooms: '5', bathrooms: '2.5', basePrice: 310 },
+  { bedrooms: '5', bathrooms: '3', basePrice: 330 },
+  { bedrooms: '5', bathrooms: '3.5', basePrice: 350 },
+  { bedrooms: '6+', bathrooms: '3', basePrice: 380 },
+  { bedrooms: '6+', bathrooms: '3.5', basePrice: 400 },
+  { bedrooms: '6+', bathrooms: '4', basePrice: 430 },
+  { bedrooms: '6+', bathrooms: '4.5', basePrice: 460 },
+  { bedrooms: '6+', bathrooms: '5+', basePrice: 500 },
+];
+
 export const frequencyOptions = [
   { id: 'one_time', label: 'One-Time', discount: 0 },
   { id: 'weekly', label: 'Weekly (30% off)', discount: 0.30 },
@@ -138,4 +179,27 @@ export function getSqFtIndexFromValue(sqFt: number): number {
     }
   }
   return squareFootageRanges.length - 1; // Return last index for anything larger
+}
+
+export function getBedroomBathroomPrice(bedrooms: string, bathrooms: string): number {
+  const match = bedroomPricing.find(p => p.bedrooms === bedrooms && p.bathrooms === bathrooms);
+  if (match) return match.basePrice;
+  
+  // Fallback: find closest match
+  const bedroomMatches = bedroomPricing.filter(p => p.bedrooms === bedrooms);
+  if (bedroomMatches.length > 0) {
+    return bedroomMatches[0].basePrice;
+  }
+  
+  return 150; // Default base price
+}
+
+export function getConditionPrice(condition: number): number {
+  const option = homeConditionOptions.find(o => o.id === condition);
+  return option?.price || 0;
+}
+
+export function getPetPrice(petOption: string): number {
+  const option = petOptions.find(o => o.id === petOption);
+  return option?.price || 0;
 }

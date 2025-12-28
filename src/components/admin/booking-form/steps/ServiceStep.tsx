@@ -3,10 +3,20 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, CheckCircle, DollarSign } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, CheckCircle, DollarSign, PawPrint, Home, Ruler, BedDouble } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
-import { squareFootageRanges, bedroomOptions, bathroomOptions, frequencyOptions, extras as extrasData } from '@/data/pricingData';
+import { 
+  squareFootageRanges, 
+  bedroomOptions, 
+  bathroomOptions, 
+  frequencyOptions, 
+  extras as extrasData,
+  petOptions,
+  homeConditionOptions,
+  bedroomPricing
+} from '@/data/pricingData';
 
 export function ServiceStep() {
   const {
@@ -26,7 +36,17 @@ export function ServiceStep() {
     extrasTotal,
     totalAmount,
     setTotalAmount,
+    pricingMode,
+    setPricingMode,
+    homeCondition,
+    setHomeCondition,
+    petOption,
+    setPetOption,
+    conditionTotal,
+    petTotal,
   } = useBookingForm();
+
+  const totalAddOns = extrasTotal + conditionTotal + petTotal;
 
   return (
     <div className="space-y-6">
@@ -78,50 +98,106 @@ export function ServiceStep() {
             </p>
           </div>
 
+          {/* Pricing Mode Tabs */}
           <div>
-            <Label className="text-sm font-medium">Square Footage</Label>
-            <Select value={squareFootage} onValueChange={setSquareFootage}>
-              <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                <SelectValue placeholder="Select sq ft range" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                {squareFootageRanges.map((range) => (
-                  <SelectItem key={range.label} value={range.label}>
-                    {range.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-sm font-medium mb-2 block">Pricing Method</Label>
+            <Tabs value={pricingMode} onValueChange={(v) => setPricingMode(v as 'sqft' | 'bedroom')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="sqft" className="flex items-center gap-2">
+                  <Ruler className="h-4 w-4" />
+                  Square Footage
+                </TabsTrigger>
+                <TabsTrigger value="bedroom" className="flex items-center gap-2">
+                  <BedDouble className="h-4 w-4" />
+                  Bed & Bath
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="sqft" className="mt-4">
+                <div>
+                  <Label className="text-sm font-medium">Square Footage</Label>
+                  <Select value={squareFootage} onValueChange={setSquareFootage}>
+                    <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                      <SelectValue placeholder="Select sq ft range" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {squareFootageRanges.map((range) => (
+                        <SelectItem key={range.label} value={range.label}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="bedroom" className="mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Bedrooms</Label>
+                    <Select value={bedrooms} onValueChange={setBedrooms}>
+                      <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {bedroomOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Bathrooms</Label>
+                    <Select value={bathrooms} onValueChange={setBathrooms}>
+                      <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {bathroomOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Base price calculated from bedroom/bathroom combination
+                </p>
+              </TabsContent>
+            </Tabs>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium">Bedrooms</Label>
-              <Select value={bedrooms} onValueChange={setBedrooms}>
-                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  {bedroomOptions.map((opt) => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Always show bed/bath for reference when in sqft mode */}
+          {pricingMode === 'sqft' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Bedrooms</Label>
+                <Select value={bedrooms} onValueChange={setBedrooms}>
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {bedroomOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Bathrooms</Label>
+                <Select value={bathrooms} onValueChange={setBathrooms}>
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {bathroomOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label className="text-sm font-medium">Bathrooms</Label>
-              <Select value={bathrooms} onValueChange={setBathrooms}>
-                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  {bathroomOptions.map((opt) => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
 
           <div>
             <Label className="text-sm font-medium">Frequency</Label>
@@ -141,14 +217,77 @@ export function ServiceStep() {
         </CardContent>
       </Card>
 
+      {/* Home Condition & Pets */}
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="pt-6 space-y-5">
+          <div className="flex items-center justify-between mb-4">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Home className="h-4 w-4 text-muted-foreground" />
+              Home Condition & Pets
+            </Label>
+            {(conditionTotal > 0 || petTotal > 0) && (
+              <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
+                +${conditionTotal + petTotal}
+              </Badge>
+            )}
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium">Home Condition (1-5 scale)</Label>
+            <p className="text-xs text-muted-foreground mb-2">5 being the dirtiest - additional charges may apply</p>
+            <Select value={homeCondition.toString()} onValueChange={(v) => setHomeCondition(parseInt(v))}>
+              <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {homeConditionOptions.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.id.toString()}>
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <span>{opt.label}</span>
+                      {opt.price > 0 && (
+                        <span className="text-amber-600 font-medium">+${opt.price}</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <PawPrint className="h-4 w-4 text-muted-foreground" />
+              Pets
+            </Label>
+            <Select value={petOption} onValueChange={setPetOption}>
+              <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {petOptions.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.id}>
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <span>{opt.label}</span>
+                      {opt.price > 0 && (
+                        <span className="text-amber-600 font-medium">+${opt.price}</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Extras */}
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-4">
             <Label className="text-sm font-medium">Add-On Services</Label>
-            {extrasTotal > 0 && (
+            {totalAddOns > 0 && (
               <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
-                +${extrasTotal}
+                +${totalAddOns} total
               </Badge>
             )}
           </div>
