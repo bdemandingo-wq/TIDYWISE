@@ -228,7 +228,8 @@ const handler = async (req: Request): Promise<Response> => {
         undefined
       );
 
-      const res = await fetch("https://api.resend.com/emails", {
+      // Try with custom sender first, fallback to resend.dev if domain not verified
+      let res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -237,12 +238,34 @@ const handler = async (req: Request): Promise<Response> => {
         body: JSON.stringify({
           from: `${companyName} <${senderEmail}>`,
           to: [payload.customerEmail],
+          reply_to: senderEmail,
           subject: `Reminder: Your ${serviceName} on ${formattedDate}`,
           html: emailHtml,
         }),
       });
 
-      const data = await res.json();
+      let data = await res.json();
+      
+      // If domain not verified, fallback to onboarding@resend.dev
+      if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
+        console.log("Custom domain not verified, falling back to onboarding@resend.dev");
+        res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: `${companyName} <onboarding@resend.dev>`,
+            to: [payload.customerEmail],
+            reply_to: senderEmail,
+            subject: `Reminder: Your ${serviceName} on ${formattedDate}`,
+            html: emailHtml,
+          }),
+        });
+        data = await res.json();
+      }
+      
       if (!res.ok) {
         console.error("Resend API error:", data);
         throw new Error(data?.message || "Failed to send reminder email");
@@ -336,7 +359,8 @@ const handler = async (req: Request): Promise<Response> => {
             window.label
           );
 
-          const res = await fetch("https://api.resend.com/emails", {
+          // Try with custom sender first, fallback to resend.dev if domain not verified
+          let res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -345,12 +369,33 @@ const handler = async (req: Request): Promise<Response> => {
             body: JSON.stringify({
               from: `${companyName} <${senderEmail}>`,
               to: [booking.customer.email],
+              reply_to: senderEmail,
               subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
               html: emailHtml,
             }),
           });
 
-          const data = await res.json();
+          let data = await res.json();
+
+          // If domain not verified, fallback to onboarding@resend.dev
+          if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
+            console.log("Custom domain not verified, falling back to onboarding@resend.dev");
+            res = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: `${companyName} <onboarding@resend.dev>`,
+                to: [booking.customer.email],
+                reply_to: senderEmail,
+                subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
+                html: emailHtml,
+              }),
+            });
+            data = await res.json();
+          }
 
           if (!res.ok) {
             console.error("Resend API error:", data);
