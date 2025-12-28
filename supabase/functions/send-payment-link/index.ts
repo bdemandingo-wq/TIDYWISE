@@ -84,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email with the Stripe payment link
     const emailResponse = await resend.emails.send({
-      from: "TidyWise Cleaning <support@jointidywise.com>",
+      from: "TidyWise Cleaning <support@tidywisecleaning.com>",
       to: [email],
       subject: "Complete Your Booking Payment",
       html: `

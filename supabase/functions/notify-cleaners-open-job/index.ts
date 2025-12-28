@@ -175,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
                 Authorization: `Bearer ${RESEND_API_KEY}`,
               },
               body: JSON.stringify({
-                from: `${companyName} <noreply@jointidywise.com>`,
+                from: `${companyName} <support@tidywisecleaning.com>`,
                 to: [staff.email],
                 subject: `🎉 New Job Available - $${potentialPay.toFixed(2)} Potential Earnings`,
                 html: emailHtml,

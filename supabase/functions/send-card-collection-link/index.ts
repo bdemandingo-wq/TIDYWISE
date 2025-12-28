@@ -68,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email with the card collection link
     const emailResponse = await resend.emails.send({
-      from: "TidyWise Cleaning <support@jointidywise.com>",
+      from: "TidyWise Cleaning <support@tidywisecleaning.com>",
       to: [email],
       subject: "Add Your Payment Card - TidyWise Cleaning",
       html: `

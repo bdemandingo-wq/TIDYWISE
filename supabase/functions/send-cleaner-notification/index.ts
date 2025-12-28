@@ -109,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TidyWise Cleaning <support@jointidywise.com>",
+        from: "TidyWise Cleaning <support@tidywisecleaning.com>",
         to: [notification.cleanerEmail],
         subject: `Upcoming Assignment - Booking #${notification.bookingNumber}`,
         html: emailHtml,

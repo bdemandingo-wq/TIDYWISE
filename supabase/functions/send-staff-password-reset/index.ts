@@ -190,7 +190,7 @@ serve(async (req) => {
     };
 
     // Match the sender domain used by your existing booking confirmations
-    const primaryFrom = "TidyWise Cleaning <support@jointidywise.com>";
+    const primaryFrom = "TidyWise Cleaning <support@tidywisecleaning.com>";
     const fallbackFrom = "TidyWise <onboarding@resend.dev>";
 
     const primary = await send(primaryFrom);

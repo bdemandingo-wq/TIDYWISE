@@ -64,7 +64,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${companyName} <noreply@jointidywise.com>`,
+        from: `${companyName} <support@tidywisecleaning.com>`,
         to: [referral.referred_email],
         subject: `${referrerName} thinks you'd love ${companyName}! Get $${creditAmount} off`,
         html: `

@@ -24,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send notification to support
     const emailResponse = await resend.emails.send({
-      from: "TIDYWISE <notifications@resend.dev>",
+      from: "TIDYWISE <support@tidywisecleaning.com>",
       to: ["support@tidywisecleaning.com"],
       subject: `Subscription Cancelled: ${customerName}`,
       html: `

@@ -19,7 +19,7 @@ interface BookingNotificationRequest {
 }
 
 // Admin email to receive notifications
-const ADMIN_EMAIL = "support@jointidywise.com";
+const ADMIN_EMAIL = "support@tidywisecleaning.com";
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -52,7 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailResponse = await resend.emails.send({
-      from: "TidyWise Cleaning <support@jointidywise.com>",
+      from: "TidyWise Cleaning <support@tidywisecleaning.com>",
       to: [ADMIN_EMAIL],
       subject: `🆕 New Booking: ${customerName} - ${serviceName}`,
       html: `
