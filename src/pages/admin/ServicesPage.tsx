@@ -453,15 +453,14 @@ export default function ServicesPage() {
     >
       <Tabs defaultValue="pricing-table" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="pricing-table">Full Pricing Table</TabsTrigger>
-          <TabsTrigger value="bed-bath">Bed & Bath Pricing</TabsTrigger>
+          <TabsTrigger value="pricing-table">Pricing Sheet</TabsTrigger>
           <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pricing-table">
+        <TabsContent value="pricing-table" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Complete Pricing by Square Footage</CardTitle>
+              <CardTitle>Square Footage Pricing</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Click any price to edit.
               </p>
@@ -473,9 +472,7 @@ export default function ServicesPage() {
               />
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="bed-bath">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
