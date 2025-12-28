@@ -26,7 +26,7 @@ interface BookingEmailRequest {
   extras: string[];
   totalPrice: number;
   confirmationNumber: string;
-  organizationId?: string;
+  organizationId: string; // REQUIRED - no fallback allowed
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -55,15 +55,22 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log("Sending booking confirmation email to:", customerEmail);
+    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    if (!booking.organizationId) {
+      console.error("Missing organizationId - cannot send email without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Missing organizationId - organization context is required for email sending" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
-    // Fetch business settings to get sender email, company name, logo, and colors
-    // TidyWise main account uses jointidywise.com, other orgs use their own domain
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
-    const TIDYWISE_DEFAULT_NAME = "TidyWise";
-    
-    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
-    let companyName = TIDYWISE_DEFAULT_NAME;
+    console.log("Sending booking confirmation email to:", customerEmail, "for organization:", booking.organizationId);
+
+    // Fetch business settings for the SPECIFIC organization only
+    let senderEmail = "";
+    let companyName = "";
     let logoUrl = "";
     let primaryColor = "#1e5bb0";
     let accentColor = "#14b8a6";
@@ -71,29 +78,39 @@ const handler = async (req: Request): Promise<Response> => {
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      // Filter by organization_id if provided, otherwise get the most recent
-      const settingsQuery = booking.organizationId 
-        ? supabase.from('business_settings').select('company_email, company_name, logo_url, primary_color, accent_color').eq('organization_id', booking.organizationId).maybeSingle()
-        : supabase.from('business_settings').select('company_email, company_name, logo_url, primary_color, accent_color').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      // ONLY query settings for the specific organization - NO FALLBACK
+      const { data: settings, error: settingsError } = await supabase
+        .from('business_settings')
+        .select('company_email, company_name, logo_url, primary_color, accent_color')
+        .eq('organization_id', booking.organizationId)
+        .maybeSingle();
       
-      const { data: settings } = await settingsQuery;
+      if (settingsError) {
+        console.error("Error fetching organization settings:", settingsError);
+      }
       
-      if (settings?.company_email) {
-        senderEmail = settings.company_email;
-        console.log("Using sender email:", senderEmail);
+      if (!settings || !settings.company_email || !settings.company_name) {
+        console.error("Organization settings not configured for org:", booking.organizationId);
+        return new Response(JSON.stringify({ 
+          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
-      if (settings?.company_name) {
-        companyName = settings.company_name;
-      }
-      if (settings?.logo_url) {
-        logoUrl = settings.logo_url;
-      }
-      if (settings?.primary_color) {
-        primaryColor = settings.primary_color;
-      }
-      if (settings?.accent_color) {
-        accentColor = settings.accent_color;
-      }
+      
+      senderEmail = settings.company_email;
+      companyName = settings.company_name;
+      logoUrl = settings.logo_url || "";
+      primaryColor = settings.primary_color || "#1e5bb0";
+      accentColor = settings.accent_color || "#14b8a6";
+      
+      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
+    } else {
+      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const fullAddress = [
@@ -264,7 +281,7 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    // Send email with organization's domain (no fallback - each org must verify their domain)
+    // Send email with organization's verified domain
     let customerEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -337,14 +354,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ success: true, emailId: customerData?.id }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-booking-email function:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

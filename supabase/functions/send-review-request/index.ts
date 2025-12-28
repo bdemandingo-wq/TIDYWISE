@@ -17,7 +17,7 @@ interface ReviewRequestPayload {
   customerName: string;
   serviceName: string;
   googleReviewUrl?: string;
-  organizationId?: string;
+  organizationId: string; // REQUIRED - no fallback allowed
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -44,29 +44,48 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    if (!organizationId) {
+      console.error("Missing organizationId - cannot send review request without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Missing organizationId - organization context is required" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Fetch business settings for sender email and company name
-    // TidyWise main account uses jointidywise.com, other orgs use their own domain
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
-    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    // Fetch business settings for the SPECIFIC organization only
+    let senderEmail = "";
+    let companyName = "";
     
-    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
-    let companyName = TIDYWISE_DEFAULT_NAME;
+    // ONLY query settings for the specific organization - NO FALLBACK
+    const { data: settings, error: settingsError } = await supabase
+      .from('business_settings')
+      .select('company_email, company_name, google_review_url')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
     
-    const settingsQuery = organizationId 
-      ? supabase.from('business_settings').select('company_email, company_name, google_review_url').eq('organization_id', organizationId).maybeSingle()
-      : supabase.from('business_settings').select('company_email, company_name, google_review_url').limit(1).maybeSingle();
-    
-    const { data: settings } = await settingsQuery;
-    
-    if (settings?.company_email) {
-      senderEmail = settings.company_email;
-      console.log("Using sender email:", senderEmail);
+    if (settingsError) {
+      console.error("Error fetching organization settings:", settingsError);
     }
-    if (settings?.company_name) {
-      companyName = settings.company_name;
+    
+    if (!settings || !settings.company_email || !settings.company_name) {
+      console.error("Organization settings not configured for org:", organizationId);
+      return new Response(JSON.stringify({ 
+        error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
+    
+    senderEmail = settings.company_email;
+    companyName = settings.company_name;
+    
+    console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
     
     // Generate unique token for this review request
     const token = crypto.randomUUID();
@@ -105,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to create review request record");
     }
 
-    console.log("Sending review request email to:", customerEmail);
+    console.log("Sending review request email to:", customerEmail, "for organization:", organizationId);
 
     const emailHtml = `
 <!DOCTYPE html>

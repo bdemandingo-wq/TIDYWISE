@@ -21,7 +21,7 @@ interface CleanerNotificationRequest {
   appointmentTime: string;
   address: string;
   bookingNumber: number;
-  organizationId?: string;
+  organizationId: string; // REQUIRED - no fallback allowed
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -33,32 +33,56 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const notification: CleanerNotificationRequest = await req.json();
     
-    console.log("Sending cleaner notification to:", notification.cleanerEmail);
+    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    if (!notification.organizationId) {
+      console.error("Missing organizationId - cannot send notification without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Missing organizationId - organization context is required" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
-    // Fetch business settings for sender email and company name
-    // TidyWise main account uses jointidywise.com, other orgs use their own domain
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
-    const TIDYWISE_DEFAULT_NAME = "TidyWise";
-    
-    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
-    let companyName = TIDYWISE_DEFAULT_NAME;
+    console.log("Sending cleaner notification to:", notification.cleanerEmail, "for org:", notification.organizationId);
+
+    // Fetch business settings for the SPECIFIC organization only
+    let senderEmail = "";
+    let companyName = "";
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      const settingsQuery = notification.organizationId 
-        ? supabase.from('business_settings').select('company_email, company_name').eq('organization_id', notification.organizationId).maybeSingle()
-        : supabase.from('business_settings').select('company_email, company_name').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      // ONLY query settings for the specific organization - NO FALLBACK
+      const { data: settings, error: settingsError } = await supabase
+        .from('business_settings')
+        .select('company_email, company_name')
+        .eq('organization_id', notification.organizationId)
+        .maybeSingle();
       
-      const { data: settings } = await settingsQuery;
+      if (settingsError) {
+        console.error("Error fetching organization settings:", settingsError);
+      }
       
-      if (settings?.company_email) {
-        senderEmail = settings.company_email;
-        console.log("Using sender email:", senderEmail);
+      if (!settings || !settings.company_email || !settings.company_name) {
+        console.error("Organization settings not configured for org:", notification.organizationId);
+        return new Response(JSON.stringify({ 
+          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
-      if (settings?.company_name) {
-        companyName = settings.company_name;
-      }
+      
+      senderEmail = settings.company_email;
+      companyName = settings.company_name;
+      
+      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
+    } else {
+      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const emailHtml = `

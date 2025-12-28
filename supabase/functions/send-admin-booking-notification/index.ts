@@ -19,7 +19,7 @@ interface BookingNotificationRequest {
   scheduledAt: string;
   totalAmount: number;
   address?: string;
-  organizationId?: string;
+  organizationId: string; // REQUIRED - no fallback allowed
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -38,31 +38,58 @@ const handler = async (req: Request): Promise<Response> => {
       organizationId
     }: BookingNotificationRequest = await req.json();
 
-    console.log("Sending admin notification for new booking:", { customerName, serviceName, scheduledAt });
+    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    if (!organizationId) {
+      console.error("Missing organizationId - cannot send notification without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Missing organizationId - organization context is required" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
-    // Fetch business settings for sender email and company name
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let adminEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    console.log("Sending admin notification for new booking:", { customerName, serviceName, scheduledAt, organizationId });
+
+    // Fetch business settings for the SPECIFIC organization only
+    let senderEmail = "";
+    let adminEmail = "";
+    let companyName = "";
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      const settingsQuery = organizationId 
-        ? supabase.from('business_settings').select('company_email, company_name').eq('organization_id', organizationId).maybeSingle()
-        : supabase.from('business_settings').select('company_email, company_name').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      // ONLY query settings for the specific organization - NO FALLBACK
+      const { data: settings, error: settingsError } = await supabase
+        .from('business_settings')
+        .select('company_email, company_name')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
       
-      const { data: settings } = await settingsQuery;
+      if (settingsError) {
+        console.error("Error fetching organization settings:", settingsError);
+      }
       
-      if (settings?.company_email) {
-        senderEmail = settings.company_email;
-        adminEmail = settings.company_email;
-        console.log("Using custom sender email:", senderEmail);
+      if (!settings || !settings.company_email || !settings.company_name) {
+        console.error("Organization settings not configured for org:", organizationId);
+        return new Response(JSON.stringify({ 
+          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
-      if (settings?.company_name) {
-        companyName = settings.company_name;
-      }
+      
+      senderEmail = settings.company_email;
+      adminEmail = settings.company_email;
+      companyName = settings.company_name;
+      
+      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
+    } else {
+      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const bookingDate = new Date(scheduledAt);

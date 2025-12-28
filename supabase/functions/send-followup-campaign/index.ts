@@ -13,7 +13,7 @@ interface Campaign {
   subject: string;
   body: string;
   days_inactive: number;
-  organization_id?: string;
+  organization_id: string; // REQUIRED for campaign
 }
 
 serve(async (req) => {
@@ -44,36 +44,53 @@ serve(async (req) => {
       throw new Error("Campaign not found");
     }
 
-    // Get business settings for company name and sender email based on campaign's organization
-    // TidyWise main account uses jointidywise.com, other orgs use their own domain
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
-    const TIDYWISE_DEFAULT_NAME = "Our Company";
-    
-    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
-    let companyName = TIDYWISE_DEFAULT_NAME;
-    
-    const settingsQuery = campaign.organization_id 
-      ? supabase.from("business_settings").select("company_name, company_email").eq("organization_id", campaign.organization_id).maybeSingle()
-      : supabase.from("business_settings").select("company_name, company_email").order("updated_at", { ascending: false }).limit(1).maybeSingle();
-    
-    const { data: settings } = await settingsQuery;
-
-    if (settings?.company_name) {
-      companyName = settings.company_name;
-    }
-    if (settings?.company_email) {
-      senderEmail = settings.company_email;
-      console.log("Using sender email:", senderEmail);
+    // CRITICAL: Campaign must have organization_id for multi-tenant isolation
+    if (!campaign.organization_id) {
+      console.error("Campaign has no organization_id - cannot send emails without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Campaign is not associated with an organization. Please update the campaign." 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    // Find inactive customers based on campaign type
+    console.log("Running campaign for organization:", campaign.organization_id);
+
+    // Get business settings for the SPECIFIC organization only - NO FALLBACK
+    const { data: settings, error: settingsError } = await supabase
+      .from("business_settings")
+      .select("company_name, company_email")
+      .eq("organization_id", campaign.organization_id)
+      .maybeSingle();
+
+    if (settingsError) {
+      console.error("Error fetching organization settings:", settingsError);
+    }
+
+    if (!settings || !settings.company_email || !settings.company_name) {
+      console.error("Organization settings not configured for org:", campaign.organization_id);
+      return new Response(JSON.stringify({ 
+        error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const companyName = settings.company_name;
+    const senderEmail = settings.company_email;
+    
+    console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
+
+    // Find inactive customers based on campaign type - filter by organization
     let inactiveCustomers: any[] = [];
 
     if (campaign.type === "inactive_customer") {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - campaign.days_inactive);
 
-      // Get customers with their last booking date
+      // Get customers for THIS organization only
       const { data: customers } = await supabase
         .from("customers")
         .select(`
@@ -81,15 +98,17 @@ serve(async (req) => {
           email,
           first_name,
           last_name
-        `);
+        `)
+        .eq("organization_id", campaign.organization_id);
 
       if (customers) {
         for (const customer of customers) {
-          // Get the customer's last completed booking
+          // Get the customer's last completed booking (within this organization)
           const { data: lastBooking } = await supabase
             .from("bookings")
             .select("scheduled_at")
             .eq("customer_id", customer.id)
+            .eq("organization_id", campaign.organization_id)
             .eq("status", "completed")
             .order("scheduled_at", { ascending: false })
             .limit(1)
@@ -117,7 +136,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Found ${inactiveCustomers.length} inactive customers to email`);
+    console.log(`Found ${inactiveCustomers.length} inactive customers to email for org ${campaign.organization_id}`);
 
     const emailsSent: string[] = [];
     const emailsFailed: string[] = [];

@@ -148,40 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing RESEND_API_KEY");
     }
 
-    // Fetch business settings for sender email
-    // TidyWise main account uses jointidywise.com, other orgs use their own domain
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
-    const TIDYWISE_DEFAULT_NAME = "TidyWise";
-    
-    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
-    let companyName = TIDYWISE_DEFAULT_NAME;
-    let organizationId: string | null = null;
-    
-    // Try to get organization_id from payload if available
-    try {
-      const text = await req.clone().text();
-      const parsed = text ? JSON.parse(text) : null;
-      organizationId = parsed?.organizationId || null;
-    } catch {
-      // ignore
-    }
-    
-    const settingsQuery = organizationId 
-      ? supabase.from('business_settings').select('company_email, company_name').eq('organization_id', organizationId).maybeSingle()
-      : supabase.from('business_settings').select('company_email, company_name').order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    
-    const { data: settings } = await settingsQuery;
-    
-    if (settings?.company_email) {
-      senderEmail = settings.company_email;
-      console.log("Using sender email:", senderEmail);
-    }
-    if (settings?.company_name) {
-      companyName = settings.company_name;
-    }
-
-    // If invoked from the admin UI, we send an immediate reminder for the provided booking.
-    // If invoked without a body (e.g. scheduled run), we fall back to the time-window batch logic.
+    // Parse payload to get organizationId
     let payload: any = null;
     try {
       const text = await req.text();
@@ -191,6 +158,48 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const isManualSend = !!payload?.customerEmail;
+    const organizationId = payload?.organizationId;
+
+    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    if (!organizationId) {
+      console.error("Missing organizationId - cannot send reminder without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Missing organizationId - organization context is required" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Fetch business settings for the SPECIFIC organization only
+    let senderEmail = "";
+    let companyName = "";
+    
+    // ONLY query settings for the specific organization - NO FALLBACK
+    const { data: settings, error: settingsError } = await supabase
+      .from('business_settings')
+      .select('company_email, company_name')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+    
+    if (settingsError) {
+      console.error("Error fetching organization settings:", settingsError);
+    }
+    
+    if (!settings || !settings.company_email || !settings.company_name) {
+      console.error("Organization settings not configured for org:", organizationId);
+      return new Response(JSON.stringify({ 
+        error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    
+    senderEmail = settings.company_email;
+    companyName = settings.company_name;
+    
+    console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
 
     if (isManualSend) {
       const scheduledDate = payload?.scheduledAt ? new Date(payload.scheduledAt) : null;
@@ -216,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
       const totalAmount = typeof payload?.totalAmount === 'number' ? payload.totalAmount : null;
 
       console.log(
-        `Manual reminder requested for bookingId=${payload?.bookingId ?? 'n/a'} to=${payload.customerEmail}`,
+        `Manual reminder requested for bookingId=${payload?.bookingId ?? 'n/a'} to=${payload.customerEmail} org=${organizationId}`,
       );
 
       const emailHtml = getReminderEmailHtml(
@@ -231,7 +240,6 @@ const handler = async (req: Request): Promise<Response> => {
         undefined
       );
 
-      // Try with custom sender first, fallback to resend.dev if domain not verified
       let res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -249,7 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       let data = await res.json();
       
-      // If domain not verified, return helpful error (each org needs their own verified domain)
+      // If domain not verified, return helpful error
       if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
         const domain = senderEmail.split('@')[1];
         console.error(`Domain ${domain} is not verified on Resend`);
@@ -286,7 +294,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Batch scheduled reminders
+    // Batch scheduled reminders - filter by organization_id
     const now = new Date();
     const sentReminders: string[] = [];
 
@@ -302,6 +310,7 @@ const handler = async (req: Request): Promise<Response> => {
           service:services(*),
           staff:staff(*)
         `)
+        .eq('organization_id', organizationId) // Filter by organization
         .gte('scheduled_at', windowStart.toISOString())
         .lte('scheduled_at', windowEnd.toISOString())
         .in('status', ['pending', 'confirmed'])
@@ -312,7 +321,7 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      console.log(`Found ${bookings?.length || 0} bookings for ${window.label} reminder`);
+      console.log(`Found ${bookings?.length || 0} bookings for ${window.label} reminder in org ${organizationId}`);
 
       for (const booking of bookings || []) {
         if (!booking.customer?.email) continue;
@@ -349,7 +358,6 @@ const handler = async (req: Request): Promise<Response> => {
             window.label
           );
 
-          // Try with custom sender first, fallback to resend.dev if domain not verified
           let res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -367,7 +375,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           let data = await res.json();
 
-          // If domain not verified, log error and skip (each org needs their own verified domain)
+          // If domain not verified, log error and skip
           if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
             const domain = senderEmail.split('@')[1];
             console.error(`Domain ${domain} is not verified on Resend - skipping reminder for booking #${booking.booking_number}`);
