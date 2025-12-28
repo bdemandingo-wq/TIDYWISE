@@ -45,9 +45,12 @@ serve(async (req) => {
     }
 
     // Get business settings for company name and sender email based on campaign's organization
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "Our Company";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "Our Company";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     
     const settingsQuery = campaign.organization_id 
       ? supabase.from("business_settings").select("company_name, company_email").eq("organization_id", campaign.organization_id).maybeSingle()
@@ -60,7 +63,7 @@ serve(async (req) => {
     }
     if (settings?.company_email) {
       senderEmail = settings.company_email;
-      console.log("Using custom sender email:", senderEmail);
+      console.log("Using sender email:", senderEmail);
     }
 
     // Find inactive customers based on campaign type

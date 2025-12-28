@@ -58,9 +58,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending booking confirmation email to:", customerEmail);
 
     // Fetch business settings to get sender email, company name, logo, and colors
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     let logoUrl = "";
     let primaryColor = "#1e5bb0";
     let accentColor = "#14b8a6";
@@ -77,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (settings?.company_email) {
         senderEmail = settings.company_email;
-        console.log("Using custom sender email:", senderEmail);
+        console.log("Using sender email:", senderEmail);
       }
       if (settings?.company_name) {
         companyName = settings.company_name;
@@ -261,10 +264,7 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    // Default fallback sender for unverified domains
-    const fallbackSender = "onboarding@resend.dev";
-    
-    // Try sending with custom domain first, fallback to default if domain not verified
+    // Send email with organization's domain (no fallback - each org must verify their domain)
     let customerEmailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -286,34 +286,11 @@ const handler = async (req: Request): Promise<Response> => {
       customerData = null;
     }
 
-    // If sending fails with a custom sender (often due to unverified domain), retry with fallback sender
-    if (!customerEmailResponse.ok && senderEmail !== fallbackSender) {
-      console.log("Customer email failed with custom sender; retrying with fallback sender", {
-        status: customerEmailResponse.status,
-        message: customerData?.message,
-        senderEmail,
-      });
-
-      customerEmailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: `${companyName} <${fallbackSender}>`,
-          to: [customerEmail],
-          reply_to: senderEmail,
-          subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
-          html: emailHtml,
-        }),
-      });
-
-      try {
-        customerData = await customerEmailResponse.json();
-      } catch (_e) {
-        customerData = null;
-      }
+    // If domain not verified, return helpful error
+    if (!customerEmailResponse.ok && customerData?.name === 'validation_error' && customerData?.message?.includes('not verified')) {
+      const domain = senderEmail.split('@')[1];
+      console.error(`Domain ${domain} is not verified on Resend`);
+      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
     }
 
     if (!customerEmailResponse.ok) {
@@ -338,8 +315,7 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     try {
-      // Use fallback for admin notification too if custom domain not verified
-      const adminFrom = senderEmail.includes("@resend.dev") ? senderEmail : fallbackSender;
+      // Send admin notification using the org's sender email
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -347,7 +323,7 @@ const handler = async (req: Request): Promise<Response> => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: `${companyName} Booking System <${adminFrom}>`,
+          from: `${companyName} Booking System <${senderEmail}>`,
           to: [senderEmail],
           subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
           html: adminNotificationHtml,

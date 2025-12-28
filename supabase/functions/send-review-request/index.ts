@@ -47,9 +47,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     // Fetch business settings for sender email and company name
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     
     const settingsQuery = organizationId 
       ? supabase.from('business_settings').select('company_email, company_name, google_review_url').eq('organization_id', organizationId).maybeSingle()
@@ -59,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (settings?.company_email) {
       senderEmail = settings.company_email;
-      console.log("Using custom sender email:", senderEmail);
+      console.log("Using sender email:", senderEmail);
     }
     if (settings?.company_name) {
       companyName = settings.company_name;
@@ -212,6 +215,13 @@ const handler = async (req: Request): Promise<Response> => {
       emailData = await emailResponse.json();
     } catch (_e) {
       emailData = null;
+    }
+
+    // If domain not verified, return helpful error
+    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
+      const domain = senderEmail.split('@')[1];
+      console.error(`Domain ${domain} is not verified on Resend`);
+      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
     }
 
     if (!emailResponse.ok) {

@@ -36,9 +36,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending cleaner notification to:", notification.cleanerEmail);
 
     // Fetch business settings for sender email and company name
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -51,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (settings?.company_email) {
         senderEmail = settings.company_email;
-        console.log("Using custom sender email:", senderEmail);
+        console.log("Using sender email:", senderEmail);
       }
       if (settings?.company_name) {
         companyName = settings.company_name;

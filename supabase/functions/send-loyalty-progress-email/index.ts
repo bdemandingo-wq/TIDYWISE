@@ -77,9 +77,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch business settings for sender email and company name
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
+    // TidyWise main account uses jointidywise.com, other orgs use their own domain
+    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    const TIDYWISE_DEFAULT_NAME = "TidyWise";
+    
+    let senderEmail = TIDYWISE_DEFAULT_EMAIL;
+    let companyName = TIDYWISE_DEFAULT_NAME;
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -92,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (settings?.company_email) {
         senderEmail = settings.company_email;
-        console.log("Using custom sender email:", senderEmail);
+        console.log("Using sender email:", senderEmail);
       }
       if (settings?.company_name) {
         companyName = settings.company_name;
@@ -254,16 +257,22 @@ const handler = async (req: Request): Promise<Response> => {
       }),
     });
 
+    const data = await res.json();
+    
+    // If domain not verified, return helpful error
+    if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
+      const domain = senderEmail.split('@')[1];
+      console.error(`Domain ${domain} is not verified on Resend`);
+      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
+    }
+
     if (!res.ok) {
-      const error = await res.text();
-      console.error("Resend API error:", error);
+      console.error("Resend API error:", data);
       return new Response(
         JSON.stringify({ error: "Failed to send email" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const data = await res.json();
     console.log("Email sent successfully:", data);
 
     return new Response(
