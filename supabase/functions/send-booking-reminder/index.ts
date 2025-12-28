@@ -148,8 +148,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing RESEND_API_KEY");
     }
 
-    // Fetch business settings for sender email
-    let senderEmail = "support@jointidywise.com";
+    // Fetch business settings for sender email - use Resend's default verified domain as fallback
+    let senderEmail = "onboarding@resend.dev";
     let companyName = "TidyWise";
     let organizationId: string | null = null;
     
