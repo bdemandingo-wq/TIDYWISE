@@ -122,7 +122,7 @@ export const petOptions = [
 // Home condition options (1-5 scale)
 export const homeConditionOptions = [
   { id: 1, label: '1 - Excellent (light cleaning needed)', price: 0 },
-  { id: 2, label: '2 - Good (normal upkeep)', price: 0 },
+  { id: 2, label: '2 - Good (normal upkeep)', price: 15 },
   { id: 3, label: '3 - Fair (some areas need attention)', price: 25 },
   { id: 4, label: '4 - Needs Work (heavy cleaning)', price: 50 },
   { id: 5, label: '5 - Very Dirty (deep cleaning required)', price: 75 },
