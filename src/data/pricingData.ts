@@ -13,11 +13,8 @@ export const squareFootageRanges = [
   { label: 'Up to 3300 sf', maxSqFt: 3300 },
   { label: 'Up to 3600 sf', maxSqFt: 3600 },
   { label: 'Up to 4000 sf', maxSqFt: 4000 },
-  { label: 'Up to 4400 sf', maxSqFt: 4400 },
-  { label: 'Up to 4800 sf', maxSqFt: 4800 },
-  { label: 'Up to 5200 sf', maxSqFt: 5200 },
-  { label: 'Up to 5600 sf', maxSqFt: 5600 },
-  { label: 'Up to 6000 sf', maxSqFt: 6000 },
+  { label: 'Up to 4500 sf', maxSqFt: 4500 },
+  { label: 'Up to 5000 sf', maxSqFt: 5000 },
 ];
 
 export type CleaningServiceType = 
@@ -48,7 +45,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Thorough first-time deep cleaning including inside oven',
     color: '#3b82f6',
     minimumPrice: 200,
-    prices: [208, 243, 278, 313, 348, 383, 438, 493, 548, 603, 658, 713, 768, 823, 878, 933, 988],
+    prices: [208, 243, 278, 313, 348, 383, 438, 493, 548, 603, 658, 713, 768, 823],
   },
   {
     id: 'standard_clean',
@@ -56,7 +53,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Regular maintenance cleaning for your home',
     color: '#10b981',
     minimumPrice: 150,
-    prices: [108, 143, 178, 213, 248, 283, 313, 368, 423, 478, 533, 588, 643, 698, 753, 808, 863],
+    prices: [108, 143, 178, 213, 248, 283, 313, 368, 423, 478, 533, 588, 643, 698],
   },
   {
     id: 'move_in_out',
@@ -64,7 +61,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Deep clean + $75 for move-in or move-out, includes fridge cleaning',
     color: '#06b6d4',
     minimumPrice: 300,
-    prices: [283, 318, 353, 388, 423, 458, 513, 568, 623, 678, 733, 788, 843, 898, 953, 1008, 1063],
+    prices: [283, 318, 353, 388, 423, 458, 513, 568, 623, 678, 733, 788, 843, 898],
   },
   {
     id: 'construction',
@@ -72,7 +69,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Heavy-duty cleaning after construction or renovation (50% more than Move In/Out)',
     color: '#f97316',
     minimumPrice: 400,
-    prices: [450, 502, 555, 607, 660, 712, 795, 877, 960, 1042, 1125, 1207, 1290, 1372, 1455, 1537, 1620],
+    prices: [450, 502, 555, 607, 660, 712, 795, 877, 960, 1042, 1125, 1207, 1290, 1372],
   },
   {
     id: 'airbnb',
@@ -80,7 +77,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Recurring turnover cleans for vacation rentals (3-7 cleans/month discount)',
     color: '#ec4899',
     minimumPrice: 140,
-    prices: [140, 160, 180, 200, 220, 240, 265, 295, 330, 365, 400, 435, 470, 505, 540, 575, 610],
+    prices: [140, 160, 180, 200, 220, 240, 265, 295, 330, 365, 400, 435, 470, 505],
   },
   {
     id: 'post_construction',
@@ -88,7 +85,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Heavy-duty cleaning after construction or renovation projects',
     color: '#f59e0b',
     minimumPrice: 400,
-    prices: [450, 502, 555, 607, 660, 712, 795, 877, 960, 1042, 1125, 1207, 1290, 1372, 1455, 1537, 1620],
+    prices: [450, 502, 555, 607, 660, 712, 795, 877, 960, 1042, 1125, 1207, 1290, 1372],
   },
   {
     id: 'commercial',
@@ -96,7 +93,7 @@ export const cleaningServices: CleaningService[] = [
     description: 'Professional cleaning for commercial spaces, offices, and businesses',
     color: '#6366f1',
     minimumPrice: 350,
-    prices: [350, 400, 450, 500, 550, 600, 675, 750, 825, 900, 975, 1050, 1125, 1200, 1275, 1350, 1425],
+    prices: [350, 400, 450, 500, 550, 600, 675, 750, 825, 900, 975, 1050, 1125, 1200],
   },
 ];
 
@@ -145,11 +142,21 @@ export const bedroomPricing = [
   { bedrooms: '5', bathrooms: '2.5', basePrice: 310 },
   { bedrooms: '5', bathrooms: '3', basePrice: 330 },
   { bedrooms: '5', bathrooms: '3.5', basePrice: 350 },
-  { bedrooms: '6+', bathrooms: '3', basePrice: 380 },
-  { bedrooms: '6+', bathrooms: '3.5', basePrice: 400 },
-  { bedrooms: '6+', bathrooms: '4', basePrice: 430 },
-  { bedrooms: '6+', bathrooms: '4.5', basePrice: 460 },
-  { bedrooms: '6+', bathrooms: '5+', basePrice: 500 },
+  { bedrooms: '6', bathrooms: '3', basePrice: 380 },
+  { bedrooms: '6', bathrooms: '3.5', basePrice: 400 },
+  { bedrooms: '6', bathrooms: '4', basePrice: 430 },
+  { bedrooms: '7', bathrooms: '3.5', basePrice: 460 },
+  { bedrooms: '7', bathrooms: '4', basePrice: 490 },
+  { bedrooms: '7', bathrooms: '4.5', basePrice: 520 },
+  { bedrooms: '8', bathrooms: '4', basePrice: 550 },
+  { bedrooms: '8', bathrooms: '4.5', basePrice: 580 },
+  { bedrooms: '8', bathrooms: '5', basePrice: 610 },
+  { bedrooms: '9', bathrooms: '4.5', basePrice: 640 },
+  { bedrooms: '9', bathrooms: '5', basePrice: 670 },
+  { bedrooms: '9', bathrooms: '5.5', basePrice: 700 },
+  { bedrooms: '10', bathrooms: '5', basePrice: 730 },
+  { bedrooms: '10', bathrooms: '5.5', basePrice: 760 },
+  { bedrooms: '10', bathrooms: '6+', basePrice: 800 },
 ];
 
 export const frequencyOptions = [
@@ -160,8 +167,8 @@ export const frequencyOptions = [
   { id: 'monthly', label: 'Monthly (15% off)', discount: 0.15 },
 ];
 
-export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6+'];
-export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5+'];
+export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6+'];
 
 export function getPriceForService(serviceId: CleaningServiceType, sqFtIndex: number): number {
   const service = cleaningServices.find(s => s.id === serviceId);
