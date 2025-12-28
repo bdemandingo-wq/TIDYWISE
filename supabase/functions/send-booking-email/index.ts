@@ -66,11 +66,13 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: settings } = await supabase
-        .from('business_settings')
-        .select('company_email, company_name, logo_url, primary_color, accent_color')
-        .limit(1)
-        .maybeSingle();
+      
+      // Filter by organization_id if provided, otherwise get the most recent
+      const settingsQuery = booking.organizationId 
+        ? supabase.from('business_settings').select('company_email, company_name, logo_url, primary_color, accent_color').eq('organization_id', booking.organizationId).maybeSingle()
+        : supabase.from('business_settings').select('company_email, company_name, logo_url, primary_color, accent_color').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      
+      const { data: settings } = await settingsQuery;
       
       if (settings?.company_email) {
         senderEmail = settings.company_email;

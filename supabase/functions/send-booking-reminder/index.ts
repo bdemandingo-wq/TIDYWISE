@@ -151,12 +151,22 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch business settings for sender email
     let senderEmail = "support@jointidywise.com";
     let companyName = "TidyWise";
+    let organizationId: string | null = null;
     
-    const { data: settings } = await supabase
-      .from('business_settings')
-      .select('company_email, company_name')
-      .limit(1)
-      .maybeSingle();
+    // Try to get organization_id from payload if available
+    try {
+      const text = await req.clone().text();
+      const parsed = text ? JSON.parse(text) : null;
+      organizationId = parsed?.organizationId || null;
+    } catch {
+      // ignore
+    }
+    
+    const settingsQuery = organizationId 
+      ? supabase.from('business_settings').select('company_email, company_name').eq('organization_id', organizationId).maybeSingle()
+      : supabase.from('business_settings').select('company_email, company_name').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+    
+    const { data: settings } = await settingsQuery;
     
     if (settings?.company_email) {
       senderEmail = settings.company_email;

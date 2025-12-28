@@ -43,12 +43,12 @@ serve(async (req) => {
       throw new Error("Referral not found");
     }
 
-    // Get business settings
-    const { data: settings } = await supabase
-      .from("business_settings")
-      .select("company_name")
-      .limit(1)
-      .maybeSingle();
+    // Get business settings - filter by organization_id if available on referral
+    const settingsQuery = referral.organization_id 
+      ? supabase.from("business_settings").select("company_name").eq("organization_id", referral.organization_id).maybeSingle()
+      : supabase.from("business_settings").select("company_name").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    
+    const { data: settings } = await settingsQuery;
 
     const companyName = settings?.company_name || "TidyWise";
     const referrerName = `${referral.referrer.first_name} ${referral.referrer.last_name}`;
