@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 
 import { BookingWithDetails, useStaff, useUpdateBooking } from "@/hooks/useBookings";
+import { useOrgId } from "@/hooks/useOrgId";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export function BookingDetailsDialog({
   booking: BookingWithDetails | null;
 }) {
   const [sendingLink, setSendingLink] = useState(false);
+  const { organizationId } = useOrgId();
 
   if (!booking) return null;
 
@@ -57,6 +59,7 @@ export function BookingDetailsDialog({
         body: {
           email: booking.customer.email,
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          organizationId: organizationId ?? undefined,
         },
       });
 

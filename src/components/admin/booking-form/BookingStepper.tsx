@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrgId } from '@/hooks/useOrgId';
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';
 import { useBookingForm } from './BookingFormContext';
@@ -53,19 +54,33 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   const [savingDraft, setSavingDraft] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
 
-  // Check if business email is configured
+  const { organizationId } = useOrgId();
+
+  // Check if business email is configured (for this organization)
   useEffect(() => {
     const checkEmailConfig = async () => {
-      const { data } = await supabase
+      if (!organizationId) {
+        setEmailConfigured(false);
+        return;
+      }
+
+      const { data, error } = await supabase
         .from('business_settings')
         .select('company_email')
-        .limit(1)
+        .eq('organization_id', organizationId)
         .maybeSingle();
-      
+
+      if (error) {
+        console.error('Failed to check email config:', error);
+        setEmailConfigured(false);
+        return;
+      }
+
       setEmailConfigured(!!(data?.company_email && data.company_email.trim().length > 0));
     };
+
     checkEmailConfig();
-  }, []);
+  }, [organizationId]);
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
@@ -274,6 +289,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 scheduledAt: bookingData.scheduled_at,
                 totalAmount,
                 address,
+                organizationId: organizationId ?? undefined,
               }
             });
           } catch (emailError) {
@@ -303,6 +319,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   extras: extraNames,
                   totalPrice: totalAmount,
                   confirmationNumber: `FPC-${Date.now().toString(36).toUpperCase()}`,
+                  organizationId: organizationId ?? undefined,
                 },
               });
               if (error) throw error;

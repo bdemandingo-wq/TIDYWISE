@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
+import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
 
 export function PaymentStep() {
@@ -43,6 +44,8 @@ export function PaymentStep() {
     totalAmount,
   } = useBookingForm();
 
+  const { organizationId } = useOrgId();
+
   const [sendingLink, setSendingLink] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
 
@@ -55,7 +58,7 @@ export function PaymentStep() {
     setSendingLink(true);
     try {
       const { error } = await supabase.functions.invoke('send-card-collection-link', {
-        body: { email: customerEmail, customerName }
+        body: { email: customerEmail, customerName, organizationId: organizationId ?? undefined }
       });
       if (error) throw error;
       toast.success('Card collection link sent to customer');
