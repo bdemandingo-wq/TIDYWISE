@@ -44,22 +44,23 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
 
 const LEAD_FIELDS: FieldMapping[] = [
-  { dbField: 'name', label: 'Name', required: true },
-  { dbField: 'email', label: 'Email', required: true, type: 'email' },
-  { dbField: 'phone', label: 'Phone' },
+  { dbField: 'name', label: 'Client Name', required: true },
+  { dbField: 'email', label: 'Email', type: 'email' },
+  { dbField: 'phone', label: 'Contact Number' },
+  { dbField: 'source', label: 'Lead Source' },
+  { dbField: 'service_interest', label: 'Type of Clean' },
+  { dbField: 'status', label: 'Status' },
+  { dbField: 'notes', label: 'Additional Info' },
   { dbField: 'address', label: 'Address' },
   { dbField: 'city', label: 'City' },
   { dbField: 'state', label: 'State' },
   { dbField: 'zip_code', label: 'Zip Code' },
-  { dbField: 'service_interest', label: 'Service Interest' },
-  { dbField: 'source', label: 'Source' },
   { dbField: 'message', label: 'Message' },
-  { dbField: 'notes', label: 'Notes' },
 ];
 
-const LEAD_SAMPLE = `name,email,phone,address,city,state,zip_code,service_interest,source
-John Doe,john@example.com,555-1234,123 Main St,New York,NY,10001,Deep Cleaning,website
-Jane Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001,Regular Cleaning,referral`;
+const LEAD_SAMPLE = `Client Name,Email,Contact Number,Lead Source,Type of Clean,Status,Additional Info
+Hakima,,(609) 848-3197,Organic,Deep Clean,Lost,said that she would call back
+Kathy Cullen,kathy341@aol.com,(954) 258-4969,Facebook,standard,Won,booked 11/12`;
 
 interface Lead {
   id: string;
@@ -110,6 +111,16 @@ export default function LeadsPage() {
   const handleImportLeads = async (records: Record<string, any>[]) => {
     if (!organization?.id) throw new Error('No organization found');
     
+    // Map status values from spreadsheet to our status values
+    const mapStatus = (status: string): string => {
+      const s = (status || '').toLowerCase().trim();
+      if (s === 'won' || s === 'converted') return 'converted';
+      if (s === 'lost') return 'lost';
+      if (s === 'contacted') return 'contacted';
+      if (s === 'qualified') return 'qualified';
+      return 'new';
+    };
+    
     const leadsToInsert = records.map(record => ({
       name: record.name || '',
       email: record.email || '',
@@ -122,7 +133,7 @@ export default function LeadsPage() {
       source: record.source || 'other',
       message: record.message || null,
       notes: record.notes || null,
-      status: 'new',
+      status: mapStatus(record.status),
       organization_id: organization.id,
     }));
     
