@@ -371,7 +371,7 @@ export default function ServicesPage() {
 
   // Load from localStorage or use defaults - reset if pricing structure changed
   useEffect(() => {
-    const PRICING_VERSION = "v3"; // Increment when sq ft ranges change
+    const PRICING_VERSION = "v4"; // Increment when sq ft ranges change
     const savedVersion = localStorage.getItem("tidywise_pricing_version");
     
     // Reset services if version mismatch (structure changed)
