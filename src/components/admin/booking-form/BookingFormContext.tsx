@@ -326,47 +326,8 @@ export function BookingFormProvider({
     }
   }, [customerEmail]);
 
-  // Calculate total price using live pricing data
-  useEffect(() => {
-    if (!booking && selectedService && pricing.isLoaded) {
-      const serviceName = selectedService.name.toLowerCase();
-      let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
-      
-      if (!matchedService) {
-        if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
-        else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
-        else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
-        else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
-      }
-      
-      if (pricingMode === 'sqft' && matchedService && squareFootage) {
-        const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
-        if (sqFtIndex !== -1) {
-          let basePrice = matchedService.prices[sqFtIndex];
-          const freqOption = frequencyOptions.find(f => f.id === frequency);
-          if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
-            basePrice = Math.round(basePrice * (1 - freqOption.discount));
-          }
-          const currentExtrasTotal = pricing.getExtrasTotal(selectedExtras);
-          const currentConditionTotal = pricing.getConditionPrice(homeCondition);
-          const currentPetTotal = pricing.getPetPrice(petOption);
-          setTotalAmount(basePrice + currentExtrasTotal + currentConditionTotal + currentPetTotal);
-        }
-      } else if (pricingMode === 'bedroom') {
-        let basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
-        const freqOption = frequencyOptions.find(f => f.id === frequency);
-        if (freqOption && freqOption.discount > 0) {
-          basePrice = Math.round(basePrice * (1 - freqOption.discount));
-        }
-        const currentExtrasTotal = pricing.getExtrasTotal(selectedExtras);
-        const currentConditionTotal = pricing.getConditionPrice(homeCondition);
-        const currentPetTotal = pricing.getPetPrice(petOption);
-        setTotalAmount(basePrice + currentExtrasTotal + currentConditionTotal + currentPetTotal);
-      } else if (!squareFootage && pricingMode === 'sqft') {
-        setTotalAmount(selectedService.price);
-      }
-    }
-  }, [selectedService, squareFootage, frequency, selectedExtras, booking, pricingMode, bedrooms, bathrooms, homeCondition, petOption, pricing]);
+  // Note: We no longer auto-set totalAmount - user must manually enter if they want to override
+  // The calculated price is displayed in ServiceStep but doesn't auto-populate the override field
 
   // Prefill form when editing
   useEffect(() => {

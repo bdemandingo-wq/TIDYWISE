@@ -23,6 +23,8 @@ import { toast } from 'sonner';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
+import { usePricing } from '@/hooks/usePricing';
+import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 
 export function PaymentStep() {
   const {
@@ -45,9 +47,18 @@ export function PaymentStep() {
     customerTab,
     selectedCustomer,
     newCustomer,
+    squareFootage,
+    pricingMode,
+    bedrooms,
+    bathrooms,
+    frequency,
+    selectedExtras,
+    homeCondition,
+    petOption,
   } = useBookingForm();
 
   const { organizationId } = useOrgId();
+  const pricing = usePricing();
 
   const [sendingLinkSms, setSendingLinkSms] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
@@ -57,14 +68,56 @@ export function PaymentStep() {
     ? selectedCustomer.phone 
     : newCustomer.phone;
 
+  // Calculate price from pricing sheet (same logic as ServiceStep)
+  const calculatedPrice = (() => {
+    if (!selectedService || !pricing.isLoaded) return 0;
+    
+    const serviceName = selectedService.name.toLowerCase();
+    let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
+    
+    if (!matchedService) {
+      if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
+      else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
+      else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
+      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
+    }
+    
+    let basePrice = 0;
+    const extrasTotal = pricing.getExtrasTotal(selectedExtras);
+    const conditionTotal = pricing.getConditionPrice(homeCondition);
+    const petTotal = pricing.getPetPrice(petOption);
+    
+    if (pricingMode === 'sqft' && matchedService && squareFootage) {
+      const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
+      if (sqFtIndex !== -1) {
+        basePrice = matchedService.prices[sqFtIndex];
+        const freqOption = frequencyOptions.find(f => f.id === frequency);
+        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
+          basePrice = Math.round(basePrice * (1 - freqOption.discount));
+        }
+      }
+    } else if (pricingMode === 'bedroom') {
+      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
+      const freqOption = frequencyOptions.find(f => f.id === frequency);
+      if (freqOption && freqOption.discount > 0) {
+        basePrice = Math.round(basePrice * (1 - freqOption.discount));
+      }
+    }
+    
+    return basePrice + extrasTotal + conditionTotal + petTotal;
+  })();
+
+  // Use override amount if set, otherwise use calculated price
+  const effectiveAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+
   const handleSendPaymentLinkSms = async () => {
     if (!customerPhone || !customerName) {
       toast.error('Please enter customer phone number and name first');
       return;
     }
 
-    if (!totalAmount || totalAmount <= 0) {
-      toast.error('Please set a valid total amount first');
+    if (!effectiveAmount || effectiveAmount <= 0) {
+      toast.error('Please select a service and property details to calculate the price');
       return;
     }
 
@@ -76,11 +129,11 @@ export function PaymentStep() {
           email: customerEmail,
           customerName, 
           organizationId: organizationId ?? undefined,
-          amount: totalAmount
+          amount: effectiveAmount
         }
       });
       if (error) throw error;
-      toast.success(`Payment link for $${totalAmount.toFixed(2)} sent via SMS`);
+      toast.success(`Payment link for $${effectiveAmount.toFixed(2)} sent via SMS`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send payment link via SMS');
     } finally {
@@ -274,15 +327,15 @@ export function PaymentStep() {
                 variant="outline"
                 className="h-11 w-full"
                 onClick={handleSendPaymentLinkSms}
-                disabled={sendingLinkSms || !customerPhone || !totalAmount}
-                title={!customerPhone ? "Customer phone required" : !totalAmount ? "Set total amount first" : `Send payment link for $${totalAmount.toFixed(2)}`}
+                disabled={sendingLinkSms || !customerPhone || !effectiveAmount}
+                title={!customerPhone ? "Customer phone required" : !effectiveAmount ? "Select service and details first" : `Send payment link for $${effectiveAmount.toFixed(2)}`}
               >
                 {sendingLinkSms ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Phone className="mr-2 h-4 w-4" />
                 )}
-                Send Payment Link (${totalAmount?.toFixed(2) || '0.00'})
+                Send Payment Link (${effectiveAmount?.toFixed(2) || '0.00'})
               </Button>
             </div>
           ) : (
