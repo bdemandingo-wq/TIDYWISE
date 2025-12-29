@@ -96,6 +96,25 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Extract phone number ID from URL if needed (handles both full URLs and IDs)
+    let phoneNumberId = smsSettings.openphone_phone_number_id;
+    if (phoneNumberId.includes('openphone.com')) {
+      // Extract PN... ID from URL like https://my.openphone.com/settings/phone-numbers/PNr7XukuaV
+      const match = phoneNumberId.match(/PN[a-zA-Z0-9]+/);
+      if (match) {
+        phoneNumberId = match[0];
+        console.log("Extracted phone number ID from URL:", phoneNumberId);
+      } else {
+        console.error("Could not extract phone number ID from URL:", phoneNumberId);
+        return new Response(JSON.stringify({ 
+          error: "Invalid OpenPhone phone number ID format. Please update SMS settings with just the phone number ID (e.g., PNxxxxxxxx)." 
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    }
+
     // Get company name for the message
     const { data: settings } = await supabase
       .from('business_settings')
@@ -166,7 +185,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         content: smsMessage,
-        from: smsSettings.openphone_phone_number_id,
+        from: phoneNumberId,
         to: [formattedPhone],
       }),
     });
