@@ -124,6 +124,17 @@ export function SMSSettingsCard() {
       return;
     }
 
+    if (!settings.sms_enabled) {
+      toast.error('Please enable SMS notifications and save settings first');
+      return;
+    }
+
+    // Save settings first to ensure the database is up to date
+    if (!settings.id) {
+      toast.error('Please save your settings before testing');
+      return;
+    }
+
     setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
@@ -307,10 +318,19 @@ export function SMSSettingsCard() {
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={testSMS} disabled={testing || !settings.openphone_api_key} className="gap-2">
+              <Button 
+                onClick={testSMS} 
+                disabled={testing || !settings.openphone_api_key || !settings.sms_enabled || !settings.id} 
+                className="gap-2"
+              >
                 {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Send Test
               </Button>
+              {(!settings.sms_enabled || !settings.id) && settings.openphone_api_key && (
+                <p className="text-sm text-muted-foreground">
+                  Enable SMS and save settings first
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
