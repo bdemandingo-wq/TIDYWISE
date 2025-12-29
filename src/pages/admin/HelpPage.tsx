@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface HelpVideo {
   id: string;
@@ -17,24 +16,18 @@ interface HelpVideo {
 }
 
 export default function HelpPage() {
-  const { organization } = useOrganization();
   const [videos, setVideos] = useState<HelpVideo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (organization?.id) {
-      fetchVideos();
-    }
-  }, [organization?.id]);
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
-    if (!organization?.id) return;
-    
     try {
       const { data, error } = await supabase
         .from('help_videos')
         .select('*')
-        .eq('organization_id', organization.id)
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
