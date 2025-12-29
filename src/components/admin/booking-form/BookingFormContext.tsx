@@ -79,6 +79,7 @@ interface BookingFormContextType extends BookingFormState {
   extrasTotal: number;
   conditionTotal: number;
   petTotal: number;
+  calculatedPrice: number;
   
   // Setters
   setCustomerTab: (tab: 'existing' | 'new') => void;
@@ -201,9 +202,44 @@ export function BookingFormProvider({
     : `${newCustomer.first_name} ${newCustomer.last_name}`;
 
   const extrasTotal = pricing.getExtrasTotal(selectedExtras);
-  
   const conditionTotal = pricing.getConditionPrice(homeCondition);
   const petTotal = pricing.getPetPrice(petOption);
+
+  // Calculate price from pricing sheet
+  const calculatedPrice = (() => {
+    if (!selectedService || !pricing.isLoaded) return 0;
+    
+    const serviceName = selectedService.name.toLowerCase();
+    let matchedService = pricing.services.find((s: any) => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
+    
+    if (!matchedService) {
+      if (serviceName.includes('deep')) matchedService = pricing.services.find((s: any) => s.id === 'deep_clean');
+      else if (serviceName.includes('move')) matchedService = pricing.services.find((s: any) => s.id === 'move_in_out');
+      else if (serviceName.includes('construction')) matchedService = pricing.services.find((s: any) => s.id === 'construction');
+      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find((s: any) => s.id === 'standard_clean');
+    }
+    
+    let basePrice = 0;
+    
+    if (pricingMode === 'sqft' && matchedService && squareFootage) {
+      const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
+      if (sqFtIndex !== -1) {
+        basePrice = matchedService.prices[sqFtIndex];
+        const freqOption = frequencyOptions.find(f => f.id === frequency);
+        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
+          basePrice = Math.round(basePrice * (1 - freqOption.discount));
+        }
+      }
+    } else if (pricingMode === 'bedroom') {
+      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
+      const freqOption = frequencyOptions.find(f => f.id === frequency);
+      if (freqOption && freqOption.discount > 0) {
+        basePrice = Math.round(basePrice * (1 - freqOption.discount));
+      }
+    }
+    
+    return basePrice + extrasTotal + conditionTotal + petTotal;
+  })();
 
   const updateNewCustomer = (field: keyof typeof initialNewCustomer, value: string) => {
     setNewCustomer(prev => ({ ...prev, [field]: value }));
@@ -384,6 +420,7 @@ export function BookingFormProvider({
       extrasTotal,
       conditionTotal,
       petTotal,
+      calculatedPrice,
       
       // Setters
       setCustomerTab,

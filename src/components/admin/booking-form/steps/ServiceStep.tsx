@@ -42,48 +42,13 @@ export function ServiceStep() {
     conditionTotal,
     petTotal,
     selectedService,
+    calculatedPrice,
   } = useBookingForm();
 
   // Use live pricing data
   const pricing = usePricing();
 
   const totalAddOns = extrasTotal + conditionTotal + petTotal;
-
-  // Calculate price from pricing sheet
-  const calculatedPrice = (() => {
-    if (!selectedService || !pricing.isLoaded) return 0;
-    
-    const serviceName = selectedService.name.toLowerCase();
-    let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
-    
-    if (!matchedService) {
-      if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
-      else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
-      else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
-      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
-    }
-    
-    let basePrice = 0;
-    
-    if (pricingMode === 'sqft' && matchedService && squareFootage) {
-      const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
-      if (sqFtIndex !== -1) {
-        basePrice = matchedService.prices[sqFtIndex];
-        const freqOption = frequencyOptions.find(f => f.id === frequency);
-        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
-          basePrice = Math.round(basePrice * (1 - freqOption.discount));
-        }
-      }
-    } else if (pricingMode === 'bedroom') {
-      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
-      const freqOption = frequencyOptions.find(f => f.id === frequency);
-      if (freqOption && freqOption.discount > 0) {
-        basePrice = Math.round(basePrice * (1 - freqOption.discount));
-      }
-    }
-    
-    return basePrice + extrasTotal + conditionTotal + petTotal;
-  })();
 
   return (
     <div className="space-y-6">

@@ -91,6 +91,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     customerEmail,
     customerName,
     extrasTotal,
+    calculatedPrice,
     resetForm,
   } = useBookingForm();
 
@@ -473,16 +474,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             {selectedService && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{selectedService.name}</span>
-                <span className="font-medium">${totalAmount.toFixed(2)}</span>
+                <span className="font-medium">${(totalAmount > 0 ? totalAmount : calculatedPrice).toFixed(2)}</span>
               </div>
             )}
 
-            {extrasTotal > 0 && (
+            {totalAmount > 0 && calculatedPrice > 0 && totalAmount !== calculatedPrice && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Add-ons</span>
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                  +${extrasTotal}
-                </Badge>
+                <span className="text-muted-foreground text-xs">Original price</span>
+                <span className="text-xs text-muted-foreground line-through">${calculatedPrice.toFixed(2)}</span>
               </div>
             )}
 
@@ -502,7 +501,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           <div className="flex justify-between items-center">
             <span className="font-medium">Total</span>
             <span className="text-2xl font-bold text-primary">
-              ${(totalAmount + extrasTotal).toFixed(2)}
+              ${(totalAmount > 0 ? totalAmount : calculatedPrice).toFixed(2)}
             </span>
           </div>
 
