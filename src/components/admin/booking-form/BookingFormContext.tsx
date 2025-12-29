@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
 import { supabase } from '@/integrations/supabase/client';
-import { extras as extrasData, cleaningServices, squareFootageRanges, frequencyOptions, getConditionPrice, getPetPrice, getBedroomBathroomPrice } from '@/data/pricingData';
+import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
+import { usePricing } from '@/hooks/usePricing';
 
 interface CardInfo {
   hasCard: boolean;
@@ -142,6 +143,9 @@ export function BookingFormProvider({
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
   
+  // Live pricing from localStorage
+  const pricing = usePricing();
+  
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -196,13 +200,10 @@ export function BookingFormProvider({
     ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
     : `${newCustomer.first_name} ${newCustomer.last_name}`;
 
-  const extrasTotal = selectedExtras.reduce((sum, extraId) => {
-    const extra = extrasData.find(e => e.id === extraId);
-    return sum + (extra?.price || 0);
-  }, 0);
+  const extrasTotal = pricing.getExtrasTotal(selectedExtras);
   
-  const conditionTotal = getConditionPrice(homeCondition);
-  const petTotal = getPetPrice(petOption);
+  const conditionTotal = pricing.getConditionPrice(homeCondition);
+  const petTotal = pricing.getPetPrice(petOption);
 
   const updateNewCustomer = (field: keyof typeof initialNewCustomer, value: string) => {
     setNewCustomer(prev => ({ ...prev, [field]: value }));
@@ -325,20 +326,20 @@ export function BookingFormProvider({
     }
   }, [customerEmail]);
 
-  // Calculate total price
+  // Calculate total price using live pricing data
   useEffect(() => {
-    if (!booking && selectedService) {
+    if (!booking && selectedService && pricing.isLoaded) {
       const serviceName = selectedService.name.toLowerCase();
-      let matchedService = cleaningServices.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
+      let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
       
       if (!matchedService) {
-        if (serviceName.includes('deep')) matchedService = cleaningServices.find(s => s.id === 'deep_clean');
-        else if (serviceName.includes('move')) matchedService = cleaningServices.find(s => s.id === 'move_in_out');
-        else if (serviceName.includes('construction')) matchedService = cleaningServices.find(s => s.id === 'construction');
-        else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = cleaningServices.find(s => s.id === 'standard_clean');
+        if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
+        else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
+        else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
+        else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
       }
       
-      if (matchedService && squareFootage) {
+      if (pricingMode === 'sqft' && matchedService && squareFootage) {
         const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
         if (sqFtIndex !== -1) {
           let basePrice = matchedService.prices[sqFtIndex];
@@ -346,17 +347,26 @@ export function BookingFormProvider({
           if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
             basePrice = Math.round(basePrice * (1 - freqOption.discount));
           }
-          const extrasTotal = selectedExtras.reduce((sum, extraId) => {
-            const extra = extrasData.find(e => e.id === extraId);
-            return sum + (extra?.price || 0);
-          }, 0);
-          setTotalAmount(basePrice + extrasTotal);
+          const currentExtrasTotal = pricing.getExtrasTotal(selectedExtras);
+          const currentConditionTotal = pricing.getConditionPrice(homeCondition);
+          const currentPetTotal = pricing.getPetPrice(petOption);
+          setTotalAmount(basePrice + currentExtrasTotal + currentConditionTotal + currentPetTotal);
         }
-      } else if (!squareFootage) {
+      } else if (pricingMode === 'bedroom') {
+        let basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
+        const freqOption = frequencyOptions.find(f => f.id === frequency);
+        if (freqOption && freqOption.discount > 0) {
+          basePrice = Math.round(basePrice * (1 - freqOption.discount));
+        }
+        const currentExtrasTotal = pricing.getExtrasTotal(selectedExtras);
+        const currentConditionTotal = pricing.getConditionPrice(homeCondition);
+        const currentPetTotal = pricing.getPetPrice(petOption);
+        setTotalAmount(basePrice + currentExtrasTotal + currentConditionTotal + currentPetTotal);
+      } else if (!squareFootage && pricingMode === 'sqft') {
         setTotalAmount(selectedService.price);
       }
     }
-  }, [selectedService, squareFootage, frequency, selectedExtras, booking]);
+  }, [selectedService, squareFootage, frequency, selectedExtras, booking, pricingMode, bedrooms, bathrooms, homeCondition, petOption, pricing]);
 
   // Prefill form when editing
   useEffect(() => {

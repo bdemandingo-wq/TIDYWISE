@@ -7,15 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, CheckCircle, DollarSign, PawPrint, Home, Ruler, BedDouble } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
+import { usePricing } from '@/hooks/usePricing';
 import { 
   squareFootageRanges, 
   bedroomOptions, 
   bathroomOptions, 
-  frequencyOptions, 
-  extras as extrasData,
-  petOptions,
-  homeConditionOptions,
-  bedroomPricing
+  frequencyOptions
 } from '@/data/pricingData';
 
 export function ServiceStep() {
@@ -45,6 +42,9 @@ export function ServiceStep() {
     conditionTotal,
     petTotal,
   } = useBookingForm();
+
+  // Use live pricing data
+  const pricing = usePricing();
 
   const totalAddOns = extrasTotal + conditionTotal + petTotal;
 
@@ -240,7 +240,7 @@ export function ServiceStep() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                {homeConditionOptions.map((opt) => (
+                {pricing.homeConditionOptions.map((opt) => (
                   <SelectItem key={opt.id} value={opt.id.toString()}>
                     <div className="flex items-center justify-between w-full gap-4">
                       <span>{opt.label}</span>
@@ -264,7 +264,7 @@ export function ServiceStep() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                {petOptions.map((opt) => (
+                {pricing.petOptions.map((opt) => (
                   <SelectItem key={opt.id} value={opt.id}>
                     <div className="flex items-center justify-between w-full gap-4">
                       <span>{opt.label}</span>
@@ -292,7 +292,7 @@ export function ServiceStep() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {extrasData.map((extra) => (
+            {pricing.extras.map((extra) => (
               <div 
                 key={extra.id}
                 className={cn(

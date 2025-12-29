@@ -26,13 +26,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import { 
-  cleaningServices, 
-  squareFootageRanges, 
-  extras, 
-  getPriceForService,
-  type CleaningServiceType 
-} from '@/data/pricingData';
+import { squareFootageRanges } from '@/data/pricingData';
+import { usePricing } from '@/hooks/usePricing';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -48,7 +43,7 @@ const timeSlots = Array.from({ length: 19 }, (_, i) => {
 
 export default function PublicBookingPage() {
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<CleaningServiceType | null>(null);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedSqFtIndex, setSelectedSqFtIndex] = useState<number | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -66,21 +61,19 @@ export default function PublicBookingPage() {
     notes: '',
   });
 
-  const service = cleaningServices.find(s => s.id === selectedService);
+  // Use live pricing data
+  const pricing = usePricing();
+
+  const service = pricing.services.find(s => s.id === selectedService);
   
   const calculateTotal = () => {
     let total = 0;
     if (service && selectedSqFtIndex !== null) {
-      total = getPriceForService(service.id, selectedSqFtIndex);
+      total = service.prices[selectedSqFtIndex] || service.minimumPrice;
     }
     
     // Add extras
-    selectedExtras.forEach(extraId => {
-      const extra = extras.find(e => e.id === extraId);
-      if (extra) {
-        total += extra.price;
-      }
-    });
+    total += pricing.getExtrasTotal(selectedExtras);
     
     return total;
   };
@@ -93,7 +86,7 @@ export default function PublicBookingPage() {
       setConfirmationNumber(newConfirmationNumber);
       
       try {
-        const extraNames = selectedExtras.map(id => extras.find(e => e.id === id)?.name).filter(Boolean) as string[];
+        const extraNames = selectedExtras.map(id => pricing.extras.find(e => e.id === id)?.name).filter(Boolean) as string[];
         
         const { error } = await supabase.functions.invoke('send-booking-email', {
           body: {
@@ -269,9 +262,9 @@ export default function PublicBookingPage() {
                 <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
                 <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {cleaningServices.map((svc) => {
+                  {pricing.services.map((svc) => {
                     const price = selectedSqFtIndex !== null 
-                      ? getPriceForService(svc.id, selectedSqFtIndex) 
+                      ? (svc.prices[selectedSqFtIndex] || svc.minimumPrice)
                       : svc.minimumPrice;
                     
                     return (
@@ -324,7 +317,7 @@ export default function PublicBookingPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {extras.map((extra) => (
+                      {pricing.extras.map((extra) => (
                         <div 
                           key={extra.id} 
                           onClick={() => toggleExtra(extra.id)}
@@ -536,10 +529,10 @@ export default function PublicBookingPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>{service?.name}</span>
-                      <span>${selectedSqFtIndex !== null ? getPriceForService(service!.id, selectedSqFtIndex) : 0}</span>
+                      <span>${selectedSqFtIndex !== null && service ? (service.prices[selectedSqFtIndex] || service.minimumPrice) : 0}</span>
                     </div>
                     {selectedExtras.map(extraId => {
-                      const extra = extras.find(e => e.id === extraId);
+                      const extra = pricing.extras.find(e => e.id === extraId);
                       if (!extra) return null;
                       return (
                         <div key={extraId} className="flex justify-between text-sm text-muted-foreground">
@@ -656,7 +649,7 @@ export default function PublicBookingPage() {
                       <div className="col-span-2">
                         <p className="text-sm text-muted-foreground">Extras</p>
                         <p className="font-medium">
-                          {selectedExtras.map(id => extras.find(e => e.id === id)?.name).join(', ')}
+                          {selectedExtras.map(id => pricing.extras.find(e => e.id === id)?.name).join(', ')}
                         </p>
                       </div>
                     )}
