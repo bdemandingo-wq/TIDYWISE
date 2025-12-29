@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { useOrgId } from '@/hooks/useOrgId';
 
 interface AddStaffDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { organizationId } = useOrgId();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +73,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
           percentage_rate: formData.percentage_rate ? parseFloat(formData.percentage_rate) : undefined,
           tax_classification: formData.tax_classification,
+          organizationId: organizationId ?? undefined,
         },
       });
 

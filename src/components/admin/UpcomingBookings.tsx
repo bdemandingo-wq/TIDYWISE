@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { EditCustomerDialog } from './EditCustomerDialog';
 import { AddBookingDialog } from './AddBookingDialog';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrgId } from '@/hooks/useOrgId';
 
 interface UpcomingBookingsProps {
   bookings: BookingWithDetails[];
@@ -52,6 +53,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
   const [editingCustomer, setEditingCustomer] = useState<BookingWithDetails['customer'] | null>(null);
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress, maskAmount } = useTestMode();
+  const { organizationId } = useOrgId();
 
   const upcomingBookings = useMemo(() => {
     const today = new Date();
@@ -93,6 +95,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
           appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
           address: booking.address || 'Address not provided',
           bookingNumber: booking.booking_number,
+          organizationId: organizationId ?? undefined,
         },
       });
 
