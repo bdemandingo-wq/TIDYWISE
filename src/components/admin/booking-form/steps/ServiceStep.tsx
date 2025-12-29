@@ -41,12 +41,49 @@ export function ServiceStep() {
     setPetOption,
     conditionTotal,
     petTotal,
+    selectedService,
   } = useBookingForm();
 
   // Use live pricing data
   const pricing = usePricing();
 
   const totalAddOns = extrasTotal + conditionTotal + petTotal;
+
+  // Calculate price from pricing sheet
+  const calculatedPrice = (() => {
+    if (!selectedService || !pricing.isLoaded) return 0;
+    
+    const serviceName = selectedService.name.toLowerCase();
+    let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
+    
+    if (!matchedService) {
+      if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
+      else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
+      else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
+      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
+    }
+    
+    let basePrice = 0;
+    
+    if (pricingMode === 'sqft' && matchedService && squareFootage) {
+      const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
+      if (sqFtIndex !== -1) {
+        basePrice = matchedService.prices[sqFtIndex];
+        const freqOption = frequencyOptions.find(f => f.id === frequency);
+        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
+          basePrice = Math.round(basePrice * (1 - freqOption.discount));
+        }
+      }
+    } else if (pricingMode === 'bedroom') {
+      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
+      const freqOption = frequencyOptions.find(f => f.id === frequency);
+      if (freqOption && freqOption.discount > 0) {
+        basePrice = Math.round(basePrice * (1 - freqOption.discount));
+      }
+    }
+    
+    return basePrice + extrasTotal + conditionTotal + petTotal;
+  })();
 
   return (
     <div className="space-y-6">
@@ -71,12 +108,25 @@ export function ServiceStep() {
               <SelectContent className="bg-popover border-border">
                 {services?.map((service) => (
                   <SelectItem key={service.id} value={service.id}>
-                    {service.name} - ${service.price}
+                    {service.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Calculated Price Display */}
+          {selectedServiceId && (
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">Calculated Price (from pricing sheet)</p>
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                ${calculatedPrice.toFixed(2)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Base + extras + condition + pets
+              </p>
+            </div>
+          )}
 
           {/* Price Override */}
           <div>
@@ -88,13 +138,13 @@ export function ServiceStep() {
               type="number"
               step="0.01"
               min="0"
-              placeholder="Enter actual price"
-              value={totalAmount || ''}
+              placeholder="Leave empty to use calculated price"
+              value={totalAmount > 0 ? totalAmount : ''}
               onChange={(e) => setTotalAmount(parseFloat(e.target.value) || 0)}
               className="mt-2 h-11 bg-secondary/30 border-border/50"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Leave empty to use calculated price, or enter actual price to charge
+              Enter a value only if you want to override the calculated price
             </p>
           </div>
 
