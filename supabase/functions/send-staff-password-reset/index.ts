@@ -14,7 +14,7 @@ const corsHeaders = {
 interface PasswordResetRequest {
   email: string;
   redirectUrl: string;
-  organizationId: string; // REQUIRED for multi-tenant isolation
+  organizationId?: string; // Optional - will be looked up from staff email if not provided
 }
 
 serve(async (req) => {
@@ -37,7 +37,7 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { email, redirectUrl, organizationId }: PasswordResetRequest = await req.json();
+    const { email, redirectUrl, organizationId: providedOrgId }: PasswordResetRequest = await req.json();
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email is required" }), {
@@ -46,15 +46,29 @@ serve(async (req) => {
       });
     }
 
-    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    console.log("[send-staff-password-reset] Processing password reset for:", email);
+
+    // Look up the staff member to find their organization
+    const { data: staffMember, error: staffError } = await supabaseAdmin
+      .from("staff")
+      .select("name, user_id, organization_id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (staffError) {
+      console.error("[send-staff-password-reset] Error looking up staff:", staffError);
+    }
+
+    // Use provided org ID or fall back to staff member's org
+    const organizationId = providedOrgId || staffMember?.organization_id;
+
     if (!organizationId) {
-      console.error("[send-staff-password-reset] Missing organizationId - cannot send email without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required" 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Return success silently - don't reveal if email exists
+      console.log("[send-staff-password-reset] No organization found for email:", email);
+      return new Response(
+        JSON.stringify({ success: true, message: "If an account exists, a reset email has been sent." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log("[send-staff-password-reset] Processing password reset for:", email, "org:", organizationId);
@@ -90,20 +104,12 @@ serve(async (req) => {
           ? `${origin}/staff/reset-password`
           : redirectUrl;
 
-    // Find the user and ensure they have staff/admin role.
-    let staffName = "Team Member";
-    let targetUserId: string | null = null;
+    // Use the staff member data we already retrieved, or look up again if needed
+    let staffName = staffMember?.name || "Team Member";
+    let targetUserId: string | null = staffMember?.user_id || null;
 
-    const { data: staffMember } = await supabaseAdmin
-      .from("staff")
-      .select("name, user_id")
-      .eq("email", email)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (staffMember?.user_id) {
-      targetUserId = staffMember.user_id;
-      staffName = staffMember.name || staffName;
+    if (targetUserId) {
+      // Already have the info from initial lookup
     } else {
       const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
         page: 1,
