@@ -34,8 +34,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Find the customer in Stripe
     const customers = await stripe.customers.list({ email: email, limit: 1 });
+    console.log("Stripe customers found:", customers.data.length, customers.data.map((c: { id: string; email: string | null }) => ({ id: c.id, email: c.email })));
     
     if (customers.data.length === 0) {
+      console.log("No Stripe customer found for email:", email);
       return new Response(
         JSON.stringify({ hasCard: false }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -51,7 +53,10 @@ const handler = async (req: Request): Promise<Response> => {
       limit: 1,
     });
 
+    console.log("Payment methods found:", paymentMethods.data.length);
+
     if (paymentMethods.data.length === 0) {
+      console.log("No payment methods found for customer:", customerId);
       return new Response(
         JSON.stringify({ hasCard: false, customerId }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -59,6 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const card = paymentMethods.data[0].card;
+    console.log("Card found:", { brand: card?.brand, last4: card?.last4 });
 
     return new Response(JSON.stringify({ 
       hasCard: true,
