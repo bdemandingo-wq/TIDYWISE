@@ -82,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const apiKey = smsSettings.openphone_api_key;
-    const phoneNumberId = smsSettings.openphone_phone_number_id;
+    let phoneNumberId = smsSettings.openphone_phone_number_id;
 
     if (!apiKey || !phoneNumberId) {
       console.error("[send-openphone-sms] Missing OpenPhone credentials for org:", organizationId);
@@ -93,6 +93,15 @@ const handler = async (req: Request): Promise<Response> => {
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Extract phone number ID if a full URL was provided
+    if (phoneNumberId.includes('openphone.com')) {
+      const match = phoneNumberId.match(/phone-numbers\/([A-Za-z0-9]+)/);
+      if (match) {
+        phoneNumberId = match[1];
+        console.log(`[send-openphone-sms] Extracted phone number ID from URL: ${phoneNumberId}`);
+      }
     }
 
     // Format phone number (ensure it starts with +1 for US numbers)

@@ -233,8 +233,11 @@ export function SMSSettingsCard() {
                 id="phoneNumberId"
                 value={settings.openphone_phone_number_id}
                 onChange={(e) => setSettings(prev => ({ ...prev, openphone_phone_number_id: e.target.value }))}
-                placeholder="Enter your OpenPhone Phone Number ID"
+                placeholder="e.g., PNr7XukuaV (not the full URL)"
               />
+              <p className="text-xs text-muted-foreground">
+                Just the ID (starts with PN...), not the full URL
+              </p>
             </div>
           </div>
 
