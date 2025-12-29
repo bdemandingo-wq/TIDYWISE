@@ -70,7 +70,7 @@ export default function ReviewPage() {
 
     try {
       // Update the review request with rating and feedback
-      const { error } = await supabase
+      const { data: reviewData, error } = await supabase
         .from('review_requests')
         .update({
           rating,
@@ -78,9 +78,35 @@ export default function ReviewPage() {
           responded_at: new Date().toISOString(),
           status: 'completed'
         })
-        .eq('review_link_token', token);
+        .eq('review_link_token', token)
+        .select('booking_id, customer_id')
+        .single();
 
       if (error) throw error;
+
+      // If rating is 3 or below, route to internal feedback system
+      if (rating <= 3 && reviewData) {
+        // Get customer name from the review context
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('first_name, last_name, organization_id')
+          .eq('id', reviewData.customer_id)
+          .single();
+
+        if (customerData) {
+          // Create client feedback entry for low ratings
+          await supabase
+            .from('client_feedback')
+            .insert({
+              customer_name: `${customerData.first_name} ${customerData.last_name}`,
+              issue_description: feedback || `Customer gave ${rating} star rating`,
+              organization_id: customerData.organization_id,
+              feedback_date: new Date().toISOString().split('T')[0],
+              is_resolved: false,
+              followup_needed: true
+            });
+        }
+      }
 
       setIsSubmitted(true);
 
