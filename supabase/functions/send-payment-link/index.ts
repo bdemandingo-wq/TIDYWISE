@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
 });
@@ -31,6 +31,14 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY secret");
+    return new Response(JSON.stringify({ error: "Email service is not configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
   try {
     const { email, customerName, amount, serviceName, bookingId, organizationId }: PaymentLinkRequest = await req.json();
 
@@ -54,44 +62,23 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Fetch business settings for the SPECIFIC organization only
-    let senderEmail = "";
-    let companyName = "";
+    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    const emailSettingsResult = await getOrgEmailSettings(organizationId);
     
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
-      // ONLY query settings for the specific organization - NO FALLBACK
-      const { data: settings, error: settingsError } = await supabase
-        .from('business_settings')
-        .select('company_email, company_name')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-      
-      if (settingsError) {
-        console.error("Error fetching organization settings:", settingsError);
-      }
-      
-      if (!settings || !settings.company_email || !settings.company_name) {
-        console.error("Organization settings not configured for org:", organizationId);
-        return new Response(JSON.stringify({ 
-          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
-        }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-      
-      senderEmail = settings.company_email;
-      companyName = settings.company_name;
-      
-      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
-    } else {
-      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
-        status: 500,
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("Failed to get email settings:", emailSettingsResult.error);
+      return new Response(JSON.stringify({ 
+        error: emailSettingsResult.error || "Email settings not configured" 
+      }), {
+        status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    const emailSettings = emailSettingsResult.settings;
+    const companyName = emailSettings.from_name;
+    
+    console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
 
     // Check if customer exists in Stripe, create if not
     const customers = await stripe.customers.list({ email: email, limit: 1 });
@@ -138,70 +125,97 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Created Stripe checkout session:", session.id, "URL:", session.url);
 
     // Send email with the Stripe payment link
-    const emailResponse = await resend.emails.send({
-      from: `${companyName} <${senderEmail}>`,
-      to: [email],
-      subject: "Complete Your Booking Payment",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-            .amount { font-size: 36px; font-weight: bold; color: #10b981; margin: 20px 0; }
-            .button { display: inline-block; background: #10b981; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-            .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-            .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Complete Your Payment</h1>
-            </div>
-            <div class="content">
-              <p>Hi ${customerName},</p>
-              <p>Thank you for choosing ${companyName}! Please complete your payment to confirm your booking.</p>
-              
-              <div class="details">
-                <h3>Booking Details</h3>
-                <p><strong>Service:</strong> ${serviceName}</p>
-                <p class="amount">$${amount.toFixed(2)}</p>
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: formatEmailFrom(emailSettings),
+        to: [email],
+        reply_to: getReplyTo(emailSettings),
+        subject: "Complete Your Booking Payment",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+              .amount { font-size: 36px; font-weight: bold; color: #10b981; margin: 20px 0; }
+              .button { display: inline-block; background: #10b981; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+              .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+              .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Complete Your Payment</h1>
               </div>
-              
-              <p>Click the button below to securely complete your payment:</p>
-              
-              <center>
-                <a href="${session.url}" class="button">Pay Now - Secure Checkout</a>
-              </center>
-              
-              <div class="secure">
-                <span>🔒 Secured by Stripe</span>
+              <div class="content">
+                <p>Hi ${customerName},</p>
+                <p>Thank you for choosing ${companyName}! Please complete your payment to confirm your booking.</p>
+                
+                <div class="details">
+                  <h3>Booking Details</h3>
+                  <p><strong>Service:</strong> ${serviceName}</p>
+                  <p class="amount">$${amount.toFixed(2)}</p>
+                </div>
+                
+                <p>Click the button below to securely complete your payment:</p>
+                
+                <center>
+                  <a href="${session.url}" class="button">Pay Now - Secure Checkout</a>
+                </center>
+                
+                <div class="secure">
+                  <span>🔒 Secured by Stripe</span>
+                </div>
+                
+                <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                  This payment link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
+                </p>
               </div>
-              
-              <p style="color: #666; font-size: 14px; margin-top: 20px;">
-                This payment link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
-              </p>
+              <div class="footer">
+                <p>Questions? Reply to this email or contact us.</p>
+                <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+              </div>
             </div>
-            <div class="footer">
-              <p>Questions? Reply to this email or contact us.</p>
-              <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `,
+          </body>
+          </html>
+        `,
+      }),
     });
 
-    console.log("Payment link email sent successfully:", emailResponse);
+    let emailData: any = null;
+    try {
+      emailData = await emailResponse.json();
+    } catch (_e) {
+      emailData = null;
+    }
+
+    // If domain not verified, return helpful error
+    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
+      const domain = emailSettings.from_email.split('@')[1];
+      console.error(`Domain ${domain} is not verified on Resend`);
+      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
+    }
+
+    if (!emailResponse.ok) {
+      console.error("Resend API error:", { status: emailResponse.status, data: emailData });
+      throw new Error(emailData?.message || `Failed to send email (status ${emailResponse.status})`);
+    }
+
+    console.log("Payment link email sent successfully:", emailData);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      data: emailResponse,
+      data: emailData,
       paymentUrl: session.url,
       sessionId: session.id
     }), {

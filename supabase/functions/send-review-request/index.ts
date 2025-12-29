@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -57,35 +58,30 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Fetch business settings for the SPECIFIC organization only
-    let senderEmail = "";
-    let companyName = "";
+    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    const emailSettingsResult = await getOrgEmailSettings(organizationId);
     
-    // ONLY query settings for the specific organization - NO FALLBACK
-    const { data: settings, error: settingsError } = await supabase
-      .from('business_settings')
-      .select('company_email, company_name, google_review_url')
-      .eq('organization_id', organizationId)
-      .maybeSingle();
-    
-    if (settingsError) {
-      console.error("Error fetching organization settings:", settingsError);
-    }
-    
-    if (!settings || !settings.company_email || !settings.company_name) {
-      console.error("Organization settings not configured for org:", organizationId);
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("Failed to get email settings:", emailSettingsResult.error);
       return new Response(JSON.stringify({ 
-        error: "Organization email settings not configured. Please set up your company email and name in Settings." 
+        error: emailSettingsResult.error || "Email settings not configured" 
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    const emailSettings = emailSettingsResult.settings;
+    const companyName = emailSettings.from_name;
     
-    senderEmail = settings.company_email;
-    companyName = settings.company_name;
+    console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
     
-    console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
+    // Get Google review URL from business_settings (still needed for review link)
+    const { data: businessSettings } = await supabase
+      .from('business_settings')
+      .select('google_review_url')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
     
     // Generate unique token for this review request
     const token = crypto.randomUUID();
@@ -102,8 +98,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get default Google review URL from business settings if not provided
     let finalGoogleUrl = googleReviewUrl;
-    if (!finalGoogleUrl && settings?.google_review_url) {
-      finalGoogleUrl = settings.google_review_url;
+    if (!finalGoogleUrl && businessSettings?.google_review_url) {
+      finalGoogleUrl = businessSettings.google_review_url;
     }
 
     // Create review request record
@@ -222,8 +218,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${companyName} <${senderEmail}>`,
+        from: formatEmailFrom(emailSettings),
         to: [customerEmail],
+        reply_to: getReplyTo(emailSettings),
         subject: `How was your ${serviceName}? We'd love your feedback!`,
         html: emailHtml,
       }),
@@ -238,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // If domain not verified, return helpful error
     if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
-      const domain = senderEmail.split('@')[1];
+      const domain = emailSettings.from_email.split('@')[1];
       console.error(`Domain ${domain} is not verified on Resend`);
       throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
     }

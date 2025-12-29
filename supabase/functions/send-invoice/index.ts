@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
@@ -82,44 +83,23 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Fetch business settings for the SPECIFIC organization only
-    let senderEmail = "";
-    let companyName = "";
+    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    const emailSettingsResult = await getOrgEmailSettings(data.organizationId);
     
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
-      // ONLY query settings for the specific organization - NO FALLBACK
-      const { data: settings, error: settingsError } = await supabase
-        .from('business_settings')
-        .select('company_email, company_name')
-        .eq('organization_id', data.organizationId)
-        .maybeSingle();
-      
-      if (settingsError) {
-        console.error("Error fetching organization settings:", settingsError);
-      }
-      
-      if (!settings || !settings.company_email || !settings.company_name) {
-        console.error("Organization settings not configured for org:", data.organizationId);
-        return new Response(JSON.stringify({ 
-          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
-        }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-      
-      senderEmail = settings.company_email;
-      companyName = settings.company_name;
-      
-      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
-    } else {
-      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
-        status: 500,
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("Failed to get email settings:", emailSettingsResult.error);
+      return new Response(JSON.stringify({ 
+        error: emailSettingsResult.error || "Email settings not configured" 
+      }), {
+        status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    const emailSettings = emailSettingsResult.settings;
+    const companyName = emailSettings.from_name;
+    
+    console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
 
     // Initialize Stripe
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
@@ -305,8 +285,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${companyName} <${senderEmail}>`,
+        from: formatEmailFrom(emailSettings),
         to: [customerEmail],
+        reply_to: getReplyTo(emailSettings),
         subject: `Invoice #${data.invoiceNumber} from ${companyName} - Pay Online`,
         html: emailHtml,
       }),
@@ -321,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // If domain not verified, return helpful error
     if (!response.ok && responseData?.name === 'validation_error' && responseData?.message?.includes('not verified')) {
-      const domain = senderEmail.split('@')[1];
+      const domain = emailSettings.from_email.split('@')[1];
       console.error(`Domain ${domain} is not verified on Resend`);
       throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
     }

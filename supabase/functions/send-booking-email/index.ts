@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -68,9 +69,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending booking confirmation email to:", customerEmail, "for organization:", booking.organizationId);
 
-    // Fetch business settings for the SPECIFIC organization only
-    let senderEmail = "";
-    let companyName = "";
+    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    const emailSettingsResult = await getOrgEmailSettings(booking.organizationId);
+    
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("Failed to get email settings:", emailSettingsResult.error);
+      return new Response(JSON.stringify({ 
+        error: emailSettingsResult.error || "Email settings not configured" 
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const emailSettings = emailSettingsResult.settings;
+    const senderEmail = emailSettings.from_email;
+    const companyName = emailSettings.from_name;
+
+    // Fetch branding from business_settings (colors, logo) for email templates
     let logoUrl = "";
     let primaryColor = "#1e5bb0";
     let accentColor = "#14b8a6";
@@ -78,40 +94,20 @@ const handler = async (req: Request): Promise<Response> => {
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      // ONLY query settings for the specific organization - NO FALLBACK
-      const { data: settings, error: settingsError } = await supabase
+      const { data: settings } = await supabase
         .from('business_settings')
-        .select('company_email, company_name, logo_url, primary_color, accent_color')
+        .select('logo_url, primary_color, accent_color')
         .eq('organization_id', booking.organizationId)
         .maybeSingle();
       
-      if (settingsError) {
-        console.error("Error fetching organization settings:", settingsError);
+      if (settings) {
+        logoUrl = settings.logo_url || "";
+        primaryColor = settings.primary_color || "#1e5bb0";
+        accentColor = settings.accent_color || "#14b8a6";
       }
-      
-      if (!settings || !settings.company_email || !settings.company_name) {
-        console.error("Organization settings not configured for org:", booking.organizationId);
-        return new Response(JSON.stringify({ 
-          error: "Organization email settings not configured. Please set up your company email and name in Settings." 
-        }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
-      
-      senderEmail = settings.company_email;
-      companyName = settings.company_name;
-      logoUrl = settings.logo_url || "";
-      primaryColor = settings.primary_color || "#1e5bb0";
-      accentColor = settings.accent_color || "#14b8a6";
-      
-      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
-    } else {
-      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
     }
+
+    console.log("Using org email settings - sender:", senderEmail, "name:", companyName);
 
     const fullAddress = [
       booking.address,
@@ -289,8 +285,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${companyName} <${senderEmail}>`,
+        from: formatEmailFrom(emailSettings),
         to: [customerEmail],
+        reply_to: getReplyTo(emailSettings),
         subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
         html: emailHtml,
       }),
