@@ -59,6 +59,42 @@ export default function FinancePage() {
   });
   const { maskName, maskAmount, isTestMode } = useTestMode();
 
+  // Fetch completed bookings with payment data
+  const { data: bookings = [] } = useQuery({
+    queryKey: ['bookings-finance', dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers(*),
+          service:services(*),
+          staff:staff(*)
+        `)
+        .gte('scheduled_at', dateRange.from.toISOString())
+        .lte('scheduled_at', dateRange.to.toISOString())
+        .order('scheduled_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: isSubscribed,
+  });
+
+  // Fetch expenses for the date range
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses-finance', dateRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
+      if (error) throw error;
+      return data;
+    },
+    enabled: isSubscribed,
+  });
+
   // Show subscription gate if not subscribed
   if (!isSubscribed) {
     return (
@@ -84,40 +120,6 @@ export default function FinancePage() {
       </AdminLayout>
     );
   }
-
-  // Fetch completed bookings with payment data
-  const { data: bookings = [] } = useQuery({
-    queryKey: ['bookings-finance', dateRange],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:customers(*),
-          service:services(*),
-          staff:staff(*)
-        `)
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', dateRange.to.toISOString())
-        .order('scheduled_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch expenses for the date range
-  const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses-finance', dateRange],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // Transform bookings to transactions with calculated fees
   const transactions: Transaction[] = useMemo(() => {
