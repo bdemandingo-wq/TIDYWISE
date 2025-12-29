@@ -40,6 +40,7 @@ import { useBookings, useUpdateBooking, BookingWithDetails } from '@/hooks/useBo
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes, parseISO } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrgId } from '@/hooks/useOrgId';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -150,6 +151,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress } = useTestMode();
+  const { organizationId } = useOrgId();
 
   const { data: allBookings = [], isLoading } = useBookings();
   const updateBooking = useUpdateBooking();
@@ -321,6 +323,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
           address: booking.address || 'Address not provided',
           bookingNumber: booking.booking_number,
+          organizationId: organizationId ?? undefined,
         },
       });
 
