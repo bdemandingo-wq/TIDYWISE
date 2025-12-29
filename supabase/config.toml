@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.send-openphone-sms]
 verify_jwt = false
+
+[functions.send-admin-sms-notification]
+verify_jwt = false

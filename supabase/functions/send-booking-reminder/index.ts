@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,128 +9,10 @@ const corsHeaders = {
 
 // Time windows in hours
 const REMINDER_WINDOWS = [
-  { hours: 120, label: '5 days' },
+  { hours: 24, label: '24 hours' },
   { hours: 3, label: '3 hours' },
   { hours: 1, label: '1 hour' },
 ];
-
-// Minimalistic email template
-const getReminderEmailHtml = (
-  customerName: string,
-  serviceName: string,
-  formattedDate: string,
-  formattedTime: string,
-  address: string,
-  totalAmount: number | null,
-  companyName: string,
-  staffName?: string,
-  windowLabel?: string
-) => {
-  const timeLabel = windowLabel ? `Your appointment is in ${windowLabel}` : 'Upcoming Appointment';
-  
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Appointment Reminder</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#333333;line-height:1.6;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
-    <tr>
-      <td style="padding:20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#1e5bb0;padding:25px;text-align:center;">
-              <div style="font-size:28px;font-weight:bold;color:#ffffff;">${companyName}</div>
-              <p style="color:#ffffff;font-size:13px;margin:5px 0 0 0;">Professional Cleaning Services</p>
-            </td>
-          </tr>
-          
-          <!-- Reminder Banner -->
-          <tr>
-            <td style="background-color:#f59e0b;padding:12px;text-align:center;">
-              <span style="color:#ffffff;font-size:16px;font-weight:600;">${timeLabel}</span>
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="padding:30px;">
-              <p style="font-size:16px;margin:0 0 15px 0;">Hi ${customerName},</p>
-              
-              <p style="margin:0 0 25px 0;">This is a friendly reminder about your upcoming <strong>${serviceName}</strong> appointment.</p>
-              
-              <!-- Appointment Details -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9f9f9;border-radius:8px;margin-bottom:20px;">
-                <tr>
-                  <td style="padding:20px;">
-                    <h3 style="margin:0 0 15px 0;color:#1e5bb0;font-size:14px;text-transform:uppercase;">Appointment Details</h3>
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;color:#666666;font-size:14px;">Date</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;font-size:14px;color:#333333;">${formattedDate}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;color:#666666;font-size:14px;">Time</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;font-size:14px;color:#333333;">${formattedTime}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;color:#666666;font-size:14px;">Address</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;font-size:14px;color:#333333;">${address}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;${staffName || totalAmount !== null ? 'border-bottom:1px solid #e0e0e0;' : ''}color:#666666;font-size:14px;">Service</td>
-                        <td style="padding:10px 0;${staffName || totalAmount !== null ? 'border-bottom:1px solid #e0e0e0;' : ''}text-align:right;font-weight:600;font-size:14px;color:#333333;">${serviceName}</td>
-                      </tr>
-                      ${staffName ? `
-                      <tr>
-                        <td style="padding:10px 0;${totalAmount !== null ? 'border-bottom:1px solid #e0e0e0;' : ''}color:#666666;font-size:14px;">Cleaner</td>
-                        <td style="padding:10px 0;${totalAmount !== null ? 'border-bottom:1px solid #e0e0e0;' : ''}text-align:right;font-weight:600;font-size:14px;color:#333333;">${staffName}</td>
-                      </tr>
-                      ` : ''}
-                      ${totalAmount !== null ? `
-                      <tr>
-                        <td style="padding:10px 0;color:#666666;font-size:14px;">Total</td>
-                        <td style="padding:10px 0;text-align:right;font-weight:bold;font-size:18px;color:#3fa34d;">$${totalAmount}</td>
-                      </tr>
-                      ` : ''}
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="margin:0 0 10px 0;background-color:#e8f4fd;padding:12px;border-radius:6px;font-size:14px;color:#333333;">
-                <strong>Please ensure</strong> access to the property is available at the scheduled time.
-              </p>
-              
-              <p style="margin:20px 0 0 0;font-size:14px;color:#666666;text-align:center;">
-                Need to reschedule? Reply to this email or contact us.
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#333333;padding:20px;text-align:center;">
-              <p style="color:#ffffff;font-size:14px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
-              <p style="color:#999999;font-size:12px;margin:0;">
-                © ${new Date().getFullYear()} ${companyName}. All rights reserved.
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
-};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -145,10 +24,6 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!RESEND_API_KEY) {
-      throw new Error("Missing RESEND_API_KEY");
-    }
-
     // Parse payload to get organizationId
     let payload: any = null;
     try {
@@ -158,12 +33,12 @@ const handler = async (req: Request): Promise<Response> => {
       payload = null;
     }
 
-    const isManualSend = !!payload?.customerEmail;
+    const isManualSend = !!payload?.customerPhone;
     const organizationId = payload?.organizationId;
 
     // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
     if (!organizationId) {
-      console.error("Missing organizationId - cannot send reminder without organization context");
+      console.error("[send-booking-reminder] Missing organizationId");
       return new Response(JSON.stringify({ 
         error: "Missing organizationId - organization context is required" 
       }), {
@@ -172,118 +47,148 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
-    const emailSettingsResult = await getOrgEmailSettings(organizationId);
-    
-    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
-      console.error("Failed to get email settings:", emailSettingsResult.error);
+    // Fetch SMS settings for the organization
+    const { data: smsSettings, error: settingsError } = await supabase
+      .from('organization_sms_settings')
+      .select('openphone_api_key, openphone_phone_number_id, sms_enabled, sms_appointment_reminder')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (settingsError) {
+      console.error("[send-booking-reminder] Error fetching SMS settings:", settingsError);
       return new Response(JSON.stringify({ 
-        error: emailSettingsResult.error || "Email settings not configured" 
+        error: "Failed to fetch SMS settings" 
       }), {
-        status: 400,
+        status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const emailSettings = emailSettingsResult.settings;
-    const companyName = emailSettings.from_name;
-    
-    console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
+    if (!smsSettings?.sms_enabled) {
+      console.log("[send-booking-reminder] SMS disabled for organization:", organizationId);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "SMS notifications are disabled" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
+    if (!smsSettings.openphone_api_key || !smsSettings.openphone_phone_number_id) {
+      console.log("[send-booking-reminder] OpenPhone not configured for org:", organizationId);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "OpenPhone not configured" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Get company name for messages
+    const { data: businessSettings } = await supabase
+      .from('business_settings')
+      .select('company_name')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+    
+    const companyName = businessSettings?.company_name || 'Your cleaning service';
+
+    // Extract phone number ID if full URL was provided
+    let phoneNumberId = smsSettings.openphone_phone_number_id;
+    if (phoneNumberId.includes('openphone.com')) {
+      const match = phoneNumberId.match(/phone-numbers\/([A-Za-z0-9]+)/);
+      if (match) {
+        phoneNumberId = match[1];
+      }
+    }
+
+    // Helper function to send SMS
+    const sendSMS = async (to: string, message: string): Promise<boolean> => {
+      let formattedPhone = to.replace(/\D/g, '');
+      if (formattedPhone.length === 10) {
+        formattedPhone = `+1${formattedPhone}`;
+      } else if (!formattedPhone.startsWith('+')) {
+        formattedPhone = `+${formattedPhone}`;
+      }
+
+      const response = await fetch("https://api.openphone.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Authorization": smsSettings.openphone_api_key!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: phoneNumberId,
+          to: [formattedPhone],
+          content: message,
+        }),
+      });
+
+      return response.ok;
+    };
+
+    // Manual reminder send
     if (isManualSend) {
       const scheduledDate = payload?.scheduledAt ? new Date(payload.scheduledAt) : null;
       const formattedDate = scheduledDate
         ? scheduledDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
+            weekday: 'short',
+            month: 'short',
             day: 'numeric',
           })
-        : 'Your scheduled date';
+        : 'your scheduled date';
       const formattedTime = scheduledDate
         ? scheduledDate.toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
           })
-        : 'Your scheduled time';
+        : 'your scheduled time';
 
       const customerName = payload?.customerName || 'there';
-      const serviceName = payload?.serviceName || 'Cleaning Service';
-      const address = payload?.address || 'Address on file';
-      const totalAmount = typeof payload?.totalAmount === 'number' ? payload.totalAmount : null;
+      const serviceName = payload?.serviceName || 'cleaning';
+      const address = payload?.address || '';
 
-      console.log(
-        `Manual reminder requested for bookingId=${payload?.bookingId ?? 'n/a'} to=${payload.customerEmail} org=${organizationId}`,
-      );
+      const message = `Hi ${customerName}! This is a reminder about your ${serviceName} appointment with ${companyName} on ${formattedDate} at ${formattedTime}.${address ? ` Address: ${address}` : ''} Reply with any questions!`;
 
-      const emailHtml = getReminderEmailHtml(
-        customerName,
-        serviceName,
-        formattedDate,
-        formattedTime,
-        address,
-        totalAmount,
-        companyName,
-        undefined,
-        undefined
-      );
+      console.log(`[send-booking-reminder] Manual reminder to ${payload.customerPhone}`);
 
-      let res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: formatEmailFrom(emailSettings),
-          to: [payload.customerEmail],
-          reply_to: getReplyTo(emailSettings),
-          subject: `Reminder: Your ${serviceName} on ${formattedDate}`,
-          html: emailHtml,
-        }),
-      });
+      const success = await sendSMS(payload.customerPhone, message);
 
-      let data = await res.json();
-      
-      // If domain not verified, return helpful error
-      if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
-        const domain = emailSettings.from_email.split('@')[1];
-        console.error(`Domain ${domain} is not verified on Resend`);
-        throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
+      if (success) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Reminder SMS sent",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Failed to send reminder SMS",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
-      
-      if (!res.ok) {
-        console.error("Resend API error:", data);
-        throw new Error(data?.message || "Failed to send reminder email");
-      }
-
-      // Optional: validate booking exists
-      if (payload?.bookingId) {
-        const { error: bookingError } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('id', payload.bookingId)
-          .maybeSingle();
-        if (bookingError) {
-          console.warn('Manual reminder: booking lookup failed:', bookingError);
-        }
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Sent 1 reminder",
-          reminders: [payload?.bookingId ?? "manual"],
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        },
-      );
     }
 
-    // Batch scheduled reminders - filter by organization_id
+    // Batch scheduled reminders - only if SMS reminders are enabled
+    if (!smsSettings.sms_appointment_reminder) {
+      console.log("[send-booking-reminder] Appointment reminders disabled for org:", organizationId);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Appointment reminders are disabled",
+        reminders: [] 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const now = new Date();
     const sentReminders: string[] = [];
 
@@ -299,27 +204,26 @@ const handler = async (req: Request): Promise<Response> => {
           service:services(*),
           staff:staff(*)
         `)
-        .eq('organization_id', organizationId) // Filter by organization
+        .eq('organization_id', organizationId)
         .gte('scheduled_at', windowStart.toISOString())
         .lte('scheduled_at', windowEnd.toISOString())
         .in('status', ['pending', 'confirmed'])
         .not('customer_id', 'is', null);
 
       if (error) {
-        console.error('Error fetching bookings:', error);
+        console.error('[send-booking-reminder] Error fetching bookings:', error);
         continue;
       }
 
-      console.log(`Found ${bookings?.length || 0} bookings for ${window.label} reminder in org ${organizationId}`);
+      console.log(`[send-booking-reminder] Found ${bookings?.length || 0} bookings for ${window.label} reminder`);
 
       for (const booking of bookings || []) {
-        if (!booking.customer?.email) continue;
+        if (!booking.customer?.phone) continue;
 
         const scheduledDate = new Date(booking.scheduled_at);
         const formattedDate = scheduledDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
+          weekday: 'short',
+          month: 'short',
           day: 'numeric'
         });
         const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
@@ -328,102 +232,27 @@ const handler = async (req: Request): Promise<Response> => {
           hour12: true
         });
 
-        const customerName = `${booking.customer.first_name} ${booking.customer.last_name}`;
-        const serviceName = booking.service?.name || 'Cleaning Service';
-        const address = [booking.address, booking.city, booking.state, booking.zip_code]
-          .filter(Boolean)
-          .join(', ') || 'Address on file';
+        const customerName = booking.customer.first_name || 'there';
+        const serviceName = booking.service?.name || 'cleaning';
+        const address = [booking.address, booking.city].filter(Boolean).join(', ');
+        const staffName = booking.staff?.name;
+
+        const message = `⏰ Reminder: Your ${serviceName} with ${companyName} is in ${window.label}!\n\n` +
+          `📅 ${formattedDate} at ${formattedTime}\n` +
+          `${address ? `📍 ${address}\n` : ''}` +
+          `${staffName ? `👤 Cleaner: ${staffName}\n` : ''}` +
+          `\nPlease ensure access to the property. Reply with any questions!`;
 
         try {
-          const emailHtml = getReminderEmailHtml(
-            customerName,
-            serviceName,
-            formattedDate,
-            formattedTime,
-            address,
-            booking.total_amount,
-            companyName,
-            booking.staff?.name,
-            window.label
-          );
-
-          let res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              from: formatEmailFrom(emailSettings),
-              to: [booking.customer.email],
-              reply_to: getReplyTo(emailSettings),
-              subject: `Reminder: Your ${serviceName} is in ${window.label}!`,
-              html: emailHtml,
-            }),
-          });
-
-          let data = await res.json();
-
-          // If domain not verified, log error and skip
-          if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
-            const domain = emailSettings.from_email.split('@')[1];
-            console.error(`Domain ${domain} is not verified on Resend - skipping reminder for booking #${booking.booking_number}`);
-            continue;
+          const success = await sendSMS(booking.customer.phone, message);
+          if (success) {
+            sentReminders.push(`#${booking.booking_number} (${window.label})`);
+            console.log(`[send-booking-reminder] SMS sent for booking #${booking.booking_number}`);
+          } else {
+            console.error(`[send-booking-reminder] Failed to send SMS for booking #${booking.booking_number}`);
           }
-
-          if (!res.ok) {
-            console.error("Resend API error:", data);
-            throw new Error(data.message || "Failed to send email");
-          }
-
-          sentReminders.push(`${booking.booking_number} (${window.label})`);
-          console.log(`Sent ${window.label} reminder for booking #${booking.booking_number}`);
-
-          // Send SMS reminder if enabled
-          try {
-            const { data: smsSettings } = await supabase
-              .from('organization_sms_settings')
-              .select('sms_enabled, sms_appointment_reminder, openphone_api_key, openphone_phone_number_id')
-              .eq('organization_id', organizationId)
-              .maybeSingle();
-
-            if (smsSettings?.sms_enabled && smsSettings?.sms_appointment_reminder && 
-                smsSettings?.openphone_api_key && smsSettings?.openphone_phone_number_id &&
-                booking.customer?.phone) {
-              
-              let formattedPhone = booking.customer.phone.replace(/\D/g, '');
-              if (formattedPhone.length === 10) {
-                formattedPhone = `+1${formattedPhone}`;
-              } else if (!formattedPhone.startsWith('+')) {
-                formattedPhone = `+${formattedPhone}`;
-              }
-
-              const smsMessage = `Reminder: Your ${serviceName} with ${companyName} is in ${window.label}! ${formattedDate} at ${formattedTime}. See you soon!`;
-
-              const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
-                method: "POST",
-                headers: {
-                  "Authorization": smsSettings.openphone_api_key,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  from: smsSettings.openphone_phone_number_id,
-                  to: [formattedPhone],
-                  content: smsMessage,
-                }),
-              });
-
-              if (smsResponse.ok) {
-                console.log(`SMS reminder sent for booking #${booking.booking_number}`);
-              } else {
-                console.error(`SMS reminder failed for booking #${booking.booking_number}`);
-              }
-            }
-          } catch (smsError) {
-            console.error(`SMS reminder error for booking #${booking.booking_number}:`, smsError);
-          }
-        } catch (emailError: any) {
-          console.error(`Failed to send reminder for booking #${booking.booking_number}:`, emailError);
+        } catch (smsError) {
+          console.error(`[send-booking-reminder] Error sending SMS for booking #${booking.booking_number}:`, smsError);
         }
       }
     }
@@ -431,22 +260,16 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Sent ${sentReminders.length} reminders`,
+        message: `Sent ${sentReminders.length} reminder SMS`,
         reminders: sentReminders 
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error("Error in send-booking-reminder function:", error);
+    console.error("[send-booking-reminder] Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

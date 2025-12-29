@@ -255,7 +255,25 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
 
         if (!isDraft) {
-          // Send confirmation SMS if enabled
+          // Send admin SMS notification (non-blocking, fail silently)
+          supabase.functions.invoke('send-admin-sms-notification', {
+            body: {
+              customerName,
+              serviceName: selectedService?.name,
+              scheduledAt: bookingData.scheduled_at,
+              totalAmount,
+              address,
+              organizationId: organizationId ?? undefined,
+            }
+          }).then(({ error }) => {
+            if (error) {
+              console.log('Admin SMS notification skipped (SMS may not be configured)');
+            }
+          }).catch((err) => {
+            console.log('Admin SMS notification failed:', err);
+          });
+
+          // Send confirmation SMS to customer if enabled
           if (sendConfirmationSms) {
             const customerPhone = customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone;
             if (customerPhone) {
