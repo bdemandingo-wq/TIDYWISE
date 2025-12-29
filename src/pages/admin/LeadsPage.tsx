@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, Upload } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,26 +41,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
 
-const LEAD_FIELDS: FieldMapping[] = [
-  { dbField: 'name', label: 'Client Name', required: true },
-  { dbField: 'email', label: 'Email', type: 'email' },
-  { dbField: 'phone', label: 'Contact Number' },
-  { dbField: 'source', label: 'Lead Source' },
-  { dbField: 'service_interest', label: 'Type of Clean' },
-  { dbField: 'status', label: 'Status' },
-  { dbField: 'notes', label: 'Additional Info' },
-  { dbField: 'address', label: 'Address' },
-  { dbField: 'city', label: 'City' },
-  { dbField: 'state', label: 'State' },
-  { dbField: 'zip_code', label: 'Zip Code' },
-  { dbField: 'message', label: 'Message' },
-];
 
-const LEAD_SAMPLE = `Client Name,Email,Contact Number,Lead Source,Type of Clean,Status,Additional Info
-Hakima,,(609) 848-3197,Organic,Deep Clean,Lost,said that she would call back
-Kathy Cullen,kathy341@aol.com,(954) 258-4969,Facebook,standard,Won,booked 11/12`;
 
 interface Lead {
   id: string;
@@ -103,45 +85,11 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [showFunnel, setShowFunnel] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organization } = useOrganization();
 
-  const handleImportLeads = async (records: Record<string, any>[]) => {
-    if (!organization?.id) throw new Error('No organization found');
-    
-    // Map status values from spreadsheet to our status values
-    const mapStatus = (status: string): string => {
-      const s = (status || '').toLowerCase().trim();
-      if (s === 'won' || s === 'converted') return 'converted';
-      if (s === 'lost') return 'lost';
-      if (s === 'contacted') return 'contacted';
-      if (s === 'qualified') return 'qualified';
-      return 'new';
-    };
-    
-    const leadsToInsert = records.map(record => ({
-      name: record.name || '',
-      email: record.email || '',
-      phone: record.phone || null,
-      address: record.address || null,
-      city: record.city || null,
-      state: record.state || null,
-      zip_code: record.zip_code || null,
-      service_interest: record.service_interest || null,
-      source: record.source || 'other',
-      message: record.message || null,
-      notes: record.notes || null,
-      status: mapStatus(record.status),
-      organization_id: organization.id,
-    }));
-    
-    const { error } = await supabase.from('leads').insert(leadsToInsert);
-    if (error) throw error;
-    
-    queryClient.invalidateQueries({ queryKey: ['leads'] });
-  };
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads', organization?.id],
@@ -328,10 +276,6 @@ export default function LeadsPage() {
           >
             <TrendingDown className="w-4 h-4" />
             Funnel Report
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
-            <Upload className="w-4 h-4" />
-            Import
           </Button>
           <Button variant="outline" className="gap-2" onClick={exportLeadsExcel}>
             <Download className="w-4 h-4" />
@@ -646,15 +590,6 @@ export default function LeadsPage() {
         }}
       />
       
-      <ImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        title="Import Leads"
-        entityName="leads"
-        fields={LEAD_FIELDS}
-        onImport={handleImportLeads}
-        sampleData={LEAD_SAMPLE}
-      />
     </AdminLayout>
   );
 }
