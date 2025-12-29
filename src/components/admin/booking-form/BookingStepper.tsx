@@ -16,6 +16,7 @@ import {
   Save,
   Copy,
   Mail,
+  MessageSquare,
   Check,
   Sparkles,
   AlertCircle
@@ -84,6 +85,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     cleanerOverrideHours,
     sendConfirmationEmail,
     setSendConfirmationEmail,
+    sendConfirmationSms,
+    setSendConfirmationSms,
     selectedService,
     selectedCustomer,
     customerEmail,
@@ -301,6 +304,30 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               toast.error(emailError?.message || 'Failed to send confirmation email');
             }
           }
+
+          // Send confirmation SMS if enabled
+          if (sendConfirmationSms) {
+            const customerPhone = customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone;
+            if (customerPhone) {
+              try {
+                const scheduledDate = new Date(`${format(selectedDate!, 'yyyy-MM-dd')}T${selectedTime.replace(' AM', ':00').replace(' PM', ':00')}`);
+                const { error } = await supabase.functions.invoke('send-openphone-sms', {
+                  body: {
+                    to: customerPhone,
+                    message: `Hi ${customerName}! Your ${selectedService?.name || 'cleaning'} appointment is confirmed for ${format(scheduledDate, 'MMMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}. Address: ${address}${city ? `, ${city}` : ''}. Reply to this message with any questions!`,
+                    organizationId: organizationId ?? undefined,
+                  },
+                });
+                if (error) throw error;
+                toast.success('Confirmation text sent to customer');
+              } catch (smsError: any) {
+                console.error('SMS error:', smsError);
+                toast.error('Failed to send confirmation text');
+              }
+            } else {
+              toast.warning('No phone number available for SMS');
+            }
+          }
         }
       }
 
@@ -405,19 +432,35 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           <div className="flex items-center gap-3">
             {currentStep === STEPS.length - 1 ? (
               <>
-                <div className="flex items-center gap-2 mr-4 p-2 bg-secondary/30 rounded-lg">
-                  <Checkbox
-                    id="sendConfirmation"
-                    checked={sendConfirmationEmail}
-                    onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
-                  />
-                  <Label
-                    htmlFor="sendConfirmation"
-                    className="text-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    Send confirmation email
-                  </Label>
+                <div className="flex items-center gap-4 mr-4 p-2 bg-secondary/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sendConfirmation"
+                      checked={sendConfirmationEmail}
+                      onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
+                    />
+                    <Label
+                      htmlFor="sendConfirmation"
+                      className="text-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      Send confirmation email
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sendConfirmationSms"
+                      checked={sendConfirmationSms}
+                      onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
+                    />
+                    <Label
+                      htmlFor="sendConfirmationSms"
+                      className="text-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                      Send confirmation text
+                    </Label>
+                  </div>
                 </div>
 
                 {booking && (

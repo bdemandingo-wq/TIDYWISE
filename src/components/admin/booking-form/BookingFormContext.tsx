@@ -51,13 +51,13 @@ interface BookingFormState {
   selectedTime: string;
   selectedStaffId: string;
   
-  // Payment/Notes
   notes: string;
   totalAmount: number;
   cleanerWage: string;
   cleanerWageType: string;
   cleanerOverrideHours: string;
   sendConfirmationEmail: boolean;
+  sendConfirmationSms: boolean;
   
   // Card info
   cardInfo: CardInfo | null;
@@ -107,6 +107,7 @@ interface BookingFormContextType extends BookingFormState {
   setCleanerWageType: (type: string) => void;
   setCleanerOverrideHours: (hours: string) => void;
   setSendConfirmationEmail: (send: boolean) => void;
+  setSendConfirmationSms: (send: boolean) => void;
   setCardInfo: (info: CardInfo | null) => void;
   
   // Actions
@@ -178,6 +179,7 @@ export function BookingFormProvider({
   const [cleanerWageType, setCleanerWageType] = useState('hourly');
   const [cleanerOverrideHours, setCleanerOverrideHours] = useState('');
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(false);
+  const [sendConfirmationSms, setSendConfirmationSms] = useState(false);
   
   // Card state
   const [cardInfo, setCardInfo] = useState<CardInfo | null>(null);
@@ -394,6 +396,7 @@ export function BookingFormProvider({
       cleanerWageType,
       cleanerOverrideHours,
       sendConfirmationEmail,
+      sendConfirmationSms,
       cardInfo,
       loadingCard,
       
@@ -439,6 +442,7 @@ export function BookingFormProvider({
       setCleanerWageType,
       setCleanerOverrideHours,
       setSendConfirmationEmail,
+      setSendConfirmationSms,
       setCardInfo,
       
       // Actions
