@@ -94,7 +94,7 @@ function EditablePricingTable({
         <TableHeader>
           <TableRow>
             <TableHead className="sticky left-0 bg-background min-w-[180px]">Service</TableHead>
-            {squareFootageRanges.slice(0, 7).map((range) => (
+            {squareFootageRanges.map((range) => (
               <TableHead key={range.maxSqFt} className="text-center min-w-[90px]">
                 {range.label}
               </TableHead>
@@ -113,7 +113,7 @@ function EditablePricingTable({
                   {service.name}
                 </div>
               </TableCell>
-              {service.prices.slice(0, 7).map((price, index) => (
+              {service.prices.map((price, index) => (
                 <TableCell 
                   key={index} 
                   className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
