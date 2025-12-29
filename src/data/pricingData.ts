@@ -145,18 +145,6 @@ export const bedroomPricing = [
   { bedrooms: '6', bathrooms: '3', basePrice: 380 },
   { bedrooms: '6', bathrooms: '3.5', basePrice: 400 },
   { bedrooms: '6', bathrooms: '4', basePrice: 430 },
-  { bedrooms: '7', bathrooms: '3.5', basePrice: 460 },
-  { bedrooms: '7', bathrooms: '4', basePrice: 490 },
-  { bedrooms: '7', bathrooms: '4.5', basePrice: 520 },
-  { bedrooms: '8', bathrooms: '4', basePrice: 550 },
-  { bedrooms: '8', bathrooms: '4.5', basePrice: 580 },
-  { bedrooms: '8', bathrooms: '5', basePrice: 610 },
-  { bedrooms: '9', bathrooms: '4.5', basePrice: 640 },
-  { bedrooms: '9', bathrooms: '5', basePrice: 670 },
-  { bedrooms: '9', bathrooms: '5.5', basePrice: 700 },
-  { bedrooms: '10', bathrooms: '5', basePrice: 730 },
-  { bedrooms: '10', bathrooms: '5.5', basePrice: 760 },
-  { bedrooms: '10', bathrooms: '6+', basePrice: 800 },
 ];
 
 export const frequencyOptions = [
@@ -167,8 +155,8 @@ export const frequencyOptions = [
   { id: 'monthly', label: 'Monthly (15% off)', discount: 0.15 },
 ];
 
-export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6+'];
+export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6'];
+export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4'];
 
 export function getPriceForService(serviceId: CleaningServiceType, sqFtIndex: number): number {
   const service = cleaningServices.find(s => s.id === serviceId);
