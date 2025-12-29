@@ -15,7 +15,6 @@ import {
   Loader2,
   Save,
   Copy,
-  Mail,
   MessageSquare,
   Check,
   Sparkles,
@@ -256,58 +255,6 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
 
         if (!isDraft) {
-          // Send admin notification (non-blocking, fail silently)
-          supabase.functions.invoke('send-admin-booking-notification', {
-            body: {
-              customerName,
-              customerEmail,
-              serviceName: selectedService?.name,
-              scheduledAt: bookingData.scheduled_at,
-              totalAmount,
-              address,
-              organizationId: organizationId ?? undefined,
-            }
-          }).then(({ error }) => {
-            if (error) {
-              console.log('Admin notification skipped (email settings may not be configured)');
-            }
-          }).catch((err) => {
-            console.log('Admin notification failed:', err);
-          });
-
-          if (sendConfirmationEmail && customerEmail) {
-            try {
-              const scheduledDate = new Date(bookingData.scheduled_at);
-              const extraNames = selectedExtras
-                .map((id) => extrasData.find((e) => e.id === id)?.name)
-                .filter(Boolean) as string[];
-
-              const { error } = await supabase.functions.invoke('send-booking-email', {
-                body: {
-                  customerName,
-                  customerEmail,
-                  customerPhone: customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone,
-                  serviceName: selectedService?.name || 'Cleaning Service',
-                  homeSize: squareFootage || 'Not specified',
-                  appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
-                  appointmentTime: format(scheduledDate, 'h:mm a'),
-                  address,
-                  city,
-                  state,
-                  zipCode,
-                  extras: extraNames,
-                  totalPrice: totalAmount,
-                  confirmationNumber: `FPC-${Date.now().toString(36).toUpperCase()}`,
-                  organizationId: organizationId ?? undefined,
-                },
-              });
-              if (error) throw error;
-              toast.success('Confirmation email sent to customer');
-            } catch (emailError: any) {
-              toast.error(emailError?.message || 'Failed to send confirmation email');
-            }
-          }
-
           // Send confirmation SMS if enabled
           if (sendConfirmationSms) {
             const customerPhone = customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone;
@@ -435,35 +382,19 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           <div className="flex items-center gap-3">
             {currentStep === STEPS.length - 1 ? (
               <>
-                <div className="flex items-center gap-4 mr-4 p-2 bg-secondary/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="sendConfirmation"
-                      checked={sendConfirmationEmail}
-                      onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
-                    />
-                    <Label
-                      htmlFor="sendConfirmation"
-                      className="text-sm cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      Send confirmation email
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="sendConfirmationSms"
-                      checked={sendConfirmationSms}
-                      onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
-                    />
-                    <Label
-                      htmlFor="sendConfirmationSms"
-                      className="text-sm cursor-pointer flex items-center gap-1.5"
-                    >
-                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                      Send confirmation text
-                    </Label>
-                  </div>
+                <div className="flex items-center gap-2 mr-4 p-2 bg-secondary/30 rounded-lg">
+                  <Checkbox
+                    id="sendConfirmationSms"
+                    checked={sendConfirmationSms}
+                    onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
+                  />
+                  <Label
+                    htmlFor="sendConfirmationSms"
+                    className="text-sm cursor-pointer flex items-center gap-1.5"
+                  >
+                    <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                    Send confirmation text
+                  </Label>
                 </div>
 
                 {booking && (
