@@ -748,8 +748,8 @@ export default function BookingsPage() {
   };
 
   const handleSendReviewRequest = async (booking: BookingWithDetails) => {
-    if (!booking.customer?.email) {
-      toast({ title: "Error", description: "No customer email found", variant: "destructive" });
+    if (!booking.customer?.phone) {
+      toast({ title: "Error", description: "No customer phone number found", variant: "destructive" });
       return;
     }
 
@@ -758,22 +758,27 @@ export default function BookingsPage() {
       return;
     }
 
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization not found", variant: "destructive" });
+      return;
+    }
+
     setSendingReviewRequest(booking.id);
     
     try {
-      const { error } = await supabase.functions.invoke('send-review-request', {
+      const { error } = await supabase.functions.invoke('send-review-request-sms', {
         body: {
           bookingId: booking.id,
           customerId: (booking as any).customer_id || booking.customer?.id,
-          customerEmail: booking.customer.email,
+          customerPhone: booking.customer.phone,
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
           serviceName: booking.service?.name || 'Cleaning Service',
-          googleReviewUrl: null,
+          organizationId: organization.id,
         }
       });
 
       if (error) throw error;
-      toast({ title: "Review Request Sent", description: `Email sent to ${booking.customer.email}` });
+      toast({ title: "Review Request Sent", description: `SMS sent to ${booking.customer.phone}` });
     } catch (error: any) {
       console.error('Failed to send review request:', error);
       toast({ title: "Error", description: error.message || "Failed to send review request", variant: "destructive" });
@@ -1306,14 +1311,14 @@ export default function BookingsPage() {
                               <DropdownMenuItem 
                                 className="gap-2 cursor-pointer text-amber-600" 
                                 onClick={() => handleSendReviewRequest(booking)}
-                                disabled={sendingReviewRequest === booking.id || !booking.customer?.email}
+                                disabled={sendingReviewRequest === booking.id || !booking.customer?.phone}
                               >
                                 {sendingReviewRequest === booking.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <Star className="w-4 h-4" />
                                 )}
-                                Send Review Request
+                                Send Review Request (SMS)
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />

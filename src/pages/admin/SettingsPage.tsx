@@ -55,6 +55,7 @@ interface BusinessSettings {
   reminder_email_body: string;
   // Reviews
   google_review_url: string;
+  review_sms_template: string;
   // Email integration
   resend_api_key: string;
 }
@@ -87,6 +88,7 @@ const defaultSettings: BusinessSettings = {
   reminder_email_subject: 'Reminder: Your Cleaning is Tomorrow - {{booking_number}}',
   reminder_email_body: 'Hi {{customer_name}},\n\nThis is a friendly reminder that your cleaning is scheduled for tomorrow.\n\nBooking Details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n\nIf you need to reschedule or have any questions, please contact us.\n\nSee you soon!\n{{company_name}}',
   google_review_url: '',
+  review_sms_template: 'Hi {customer_name}, thank you for choosing {company_name}! We\'d love to hear about your experience. Please take a moment to leave us a review: {review_link}',
   resend_api_key: '',
 };
 
@@ -155,6 +157,7 @@ export default function SettingsPage() {
           reminder_email_subject: typedData.reminder_email_subject || defaultSettings.reminder_email_subject,
           reminder_email_body: typedData.reminder_email_body || defaultSettings.reminder_email_body,
           google_review_url: typedData.google_review_url || '',
+          review_sms_template: typedData.review_sms_template || defaultSettings.review_sms_template,
           resend_api_key: typedData.resend_api_key || '',
         });
       }
@@ -197,6 +200,7 @@ export default function SettingsPage() {
         reminder_email_subject: settings.reminder_email_subject,
         reminder_email_body: settings.reminder_email_body,
         google_review_url: settings.google_review_url,
+        review_sms_template: settings.review_sms_template,
         resend_api_key: settings.resend_api_key,
       } as any;
 
@@ -553,6 +557,29 @@ export default function SettingsPage() {
                   When customers rate 4+ stars, they'll be prompted to leave a review on Google.
                   Get your link from Google Business Profile.
                 </p>
+              </div>
+
+              <Separator />
+
+              {/* SMS Template Section */}
+              <div className="space-y-2">
+                <Label htmlFor="reviewSmsTemplate">Review Request SMS Template</Label>
+                <textarea
+                  id="reviewSmsTemplate"
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Hi {customer_name}, thank you for choosing {company_name}!..."
+                  value={settings.review_sms_template}
+                  onChange={(e) => updateField('review_sms_template', e.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  This message will be sent via SMS when you request a review. Available variables:
+                </p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{'{customer_name}'}</code>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{'{company_name}'}</code>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{'{service_name}'}</code>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{'{review_link}'}</code>
+                </div>
               </div>
               
               {/* Feedback note */}
