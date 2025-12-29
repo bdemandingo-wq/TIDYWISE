@@ -369,14 +369,31 @@ export default function ServicesPage() {
   const [extras, setExtras] = useState<Extra[]>([]);
   const [bedroomPricing, setBedroomPricing] = useState<BedroomPricingItem[]>([]);
 
-  // Load from localStorage or use defaults
+  // Load from localStorage or use defaults - reset if pricing structure changed
   useEffect(() => {
+    const PRICING_VERSION = "v3"; // Increment when sq ft ranges change
+    const savedVersion = localStorage.getItem("tidywise_pricing_version");
+    
+    // Reset services if version mismatch (structure changed)
+    if (savedVersion !== PRICING_VERSION) {
+      localStorage.removeItem("tidywise_services");
+      localStorage.setItem("tidywise_pricing_version", PRICING_VERSION);
+    }
+    
     const savedServices = localStorage.getItem("tidywise_services");
     const savedExtras = localStorage.getItem("tidywise_extras");
     const savedBedroomPricing = localStorage.getItem("tidywise_bedroom_pricing");
     
     if (savedServices) {
-      setServices(JSON.parse(savedServices));
+      const parsed = JSON.parse(savedServices);
+      // Validate that saved services have correct number of prices
+      const expectedPriceCount = squareFootageRanges.length;
+      const isValid = parsed.every((s: CleaningService) => s.prices.length === expectedPriceCount);
+      if (isValid) {
+        setServices(parsed);
+      } else {
+        setServices(defaultCleaningServices);
+      }
     } else {
       setServices(defaultCleaningServices);
     }
