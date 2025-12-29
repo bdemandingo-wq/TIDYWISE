@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -14,6 +16,7 @@ const corsHeaders = {
 interface CancelHoldRequest {
   paymentIntentId: string;
   cancellationReason?: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,9 +25,36 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { paymentIntentId, cancellationReason }: CancelHoldRequest = await req.json();
+    // SECURITY: Verify authenticated user with admin privileges
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+    
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
+      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
 
-    console.log("Canceling payment hold:", { paymentIntentId, cancellationReason });
+    const { paymentIntentId, cancellationReason, organizationId }: CancelHoldRequest = await req.json();
+
+    // SECURITY: Verify organization context matches authenticated user
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ error: "Organization ID is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (organizationId !== authResult.organizationId) {
+      console.error("Organization mismatch in cancel-hold");
+      await logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { reason: "Organization mismatch", requestedOrg: organizationId },
+      });
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    }
+
+    console.log("Canceling payment hold:", { paymentIntentId, cancellationReason, userId: authResult.userId });
 
     if (!paymentIntentId) {
       return new Response(
@@ -33,12 +63,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Retrieve the payment intent to check its status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     
     console.log("Payment intent status:", paymentIntent.status);
 
-    // Can only cancel if the payment is in requires_capture (held) or requires_payment_method state
     if (paymentIntent.status !== "requires_capture" && paymentIntent.status !== "requires_payment_method") {
       return new Response(
         JSON.stringify({ 
@@ -49,14 +77,25 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Cancel the payment intent to release the hold
     const canceledPayment = await stripe.paymentIntents.cancel(paymentIntentId, {
       cancellation_reason: "requested_by_customer",
     });
 
-    console.log("Payment hold canceled successfully:", canceledPayment.id);
-
     const heldAmount = paymentIntent.amount / 100;
+
+    // Log successful hold cancellation
+    await logAudit({
+      action: AuditActions.PAYMENT_CANCELLED,
+      userId: authResult.userId!,
+      organizationId: authResult.organizationId!,
+      details: { 
+        paymentIntentId: canceledPayment.id, 
+        amountReleased: heldAmount,
+        reason: cancellationReason 
+      },
+    });
+
+    console.log("Payment hold canceled successfully:", canceledPayment.id);
 
     return new Response(JSON.stringify({ 
       success: true, 

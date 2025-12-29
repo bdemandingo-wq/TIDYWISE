@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-08-27.basil",
 });
 
 const corsHeaders = {
@@ -12,8 +14,9 @@ const corsHeaders = {
 
 interface ChargeRequest {
   email: string;
-  amount: number; // in dollars
+  amount: number;
   description?: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,7 +25,34 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, amount, description }: ChargeRequest = await req.json();
+    // SECURITY: Verify authenticated user with admin privileges
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+    
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
+      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
+
+    const { email, amount, description, organizationId }: ChargeRequest = await req.json();
+
+    // SECURITY: Verify organization context matches authenticated user
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Organization ID is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (organizationId !== authResult.organizationId) {
+      console.error("Organization mismatch in charge-card-directly");
+      await logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { reason: "Organization mismatch", requestedOrg: organizationId },
+      });
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    }
 
     if (!email || !amount) {
       return new Response(
@@ -31,9 +61,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    console.log("Charging card directly:", { email, amount, userId: authResult.userId });
+
     const amountInCents = Math.round(amount * 100);
 
-    // Find customer by email
     const customers = await stripe.customers.list({ email, limit: 1 });
     
     if (customers.data.length === 0) {
@@ -48,13 +79,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const customer = customers.data[0];
 
-    // Get customer's default payment method
     let paymentMethodId: string | undefined;
 
     if (customer.invoice_settings?.default_payment_method) {
       paymentMethodId = customer.invoice_settings.default_payment_method as string;
     } else {
-      // Try to get any attached payment method
       const paymentMethods = await stripe.paymentMethods.list({
         customer: customer.id,
         type: 'card',
@@ -76,7 +105,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create and confirm payment intent immediately
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
@@ -92,6 +120,18 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (paymentIntent.status === 'succeeded') {
+      // Log successful charge
+      await logAudit({
+        action: AuditActions.PAYMENT_CAPTURE,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { 
+          paymentIntentId: paymentIntent.id, 
+          amount,
+          customerEmail: email 
+        },
+      });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -102,6 +142,17 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
+      await logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { 
+          paymentIntentId: paymentIntent.id, 
+          status: paymentIntent.status,
+          customerEmail: email 
+        },
+      });
+
       return new Response(
         JSON.stringify({
           success: false,

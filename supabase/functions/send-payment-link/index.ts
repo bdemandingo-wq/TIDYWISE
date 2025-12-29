@@ -1,15 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
 });
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +21,7 @@ interface PaymentLinkRequest {
   amount: number;
   serviceName: string;
   bookingId?: string;
-  organizationId: string; // REQUIRED - no fallback allowed
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,9 +38,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // SECURITY: Verify authenticated user with admin privileges
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+    
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
+      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
+
     const { email, customerName, amount, serviceName, bookingId, organizationId }: PaymentLinkRequest = await req.json();
 
-    console.log("Received payment link request:", { email, customerName, amount, serviceName, bookingId, organizationId });
+    console.log("Received payment link request:", { email, customerName, amount, serviceName, bookingId, organizationId, userId: authResult.userId });
 
     if (!email || !customerName || !amount) {
       return new Response(
@@ -51,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
+    // SECURITY: Verify organization context matches authenticated user
     if (!organizationId) {
       console.error("Missing organizationId - cannot send payment link without organization context");
       return new Response(JSON.stringify({ 
@@ -60,6 +66,17 @@ const handler = async (req: Request): Promise<Response> => {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
+    }
+
+    if (organizationId !== authResult.organizationId) {
+      console.error("Organization mismatch in send-payment-link");
+      await logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { reason: "Organization mismatch", requestedOrg: organizationId },
+      });
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
     }
 
     // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
@@ -107,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
               name: serviceName || "Cleaning Service",
               description: `Booking payment for ${customerName}`,
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },
@@ -210,6 +227,19 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Resend API error:", { status: emailResponse.status, data: emailData });
       throw new Error(emailData?.message || `Failed to send email (status ${emailResponse.status})`);
     }
+
+    // Log successful payment link send
+    await logAudit({
+      action: AuditActions.EMAIL_SENT,
+      userId: authResult.userId!,
+      organizationId: authResult.organizationId!,
+      details: { 
+        type: "payment_link",
+        customerEmail: email,
+        amount,
+        sessionId: session.id 
+      },
+    });
 
     console.log("Payment link email sent successfully:", emailData);
 

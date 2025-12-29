@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -14,6 +16,7 @@ const corsHeaders = {
 interface SetupIntentRequest {
   email: string;
   customerName: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,9 +25,36 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, customerName }: SetupIntentRequest = await req.json();
+    // SECURITY: Verify authenticated user with admin privileges
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+    
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
+      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
 
-    console.log("Creating SetupIntent for:", { email, customerName });
+    const { email, customerName, organizationId }: SetupIntentRequest = await req.json();
+
+    // SECURITY: Verify organization context matches authenticated user
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ error: "Organization ID is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (organizationId !== authResult.organizationId) {
+      console.error("Organization mismatch in create-setup-intent");
+      await logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        userId: authResult.userId!,
+        organizationId: authResult.organizationId!,
+        details: { reason: "Organization mismatch", requestedOrg: organizationId },
+      });
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    }
+
+    console.log("Creating SetupIntent for:", { email, customerName, userId: authResult.userId });
 
     if (!email || !customerName) {
       return new Response(
@@ -53,7 +83,19 @@ const handler = async (req: Request): Promise<Response> => {
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
       payment_method_types: ["card"],
-      usage: "off_session", // Allow charging the card later without customer present
+      usage: "off_session",
+    });
+
+    // Log the setup intent creation
+    await logAudit({
+      action: AuditActions.CARD_SAVED,
+      userId: authResult.userId!,
+      organizationId: authResult.organizationId!,
+      details: { 
+        customerId,
+        customerEmail: email,
+        setupIntentId: setupIntent.id 
+      },
     });
 
     console.log("Created SetupIntent:", setupIntent.id);
