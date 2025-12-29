@@ -86,12 +86,24 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get company name for messages
+    // Get company name and notification settings
     const { data: businessSettings } = await supabase
       .from('business_settings')
-      .select('company_name')
+      .select('company_name, notify_reminders')
       .eq('organization_id', organizationId)
       .maybeSingle();
+    
+    // Check if reminders are enabled in business settings
+    if (businessSettings?.notify_reminders === false) {
+      console.log("[send-booking-reminder] Reminders disabled in business settings for org:", organizationId);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Reminders are disabled in business settings" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
     
     const companyName = businessSettings?.company_name || 'Your cleaning service';
 

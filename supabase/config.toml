@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.send-admin-sms-notification]
 verify_jwt = false
+
+[functions.send-cancellation-sms-notification]
+verify_jwt = false

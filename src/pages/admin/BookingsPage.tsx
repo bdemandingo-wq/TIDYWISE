@@ -215,10 +215,32 @@ export default function BookingsPage() {
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    // Find the booking to get details for cancellation notification
+    const booking = bookings?.find(b => b.id === bookingId);
+    
     await updateBooking.mutateAsync({
       id: bookingId,
       status: newStatus as BookingWithDetails['status'],
     });
+
+    // Send cancellation SMS notification if status changed to cancelled
+    if (newStatus === 'cancelled' && booking && organization?.id) {
+      supabase.functions.invoke('send-cancellation-sms-notification', {
+        body: {
+          customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
+          serviceName: booking.service?.name || 'Cleaning',
+          scheduledAt: booking.scheduled_at,
+          bookingNumber: booking.booking_number,
+          organizationId: organization.id,
+        }
+      }).then(({ error }) => {
+        if (error) {
+          console.log('Cancellation SMS notification skipped (SMS may not be configured)');
+        }
+      }).catch((err) => {
+        console.log('Cancellation SMS notification failed:', err);
+      });
+    }
   };
 
   const handleDelete = async (booking: BookingWithDetails) => {

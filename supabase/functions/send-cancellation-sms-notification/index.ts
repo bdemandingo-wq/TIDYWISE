@@ -6,12 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface AdminNotificationRequest {
+interface CancellationNotificationRequest {
   customerName: string;
   serviceName: string;
   scheduledAt: string;
-  totalAmount: number;
-  address?: string;
+  bookingNumber: number;
   organizationId: string;
 }
 
@@ -25,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("[send-admin-sms-notification] Missing Supabase configuration");
+      console.error("[send-cancellation-sms-notification] Missing Supabase configuration");
       return new Response(
         JSON.stringify({ success: false, error: "Server configuration error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -38,20 +37,19 @@ const handler = async (req: Request): Promise<Response> => {
       customerName, 
       serviceName, 
       scheduledAt, 
-      totalAmount,
-      address,
+      bookingNumber,
       organizationId
-    }: AdminNotificationRequest = await req.json();
+    }: CancellationNotificationRequest = await req.json();
 
     if (!organizationId) {
-      console.error("[send-admin-sms-notification] Missing organizationId");
+      console.error("[send-cancellation-sms-notification] Missing organizationId");
       return new Response(
         JSON.stringify({ success: false, error: "Missing organizationId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("[send-admin-sms-notification] Processing notification for org:", organizationId);
+    console.log("[send-cancellation-sms-notification] Processing notification for org:", organizationId);
 
     // Fetch SMS settings for the organization
     const { data: smsSettings, error: settingsError } = await supabase
@@ -61,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (settingsError) {
-      console.error("[send-admin-sms-notification] Error fetching SMS settings:", settingsError);
+      console.error("[send-cancellation-sms-notification] Error fetching SMS settings:", settingsError);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to fetch SMS settings" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -69,7 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!smsSettings?.sms_enabled) {
-      console.log("[send-admin-sms-notification] SMS disabled for organization:", organizationId);
+      console.log("[send-cancellation-sms-notification] SMS disabled for organization:", organizationId);
       return new Response(
         JSON.stringify({ success: false, error: "SMS notifications are disabled" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -77,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!smsSettings.openphone_api_key || !smsSettings.openphone_phone_number_id) {
-      console.log("[send-admin-sms-notification] OpenPhone not configured for org:", organizationId);
+      console.log("[send-cancellation-sms-notification] OpenPhone not configured for org:", organizationId);
       return new Response(
         JSON.stringify({ success: false, error: "OpenPhone not configured" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -87,29 +85,29 @@ const handler = async (req: Request): Promise<Response> => {
     // Get admin phone and notification settings from business settings
     const { data: businessSettings, error: businessError } = await supabase
       .from('business_settings')
-      .select('company_phone, company_name, notify_new_booking')
+      .select('company_phone, company_name, notify_cancellations')
       .eq('organization_id', organizationId)
       .maybeSingle();
 
     if (businessError) {
-      console.error("[send-admin-sms-notification] Error fetching business settings:", businessError);
+      console.error("[send-cancellation-sms-notification] Error fetching business settings:", businessError);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to fetch business settings" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if new booking notifications are enabled
-    if (businessSettings?.notify_new_booking === false) {
-      console.log("[send-admin-sms-notification] New booking notifications disabled for org:", organizationId);
+    // Check if cancellation notifications are enabled
+    if (businessSettings?.notify_cancellations === false) {
+      console.log("[send-cancellation-sms-notification] Cancellation notifications disabled for org:", organizationId);
       return new Response(
-        JSON.stringify({ success: false, error: "New booking notifications are disabled" }),
+        JSON.stringify({ success: false, error: "Cancellation notifications are disabled" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!businessSettings?.company_phone) {
-      console.log("[send-admin-sms-notification] No admin phone configured for org:", organizationId);
+      console.log("[send-cancellation-sms-notification] No admin phone configured for org:", organizationId);
       return new Response(
         JSON.stringify({ success: false, error: "No admin phone number configured in business settings" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -129,14 +127,13 @@ const handler = async (req: Request): Promise<Response> => {
       hour12: true 
     });
 
-    // Build admin notification message
-    const message = `🆕 NEW BOOKING!\n\n` +
+    // Build cancellation notification message
+    const message = `❌ BOOKING CANCELLED\n\n` +
+      `Booking #${bookingNumber}\n` +
       `Customer: ${customerName}\n` +
       `Service: ${serviceName}\n` +
-      `Date: ${formattedDate} at ${formattedTime}\n` +
-      `${address ? `Address: ${address}\n` : ''}` +
-      `Total: $${totalAmount.toFixed(2)}\n\n` +
-      `Log in to your dashboard to view details.`;
+      `Was scheduled: ${formattedDate} at ${formattedTime}\n\n` +
+      `Log in to your dashboard for details.`;
 
     // Format admin phone
     let formattedPhone = businessSettings.company_phone.replace(/\D/g, '');
@@ -155,7 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`[send-admin-sms-notification] Sending admin SMS to ${formattedPhone}`);
+    console.log(`[send-cancellation-sms-notification] Sending cancellation SMS to ${formattedPhone}`);
 
     // Send SMS via OpenPhone API
     const response = await fetch("https://api.openphone.com/v1/messages", {
@@ -173,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[send-admin-sms-notification] OpenPhone API error: ${response.status} - ${errorText}`);
+      console.error(`[send-cancellation-sms-notification] OpenPhone API error: ${response.status} - ${errorText}`);
       return new Response(
         JSON.stringify({ success: false, error: `OpenPhone API error: ${response.status}` }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -181,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const result = await response.json();
-    console.log(`[send-admin-sms-notification] SMS sent successfully:`, result);
+    console.log(`[send-cancellation-sms-notification] SMS sent successfully:`, result);
 
     return new Response(
       JSON.stringify({ success: true, messageId: result.data?.id }),
@@ -190,7 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[send-admin-sms-notification] Error:", errorMessage);
+    console.error("[send-cancellation-sms-notification] Error:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
