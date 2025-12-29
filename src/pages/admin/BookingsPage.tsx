@@ -75,6 +75,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useQueryClient } from '@tanstack/react-query';
+
+const BOOKING_FIELDS: FieldMapping[] = [
+  { dbField: 'scheduled_at', label: 'Scheduled Date/Time', required: true },
+  { dbField: 'duration', label: 'Duration (minutes)', required: true, type: 'number' },
+  { dbField: 'total_amount', label: 'Total Amount', type: 'number' },
+  { dbField: 'address', label: 'Address' },
+  { dbField: 'city', label: 'City' },
+  { dbField: 'state', label: 'State' },
+  { dbField: 'zip_code', label: 'Zip Code' },
+  { dbField: 'bedrooms', label: 'Bedrooms' },
+  { dbField: 'bathrooms', label: 'Bathrooms' },
+  { dbField: 'notes', label: 'Notes' },
+];
+
+const BOOKING_SAMPLE = `scheduled_at,duration,total_amount,address,city,state,zip_code,bedrooms,bathrooms
+2024-01-15 09:00,120,150,123 Main St,New York,NY,10001,3,2
+2024-01-16 14:00,90,100,456 Oak Ave,Los Angeles,CA,90001,2,1`;
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -140,12 +160,40 @@ export default function BookingsPage() {
   const [bulkNotifyingCleaners, setBulkNotifyingCleaners] = useState(false);
   const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
   const [sendingReviewRequest, setSendingReviewRequest] = useState<string | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const { isTestMode, maskName, maskEmail, maskAmount, maskAddress } = useTestMode();
+  const { organization } = useOrganization();
+  const queryClient = useQueryClient();
+
+  const handleImportBookings = async (records: Record<string, any>[]) => {
+    if (!organization?.id) throw new Error('No organization found');
+    
+    const bookingsToInsert = records.map(record => ({
+      scheduled_at: record.scheduled_at || new Date().toISOString(),
+      duration: Number(record.duration) || 60,
+      total_amount: Number(record.total_amount) || 0,
+      address: record.address || null,
+      city: record.city || null,
+      state: record.state || null,
+      zip_code: record.zip_code || null,
+      bedrooms: record.bedrooms || '1',
+      bathrooms: record.bathrooms || '1',
+      notes: record.notes || null,
+      status: 'pending' as const,
+      payment_status: 'pending' as const,
+      organization_id: organization.id,
+    }));
+    
+    const { error } = await supabase.from('bookings').insert(bookingsToInsert);
+    if (error) throw error;
+    
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+  };
 
   // Sort bookings: upcoming first (chronologically), then past
   const sortedBookings = useMemo(() => {
@@ -772,7 +820,7 @@ export default function BookingsPage() {
       subtitle="Manage your appointments"
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4" />
             Import
           </Button>
@@ -1564,6 +1612,16 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        title="Import Bookings"
+        entityName="bookings"
+        fields={BOOKING_FIELDS}
+        onImport={handleImportBookings}
+        sampleData={BOOKING_SAMPLE}
+      />
     </AdminLayout>
   );
 }

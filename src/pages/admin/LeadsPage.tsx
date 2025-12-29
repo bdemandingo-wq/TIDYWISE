@@ -41,6 +41,25 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
+
+const LEAD_FIELDS: FieldMapping[] = [
+  { dbField: 'name', label: 'Name', required: true },
+  { dbField: 'email', label: 'Email', required: true, type: 'email' },
+  { dbField: 'phone', label: 'Phone' },
+  { dbField: 'address', label: 'Address' },
+  { dbField: 'city', label: 'City' },
+  { dbField: 'state', label: 'State' },
+  { dbField: 'zip_code', label: 'Zip Code' },
+  { dbField: 'service_interest', label: 'Service Interest' },
+  { dbField: 'source', label: 'Source' },
+  { dbField: 'message', label: 'Message' },
+  { dbField: 'notes', label: 'Notes' },
+];
+
+const LEAD_SAMPLE = `name,email,phone,address,city,state,zip_code,service_interest,source
+John Doe,john@example.com,555-1234,123 Main St,New York,NY,10001,Deep Cleaning,website
+Jane Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001,Regular Cleaning,referral`;
 
 interface Lead {
   id: string;
@@ -83,9 +102,35 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [showFunnel, setShowFunnel] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organization } = useOrganization();
+
+  const handleImportLeads = async (records: Record<string, any>[]) => {
+    if (!organization?.id) throw new Error('No organization found');
+    
+    const leadsToInsert = records.map(record => ({
+      name: record.name || '',
+      email: record.email || '',
+      phone: record.phone || null,
+      address: record.address || null,
+      city: record.city || null,
+      state: record.state || null,
+      zip_code: record.zip_code || null,
+      service_interest: record.service_interest || null,
+      source: record.source || 'other',
+      message: record.message || null,
+      notes: record.notes || null,
+      status: 'new',
+      organization_id: organization.id,
+    }));
+    
+    const { error } = await supabase.from('leads').insert(leadsToInsert);
+    if (error) throw error;
+    
+    queryClient.invalidateQueries({ queryKey: ['leads'] });
+  };
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -270,7 +315,7 @@ export default function LeadsPage() {
             <TrendingDown className="w-4 h-4" />
             Funnel Report
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4" />
             Import
           </Button>
@@ -585,6 +630,16 @@ export default function LeadsPage() {
             createMutation.mutate(data);
           }
         }}
+      />
+      
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        title="Import Leads"
+        entityName="leads"
+        fields={LEAD_FIELDS}
+        onImport={handleImportLeads}
+        sampleData={LEAD_SAMPLE}
       />
     </AdminLayout>
   );

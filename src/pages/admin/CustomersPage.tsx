@@ -23,6 +23,7 @@ import { useCustomers, useDeleteCustomer } from '@/hooks/useBookings';
 import { AddCustomerDialog } from '@/components/admin/AddCustomerDialog';
 import { EditCustomerDialog } from '@/components/admin/EditCustomerDialog';
 import { PaymentHistoryDialog } from '@/components/admin/PaymentHistoryDialog';
+import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +35,25 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+
+const CUSTOMER_FIELDS: FieldMapping[] = [
+  { dbField: 'first_name', label: 'First Name', required: true },
+  { dbField: 'last_name', label: 'Last Name', required: true },
+  { dbField: 'email', label: 'Email', required: true, type: 'email' },
+  { dbField: 'phone', label: 'Phone' },
+  { dbField: 'address', label: 'Address' },
+  { dbField: 'city', label: 'City' },
+  { dbField: 'state', label: 'State' },
+  { dbField: 'zip_code', label: 'Zip Code' },
+  { dbField: 'notes', label: 'Notes' },
+];
+
+const CUSTOMER_SAMPLE = `first_name,last_name,email,phone,address,city,state,zip_code
+John,Doe,john@example.com,555-1234,123 Main St,New York,NY,10001
+Jane,Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001`;
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,11 +61,36 @@ export default function CustomersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
   const { maskName, maskEmail, maskPhone, maskAddress } = useTestMode();
+  const { organization } = useOrganization();
+  const queryClient = useQueryClient();
+
+  const handleImportCustomers = async (records: Record<string, any>[]) => {
+    if (!organization?.id) throw new Error('No organization found');
+    
+    const customersToInsert = records.map(record => ({
+      first_name: record.first_name || '',
+      last_name: record.last_name || '',
+      email: record.email || '',
+      phone: record.phone || null,
+      address: record.address || null,
+      city: record.city || null,
+      state: record.state || null,
+      zip_code: record.zip_code || null,
+      notes: record.notes || null,
+      organization_id: organization.id,
+    }));
+    
+    const { error } = await supabase.from('customers').insert(customersToInsert);
+    if (error) throw error;
+    
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+  };
 
   const handleDeleteClick = (customer: { id: string; first_name: string; last_name: string }) => {
     setCustomerToDelete({ id: customer.id, name: `${customer.first_name} ${customer.last_name}` });
@@ -76,7 +121,7 @@ export default function CustomersPage() {
       subtitle={`${customers.length} total customers`}
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4" />
             Import
           </Button>
@@ -248,6 +293,16 @@ export default function CustomersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        title="Import Customers"
+        entityName="customers"
+        fields={CUSTOMER_FIELDS}
+        onImport={handleImportCustomers}
+        sampleData={CUSTOMER_SAMPLE}
+      />
     </AdminLayout>
   );
 }
