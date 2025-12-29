@@ -303,7 +303,7 @@ export function ImportDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="_none_">-- Don't import --</SelectItem>
-                          {csvHeaders.map(header => (
+                          {csvHeaders.filter(header => header && header.trim() !== '').map(header => (
                             <SelectItem key={header} value={header}>{header}</SelectItem>
                           ))}
                         </SelectContent>
