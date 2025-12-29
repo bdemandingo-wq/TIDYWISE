@@ -78,11 +78,28 @@ serve(async (req) => {
       });
     }
 
-    // Check if staff record already exists (including inactive ones)
+    // Get admin's organization
+    const { data: adminMembership } = await supabaseAdmin
+      .from("org_memberships")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!adminMembership) {
+      return new Response(JSON.stringify({ error: "Admin must belong to an organization" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const organizationId = adminMembership.organization_id;
+
+    // Check if staff record already exists (including inactive ones) in this org
     const { data: existingStaff } = await supabaseAdmin
       .from("staff")
       .select("*")
       .eq("email", email)
+      .eq("organization_id", organizationId)
       .single();
 
     if (existingStaff) {
@@ -140,29 +157,56 @@ serve(async (req) => {
       }
     }
 
-    // Create auth user with admin-provided password
-    const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: name },
-    });
+    // Check if auth user already exists (they might exist without a staff record)
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingAuthUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-    if (createUserError) {
-      console.error("Error creating user:", createUserError);
-      return new Response(JSON.stringify({ error: createUserError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let userId: string;
+
+    if (existingAuthUser) {
+      // User exists in auth - just update their password and use their ID
+      console.log("User already exists in auth, linking to staff record:", existingAuthUser.id);
+      
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingAuthUser.id,
+        { password, user_metadata: { full_name: name } }
+      );
+      
+      if (passwordError) {
+        console.error("Error updating existing user password:", passwordError);
+        return new Response(JSON.stringify({ error: "Failed to update user credentials: " + passwordError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      userId = existingAuthUser.id;
+    } else {
+      // Create new auth user with admin-provided password
+      const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: name },
       });
-    }
 
-    const newUserId = authData.user.id;
+      if (createUserError) {
+        console.error("Error creating user:", createUserError);
+        return new Response(JSON.stringify({ error: createUserError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      userId = authData.user.id;
+    }
 
     // Create staff record
     const { data: staffData, error: staffError } = await supabaseAdmin
       .from("staff")
       .insert({
-        user_id: newUserId,
+        user_id: userId,
+        organization_id: organizationId,
         email,
         name,
         phone: phone || null,
@@ -176,21 +220,23 @@ serve(async (req) => {
 
     if (staffError) {
       console.error("Error creating staff record:", staffError);
-      // Rollback: delete the auth user if staff creation fails
-      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      // Only delete auth user if we just created them (not if they existed before)
+      if (!existingAuthUser) {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+      }
       return new Response(JSON.stringify({ error: staffError.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Assign staff role
+    // Assign staff role (upsert to handle existing users)
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({
-        user_id: newUserId,
+      .upsert({
+        user_id: userId,
         role: "staff",
-      });
+      }, { onConflict: 'user_id,role' });
 
     if (roleError) {
       console.error("Error assigning role:", roleError);
