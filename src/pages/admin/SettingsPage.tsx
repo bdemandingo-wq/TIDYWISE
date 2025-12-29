@@ -14,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Mail, Star, Upload, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Mail, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -344,10 +345,11 @@ export default function SettingsPage() {
       subtitle="Manage your business preferences"
     >
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-3xl grid-cols-6">
+        <TabsList className="grid w-full max-w-4xl grid-cols-7">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="sms">SMS</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
@@ -681,6 +683,11 @@ export default function SettingsPage() {
             primaryColor={settings.primary_color}
             accentColor={settings.accent_color}
           />
+        </TabsContent>
+
+        {/* SMS Settings */}
+        <TabsContent value="sms" className="space-y-6">
+          <SMSSettingsCard />
         </TabsContent>
 
         {/* Reviews Settings */}
