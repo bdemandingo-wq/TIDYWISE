@@ -12,12 +12,10 @@ import {
   Loader2, 
   CheckCircle, 
   AlertCircle, 
-  Send, 
   RefreshCw,
   User,
   DollarSign,
-  Phone,
-  Mail
+  Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,7 +49,6 @@ export function PaymentStep() {
 
   const { organizationId } = useOrgId();
 
-  const [sendingLink, setSendingLink] = useState(false);
   const [sendingLinkSms, setSendingLinkSms] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
 
@@ -59,26 +56,6 @@ export function PaymentStep() {
   const customerPhone = customerTab === 'existing' && selectedCustomer 
     ? selectedCustomer.phone 
     : newCustomer.phone;
-
-  const handleSendCardLink = async () => {
-    if (!customerEmail || !customerName) {
-      toast.error('Please enter customer email and name first');
-      return;
-    }
-
-    setSendingLink(true);
-    try {
-      const { error } = await supabase.functions.invoke('send-card-collection-link', {
-        body: { email: customerEmail, customerName, organizationId: organizationId ?? undefined }
-      });
-      if (error) throw error;
-      toast.success('Card collection link sent via email');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send card link');
-    } finally {
-      setSendingLink(false);
-    }
-  };
 
   const handleSendCardLinkSms = async () => {
     if (!customerPhone || !customerName) {
@@ -287,36 +264,20 @@ export function PaymentStep() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-11"
-                  onClick={handleSendCardLinkSms}
-                  disabled={sendingLinkSms || !customerPhone}
-                  title={!customerPhone ? "Customer phone required" : "Send card link via SMS"}
-                >
-                  {sendingLinkSms ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Phone className="mr-2 h-4 w-4" />
-                  )}
-                  Send via SMS
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11"
-                  onClick={handleSendCardLink}
-                  disabled={sendingLink || !customerEmail}
-                  title={!customerEmail ? "Customer email required" : "Send card link via email"}
-                >
-                  {sendingLink ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Mail className="mr-2 h-4 w-4" />
-                  )}
-                  Send via Email
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="h-11 w-full"
+                onClick={handleSendCardLinkSms}
+                disabled={sendingLinkSms || !customerPhone}
+                title={!customerPhone ? "Customer phone required" : "Send card link via SMS"}
+              >
+                {sendingLinkSms ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Phone className="mr-2 h-4 w-4" />
+                )}
+                Send Card Link via SMS
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
