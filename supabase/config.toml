@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.send-help-center-email]
 verify_jwt = false
+
+[functions.send-openphone-sms]
+verify_jwt = false
