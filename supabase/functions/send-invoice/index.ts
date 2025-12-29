@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
@@ -314,6 +315,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Invoice email sent successfully:", responseData);
 
+    // Audit log: successful invoice email
+    logAudit({
+      action: AuditActions.EMAIL_INVOICE,
+      organizationId: data.organizationId,
+      resourceType: 'invoice',
+      resourceId: String(data.invoiceNumber),
+      details: { customerEmail, amount: data.amount },
+      success: true,
+    });
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -328,6 +339,15 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-invoice function:", error);
+
+    // Audit log: failed invoice email
+    logAudit({
+      action: AuditActions.EMAIL_INVOICE,
+      organizationId: 'unknown',
+      success: false,
+      error: error?.message || 'Unknown error',
+    });
+
     return new Response(
       JSON.stringify({ error: error?.message || "Unknown error" }),
       {

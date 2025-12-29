@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,6 +141,15 @@ const handler = async (req: Request): Promise<Response> => {
     const result = await response.json();
     console.log(`[send-openphone-sms] SMS sent successfully:`, result);
 
+    // Audit log: successful SMS send
+    logAudit({
+      action: AuditActions.SMS_GENERIC,
+      organizationId,
+      resourceType: 'phone',
+      resourceId: formattedPhone,
+      success: true,
+    });
+
     return new Response(
       JSON.stringify({ success: true, messageId: result.data?.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -148,6 +158,15 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[send-openphone-sms] Error:", errorMessage);
+
+    // Audit log: failed SMS send
+    logAudit({
+      action: AuditActions.SMS_GENERIC,
+      organizationId: 'unknown',
+      success: false,
+      error: errorMessage,
+    });
+
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

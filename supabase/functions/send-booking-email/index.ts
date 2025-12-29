@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -435,12 +436,31 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Audit log: successful email send
+    logAudit({
+      action: AuditActions.EMAIL_BOOKING_CONFIRMATION,
+      organizationId: booking.organizationId,
+      resourceType: 'customer',
+      resourceId: customerEmail,
+      details: { confirmationNumber: booking.confirmationNumber, service: booking.serviceName },
+      success: true,
+    });
+
     return new Response(JSON.stringify({ success: true, emailId: customerData?.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-booking-email function:", error);
+    
+    // Audit log: failed email send
+    logAudit({
+      action: AuditActions.EMAIL_BOOKING_CONFIRMATION,
+      organizationId: (await req.json().catch(() => ({}))).organizationId || 'unknown',
+      success: false,
+      error: error.message,
+    });
+
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },

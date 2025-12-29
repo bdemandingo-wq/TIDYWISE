@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +14,7 @@ serve(async (req) => {
 
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
+    console.log("[send-referral-invite] RESEND_API_KEY exists:", !!RESEND_API_KEY);
     if (!RESEND_API_KEY) {
       throw new Error("RESEND_API_KEY is not configured");
     }
@@ -23,7 +24,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { referralId } = await req.json();
-    console.log("Processing referral ID:", referralId);
+    console.log("[send-referral-invite] Processing referral ID:", referralId);
 
     // Get referral details with referrer info
     const { data: referral, error: referralError } = await supabase
@@ -43,24 +44,34 @@ serve(async (req) => {
       throw new Error("Referral not found");
     }
 
-    // Get business settings - filter by organization_id if available on referral
-    // Default to Resend's verified domain for other organizations
-    let senderEmail = "onboarding@resend.dev";
-    let companyName = "TidyWise";
-    
-    const settingsQuery = referral.organization_id 
-      ? supabase.from("business_settings").select("company_name, company_email").eq("organization_id", referral.organization_id).maybeSingle()
-      : supabase.from("business_settings").select("company_name, company_email").order("updated_at", { ascending: false }).limit(1).maybeSingle();
-    
-    const { data: settings } = await settingsQuery;
+    // CRITICAL: organization_id is REQUIRED for multi-tenant isolation
+    if (!referral.organization_id) {
+      console.error("[send-referral-invite] Referral has no organization_id - cannot send email without organization context");
+      return new Response(JSON.stringify({ 
+        error: "Referral is not associated with an organization. Please update the referral." 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (settings?.company_name) {
-      companyName = settings.company_name;
+    console.log("[send-referral-invite] Processing for organization:", referral.organization_id);
+
+    // Get email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    const emailSettingsResult = await getOrgEmailSettings(referral.organization_id);
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("[send-referral-invite] Failed to get email settings:", emailSettingsResult.error);
+      return new Response(
+        JSON.stringify({ error: emailSettingsResult.error }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-    if (settings?.company_email) {
-      senderEmail = settings.company_email;
-      console.log("Using custom sender email:", senderEmail);
-    }
+
+    const emailSettings = emailSettingsResult.settings;
+    const senderFrom = formatEmailFrom(emailSettings);
+    const companyName = emailSettings.from_name;
+
+    console.log("[send-referral-invite] Using org email settings - from:", senderFrom, "company:", companyName);
 
     const referrerName = `${referral.referrer.first_name} ${referral.referrer.last_name}`;
     const creditAmount = referral.credit_amount || 25;
@@ -75,8 +86,9 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${companyName} <${senderEmail}>`,
+        from: senderFrom,
         to: [referral.referred_email],
+        reply_to: getReplyTo(emailSettings),
         subject: `${referrerName} thinks you'd love ${companyName}! Get $${creditAmount} off`,
         html: `
           <!DOCTYPE html>
@@ -117,6 +129,7 @@ serve(async (req) => {
               <p style="font-size: 12px; color: #666; margin-top: 30px; text-align: center;">
                 Your referral code: <strong>${referral.referral_code}</strong>
               </p>
+              ${emailSettings.email_footer ? `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;"><p style="font-size: 12px; color: #9ca3af;">${emailSettings.email_footer}</p>` : ''}
             </div>
           </body>
           </html>
@@ -124,22 +137,35 @@ serve(async (req) => {
       }),
     });
 
-    console.log("Resend API response status:", emailResponse.status);
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      console.error("Resend API error:", errorText);
-      throw new Error(`Failed to send email: ${errorText}`);
+    console.log("[send-referral-invite] Resend API response status:", emailResponse.status);
+
+    let emailData: any = null;
+    try {
+      emailData = await emailResponse.json();
+    } catch (_e) {
+      emailData = null;
     }
 
-    const emailResult = await emailResponse.json();
-    console.log("Email sent successfully:", emailResult);
+    // If domain not verified, return helpful error
+    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
+      const domain = emailSettings.from_email.split('@')[1];
+      console.error(`[send-referral-invite] Domain ${domain} is not verified on Resend`);
+      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
+    }
+
+    if (!emailResponse.ok) {
+      console.error("[send-referral-invite] Resend API error:", emailData);
+      throw new Error(`Failed to send email: ${emailData?.message || 'Unknown error'}`);
+    }
+
+    console.log("[send-referral-invite] Email sent successfully:", emailData);
 
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    console.error("Error in send-referral-invite:", error);
+    console.error("[send-referral-invite] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: message }),
