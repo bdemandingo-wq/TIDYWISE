@@ -129,22 +129,34 @@ export const homeConditionOptions = [
 export const bedroomPricing = [
   { bedrooms: '1', bathrooms: '1', basePrice: 120 },
   { bedrooms: '1', bathrooms: '1.5', basePrice: 135 },
+  { bedrooms: '1', bathrooms: '2', basePrice: 150 },
   { bedrooms: '2', bathrooms: '1', basePrice: 150 },
   { bedrooms: '2', bathrooms: '1.5', basePrice: 165 },
   { bedrooms: '2', bathrooms: '2', basePrice: 180 },
+  { bedrooms: '2', bathrooms: '2.5', basePrice: 195 },
   { bedrooms: '3', bathrooms: '1', basePrice: 190 },
   { bedrooms: '3', bathrooms: '1.5', basePrice: 200 },
   { bedrooms: '3', bathrooms: '2', basePrice: 215 },
   { bedrooms: '3', bathrooms: '2.5', basePrice: 230 },
+  { bedrooms: '3', bathrooms: '3', basePrice: 245 },
   { bedrooms: '4', bathrooms: '2', basePrice: 250 },
   { bedrooms: '4', bathrooms: '2.5', basePrice: 270 },
   { bedrooms: '4', bathrooms: '3', basePrice: 290 },
+  { bedrooms: '4', bathrooms: '3.5', basePrice: 310 },
+  { bedrooms: '4', bathrooms: '4', basePrice: 330 },
   { bedrooms: '5', bathrooms: '2.5', basePrice: 310 },
   { bedrooms: '5', bathrooms: '3', basePrice: 330 },
   { bedrooms: '5', bathrooms: '3.5', basePrice: 350 },
+  { bedrooms: '5', bathrooms: '4', basePrice: 370 },
+  { bedrooms: '5', bathrooms: '4.5', basePrice: 390 },
+  { bedrooms: '5', bathrooms: '5', basePrice: 410 },
   { bedrooms: '6', bathrooms: '3', basePrice: 380 },
   { bedrooms: '6', bathrooms: '3.5', basePrice: 400 },
   { bedrooms: '6', bathrooms: '4', basePrice: 430 },
+  { bedrooms: '6', bathrooms: '4.5', basePrice: 460 },
+  { bedrooms: '6', bathrooms: '5', basePrice: 490 },
+  { bedrooms: '6', bathrooms: '5.5', basePrice: 520 },
+  { bedrooms: '6', bathrooms: '6', basePrice: 550 },
 ];
 
 export const frequencyOptions = [
@@ -156,7 +168,7 @@ export const frequencyOptions = [
 ];
 
 export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6'];
-export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4'];
+export const bathroomOptions = ['1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6'];
 
 export function getPriceForService(serviceId: CleaningServiceType, sqFtIndex: number): number {
   const service = cleaningServices.find(s => s.id === serviceId);
