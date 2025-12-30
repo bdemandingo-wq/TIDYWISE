@@ -1383,21 +1383,19 @@ export default function BookingsPage() {
                                 Notify All Cleaners (Open Job)
                               </DropdownMenuItem>
                             )}
-                            {/* Send Review Request - only for completed bookings */}
-                            {booking.status === 'completed' && (
-                              <DropdownMenuItem 
-                                className="gap-2 cursor-pointer text-amber-600" 
-                                onClick={() => handleSendReviewRequest(booking)}
-                                disabled={sendingReviewRequest === booking.id || !booking.customer?.phone}
-                              >
-                                {sendingReviewRequest === booking.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Star className="w-4 h-4" />
-                                )}
-                                Send Review Request (SMS)
-                              </DropdownMenuItem>
-                            )}
+                            {/* Send Review Request - styled as subtle link */}
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary underline-offset-2 hover:underline" 
+                              onClick={() => handleSendReviewRequest(booking)}
+                              disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
+                            >
+                              {sendingReviewRequest === booking.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Star className="w-3 h-3" />
+                              )}
+                              Send Review
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer text-amber-600"
