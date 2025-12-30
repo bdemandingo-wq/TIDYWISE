@@ -279,7 +279,16 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             const customerPhone = customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone;
             if (customerPhone) {
               try {
-                const scheduledDate = new Date(`${format(selectedDate!, 'yyyy-MM-dd')}T${selectedTime.replace(' AM', ':00').replace(' PM', ':00')}`);
+                // Parse time correctly: convert 12-hour format to 24-hour
+                const [time, period] = selectedTime.split(' ');
+                const [hours, minutes] = time.split(':').map(Number);
+                let hour24 = hours;
+                if (period === 'PM' && hours !== 12) hour24 += 12;
+                if (period === 'AM' && hours === 12) hour24 = 0;
+                
+                const scheduledDate = new Date(selectedDate!);
+                scheduledDate.setHours(hour24, minutes, 0, 0);
+                
                 const { error } = await supabase.functions.invoke('send-openphone-sms', {
                   body: {
                     to: customerPhone,
