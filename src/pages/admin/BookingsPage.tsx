@@ -65,7 +65,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useBookings, useUpdateBooking, useDeleteBooking, useStaff, BookingWithDetails } from '@/hooks/useBookings';
-import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
 import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
@@ -140,6 +140,7 @@ export default function BookingsPage() {
   const [bulkNotifyingCleaners, setBulkNotifyingCleaners] = useState(false);
   const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
   const [sendingReviewRequest, setSendingReviewRequest] = useState<string | null>(null);
+  const [bulkNotifyingWeek, setBulkNotifyingWeek] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -705,6 +706,73 @@ export default function BookingsPage() {
     }
   };
 
+  // Notify all cleaners about their upcoming bookings for the week
+  const handleBulkNotifyWeekCleaners = async () => {
+    const now = new Date();
+    const weekEnd = addDays(now, 7);
+    
+    // Get all upcoming bookings for the next 7 days with assigned cleaners
+    const upcomingWeekBookings = sortedBookings.filter(b => {
+      const scheduledDate = new Date(b.scheduled_at);
+      return scheduledDate >= now && 
+             scheduledDate <= weekEnd && 
+             b.staff?.phone && 
+             !['cancelled', 'completed'].includes(b.status);
+    });
+
+    if (upcomingWeekBookings.length === 0) {
+      toast({ title: "No Bookings", description: "No upcoming bookings with assigned cleaners found for this week.", variant: "destructive" });
+      return;
+    }
+
+    setBulkNotifyingWeek(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const booking of upcomingWeekBookings) {
+        try {
+          const scheduledDate = new Date(booking.scheduled_at);
+          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
+            .filter(Boolean)
+            .join(', ');
+
+          const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+            body: {
+              cleanerName: booking.staff!.name,
+              cleanerPhone: booking.staff!.phone,
+              customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
+              customerPhone: booking.customer?.phone || 'N/A',
+              serviceName: booking.service?.name || 'Cleaning Service',
+              appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
+              appointmentTime: format(scheduledDate, 'h:mm a'),
+              address: fullAddress || 'Address not provided',
+              bookingNumber: booking.booking_number,
+              organizationId: organization?.id,
+            }
+          });
+
+          if (error) throw error;
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to notify cleaner for booking #${booking.booking_number}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({ 
+          title: "Week's Notifications Sent", 
+          description: `Successfully notified cleaners for ${successCount} upcoming booking(s)${failCount > 0 ? `. ${failCount} failed.` : '.'}`
+        });
+      } else {
+        toast({ title: "Error", description: "Failed to send notifications", variant: "destructive" });
+      }
+    } finally {
+      setBulkNotifyingWeek(false);
+    }
+  };
+
   const handleExport = async (type: 'csv' | 'json') => {
     setExporting(true);
     try {
@@ -963,6 +1031,15 @@ export default function BookingsPage() {
               <SelectItem value="no_show">No Show</SelectItem>
             </SelectContent>
           </Select>
+          <Button 
+            variant="outline" 
+            className="h-11 gap-2 rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+            onClick={handleBulkNotifyWeekCleaners}
+            disabled={bulkNotifyingWeek}
+          >
+            {bulkNotifyingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+            Notify Week's Cleaners
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-11 gap-2 rounded-xl border-border/50 hover:bg-secondary/50" disabled={exporting}>
