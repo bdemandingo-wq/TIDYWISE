@@ -10,6 +10,8 @@ interface AdminNotificationRequest {
   customerName: string;
   serviceName: string;
   scheduledAt: string;
+  formattedDate?: string; // Pre-formatted date from client
+  formattedTime?: string; // Pre-formatted time from client
   totalAmount: number;
   address?: string;
   organizationId: string;
@@ -38,6 +40,8 @@ const handler = async (req: Request): Promise<Response> => {
       customerName, 
       serviceName, 
       scheduledAt, 
+      formattedDate: preFormattedDate,
+      formattedTime: preFormattedTime,
       totalAmount,
       address,
       organizationId
@@ -116,18 +120,27 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format the scheduled date/time
-    const bookingDate = new Date(scheduledAt);
-    const formattedDate = bookingDate.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    const formattedTime = bookingDate.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    });
+    // Use pre-formatted date/time if provided, otherwise fall back to parsing (for backwards compatibility)
+    let formattedDate: string;
+    let formattedTime: string;
+    
+    if (preFormattedDate && preFormattedTime) {
+      formattedDate = preFormattedDate;
+      formattedTime = preFormattedTime;
+    } else {
+      // Fallback: parse scheduledAt (may have timezone issues)
+      const bookingDate = new Date(scheduledAt);
+      formattedDate = bookingDate.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      formattedTime = bookingDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+    }
 
     // Build admin notification message
     const message = `🆕 NEW BOOKING!\n\n` +

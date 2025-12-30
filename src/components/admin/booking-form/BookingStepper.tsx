@@ -256,12 +256,26 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
 
         if (!isDraft) {
+          // Pre-format date/time for admin notification to avoid timezone issues
+          const adminScheduledDate = new Date(selectedDate!);
+          const [adminTime, adminPeriod] = selectedTime.split(' ');
+          const [adminHours, adminMinutes] = adminTime.split(':').map(Number);
+          let adminHour24 = adminHours;
+          if (adminPeriod === 'PM' && adminHours !== 12) adminHour24 += 12;
+          if (adminPeriod === 'AM' && adminHours === 12) adminHour24 = 0;
+          adminScheduledDate.setHours(adminHour24, adminMinutes, 0, 0);
+          
+          const formattedDateStr = format(adminScheduledDate, 'MMMM d, yyyy');
+          const formattedTimeStr = format(adminScheduledDate, 'h:mm a');
+
           // Send admin SMS notification (non-blocking, fail silently)
           supabase.functions.invoke('send-admin-sms-notification', {
             body: {
               customerName,
               serviceName: selectedService?.name,
               scheduledAt: bookingData.scheduled_at,
+              formattedDate: formattedDateStr,
+              formattedTime: formattedTimeStr,
               totalAmount,
               address,
               organizationId: organizationId ?? undefined,
