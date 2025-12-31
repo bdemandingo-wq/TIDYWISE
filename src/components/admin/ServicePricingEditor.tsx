@@ -53,6 +53,8 @@ export function ServicePricingEditor() {
   const [newPet, setNewPet] = useState({ label: '', price: '' });
   const [isAddConditionOpen, setIsAddConditionOpen] = useState(false);
   const [newCondition, setNewCondition] = useState({ label: '', price: '' });
+  const [isAddBedroomOpen, setIsAddBedroomOpen] = useState(false);
+  const [newBedroom, setNewBedroom] = useState({ bedrooms: '', bathrooms: '', price: '' });
 
   // Fetch services from database
   useEffect(() => {
@@ -117,6 +119,24 @@ export function ServicePricingEditor() {
     newPricing[index] = { ...newPricing[index], basePrice: newPrice };
     setCurrentPricing({ ...currentPricing, bedroom_pricing: newPricing });
     setEditingCell(null);
+  };
+
+  const handleDeleteBedroom = (index: number) => {
+    if (!currentPricing) return;
+    const newPricing = currentPricing.bedroom_pricing.filter((_, i) => i !== index);
+    setCurrentPricing({ ...currentPricing, bedroom_pricing: newPricing });
+  };
+
+  const handleAddBedroom = () => {
+    if (!currentPricing || !newBedroom.bedrooms || !newBedroom.bathrooms || !newBedroom.price) return;
+    const bedroomItem = {
+      bedrooms: newBedroom.bedrooms,
+      bathrooms: newBedroom.bathrooms,
+      basePrice: parseFloat(newBedroom.price),
+    };
+    setCurrentPricing({ ...currentPricing, bedroom_pricing: [...currentPricing.bedroom_pricing, bedroomItem] });
+    setNewBedroom({ bedrooms: '', bathrooms: '', price: '' });
+    setIsAddBedroomOpen(false);
   };
 
   const handleExtraEdit = (index: number, field: 'name' | 'price', value: string | number) => {
@@ -328,8 +348,53 @@ export function ServicePricingEditor() {
           {/* Bedroom/Bathroom Pricing */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Bedroom & Bathroom Pricing</CardTitle>
-              <p className="text-sm text-muted-foreground">Click any price to edit</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Bedroom & Bathroom Pricing</CardTitle>
+                  <p className="text-sm text-muted-foreground">Click any price to edit</p>
+                </div>
+                <Dialog open={isAddBedroomOpen} onOpenChange={setIsAddBedroomOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Row
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Bedroom/Bathroom Pricing</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Bedrooms</Label>
+                        <Input
+                          value={newBedroom.bedrooms}
+                          onChange={(e) => setNewBedroom({ ...newBedroom, bedrooms: e.target.value })}
+                          placeholder="e.g., 4"
+                        />
+                      </div>
+                      <div>
+                        <Label>Bathrooms</Label>
+                        <Input
+                          value={newBedroom.bathrooms}
+                          onChange={(e) => setNewBedroom({ ...newBedroom, bathrooms: e.target.value })}
+                          placeholder="e.g., 2.5"
+                        />
+                      </div>
+                      <div>
+                        <Label>Base Price ($)</Label>
+                        <Input
+                          type="number"
+                          value={newBedroom.price}
+                          onChange={(e) => setNewBedroom({ ...newBedroom, price: e.target.value })}
+                          placeholder="200"
+                        />
+                      </div>
+                      <Button onClick={handleAddBedroom} className="w-full">Add Pricing Row</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
@@ -339,11 +404,12 @@ export function ServicePricingEditor() {
                       <TableHead>Bedrooms</TableHead>
                       <TableHead>Bathrooms</TableHead>
                       <TableHead className="text-center">Base Price</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {currentPricing.bedroom_pricing.map((item, index) => (
-                      <TableRow key={`${item.bedrooms}-${item.bathrooms}`}>
+                      <TableRow key={`${item.bedrooms}-${item.bathrooms}-${index}`} className="group">
                         <TableCell className="font-medium">{item.bedrooms} Bed</TableCell>
                         <TableCell>{item.bathrooms} Bath</TableCell>
                         <TableCell 
@@ -369,6 +435,16 @@ export function ServicePricingEditor() {
                               <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
                             </span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                            onClick={() => handleDeleteBedroom(index)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
