@@ -34,33 +34,37 @@ export default function AuthPage() {
 
   // Redirect if already logged in
   useEffect(() => {
-    const checkOrganization = async () => {
-      if (!user) return;
+    if (authLoading || !user) return;
+    
+    // Small delay to ensure auth state is fully settled
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Check if user has an organization membership
+        const { data: membership, error } = await supabase
+          .from('org_memberships')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
 
-      // Check if user has an organization membership
-      const { data: membership, error } = await supabase
-        .from('org_memberships')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle();
+        if (error) {
+          console.error('Error checking membership:', error);
+          navigate('/onboarding');
+          return;
+        }
 
-      if (error) {
-        console.error('Error checking membership:', error);
-        navigate('/dashboard');
-        return;
-      }
-
-      if (membership) {
-        navigate('/dashboard');
-      } else {
+        if (membership) {
+          navigate('/dashboard');
+        } else {
+          navigate('/onboarding');
+        }
+      } catch (err) {
+        console.error('Error in checkOrganization:', err);
         navigate('/onboarding');
       }
-    };
+    }, 100);
 
-    if (!authLoading && user) {
-      checkOrganization();
-    }
+    return () => clearTimeout(timeoutId);
   }, [user, authLoading, navigate]);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
