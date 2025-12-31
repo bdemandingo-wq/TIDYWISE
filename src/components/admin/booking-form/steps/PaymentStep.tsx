@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { 
   CreditCard, 
   FileText, 
@@ -15,7 +16,9 @@ import {
   RefreshCw,
   User,
   DollarSign,
-  Phone
+  Phone,
+  Tag,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,8 +26,7 @@ import { toast } from 'sonner';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
-import { usePricing } from '@/hooks/usePricing';
-import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
+import { useDiscounts } from '@/hooks/useDiscounts';
 
 export function PaymentStep() {
   const {
@@ -47,68 +49,69 @@ export function PaymentStep() {
     customerTab,
     selectedCustomer,
     newCustomer,
-    squareFootage,
-    pricingMode,
-    bedrooms,
-    bathrooms,
-    frequency,
-    selectedExtras,
-    homeCondition,
-    petOption,
+    calculatedPrice,
+    finalPrice,
+    appliedDiscount,
+    setAppliedDiscount,
   } = useBookingForm();
 
   const { organizationId } = useOrgId();
-  const pricing = usePricing();
+  const { validateCoupon, calculateDiscountAmount } = useDiscounts();
 
   const [sendingLinkSms, setSendingLinkSms] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // Get customer phone
   const customerPhone = customerTab === 'existing' && selectedCustomer 
     ? selectedCustomer.phone 
     : newCustomer.phone;
 
-  // Calculate price from pricing sheet (same logic as ServiceStep)
-  const calculatedPrice = (() => {
-    if (!selectedService || !pricing.isLoaded) return 0;
-    
-    const serviceName = selectedService.name.toLowerCase();
-    let matchedService = pricing.services.find(s => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
-    
-    if (!matchedService) {
-      if (serviceName.includes('deep')) matchedService = pricing.services.find(s => s.id === 'deep_clean');
-      else if (serviceName.includes('move')) matchedService = pricing.services.find(s => s.id === 'move_in_out');
-      else if (serviceName.includes('construction')) matchedService = pricing.services.find(s => s.id === 'construction');
-      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find(s => s.id === 'standard_clean');
-    }
-    
-    let basePrice = 0;
-    const extrasTotal = pricing.getExtrasTotal(selectedExtras);
-    const conditionTotal = pricing.getConditionPrice(homeCondition);
-    const petTotal = pricing.getPetPrice(petOption);
-    
-    if (pricingMode === 'sqft' && matchedService && squareFootage) {
-      const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
-      if (sqFtIndex !== -1) {
-        basePrice = matchedService.prices[sqFtIndex];
-        const freqOption = frequencyOptions.find(f => f.id === frequency);
-        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
-          basePrice = Math.round(basePrice * (1 - freqOption.discount));
-        }
-      }
-    } else if (pricingMode === 'bedroom') {
-      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
-      const freqOption = frequencyOptions.find(f => f.id === frequency);
-      if (freqOption && freqOption.discount > 0) {
-        basePrice = Math.round(basePrice * (1 - freqOption.discount));
-      }
-    }
-    
-    return basePrice + extrasTotal + conditionTotal + petTotal;
-  })();
-
   // Use override amount if set, otherwise use calculated price
   const effectiveAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const discount = await validateCoupon(couponCode.trim(), effectiveAmount);
+      
+      if (!discount) {
+        setCouponError('Invalid or expired coupon code');
+        return;
+      }
+
+      const discountAmount = calculateDiscountAmount(discount, effectiveAmount);
+      
+      setAppliedDiscount({
+        id: discount.id,
+        code: discount.code,
+        discount_type: discount.discount_type,
+        discount_value: discount.discount_value,
+        discountAmount,
+      });
+      
+      setCouponCode('');
+      toast.success(`Coupon applied! You saved $${discountAmount.toFixed(2)}`);
+    } catch (error) {
+      setCouponError('Failed to validate coupon');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedDiscount(null);
+    toast.info('Coupon removed');
+  };
 
   const handleSendPaymentLinkSms = async () => {
     if (!customerPhone || !customerName) {
@@ -116,7 +119,7 @@ export function PaymentStep() {
       return;
     }
 
-    if (!effectiveAmount || effectiveAmount <= 0) {
+    if (!finalPrice || finalPrice <= 0) {
       toast.error('Please select a service and property details to calculate the price');
       return;
     }
@@ -129,11 +132,11 @@ export function PaymentStep() {
           email: customerEmail,
           customerName, 
           organizationId: organizationId ?? undefined,
-          amount: effectiveAmount
+          amount: finalPrice
         }
       });
       if (error) throw error;
-      toast.success(`Payment link for $${effectiveAmount.toFixed(2)} sent via SMS`);
+      toast.success(`Payment link for $${finalPrice.toFixed(2)} sent via SMS`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send payment link via SMS');
     } finally {
@@ -176,6 +179,98 @@ export function PaymentStep() {
             rows={4}
             className="bg-secondary/30 border-border/50 resize-none"
           />
+        </CardContent>
+      </Card>
+
+      {/* Discount Code Section */}
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">Discount Code</Label>
+          </div>
+          
+          {appliedDiscount ? (
+            <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                    {appliedDiscount.code}
+                  </p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    {appliedDiscount.discount_type === 'percentage' 
+                      ? `${appliedDiscount.discount_value}% off` 
+                      : `$${appliedDiscount.discount_value} off`}
+                    {' '}- Saving ${appliedDiscount.discountAmount.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveCoupon}
+                className="h-9 w-9 p-0 text-destructive hover:text-destructive"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  placeholder="Enter coupon code"
+                  className="h-11 bg-secondary/30 border-border/50 uppercase"
+                />
+                <Button
+                  onClick={handleApplyCoupon}
+                  disabled={validatingCoupon || !couponCode.trim()}
+                  className="h-11 px-6"
+                >
+                  {validatingCoupon ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Apply'
+                  )}
+                </Button>
+              </div>
+              {couponError && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {couponError}
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Price Summary with Discount */}
+          {effectiveAmount > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>${effectiveAmount.toFixed(2)}</span>
+              </div>
+              {appliedDiscount && (
+                <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                  <span>Discount ({appliedDiscount.code})</span>
+                  <span>-${appliedDiscount.discountAmount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/30">
+                <span>Total</span>
+                <span className={appliedDiscount ? 'text-emerald-600 dark:text-emerald-400' : ''}>
+                  ${finalPrice.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -328,15 +423,15 @@ export function PaymentStep() {
                 variant="outline"
                 className="h-11 w-full"
                 onClick={handleSendPaymentLinkSms}
-                disabled={sendingLinkSms || !customerPhone || !effectiveAmount}
-                title={!customerPhone ? "Customer phone required" : !effectiveAmount ? "Select service and details first" : `Send payment link for $${effectiveAmount.toFixed(2)}`}
+                disabled={sendingLinkSms || !customerPhone || !finalPrice}
+                title={!customerPhone ? "Customer phone required" : !finalPrice ? "Select service and details first" : `Send payment link for $${finalPrice.toFixed(2)}`}
               >
                 {sendingLinkSms ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Phone className="mr-2 h-4 w-4" />
                 )}
-                Send Payment Link (${effectiveAmount?.toFixed(2) || '0.00'})
+                Send Payment Link (${finalPrice?.toFixed(2) || '0.00'})
               </Button>
             </div>
           ) : (

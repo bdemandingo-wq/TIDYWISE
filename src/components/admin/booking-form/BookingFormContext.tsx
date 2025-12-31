@@ -12,6 +12,14 @@ interface CardInfo {
   expYear?: number;
 }
 
+interface AppliedDiscount {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'flat';
+  discount_value: number;
+  discountAmount: number;
+}
+
 interface BookingFormState {
   // Customer
   customerTab: 'existing' | 'new';
@@ -63,6 +71,9 @@ interface BookingFormState {
   // Card info
   cardInfo: CardInfo | null;
   loadingCard: boolean;
+  
+  // Discount
+  appliedDiscount: AppliedDiscount | null;
 }
 
 interface BookingFormContextType extends BookingFormState {
@@ -80,6 +91,8 @@ interface BookingFormContextType extends BookingFormState {
   conditionTotal: number;
   petTotal: number;
   calculatedPrice: number;
+  finalPrice: number;
+  appliedDiscount: AppliedDiscount | null;
   
   // Setters
   setCustomerTab: (tab: 'existing' | 'new') => void;
@@ -111,6 +124,7 @@ interface BookingFormContextType extends BookingFormState {
   setSendConfirmationEmail: (send: boolean) => void;
   setSendConfirmationSms: (send: boolean) => void;
   setCardInfo: (info: CardInfo | null) => void;
+  setAppliedDiscount: (discount: AppliedDiscount | null) => void;
   
   // Actions
   loadCardInfo: (email: string) => Promise<void>;
@@ -190,6 +204,9 @@ export function BookingFormProvider({
   const [cardInfo, setCardInfo] = useState<CardInfo | null>(null);
   const [loadingCard, setLoadingCard] = useState(false);
   
+  // Discount state
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
+  
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   
@@ -262,6 +279,13 @@ export function BookingFormProvider({
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
   }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal]);
+
+  // Calculate final price after discount
+  const finalPrice = useMemo(() => {
+    const baseAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+    if (!appliedDiscount) return baseAmount;
+    return Math.max(0, baseAmount - appliedDiscount.discountAmount);
+  }, [totalAmount, calculatedPrice, appliedDiscount]);
 
   const updateNewCustomer = (field: keyof typeof initialNewCustomer, value: string) => {
     setNewCustomer(prev => ({ ...prev, [field]: value }));
@@ -443,6 +467,8 @@ export function BookingFormProvider({
       conditionTotal,
       petTotal,
       calculatedPrice,
+      finalPrice,
+      appliedDiscount,
       
       // Setters
       setCustomerTab,
@@ -474,6 +500,7 @@ export function BookingFormProvider({
       setSendConfirmationEmail,
       setSendConfirmationSms,
       setCardInfo,
+      setAppliedDiscount,
       
       // Actions
       loadCardInfo,
