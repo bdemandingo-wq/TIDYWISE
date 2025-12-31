@@ -248,6 +248,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     customerName,
     extrasTotal,
     calculatedPrice,
+    finalPrice,
     resetForm,
   } = useBookingForm();
 
@@ -646,7 +647,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
             <div className="flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span className="text-primary">${totalAmount.toFixed(2)}</span>
+              <span className="text-primary">${finalPrice.toFixed(2)}</span>
             </div>
 
             {frequency !== 'one_time' && (
