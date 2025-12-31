@@ -1,0 +1,189 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganizationSettings } from './useOrganizationSettings';
+
+export interface Discount {
+  id: string;
+  organization_id: string;
+  code: string;
+  description: string | null;
+  discount_type: 'percentage' | 'flat';
+  discount_value: number;
+  min_order_amount: number;
+  max_uses: number | null;
+  current_uses: number;
+  valid_from: string;
+  valid_until: string | null;
+  is_active: boolean;
+  is_test: boolean;
+  created_at: string;
+}
+
+export function useDiscounts() {
+  const { organization } = useOrganization();
+  const { settings } = useOrganizationSettings();
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDiscounts = useCallback(async () => {
+    if (!organization?.id) return;
+
+    try {
+      let query = supabase
+        .from('discounts')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+
+      // If not in demo mode, exclude test discounts
+      if (!settings?.demo_mode_enabled) {
+        query = query.eq('is_test', false);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setDiscounts((data || []) as Discount[]);
+    } catch (error) {
+      console.error('Error fetching discounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [organization?.id, settings?.demo_mode_enabled]);
+
+  useEffect(() => {
+    fetchDiscounts();
+  }, [fetchDiscounts]);
+
+  const createDiscount = async (discount: Omit<Discount, 'id' | 'organization_id' | 'current_uses' | 'created_at'>) => {
+    if (!organization?.id) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('discounts')
+        .insert({
+          ...discount,
+          organization_id: organization.id,
+          is_test: settings?.demo_mode_enabled ?? false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      await fetchDiscounts();
+      return data;
+    } catch (error) {
+      console.error('Error creating discount:', error);
+      return null;
+    }
+  };
+
+  const updateDiscount = async (id: string, updates: Partial<Discount>) => {
+    try {
+      const { error } = await supabase
+        .from('discounts')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchDiscounts();
+      return true;
+    } catch (error) {
+      console.error('Error updating discount:', error);
+      return false;
+    }
+  };
+
+  const deleteDiscount = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('discounts')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchDiscounts();
+      return true;
+    } catch (error) {
+      console.error('Error deleting discount:', error);
+      return false;
+    }
+  };
+
+  const validateCoupon = async (code: string, orderAmount: number): Promise<Discount | null> => {
+    if (!organization?.id) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('discounts')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('code', code.toUpperCase())
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return null;
+
+      const discount = data as Discount;
+
+      // Check if within valid date range
+      const now = new Date();
+      if (discount.valid_from && new Date(discount.valid_from) > now) {
+        return null;
+      }
+      if (discount.valid_until && new Date(discount.valid_until) < now) {
+        return null;
+      }
+
+      // Check max uses
+      if (discount.max_uses && discount.current_uses >= discount.max_uses) {
+        return null;
+      }
+
+      // Check minimum order amount
+      if (orderAmount < discount.min_order_amount) {
+        return null;
+      }
+
+      return discount;
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      return null;
+    }
+  };
+
+  const calculateDiscountAmount = (discount: Discount, subtotal: number): number => {
+    if (discount.discount_type === 'percentage') {
+      return (subtotal * discount.discount_value) / 100;
+    }
+    return Math.min(discount.discount_value, subtotal);
+  };
+
+  const incrementCouponUse = async (discountId: string) => {
+    try {
+      const discount = discounts.find(d => d.id === discountId);
+      if (discount) {
+        await supabase
+          .from('discounts')
+          .update({ current_uses: discount.current_uses + 1 })
+          .eq('id', discountId);
+      }
+    } catch (error) {
+      console.error('Error incrementing coupon use:', error);
+    }
+  };
+
+  return {
+    discounts,
+    loading,
+    createDiscount,
+    updateDiscount,
+    deleteDiscount,
+    validateCoupon,
+    calculateDiscountAmount,
+    incrementCouponUse,
+    refetch: fetchDiscounts,
+  };
+}

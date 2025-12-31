@@ -23,6 +23,7 @@ import {
   Sparkles,
   HelpCircle,
   GripVertical,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -31,6 +32,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
+import { DemoModeToggle } from './DemoModeToggle';
 import {
   DndContext,
   closestCenter,
@@ -62,6 +64,7 @@ const defaultNavigation = [
   { name: 'Staff', href: '/dashboard/staff', icon: UserCircle },
   { name: 'Checklists', href: '/dashboard/checklists', icon: CheckSquare },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+  { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
   { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
@@ -73,7 +76,7 @@ const defaultNavigation = [
 const iconMap: Record<string, typeof Home> = {
   Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
   Briefcase, UserCircle, CheckSquare, Package, DollarSign, Receipt, BarChart3,
-  Sparkles, CreditCard, HelpCircle,
+  Sparkles, CreditCard, HelpCircle, Tag,
 };
 
 interface NavItem {
@@ -286,6 +289,11 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
             </div>
           </SortableContext>
         </DndContext>
+
+        {/* Demo Mode Toggle */}
+        <div className="mt-4 pt-4 border-t border-sidebar-border">
+          <DemoModeToggle isOpen={isOpen} isMobile={isMobile} />
+        </div>
       </nav>
 
       {/* User Profile */}

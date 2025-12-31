@@ -36,6 +36,7 @@ import ChecklistsPage from "./pages/admin/ChecklistsPage";
 import PaymentIntegrationPage from "./pages/admin/PaymentIntegrationPage";
 import SubscriptionPage from "./pages/admin/SubscriptionPage";
 import HelpPage from "./pages/admin/HelpPage";
+import DiscountsPage from "./pages/admin/DiscountsPage";
 import StaffPortal from "./pages/staff/StaffPortal";
 import StaffLoginPage from "./pages/staff/StaffLoginPage";
 import StaffResetPasswordPage from "./pages/staff/StaffResetPasswordPage";
@@ -91,6 +92,7 @@ const App = () => (
                   <Route path="/dashboard/payment-integration" element={<ProtectedOrgRoute><PaymentIntegrationPage /></ProtectedOrgRoute>} />
                   <Route path="/dashboard/subscription" element={<ProtectedOrgRoute><SubscriptionPage /></ProtectedOrgRoute>} />
                   <Route path="/dashboard/help" element={<ProtectedOrgRoute><HelpPage /></ProtectedOrgRoute>} />
+                  <Route path="/dashboard/discounts" element={<ProtectedOrgRoute><DiscountsPage /></ProtectedOrgRoute>} />
 
                   {/* Legacy admin routes - redirect to dashboard */}
                   <Route path="/admin" element={<ProtectedOrgRoute><AdminDashboard /></ProtectedOrgRoute>} />

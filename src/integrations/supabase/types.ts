@@ -242,11 +242,14 @@ export type Database = {
           created_at: string
           customer_id: string | null
           deposit_paid: number | null
+          discount_amount: number | null
+          discount_id: string | null
           duration: number
           extras: Json | null
           frequency: string | null
           id: string
           is_draft: boolean | null
+          is_test: boolean | null
           location_id: string | null
           notes: string | null
           organization_id: string | null
@@ -258,6 +261,8 @@ export type Database = {
           staff_id: string | null
           state: string | null
           status: Database["public"]["Enums"]["booking_status"]
+          subtotal: number | null
+          tax_amount: number | null
           total_amount: number
           updated_at: string
           zip_code: string | null
@@ -280,11 +285,14 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           deposit_paid?: number | null
+          discount_amount?: number | null
+          discount_id?: string | null
           duration: number
           extras?: Json | null
           frequency?: string | null
           id?: string
           is_draft?: boolean | null
+          is_test?: boolean | null
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
@@ -296,6 +304,8 @@ export type Database = {
           staff_id?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
+          subtotal?: number | null
+          tax_amount?: number | null
           total_amount?: number
           updated_at?: string
           zip_code?: string | null
@@ -318,11 +328,14 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           deposit_paid?: number | null
+          discount_amount?: number | null
+          discount_id?: string | null
           duration?: number
           extras?: Json | null
           frequency?: string | null
           id?: string
           is_draft?: boolean | null
+          is_test?: boolean | null
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
@@ -334,6 +347,8 @@ export type Database = {
           staff_id?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
+          subtotal?: number | null
+          tax_amount?: number | null
           total_amount?: number
           updated_at?: string
           zip_code?: string | null
@@ -344,6 +359,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_discount_id_fkey"
+            columns: ["discount_id"]
+            isOneToOne: false
+            referencedRelation: "discounts"
             referencedColumns: ["id"]
           },
           {
@@ -841,6 +863,68 @@ export type Database = {
           },
         ]
       }
+      discounts: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          is_test: boolean | null
+          max_uses: number | null
+          min_order_amount: number | null
+          organization_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          is_test?: boolean | null
+          max_uses?: number | null
+          min_order_amount?: number | null
+          organization_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          is_test?: boolean | null
+          max_uses?: number | null
+          min_order_amount?: number | null
+          organization_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -1296,6 +1380,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organization_email_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_pricing_settings: {
+        Row: {
+          created_at: string
+          demo_mode_enabled: boolean | null
+          id: string
+          organization_id: string
+          sales_tax_percent: number | null
+          show_sqft_on_booking: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          demo_mode_enabled?: boolean | null
+          id?: string
+          organization_id: string
+          sales_tax_percent?: number | null
+          show_sqft_on_booking?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          demo_mode_enabled?: boolean | null
+          id?: string
+          organization_id?: string
+          sales_tax_percent?: number | null
+          show_sqft_on_booking?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_pricing_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
@@ -1821,6 +1943,63 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_pricing: {
+        Row: {
+          bedroom_pricing: Json | null
+          created_at: string
+          extras: Json | null
+          home_condition_options: Json | null
+          id: string
+          minimum_price: number | null
+          organization_id: string
+          pet_options: Json | null
+          service_id: string
+          sqft_prices: Json | null
+          updated_at: string
+        }
+        Insert: {
+          bedroom_pricing?: Json | null
+          created_at?: string
+          extras?: Json | null
+          home_condition_options?: Json | null
+          id?: string
+          minimum_price?: number | null
+          organization_id: string
+          pet_options?: Json | null
+          service_id: string
+          sqft_prices?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          bedroom_pricing?: Json | null
+          created_at?: string
+          extras?: Json | null
+          home_condition_options?: Json | null
+          id?: string
+          minimum_price?: number | null
+          organization_id?: string
+          pet_options?: Json | null
+          service_id?: string
+          sqft_prices?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_pricing_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_pricing_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
