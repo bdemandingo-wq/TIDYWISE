@@ -16,7 +16,8 @@ import {
   Plus,
   X,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  LogOut
 } from 'lucide-react';
 import { getIndustryTemplate } from '@/data/industryTemplates';
 import { cn } from '@/lib/utils';
@@ -40,7 +41,7 @@ const cleaningTemplate = getIndustryTemplate("Home Cleaning")!;
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { organization, loading: orgLoading, refetch } = useOrganization();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -50,6 +51,11 @@ export default function OnboardingPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDescription, setNewServiceDescription] = useState('');
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  };
 
   // Pre-select all cleaning services on mount
   useEffect(() => {
@@ -264,6 +270,19 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      {/* Logout button in top right */}
+      <div className="absolute top-4 right-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign out
+        </Button>
+      </div>
+      
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
