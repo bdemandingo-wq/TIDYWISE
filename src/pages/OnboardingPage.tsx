@@ -273,10 +273,10 @@ export default function OnboardingPage() {
       {/* Logout button in top right */}
       <div className="absolute top-4 right-4">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={handleLogout}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
         >
           <LogOut className="h-4 w-4 mr-2" />
           Sign out
