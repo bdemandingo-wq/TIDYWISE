@@ -62,6 +62,7 @@ export function ServiceStep() {
   
   // Check visibility settings
   const showSqft = orgSettings?.show_sqft_on_booking !== false;
+  const showBedBath = orgSettings?.show_bed_bath_on_booking !== false;
   const showAddons = orgSettings?.show_addons_on_booking !== false;
   const showFrequency = orgSettings?.show_frequency_discount !== false;
   const showPets = orgSettings?.show_pet_options !== false;
@@ -140,10 +141,12 @@ export function ServiceStep() {
                     <Ruler className="h-4 w-4" />
                     Square Footage
                   </TabsTrigger>
-                  <TabsTrigger value="bedroom" className="flex items-center gap-2">
-                    <BedDouble className="h-4 w-4" />
-                    Bed & Bath
-                  </TabsTrigger>
+                  {showBedBath && (
+                    <TabsTrigger value="bedroom" className="flex items-center gap-2">
+                      <BedDouble className="h-4 w-4" />
+                      Bed & Bath
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 
                 <TabsContent value="sqft" className="mt-4">
@@ -164,43 +167,45 @@ export function ServiceStep() {
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="bedroom" className="mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Bedrooms</Label>
-                      <Select value={bedrooms} onValueChange={setBedrooms}>
-                        <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          {bedroomOptions.map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {showBedBath && (
+                  <TabsContent value="bedroom" className="mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Bedrooms</Label>
+                        <Select value={bedrooms} onValueChange={setBedrooms}>
+                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border">
+                            {bedroomOptions.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Bathrooms</Label>
+                        <Select value={bathrooms} onValueChange={setBathrooms}>
+                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border">
+                            {bathroomOptions.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium">Bathrooms</Label>
-                      <Select value={bathrooms} onValueChange={setBathrooms}>
-                        <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          {bathroomOptions.map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Base price calculated from bedroom/bathroom combination
-                  </p>
-                </TabsContent>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Base price calculated from bedroom/bathroom combination
+                    </p>
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
-          ) : (
-            /* Bed/Bath only mode when sqft is hidden */
+          ) : showBedBath ? (
+            /* Bed/Bath only mode when sqft is hidden but bed/bath is enabled */
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Bedrooms</Label>
@@ -229,10 +234,10 @@ export function ServiceStep() {
                 </Select>
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Always show bed/bath for reference when in sqft mode */}
-          {showSqft && pricingMode === 'sqft' && (
+          {/* Always show bed/bath for reference when in sqft mode and bed/bath is enabled */}
+          {showSqft && showBedBath && pricingMode === 'sqft' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Bedrooms</Label>
