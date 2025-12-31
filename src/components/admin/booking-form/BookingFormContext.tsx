@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
 import { supabase } from '@/integrations/supabase/client';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
-import { usePricing } from '@/hooks/usePricing';
+import { useServicePricing } from '@/hooks/useServicePricing';
 
 interface CardInfo {
   hasCard: boolean;
@@ -144,8 +144,8 @@ export function BookingFormProvider({
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
   
-  // Live pricing from localStorage
-  const pricing = usePricing();
+  // Service-specific pricing from database
+  const { getServicePricing, loading: pricingLoading } = useServicePricing();
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
@@ -201,45 +201,67 @@ export function BookingFormProvider({
     ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
     : `${newCustomer.first_name} ${newCustomer.last_name}`;
 
-  const extrasTotal = pricing.getExtrasTotal(selectedExtras);
-  const conditionTotal = pricing.getConditionPrice(homeCondition);
-  const petTotal = pricing.getPetPrice(petOption);
+  // Get service-specific pricing data
+  const servicePricing = useMemo(() => {
+    if (!selectedServiceId) return null;
+    return getServicePricing(selectedServiceId);
+  }, [selectedServiceId, getServicePricing, pricingLoading]);
 
-  // Calculate price from pricing sheet
-  const calculatedPrice = (() => {
-    if (!selectedService || !pricing.isLoaded) return 0;
-    
-    const serviceName = selectedService.name.toLowerCase();
-    let matchedService = pricing.services.find((s: any) => serviceName.includes(s.name.toLowerCase().split(' ')[0]));
-    
-    if (!matchedService) {
-      if (serviceName.includes('deep')) matchedService = pricing.services.find((s: any) => s.id === 'deep_clean');
-      else if (serviceName.includes('move')) matchedService = pricing.services.find((s: any) => s.id === 'move_in_out');
-      else if (serviceName.includes('construction')) matchedService = pricing.services.find((s: any) => s.id === 'construction');
-      else if (serviceName.includes('standard') || serviceName.includes('clean')) matchedService = pricing.services.find((s: any) => s.id === 'standard_clean');
-    }
+  // Calculate extras total from service-specific pricing
+  const extrasTotal = useMemo(() => {
+    if (!servicePricing) return 0;
+    return selectedExtras.reduce((total, extraId) => {
+      const extra = servicePricing.extras.find((e) => e.id === extraId);
+      return total + (extra?.price || 0);
+    }, 0);
+  }, [servicePricing, selectedExtras]);
+
+  // Calculate condition price from service-specific pricing
+  const conditionTotal = useMemo(() => {
+    if (!servicePricing) return 0;
+    const option = servicePricing.home_condition_options.find((o) => o.id === homeCondition);
+    return option?.price || 0;
+  }, [servicePricing, homeCondition]);
+
+  // Calculate pet price from service-specific pricing
+  const petTotal = useMemo(() => {
+    if (!servicePricing) return 0;
+    const option = servicePricing.pet_options.find((o) => o.id === petOption);
+    return option?.price || 0;
+  }, [servicePricing, petOption]);
+
+  // Calculate price from service-specific pricing
+  const calculatedPrice = useMemo(() => {
+    if (!selectedService || !servicePricing) return 0;
     
     let basePrice = 0;
     
-    if (pricingMode === 'sqft' && matchedService && squareFootage) {
+    if (pricingMode === 'sqft' && squareFootage) {
       const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
-      if (sqFtIndex !== -1) {
-        basePrice = matchedService.prices[sqFtIndex];
-        const freqOption = frequencyOptions.find(f => f.id === frequency);
-        if (freqOption && freqOption.discount > 0 && matchedService.id === 'standard_clean') {
-          basePrice = Math.round(basePrice * (1 - freqOption.discount));
-        }
+      if (sqFtIndex !== -1 && servicePricing.sqft_prices[sqFtIndex]) {
+        basePrice = servicePricing.sqft_prices[sqFtIndex];
       }
     } else if (pricingMode === 'bedroom') {
-      basePrice = pricing.getBedroomBathroomPrice(bedrooms, bathrooms);
-      const freqOption = frequencyOptions.find(f => f.id === frequency);
-      if (freqOption && freqOption.discount > 0) {
-        basePrice = Math.round(basePrice * (1 - freqOption.discount));
-      }
+      // Find bedroom/bathroom combination in service pricing
+      const combo = servicePricing.bedroom_pricing.find(
+        (p) => p.bedrooms === bedrooms && p.bathrooms === bathrooms
+      );
+      basePrice = combo?.basePrice || 0;
+    }
+    
+    // Apply frequency discount
+    const freqOption = frequencyOptions.find(f => f.id === frequency);
+    if (freqOption && freqOption.discount > 0) {
+      basePrice = Math.round(basePrice * (1 - freqOption.discount));
+    }
+    
+    // Ensure minimum price
+    if (servicePricing.minimum_price && basePrice > 0 && basePrice < servicePricing.minimum_price) {
+      basePrice = servicePricing.minimum_price;
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
-  })();
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal]);
 
   const updateNewCustomer = (field: keyof typeof initialNewCustomer, value: string) => {
     setNewCustomer(prev => ({ ...prev, [field]: value }));
