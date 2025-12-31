@@ -17,6 +17,7 @@ export function FormDisplaySettings() {
     show_frequency_discount: true,
     show_pet_options: true,
     show_home_condition: true,
+    show_bed_bath_on_booking: true,
     sales_tax_percent: 0,
   });
 
@@ -28,6 +29,7 @@ export function FormDisplaySettings() {
         show_frequency_discount: settings.show_frequency_discount,
         show_pet_options: settings.show_pet_options,
         show_home_condition: settings.show_home_condition,
+        show_bed_bath_on_booking: settings.show_bed_bath_on_booking,
         sales_tax_percent: settings.sales_tax_percent,
       });
     }
@@ -49,6 +51,11 @@ export function FormDisplaySettings() {
       key: 'show_sqft_on_booking' as const,
       label: 'Square Footage Pricing',
       description: 'Show square footage input field on booking form',
+    },
+    {
+      key: 'show_bed_bath_on_booking' as const,
+      label: 'Bed & Bath Selection',
+      description: 'Show bedroom and bathroom selection on booking form',
     },
     {
       key: 'show_addons_on_booking' as const,
