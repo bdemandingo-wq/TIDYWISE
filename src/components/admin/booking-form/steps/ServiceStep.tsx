@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -67,6 +68,16 @@ export function ServiceStep() {
   const showFrequency = orgSettings?.show_frequency_discount !== false;
   const showPets = orgSettings?.show_pet_options !== false;
   const showCondition = orgSettings?.show_home_condition !== false;
+
+  // If sqft pricing is hidden, force Bed & Bath pricing so totals can compute
+  useEffect(() => {
+    if (!showSqft && showBedBath && pricingMode !== 'bedroom') {
+      setPricingMode('bedroom');
+    }
+    if (showSqft && pricingMode === 'bedroom' && !showBedBath) {
+      setPricingMode('sqft');
+    }
+  }, [showSqft, showBedBath, pricingMode, setPricingMode]);
 
   return (
     <div className="space-y-6">
