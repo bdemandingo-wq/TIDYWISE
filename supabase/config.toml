@@ -71,3 +71,9 @@ verify_jwt = false
 
 [functions.send-cancellation-sms-notification]
 verify_jwt = false
+
+[functions.send-signup-welcome-sms]
+verify_jwt = false
+
+[functions.send-onboarding-complete-sms]
+verify_jwt = false
