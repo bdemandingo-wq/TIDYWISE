@@ -28,6 +28,7 @@ export interface BookingWithDetails {
   is_draft: boolean;
   created_at: string;
   updated_at: string;
+  staff_id: string | null;
   customer: {
     id: string;
     first_name: string;

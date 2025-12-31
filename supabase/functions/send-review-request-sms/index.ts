@@ -93,8 +93,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate unique token for this review request
     const token = crypto.randomUUID();
     
-    // Get the review page URL
-    const reviewPageUrl = `https://b5fbe592-e63a-4ccf-8d0f-0393049d0881.lovableproject.com/review/${token}`;
+    // Get the review page URL - use environment variable or fallback
+    const projectUrl = Deno.env.get("PROJECT_URL") || "https://slwfkaqczvwvvvavkgpr.lovable.app";
+    const reviewPageUrl = `${projectUrl}/review/${token}`;
 
     // Get staff_id and staff name from booking to associate review with cleaner
     const { data: bookingData } = await supabase

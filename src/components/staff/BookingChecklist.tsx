@@ -64,7 +64,79 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         .eq('id', bookingId)
         .single();
 
-      // Find a matching template
+      // Find a matching template - prioritize service-specific templates
+      let templateQuery = supabase
+        .from('checklist_templates')
+        .select(`
+          id,
+          service_id,
+          checklist_items(id, title, requires_photo, sort_order)
+        `)
+        .eq('is_active', true);
+
+      // First try to find a service-specific template
+      if (booking?.service_id) {
+        const { data: serviceTemplate } = await templateQuery
+          .eq('service_id', booking.service_id)
+          .limit(1)
+          .maybeSingle();
+
+        if (serviceTemplate) {
+          // Use service-specific template
+          const { data: newChecklist, error: createError } = await supabase
+            .from('booking_checklists')
+            .insert({
+              booking_id: bookingId,
+              staff_id: staffId,
+              template_id: serviceTemplate.id,
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+
+          const templateItems = (serviceTemplate.checklist_items || []) as Array<{
+            id: string;
+            title: string;
+            requires_photo: boolean;
+            sort_order: number;
+          }>;
+
+          const sortedItems = [...templateItems].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+          await supabase
+            .from('booking_checklist_items')
+            .insert(
+              sortedItems.map((item) => ({
+                booking_checklist_id: newChecklist.id,
+                checklist_item_id: item.id,
+                title: item.title,
+                is_completed: false,
+              }))
+            );
+
+          const { data: refetched } = await supabase
+            .from('booking_checklists')
+            .select(`
+              id,
+              completed_at,
+              booking_checklist_items(
+                id,
+                title,
+                is_completed,
+                notes,
+                photo_url,
+                checklist_item_id
+              )
+            `)
+            .eq('id', newChecklist.id)
+            .single();
+
+          return refetched;
+        }
+      }
+
+      // Fall back to default template (no service_id)
       const { data: template } = await supabase
         .from('checklist_templates')
         .select(`
@@ -72,10 +144,10 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
           checklist_items(id, title, requires_photo, sort_order)
         `)
         .eq('is_active', true)
-        .or(`service_id.eq.${booking?.service_id},service_id.is.null`)
-        .order('service_id', { ascending: false, nullsFirst: false })
+        .is('service_id', null)
+        .eq('is_default', true)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!template) {
         // Create a default checklist if no template exists

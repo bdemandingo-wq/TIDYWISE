@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays, Upload } from 'lucide-react';
+import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -30,23 +30,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
+// Import functionality has been removed
 
-const OPERATIONS_FIELDS: FieldMapping[] = [
-  { dbField: 'track_date', label: 'Date', required: true, type: 'date' },
-  { dbField: 'incoming_calls', label: 'Incoming Calls', type: 'number' },
-  { dbField: 'closed_deals', label: 'Closed Deals', type: 'number' },
-  { dbField: 'revenue_booked', label: 'Revenue Booked', type: 'number' },
-  { dbField: 'cold_emails_sent', label: 'Cold Emails Sent', type: 'number' },
-  { dbField: 'cold_calls_made', label: 'Cold Calls Made', type: 'number' },
-  { dbField: 'leads_followed_up', label: 'Leads Followed Up', type: 'number' },
-  { dbField: 'jobs_completed', label: 'Jobs Completed', type: 'number' },
-  { dbField: 'notes', label: 'Notes' },
-];
-
-const OPERATIONS_SAMPLE = `track_date,incoming_calls,closed_deals,revenue_booked,cold_emails_sent,cold_calls_made,leads_followed_up,jobs_completed,notes
-2024-01-15,10,3,1500,20,15,8,5,Good day
-2024-01-16,8,2,1000,15,10,6,4,Slow morning`;
 
 interface OperationsEntry {
   id: string;
@@ -65,7 +50,7 @@ export default function OperationsTrackerPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: subDays(new Date(), 30),
     to: new Date()
@@ -73,28 +58,6 @@ export default function OperationsTrackerPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskAmount } = useTestMode();
   const { organization } = useOrganization();
-
-  const handleImportOperations = async (records: Record<string, any>[]) => {
-    if (!organization?.id) throw new Error('No organization found');
-    
-    const entriesToInsert = records.map(record => ({
-      track_date: record.track_date || format(new Date(), 'yyyy-MM-dd'),
-      incoming_calls: Number(record.incoming_calls) || 0,
-      closed_deals: Number(record.closed_deals) || 0,
-      revenue_booked: Number(record.revenue_booked) || 0,
-      cold_emails_sent: Number(record.cold_emails_sent) || 0,
-      cold_calls_made: Number(record.cold_calls_made) || 0,
-      leads_followed_up: Number(record.leads_followed_up) || 0,
-      jobs_completed: Number(record.jobs_completed) || 0,
-      notes: record.notes || null,
-      organization_id: organization.id,
-    }));
-    
-    const { error } = await supabase.from('operations_tracker').insert(entriesToInsert);
-    if (error) throw error;
-    
-    queryClient.invalidateQueries({ queryKey: ['operations-tracker'] });
-  };
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['operations-tracker'],
@@ -262,10 +225,6 @@ export default function OperationsTrackerPage() {
             </PopoverContent>
           </Popover>
           
-          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
-            <Upload className="w-4 h-4" />
-            Import
-          </Button>
           <Button variant="outline" onClick={exportToExcel} className="gap-2">
             <Download className="w-4 h-4" />
             Export
@@ -534,16 +493,6 @@ export default function OperationsTrackerPage() {
             createMutation.mutate(data as Omit<OperationsEntry, 'id'>);
           }
         }}
-      />
-      
-      <ImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        title="Import Operations Data"
-        entityName="entries"
-        fields={OPERATIONS_FIELDS}
-        onImport={handleImportOperations}
-        sampleData={OPERATIONS_SAMPLE}
       />
     </AdminLayout>
   );

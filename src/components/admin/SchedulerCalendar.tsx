@@ -66,9 +66,22 @@ const statusLabels: Record<string, string> = {
   no_show: 'no show',
 };
 
-const serviceColors = [
-  '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
-];
+const staffColors: Record<string, string> = {};
+
+const getStaffColor = (staffId: string | null | undefined): string => {
+  if (!staffId) return '#6b7280'; // gray for unassigned
+  
+  if (!staffColors[staffId]) {
+    const colorPalette = [
+      '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316',
+      '#ef4444', '#14b8a6', '#8b5cf6', '#f97316', '#06b6d4'
+    ];
+    const index = Object.keys(staffColors).length % colorPalette.length;
+    staffColors[staffId] = colorPalette[index];
+  }
+  
+  return staffColors[staffId];
+};
 
 interface SchedulerCalendarProps {
   searchTerm?: string;
@@ -106,7 +119,7 @@ function DroppableDay({ id, disabled, className, children }: DroppableDayProps) 
 }
 
 function DraggableBooking({ booking, index, onClick }: DraggableBookingProps) {
-  const color = serviceColors[index % serviceColors.length];
+  const color = getStaffColor(booking.staff_id);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: booking.id,
   });

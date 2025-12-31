@@ -465,12 +465,19 @@ export default function PayrollPage() {
                         {isTestMode ? '$X,XXX.XX' : `$${staff.ytdEarnings.toFixed(2)}`}
                       </TableCell>
                       <TableCell>
-                        {staff.requiresTaxFiling && (
-                          <Badge variant="outline" className="border-amber-500 text-amber-600">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            1099 Required
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {staff.requiresTaxFiling && (
+                            <Badge variant="outline" className="border-amber-500 text-amber-600">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              1099 Required
+                            </Badge>
+                          )}
+                          {staff.totalPay > 0 && (
+                            <Badge variant="outline" className="border-green-500 text-green-600 cursor-pointer hover:bg-green-50">
+                              Mark Paid
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
