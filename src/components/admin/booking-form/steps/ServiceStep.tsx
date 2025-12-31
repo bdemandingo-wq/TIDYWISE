@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, CheckCircle, DollarSign, PawPrint, Home, Ruler, BedDouble } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
-import { usePricing } from '@/hooks/usePricing';
+import { useServicePricing } from '@/hooks/useServicePricing';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { 
   squareFootageRanges, 
   bedroomOptions, 
@@ -45,10 +46,22 @@ export function ServiceStep() {
     calculatedPrice,
   } = useBookingForm();
 
-  // Use live pricing data
-  const pricing = usePricing();
+  // Use service-specific pricing
+  const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  const { settings: orgSettings } = useOrganizationSettings();
+  
+  // Get pricing for selected service
+  const servicePricing = selectedServiceId ? getServicePricing(selectedServiceId) : null;
+  
+  // Use service-specific extras, pets, condition options or defaults
+  const extras = servicePricing?.extras || [];
+  const petOptions = servicePricing?.pet_options || [];
+  const homeConditionOptions = servicePricing?.home_condition_options || [];
 
   const totalAddOns = extrasTotal + conditionTotal + petTotal;
+  
+  // Check if sqft should be shown
+  const showSqft = orgSettings?.show_sqft_on_booking !== false;
 
   return (
     <div className="space-y-6">
@@ -113,77 +126,109 @@ export function ServiceStep() {
             </p>
           </div>
 
-          {/* Pricing Mode Tabs */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Pricing Method</Label>
-            <Tabs value={pricingMode} onValueChange={(v) => setPricingMode(v as 'sqft' | 'bedroom')}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="sqft" className="flex items-center gap-2">
-                  <Ruler className="h-4 w-4" />
-                  Square Footage
-                </TabsTrigger>
-                <TabsTrigger value="bedroom" className="flex items-center gap-2">
-                  <BedDouble className="h-4 w-4" />
-                  Bed & Bath
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="sqft" className="mt-4">
-                <div>
-                  <Label className="text-sm font-medium">Square Footage</Label>
-                  <Select value={squareFootage} onValueChange={setSquareFootage}>
-                    <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                      <SelectValue placeholder="Select sq ft range" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {squareFootageRanges.map((range) => (
-                        <SelectItem key={range.label} value={range.label}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="bedroom" className="mt-4">
-                <div className="grid grid-cols-2 gap-4">
+          {/* Pricing Mode Tabs - Only show sqft if enabled */}
+          {showSqft ? (
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Pricing Method</Label>
+              <Tabs value={pricingMode} onValueChange={(v) => setPricingMode(v as 'sqft' | 'bedroom')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="sqft" className="flex items-center gap-2">
+                    <Ruler className="h-4 w-4" />
+                    Square Footage
+                  </TabsTrigger>
+                  <TabsTrigger value="bedroom" className="flex items-center gap-2">
+                    <BedDouble className="h-4 w-4" />
+                    Bed & Bath
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="sqft" className="mt-4">
                   <div>
-                    <Label className="text-sm font-medium">Bedrooms</Label>
-                    <Select value={bedrooms} onValueChange={setBedrooms}>
+                    <Label className="text-sm font-medium">Square Footage</Label>
+                    <Select value={squareFootage} onValueChange={setSquareFootage}>
                       <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                        <SelectValue />
+                        <SelectValue placeholder="Select sq ft range" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover border-border">
-                        {bedroomOptions.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
+                        {squareFootageRanges.map((range) => (
+                          <SelectItem key={range.label} value={range.label}>
+                            {range.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">Bathrooms</Label>
-                    <Select value={bathrooms} onValueChange={setBathrooms}>
-                      <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border">
-                        {bathroomOptions.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                </TabsContent>
+                
+                <TabsContent value="bedroom" className="mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Bedrooms</Label>
+                      <Select value={bedrooms} onValueChange={setBedrooms}>
+                        <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border-border">
+                          {bedroomOptions.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Bathrooms</Label>
+                      <Select value={bathrooms} onValueChange={setBathrooms}>
+                        <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border-border">
+                          {bathroomOptions.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Base price calculated from bedroom/bathroom combination
-                </p>
-              </TabsContent>
-            </Tabs>
-          </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Base price calculated from bedroom/bathroom combination
+                  </p>
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : (
+            /* Bed/Bath only mode when sqft is hidden */
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Bedrooms</Label>
+                <Select value={bedrooms} onValueChange={setBedrooms}>
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {bedroomOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt} Bedroom{opt !== '1' && opt !== '0' ? 's' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Bathrooms</Label>
+                <Select value={bathrooms} onValueChange={setBathrooms}>
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {bathroomOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt} Bath{opt !== '1' ? 's' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* Always show bed/bath for reference when in sqft mode */}
-          {pricingMode === 'sqft' && (
+          {showSqft && pricingMode === 'sqft' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Bedrooms</Label>
@@ -255,7 +300,7 @@ export function ServiceStep() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                {pricing.homeConditionOptions.map((opt) => (
+                {homeConditionOptions.map((opt) => (
                   <SelectItem key={opt.id} value={opt.id.toString()}>
                     <div className="flex items-center justify-between w-full gap-4">
                       <span>{opt.label}</span>
@@ -279,7 +324,7 @@ export function ServiceStep() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                {pricing.petOptions.map((opt) => (
+                {petOptions.map((opt) => (
                   <SelectItem key={opt.id} value={opt.id}>
                     <div className="flex items-center justify-between w-full gap-4">
                       <span>{opt.label}</span>
@@ -307,7 +352,7 @@ export function ServiceStep() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {pricing.extras.map((extra) => (
+            {extras.map((extra) => (
               <div 
                 key={extra.id}
                 className={cn(

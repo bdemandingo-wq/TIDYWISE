@@ -64,7 +64,12 @@ const cleaningConfig = {
     "Email campaigns",
     "Review requests",
     "Multi-location",
-    "Team messaging"
+    "Team messaging",
+    "Demo/Test Mode",
+    "Per-service pricing",
+    "Sales tax automation",
+    "Coupon codes",
+    "SqFt toggle option"
   ]
 };
 

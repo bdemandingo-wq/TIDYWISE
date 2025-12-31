@@ -27,8 +27,9 @@ import {
   bedroomPricing as defaultBedroomPricing,
   CleaningService 
 } from '@/data/pricingData';
-import { Home, Sparkles, Truck, HardHat, Plus, Pencil, Save, Trash2, Bed } from 'lucide-react';
+import { Home, Sparkles, Truck, HardHat, Plus, Pencil, Save, Trash2, Bed, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ServicePricingEditor } from '@/components/admin/ServicePricingEditor';
 
 interface Extra {
   id: string;
@@ -484,20 +485,28 @@ export default function ServicesPage() {
   return (
     <AdminLayout
       title="Services & Pricing"
-      subtitle="Square footage-based pricing for all cleaning services"
+      subtitle="Manage pricing independently for each service category"
     >
-      <Tabs defaultValue="pricing-table" className="space-y-6">
+      <Tabs defaultValue="service-pricing" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="pricing-table">Pricing Sheet</TabsTrigger>
+          <TabsTrigger value="service-pricing" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            Service Pricing
+          </TabsTrigger>
+          <TabsTrigger value="pricing-table">Default Pricing Sheet</TabsTrigger>
           <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="service-pricing" className="space-y-6">
+          <ServicePricingEditor />
+        </TabsContent>
 
         <TabsContent value="pricing-table" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Square Footage Pricing</CardTitle>
+              <CardTitle>Square Footage Pricing (Legacy)</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Click any price to edit.
+                This is the default pricing table. Use the "Service Pricing" tab for per-service independent pricing.
               </p>
             </CardHeader>
             <CardContent>
@@ -513,7 +522,7 @@ export default function ServicesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bed className="w-5 h-5" />
-                Bedroom & Bathroom Pricing
+                Bedroom & Bathroom Pricing (Legacy)
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 Base prices by bedroom and bathroom count. Click any price to edit.
