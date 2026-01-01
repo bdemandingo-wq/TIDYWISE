@@ -515,6 +515,19 @@ export default function BookingsPage() {
     setSendingReminder(booking.id);
     
     try {
+      // Format date/time on client-side for timezone accuracy
+      const scheduledDate = new Date(booking.scheduled_at);
+      const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
       const { error } = await supabase.functions.invoke('send-booking-reminder', {
         body: {
           bookingId: booking.id,
@@ -522,6 +535,8 @@ export default function BookingsPage() {
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
           serviceName: booking.service?.name || 'Cleaning Service',
           scheduledAt: booking.scheduled_at,
+          formattedDate,
+          formattedTime,
           address: booking.address || '',
           totalAmount: booking.total_amount,
           organizationId: organization?.id,

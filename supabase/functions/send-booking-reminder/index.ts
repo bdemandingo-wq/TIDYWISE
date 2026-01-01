@@ -143,16 +143,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Manual reminder send
     if (isManualSend) {
-      const scheduledDate = payload?.scheduledAt ? new Date(payload.scheduledAt) : null;
-      const formattedDate = scheduledDate
-        ? scheduledDate.toLocaleDateString('en-US', {
+      // PRIORITY: Use pre-formatted strings from client to ensure timezone accuracy
+      const formattedDate = payload?.formattedDate || payload?.scheduledAt 
+        ? new Date(payload.scheduledAt).toLocaleDateString('en-US', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
           })
         : 'your scheduled date';
-      const formattedTime = scheduledDate
-        ? scheduledDate.toLocaleTimeString('en-US', {
+      const formattedTime = payload?.formattedTime || payload?.scheduledAt 
+        ? new Date(payload.scheduledAt).toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
