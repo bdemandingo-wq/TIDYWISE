@@ -24,6 +24,7 @@ import { CleanerAvailabilityDashboard } from '@/components/admin/CleanerAvailabi
 import { CustomerLifetimeValue } from '@/components/admin/CustomerLifetimeValue';
 import { StaffProductivityMetrics } from '@/components/admin/StaffProductivityMetrics';
 import { RevenueForecasting } from '@/components/admin/RevenueForecasting';
+import { PnLOverview } from '@/components/admin/PnLOverview';
 import { supabase } from '@/integrations/supabase/client';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { Button } from '@/components/ui/button';
@@ -255,6 +256,7 @@ export default function ReportsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="pnl">P&L Overview</TabsTrigger>
           <TabsTrigger value="clv">Customer LTV</TabsTrigger>
           <TabsTrigger value="staff-productivity">Staff Productivity</TabsTrigger>
           <TabsTrigger value="forecasting">Revenue Forecast</TabsTrigger>
@@ -378,6 +380,10 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="pnl">
+          <PnLOverview bookings={bookings} customers={customers} />
         </TabsContent>
 
         <TabsContent value="clv">
