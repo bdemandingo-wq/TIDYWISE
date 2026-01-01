@@ -10,6 +10,8 @@ interface CancellationNotificationRequest {
   customerName: string;
   serviceName: string;
   scheduledAt: string;
+  formattedDate?: string; // Pre-formatted date from client
+  formattedTime?: string; // Pre-formatted time from client
   bookingNumber: number;
   organizationId: string;
 }
@@ -36,7 +38,9 @@ const handler = async (req: Request): Promise<Response> => {
     const { 
       customerName, 
       serviceName, 
-      scheduledAt, 
+      scheduledAt,
+      formattedDate: preFormattedDate,
+      formattedTime: preFormattedTime,
       bookingNumber,
       organizationId
     }: CancellationNotificationRequest = await req.json();
@@ -114,18 +118,27 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format the scheduled date/time
-    const bookingDate = new Date(scheduledAt);
-    const formattedDate = bookingDate.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    const formattedTime = bookingDate.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    });
+    // Use pre-formatted date/time if provided, otherwise fall back to parsing
+    let formattedDate: string;
+    let formattedTime: string;
+    
+    if (preFormattedDate && preFormattedTime) {
+      formattedDate = preFormattedDate;
+      formattedTime = preFormattedTime;
+    } else {
+      // Fallback: parse scheduledAt (may have timezone issues)
+      const bookingDate = new Date(scheduledAt);
+      formattedDate = bookingDate.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      formattedTime = bookingDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      });
+    }
 
     // Build cancellation notification message
     const message = `❌ BOOKING CANCELLED\n\n` +

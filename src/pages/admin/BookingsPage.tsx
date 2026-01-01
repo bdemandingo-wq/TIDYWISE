@@ -226,11 +226,26 @@ export default function BookingsPage() {
 
     // Send cancellation SMS notification if status changed to cancelled
     if (newStatus === 'cancelled' && booking && organization?.id) {
+      // Format date/time on client-side for timezone accuracy
+      const scheduledDate = new Date(booking.scheduled_at);
+      const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
       supabase.functions.invoke('send-cancellation-sms-notification', {
         body: {
           customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
           serviceName: booking.service?.name || 'Cleaning',
           scheduledAt: booking.scheduled_at,
+          formattedDate,
+          formattedTime,
           bookingNumber: booking.booking_number,
           organizationId: organization.id,
         }
