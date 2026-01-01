@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useToast } from '@/hooks/use-toast';
 import { BookingWithDetails } from '@/hooks/useBookings';
-import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator } from 'lucide-react';
+import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, Trash2 } from 'lucide-react';
 import { startOfYear, endOfYear, getMonth, getYear } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
 import {
@@ -20,15 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 interface PnLOverviewProps {
   bookings: BookingWithDetails[];
   customers: any[];
+}
+
+interface OverheadItem {
+  name: string;
+  monthly: number;
 }
 
 interface PnLSettings {
@@ -52,8 +53,8 @@ interface PnLSettings {
   contractor_percent: number;
   credit_card_percent: number;
   refunds_percent: number;
-  fixed_overhead_items: { name: string; monthly: number }[];
-  variable_overhead_items: { name: string; monthly: number }[];
+  fixed_overhead_items: OverheadItem[];
+  variable_overhead_items: OverheadItem[];
   recruiting_costs: number[];
 }
 
@@ -138,8 +139,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           other_online_spend: Array.isArray(data.other_online_spend) ? (data.other_online_spend as number[]) : defaultSettings.other_online_spend,
           local_marketing_spend: Array.isArray(data.local_marketing_spend) ? (data.local_marketing_spend as number[]) : defaultSettings.local_marketing_spend,
           direct_mail_spend: Array.isArray(data.direct_mail_spend) ? (data.direct_mail_spend as number[]) : defaultSettings.direct_mail_spend,
-          fixed_overhead_items: Array.isArray(data.fixed_overhead_items) ? (data.fixed_overhead_items as { name: string; monthly: number }[]) : defaultSettings.fixed_overhead_items,
-          variable_overhead_items: Array.isArray(data.variable_overhead_items) ? (data.variable_overhead_items as { name: string; monthly: number }[]) : defaultSettings.variable_overhead_items,
+          fixed_overhead_items: Array.isArray(data.fixed_overhead_items) ? (data.fixed_overhead_items as unknown as OverheadItem[]) : defaultSettings.fixed_overhead_items,
+          variable_overhead_items: Array.isArray(data.variable_overhead_items) ? (data.variable_overhead_items as unknown as OverheadItem[]) : defaultSettings.variable_overhead_items,
           recruiting_costs: Array.isArray(data.recruiting_costs) ? (data.recruiting_costs as number[]) : defaultSettings.recruiting_costs,
         });
       }
@@ -297,9 +298,32 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     setSettings({ ...settings, [channel]: newArray });
   };
 
+  const addOverheadItem = (type: 'fixed' | 'variable') => {
+    const key = type === 'fixed' ? 'fixed_overhead_items' : 'variable_overhead_items';
+    setSettings({
+      ...settings,
+      [key]: [...settings[key], { name: '', monthly: 0 }],
+    });
+  };
+
+  const removeOverheadItem = (type: 'fixed' | 'variable', index: number) => {
+    const key = type === 'fixed' ? 'fixed_overhead_items' : 'variable_overhead_items';
+    const newItems = settings[key].filter((_, i) => i !== index);
+    setSettings({ ...settings, [key]: newItems });
+  };
+
+  const updateOverheadItem = (type: 'fixed' | 'variable', index: number, field: 'name' | 'monthly', value: string | number) => {
+    const key = type === 'fixed' ? 'fixed_overhead_items' : 'variable_overhead_items';
+    const newItems = [...settings[key]];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setSettings({ ...settings, [key]: newItems });
+  };
+
   // Calculate derived values
   const totalSalesGoal = settings.monthly_sales_goals.reduce((a, b) => a + b, 0);
   const totalMarketingBudget = settings.annual_revenue_goal * (settings.marketing_percent_of_revenue / 100);
+  const progressPercent = settings.annual_revenue_goal > 0 ? (actuals.totalRevenue / settings.annual_revenue_goal) * 100 : 0;
+  
   const quarterlyGoals = [
     settings.monthly_sales_goals.slice(0, 3).reduce((a, b) => a + b, 0),
     settings.monthly_sales_goals.slice(3, 6).reduce((a, b) => a + b, 0),
@@ -390,6 +414,17 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     });
   }, [pnlData]);
 
+  // Marketing budget calculations
+  const monthlyMarketingTotals = MONTHS.map((_, i) => {
+    return (settings.google_lsa_spend[i] || 0) + 
+           (settings.facebook_ads_spend[i] || 0) + 
+           (settings.other_online_spend[i] || 0) + 
+           (settings.local_marketing_spend[i] || 0) + 
+           (settings.direct_mail_spend[i] || 0);
+  });
+  
+  const totalMarketingSpend = monthlyMarketingTotals.reduce((a, b) => a + b, 0);
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -431,8 +466,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <DollarSign className="w-8 h-8 text-success opacity-50" />
             </div>
             <div className="mt-2">
-              <Badge variant={actuals.totalRevenue >= settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12 ? 'default' : 'destructive'}>
-                {settings.annual_revenue_goal > 0 ? ((actuals.totalRevenue / settings.annual_revenue_goal) * 100).toFixed(1) : 0}% of goal
+              <Badge variant={progressPercent >= (new Date().getMonth() + 1) / 12 * 100 ? 'default' : 'destructive'}>
+                {progressPercent.toFixed(1)}% of goal
               </Badge>
             </div>
           </CardContent>
@@ -446,8 +481,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               </div>
               <Calculator className="w-8 h-8 text-info opacity-50" />
             </div>
-            <div className="mt-2 text-sm text-muted-foreground">
-              Goal: ${settings.avg_job_size_goal}
+            <div className="mt-2">
+              <Badge variant={actuals.avgJobSize >= settings.avg_job_size_goal ? 'default' : 'secondary'}>
+                Goal: ${settings.avg_job_size_goal}
+              </Badge>
             </div>
           </CardContent>
         </Card>
@@ -466,90 +503,178 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                 <TrendingDown className="w-8 h-8 text-destructive opacity-50" />
               )}
             </div>
+            <div className="mt-2">
+              <Badge variant={pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? 'default' : 'secondary'}>
+                {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+              </Badge>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Sub-tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+      {/* Progress Bar */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Progress to Annual Goal</span>
+            <span className="text-sm text-muted-foreground">
+              ${actuals.totalRevenue.toLocaleString()} / ${settings.annual_revenue_goal.toLocaleString()}
+            </span>
+          </div>
+          <Progress value={Math.min(progressPercent, 100)} className="h-3" />
+        </CardContent>
+      </Card>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="revenue-map">Revenue Map</TabsTrigger>
-          <TabsTrigger value="marketing-budget">Marketing Budget</TabsTrigger>
+          <TabsTrigger value="marketing">Marketing Budget</TabsTrigger>
           <TabsTrigger value="pnl">P&L Statement</TabsTrigger>
         </TabsList>
 
         {/* Revenue Map Tab */}
         <TabsContent value="revenue-map" className="space-y-6">
-          {/* Goals Settings */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Goals Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Revenue Goals</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Annual Revenue Goal ($)</Label>
+                    <Input
+                      type="number"
+                      value={settings.annual_revenue_goal}
+                      onChange={(e) => setSettings({ ...settings, annual_revenue_goal: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Last Year Revenue ($)</Label>
+                    <Input
+                      type="number"
+                      value={settings.last_year_revenue}
+                      onChange={(e) => setSettings({ ...settings, last_year_revenue: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Avg Job Size Goal ($)</Label>
+                    <Input
+                      type="number"
+                      value={settings.avg_job_size_goal}
+                      onChange={(e) => setSettings({ ...settings, avg_job_size_goal: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Closing Rate Goal (%)</Label>
+                    <Input
+                      type="number"
+                      value={settings.closing_rate_goal}
+                      onChange={(e) => setSettings({ ...settings, closing_rate_goal: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Repeat Revenue Goal (%)</Label>
+                    <Input
+                      type="number"
+                      value={settings.goal_repeat_revenue_percent}
+                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_percent: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>1st Time → Recurring (%)</Label>
+                    <Input
+                      type="number"
+                      value={settings.first_time_to_recurring_goal}
+                      onChange={(e) => setSettings({ ...settings, first_time_to_recurring_goal: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* KPIs */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Key Metrics (Actuals)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total Jobs YTD</p>
+                    <p className="text-2xl font-bold">{actuals.totalJobs}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Avg Job Size</p>
+                    <p className="text-2xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">First-Time Clients</p>
+                    <p className="text-2xl font-bold">{actuals.totalFirstTime}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Repeat Clients</p>
+                    <p className="text-2xl font-bold">{actuals.totalRepeat}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Monthly Sales Goals Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Sales & Revenue Goals</CardTitle>
+              <CardTitle className="text-lg">Monthly Sales Goals vs Actuals</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <Label>Annual Revenue Goal</Label>
-                  <Input
-                    type="number"
-                    value={settings.annual_revenue_goal}
-                    onChange={(e) => setSettings({ ...settings, annual_revenue_goal: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Last Year's Revenue</Label>
-                  <Input
-                    type="number"
-                    value={settings.last_year_revenue}
-                    onChange={(e) => setSettings({ ...settings, last_year_revenue: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Goal Repeat Revenue %</Label>
-                  <Input
-                    type="number"
-                    value={settings.goal_repeat_revenue_percent}
-                    onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_percent: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Avg Job Size Goal</Label>
-                  <Input
-                    type="number"
-                    value={settings.avg_job_size_goal}
-                    onChange={(e) => setSettings({ ...settings, avg_job_size_goal: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Closing Rate Goal %</Label>
-                  <Input
-                    type="number"
-                    value={settings.closing_rate_goal}
-                    onChange={(e) => setSettings({ ...settings, closing_rate_goal: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>First-Time to Recurring %</Label>
-                  <Input
-                    type="number"
-                    value={settings.first_time_to_recurring_goal}
-                    onChange={(e) => setSettings({ ...settings, first_time_to_recurring_goal: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Churn Rate Goal %</Label>
-                  <Input
-                    type="number"
-                    value={settings.churn_rate_goal}
-                    onChange={(e) => setSettings({ ...settings, churn_rate_goal: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead className="text-right">Goal ($)</TableHead>
+                      <TableHead className="text-right">Actual ($)</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-right">Jobs</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MONTHS.map((month, i) => {
+                      const goal = settings.monthly_sales_goals[i];
+                      const actual = actuals.monthlyRevenue[i];
+                      const variance = actual - goal;
+                      return (
+                        <TableRow key={month}>
+                          <TableCell className="font-medium">{month}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={goal}
+                              onChange={(e) => updateMonthlyGoal(i, Number(e.target.value))}
+                              className="w-24 text-right ml-auto"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">${actual.toLocaleString()}</TableCell>
+                          <TableCell className={`text-right ${variance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">{actuals.monthlyJobCount[i]}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    <TableRow className="font-bold border-t-2">
+                      <TableCell>TOTAL</TableCell>
+                      <TableCell className="text-right">${totalSalesGoal.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">${actuals.totalRevenue.toLocaleString()}</TableCell>
+                      <TableCell className={`text-right ${actuals.totalRevenue - totalSalesGoal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {actuals.totalRevenue - totalSalesGoal >= 0 ? '+' : ''}{(actuals.totalRevenue - totalSalesGoal).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">{actuals.totalJobs}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -557,160 +682,50 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           {/* Quarterly Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Quarterly Progress</CardTitle>
+              <CardTitle className="text-lg">Quarterly Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => (
-                  <div key={q} className="bg-secondary/30 rounded-lg p-4 text-center">
-                    <p className="font-semibold text-primary">{q}</p>
-                    <p className="text-lg font-bold">${quarterlyGoals[i].toLocaleString()}</p>
+                  <div key={q} className="p-4 border rounded-lg">
+                    <p className="font-medium mb-2">{q}</p>
                     <p className="text-sm text-muted-foreground">Goal</p>
-                    <div className="border-t border-border my-2" />
-                    <p className={`text-lg font-bold ${quarterlyActuals[i] >= quarterlyGoals[i] ? 'text-success' : 'text-foreground'}`}>
+                    <p className="text-lg font-bold">${quarterlyGoals[i].toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Actual</p>
+                    <p className={`text-lg font-bold ${quarterlyActuals[i] >= quarterlyGoals[i] ? 'text-success' : 'text-destructive'}`}>
                       ${quarterlyActuals[i].toLocaleString()}
                     </p>
-                    <p className="text-sm text-muted-foreground">Actual</p>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Monthly Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Sales Goals & Actuals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Metric</TableHead>
-                      {MONTHS.map(m => <TableHead key={m} className="text-center">{m}</TableHead>)}
-                      <TableHead className="text-center">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">Sales Goal</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.monthly_sales_goals[i] || 0}
-                            onChange={(e) => updateMonthlyGoal(i, Number(e.target.value))}
-                            className="w-20 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${totalSalesGoal.toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-success/10">
-                      <TableCell className="font-medium">Actual Revenue</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="text-center">${actuals.monthlyRevenue[i].toLocaleString()}</TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${actuals.totalRevenue.toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Variance</TableCell>
-                      {MONTHS.map((_, i) => {
-                        const variance = actuals.monthlyRevenue[i] - (settings.monthly_sales_goals[i] || 0);
-                        return (
-                          <TableCell key={i} className={`text-center ${variance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className={`text-center font-bold ${actuals.totalRevenue - totalSalesGoal >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {actuals.totalRevenue - totalSalesGoal >= 0 ? '+' : ''}${(actuals.totalRevenue - totalSalesGoal).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Inbound Leads Goal</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.monthly_inbound_leads_goals[i] || 0}
-                            onChange={(e) => updateMonthlyLeads(i, Number(e.target.value))}
-                            className="w-20 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">{settings.monthly_inbound_leads_goals.reduce((a, b) => a + b, 0)}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-info/10">
-                      <TableCell className="font-medium">Jobs Completed</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="text-center">{actuals.monthlyJobCount[i]}</TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">{actuals.totalJobs}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">First-Time Customers</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="text-center">{actuals.monthlyFirstTimeCustomers[i]}</TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">{actuals.totalFirstTime}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Repeat Customers</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="text-center">{actuals.monthlyRepeatCustomers[i]}</TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">{actuals.totalRepeat}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Marketing Budget Tab */}
-        <TabsContent value="marketing-budget" className="space-y-6">
+        <TabsContent value="marketing" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Marketing Budget Settings</CardTitle>
+              <CardTitle className="text-lg">Marketing Budget Settings</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label>% of Revenue for Marketing</Label>
+                  <Label>Marketing % of Revenue</Label>
                   <Input
                     type="number"
                     value={settings.marketing_percent_of_revenue}
                     onChange={(e) => setSettings({ ...settings, marketing_percent_of_revenue: Number(e.target.value) })}
-                    className="mt-1"
                   />
                 </div>
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground">Total Marketing Budget</p>
-                  <p className="text-2xl font-bold text-primary">${totalMarketingBudget.toLocaleString()}</p>
+                <div>
+                  <Label>Suggested Budget</Label>
+                  <p className="text-2xl font-bold">${totalMarketingBudget.toLocaleString()}</p>
                 </div>
-                <div className="bg-success/10 rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground">Allocated</p>
-                  <p className="text-2xl font-bold text-success">
-                    ${(settings.google_lsa_spend.reduce((a, b) => a + b, 0) +
-                       settings.facebook_ads_spend.reduce((a, b) => a + b, 0) +
-                       settings.other_online_spend.reduce((a, b) => a + b, 0) +
-                       settings.local_marketing_spend.reduce((a, b) => a + b, 0) +
-                       settings.direct_mail_spend.reduce((a, b) => a + b, 0)).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-warning/10 rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground">Remaining</p>
-                  <p className="text-2xl font-bold text-warning">
-                    ${(totalMarketingBudget - (
-                       settings.google_lsa_spend.reduce((a, b) => a + b, 0) +
-                       settings.facebook_ads_spend.reduce((a, b) => a + b, 0) +
-                       settings.other_online_spend.reduce((a, b) => a + b, 0) +
-                       settings.local_marketing_spend.reduce((a, b) => a + b, 0) +
-                       settings.direct_mail_spend.reduce((a, b) => a + b, 0)
-                    )).toLocaleString()}
+                <div>
+                  <Label>Planned Spend</Label>
+                  <p className={`text-2xl font-bold ${totalMarketingSpend <= totalMarketingBudget ? 'text-success' : 'text-destructive'}`}>
+                    ${totalMarketingSpend.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -719,7 +734,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Marketing Spend by Channel</CardTitle>
+              <CardTitle className="text-lg">Monthly Marketing Spend by Channel</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -727,98 +742,41 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Channel</TableHead>
-                      {MONTHS.map(m => <TableHead key={m} className="text-center">{m}</TableHead>)}
-                      <TableHead className="text-center">Total</TableHead>
+                      {MONTHS.map(m => <TableHead key={m} className="text-right text-xs">{m}</TableHead>)}
+                      <TableHead className="text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow className="bg-blue-500/10">
-                      <TableCell className="font-medium">Google LSA</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.google_lsa_spend[i] || 0}
-                            onChange={(e) => updateMarketingSpend('google_lsa_spend', i, Number(e.target.value))}
-                            className="w-16 text-center text-sm"
-                          />
+                    {[
+                      { key: 'google_lsa_spend', name: 'Google LSA' },
+                      { key: 'facebook_ads_spend', name: 'Facebook Ads' },
+                      { key: 'other_online_spend', name: 'Other Online' },
+                      { key: 'local_marketing_spend', name: 'Local Marketing' },
+                      { key: 'direct_mail_spend', name: 'Direct Mail' },
+                    ].map(({ key, name }) => (
+                      <TableRow key={key}>
+                        <TableCell className="font-medium">{name}</TableCell>
+                        {MONTHS.map((_, i) => (
+                          <TableCell key={i} className="p-1">
+                            <Input
+                              type="number"
+                              value={(settings[key as keyof PnLSettings] as number[])[i]}
+                              onChange={(e) => updateMarketingSpend(key as keyof PnLSettings, i, Number(e.target.value))}
+                              className="w-16 text-xs text-right"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right font-bold">
+                          ${(settings[key as keyof PnLSettings] as number[]).reduce((a, b) => a + b, 0).toLocaleString()}
                         </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold border-t-2">
+                      <TableCell>TOTAL</TableCell>
+                      {monthlyMarketingTotals.map((total, i) => (
+                        <TableCell key={i} className="text-right text-xs">${total.toLocaleString()}</TableCell>
                       ))}
-                      <TableCell className="text-center font-bold">${settings.google_lsa_spend.reduce((a, b) => a + b, 0).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-blue-600/10">
-                      <TableCell className="font-medium">Facebook Ads</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.facebook_ads_spend[i] || 0}
-                            onChange={(e) => updateMarketingSpend('facebook_ads_spend', i, Number(e.target.value))}
-                            className="w-16 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${settings.facebook_ads_spend.reduce((a, b) => a + b, 0).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-purple-500/10">
-                      <TableCell className="font-medium">Other Online</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.other_online_spend[i] || 0}
-                            onChange={(e) => updateMarketingSpend('other_online_spend', i, Number(e.target.value))}
-                            className="w-16 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${settings.other_online_spend.reduce((a, b) => a + b, 0).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-green-500/10">
-                      <TableCell className="font-medium">Local Marketing</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.local_marketing_spend[i] || 0}
-                            onChange={(e) => updateMarketingSpend('local_marketing_spend', i, Number(e.target.value))}
-                            className="w-16 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${settings.local_marketing_spend.reduce((a, b) => a + b, 0).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-orange-500/10">
-                      <TableCell className="font-medium">Direct Mail</TableCell>
-                      {MONTHS.map((_, i) => (
-                        <TableCell key={i} className="p-1">
-                          <Input
-                            type="number"
-                            value={settings.direct_mail_spend[i] || 0}
-                            onChange={(e) => updateMarketingSpend('direct_mail_spend', i, Number(e.target.value))}
-                            className="w-16 text-center text-sm"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-bold">${settings.direct_mail_spend.reduce((a, b) => a + b, 0).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-muted font-bold">
-                      <TableCell>Monthly Total</TableCell>
-                      {MONTHS.map((_, i) => {
-                        const total = (settings.google_lsa_spend[i] || 0) +
-                                      (settings.facebook_ads_spend[i] || 0) +
-                                      (settings.other_online_spend[i] || 0) +
-                                      (settings.local_marketing_spend[i] || 0) +
-                                      (settings.direct_mail_spend[i] || 0);
-                        return <TableCell key={i} className="text-center">${total.toLocaleString()}</TableCell>;
-                      })}
-                      <TableCell className="text-center">
-                        ${(settings.google_lsa_spend.reduce((a, b) => a + b, 0) +
-                           settings.facebook_ads_spend.reduce((a, b) => a + b, 0) +
-                           settings.other_online_spend.reduce((a, b) => a + b, 0) +
-                           settings.local_marketing_spend.reduce((a, b) => a + b, 0) +
-                           settings.direct_mail_spend.reduce((a, b) => a + b, 0)).toLocaleString()}
-                      </TableCell>
+                      <TableCell className="text-right">${totalMarketingSpend.toLocaleString()}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -829,48 +787,148 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
         {/* P&L Statement Tab */}
         <TabsContent value="pnl" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cost Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label>Contractor % (of revenue)</Label>
-                  <Input
-                    type="number"
-                    value={settings.contractor_percent}
-                    onChange={(e) => setSettings({ ...settings, contractor_percent: Number(e.target.value) })}
-                    className="mt-1"
-                  />
+          {/* COGS Settings */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Cost of Goods Sold (COGS)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label>Contractor/Labor %</Label>
+                    <Input
+                      type="number"
+                      value={settings.contractor_percent}
+                      onChange={(e) => setSettings({ ...settings, contractor_percent: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>CC Processing %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={settings.credit_card_percent}
+                      onChange={(e) => setSettings({ ...settings, credit_card_percent: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Refunds %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={settings.refunds_percent}
+                      onChange={(e) => setSettings({ ...settings, refunds_percent: Number(e.target.value) })}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label>Credit Card Processing %</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={settings.credit_card_percent}
-                    onChange={(e) => setSettings({ ...settings, credit_card_percent: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Refunds/Discounts %</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={settings.refunds_percent}
-                    onChange={(e) => setSettings({ ...settings, refunds_percent: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">YTD Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Gross Profit</p>
+                    <p className="text-xl font-bold">${pnlTotals.grossProfit.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pnlTotals.revenue > 0 ? ((pnlTotals.grossProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+                    </p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Net Profit</p>
+                    <p className={`text-xl font-bold ${pnlTotals.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      ${pnlTotals.netProfit.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Overhead Items */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Fixed Overhead (Monthly)</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => addOverheadItem('fixed')}>
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {settings.fixed_overhead_items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={item.name}
+                      onChange={(e) => updateOverheadItem('fixed', i, 'name', e.target.value)}
+                      placeholder="Item name"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={item.monthly}
+                      onChange={(e) => updateOverheadItem('fixed', i, 'monthly', Number(e.target.value))}
+                      className="w-24"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('fixed', i)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium">
+                    Total: ${settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0).toLocaleString()}/mo
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Variable Overhead (Monthly)</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => addOverheadItem('variable')}>
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {settings.variable_overhead_items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={item.name}
+                      onChange={(e) => updateOverheadItem('variable', i, 'name', e.target.value)}
+                      placeholder="Item name"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={item.monthly}
+                      onChange={(e) => updateOverheadItem('variable', i, 'monthly', Number(e.target.value))}
+                      className="w-24"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('variable', i)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium">
+                    Total: ${settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0).toLocaleString()}/mo
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* P&L Statement Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Profit & Loss Statement</CardTitle>
+              <CardTitle className="text-lg">Monthly P&L Statement</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -878,188 +936,75 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Category</TableHead>
-                      {MONTHS.map(m => <TableHead key={m} className="text-center text-xs">{m}</TableHead>)}
-                      <TableHead className="text-center">Total</TableHead>
-                      <TableHead className="text-center">% Rev</TableHead>
+                      {MONTHS.map(m => <TableHead key={m} className="text-right text-xs">{m}</TableHead>)}
+                      <TableHead className="text-right">YTD</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Revenue */}
-                    <TableRow className="bg-success/20 font-bold">
-                      <TableCell>Revenue</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.revenue.toLocaleString()}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.revenue.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">100%</TableCell>
-                    </TableRow>
-
-                    {/* COGS Header */}
-                    <TableRow className="bg-orange-500/20">
-                      <TableCell colSpan={14} className="font-bold text-orange-700">Cost of Goods Sold (COGS)</TableCell>
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-bold">Revenue</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs">${d.revenue.toLocaleString()}</TableCell>)}
+                      <TableCell className="text-right font-bold">${pnlTotals.revenue.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Contractor Pay ({settings.contractor_percent}%)</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.contractorCost.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.contractorCost.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{settings.contractor_percent}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Contractor/Labor</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.contractorCost.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.contractorCost.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Credit Card ({settings.credit_card_percent}%)</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.ccProcessing.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.ccProcessing.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{settings.credit_card_percent}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">CC Processing</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.ccProcessing.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.ccProcessing.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Refunds/Discounts ({settings.refunds_percent}%)</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.refunds.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.refunds.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{settings.refunds_percent}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Refunds</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.refunds.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.refunds.toLocaleString()}</TableCell>
                     </TableRow>
-                    <TableRow className="bg-orange-500/10 font-semibold">
-                      <TableCell>Total COGS</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.totalCOGS.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.totalCOGS.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.totalCOGS / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
-                    </TableRow>
-
-                    {/* Gross Profit */}
-                    <TableRow className="bg-green-500/20 font-bold">
-                      <TableCell>Gross Profit</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.grossProfit.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.grossProfit.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.grossProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
-                    </TableRow>
-
-                    {/* Operating Expenses Header */}
-                    <TableRow className="bg-blue-500/20">
-                      <TableCell colSpan={14} className="font-bold text-blue-700">Operating Expenses</TableCell>
+                    <TableRow className="bg-muted/30 border-t">
+                      <TableCell className="font-bold">Gross Profit</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs font-medium">${d.grossProfit.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right font-bold">${pnlTotals.grossProfit.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Fixed Overhead</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.fixedOverhead.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.fixedOverhead.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.fixedOverhead / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Fixed Overhead</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.fixedOverhead.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.fixedOverhead.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Variable Overhead</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.variableOverhead.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.variableOverhead.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.variableOverhead / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Variable Overhead</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.variableOverhead.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.variableOverhead.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6">Marketing</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.marketing.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.marketing.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.marketing / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Marketing</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.marketing.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.marketing.toLocaleString()}</TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell className="pl-6">Recruiting</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.recruiting.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.recruiting.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.recruiting / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
-                    </TableRow>
-                    <TableRow className="bg-blue-500/10 font-semibold">
-                      <TableCell>Total Expenses</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className="text-center text-xs">${m.totalExpenses.toFixed(0)}</TableCell>
-                      ))}
-                      <TableCell className="text-center">${pnlTotals.totalExpenses.toFixed(0)}</TableCell>
-                      <TableCell className="text-center">{pnlTotals.revenue > 0 ? ((pnlTotals.totalExpenses / pnlTotals.revenue) * 100).toFixed(1) : 0}%</TableCell>
-                    </TableRow>
-
-                    {/* Net Profit */}
-                    <TableRow className={`font-bold ${pnlTotals.netProfit >= 0 ? 'bg-success/30' : 'bg-destructive/30'}`}>
-                      <TableCell>Net Profit</TableCell>
-                      {pnlData.map((m, i) => (
-                        <TableCell key={i} className={`text-center text-xs ${m.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          ${m.netProfit.toFixed(0)}
+                    <TableRow className="bg-muted/50 border-t-2">
+                      <TableCell className="font-bold">Net Profit</TableCell>
+                      {pnlData.map((d, i) => (
+                        <TableCell key={i} className={`text-right text-xs font-bold ${d.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          ${d.netProfit.toFixed(0)}
                         </TableCell>
                       ))}
-                      <TableCell className={`text-center ${pnlTotals.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ${pnlTotals.netProfit.toFixed(0)}
+                      <TableCell className={`text-right font-bold ${pnlTotals.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        ${pnlTotals.netProfit.toLocaleString()}
                       </TableCell>
-                      <TableCell className={`text-center ${pnlTotals.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="text-muted-foreground">Profit Margin %</TableCell>
+                      {pnlData.map((d, i) => (
+                        <TableCell key={i} className={`text-right text-xs ${d.profitMargin >= 20 ? 'text-success' : d.profitMargin >= 10 ? 'text-warning' : 'text-destructive'}`}>
+                          {d.profitMargin.toFixed(0)}%
+                        </TableCell>
+                      ))}
+                      <TableCell className={`text-right font-medium ${pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? 'text-success' : 'text-destructive'}`}>
                         {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}%
                       </TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fixed Overhead Items */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Fixed Overhead Items (Monthly)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {settings.fixed_overhead_items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <Input
-                      value={item.name}
-                      onChange={(e) => {
-                        const newItems = [...settings.fixed_overhead_items];
-                        newItems[i] = { ...newItems[i], name: e.target.value };
-                        setSettings({ ...settings, fixed_overhead_items: newItems });
-                      }}
-                      placeholder="Item name"
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      value={item.monthly}
-                      onChange={(e) => {
-                        const newItems = [...settings.fixed_overhead_items];
-                        newItems[i] = { ...newItems[i], monthly: Number(e.target.value) };
-                        setSettings({ ...settings, fixed_overhead_items: newItems });
-                      }}
-                      className="w-24"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const newItems = settings.fixed_overhead_items.filter((_, idx) => idx !== i);
-                        setSettings({ ...settings, fixed_overhead_items: newItems });
-                      }}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSettings({
-                      ...settings,
-                      fixed_overhead_items: [...settings.fixed_overhead_items, { name: '', monthly: 0 }],
-                    });
-                  }}
-                >
-                  + Add Item
-                </Button>
               </div>
             </CardContent>
           </Card>
