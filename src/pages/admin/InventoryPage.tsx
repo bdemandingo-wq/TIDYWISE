@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -27,7 +29,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Package, AlertTriangle, Trash2, Edit, RefreshCw } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Package, AlertTriangle, Trash2, Edit, RefreshCw, Settings, MoreVertical } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -44,9 +54,26 @@ interface InventoryItem {
   cost_per_unit: number;
   supplier: string | null;
   last_restocked_at: string | null;
+  custom_fields: Record<string, any>;
 }
 
-const CATEGORIES = ['supplies', 'equipment', 'chemicals', 'uniforms', 'other'];
+interface InventoryCategory {
+  id: string;
+  name: string;
+  organization_id: string;
+}
+
+interface CustomField {
+  id: string;
+  field_name: string;
+  field_type: 'text' | 'number' | 'select';
+  is_required: boolean;
+  sort_order: number;
+  options: string[] | null;
+  organization_id: string;
+}
+
+const DEFAULT_CATEGORIES = ['supplies', 'equipment', 'chemicals', 'uniforms', 'other'];
 
 export default function InventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,9 +81,11 @@ export default function InventoryPage() {
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
   const [restockAmount, setRestockAmount] = useState('');
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
 
+  // Fetch inventory items
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inventory'],
     queryFn: async () => {
@@ -69,8 +98,46 @@ export default function InventoryPage() {
     },
   });
 
+  // Fetch custom categories
+  const { data: customCategories = [] } = useQuery({
+    queryKey: ['inventory-categories', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('inventory_categories')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('name');
+      if (error) throw error;
+      return data as InventoryCategory[];
+    },
+    enabled: !!organization?.id,
+  });
+
+  // Fetch custom fields
+  const { data: customFields = [] } = useQuery({
+    queryKey: ['inventory-custom-fields', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('inventory_custom_fields')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data as CustomField[];
+    },
+    enabled: !!organization?.id,
+  });
+
+  // Combine default and custom categories
+  const allCategories = [
+    ...DEFAULT_CATEGORIES,
+    ...customCategories.map(c => c.name).filter(n => !DEFAULT_CATEGORIES.includes(n.toLowerCase()))
+  ];
+
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string }) => {
+    mutationFn: async (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string; custom_fields?: Record<string, any> }) => {
       if (!organization?.id) {
         throw new Error('No organization found');
       }
@@ -132,10 +199,16 @@ export default function InventoryPage() {
       title="Inventory"
       subtitle={`${items.length} items tracked`}
       actions={
-        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Add Item
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setSettingsDialogOpen(true)}>
+            <Settings className="w-4 h-4" />
+            Settings
+          </Button>
+          <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Add Item
+          </Button>
+        </div>
       }
     >
       {/* Stats */}
@@ -286,6 +359,8 @@ export default function InventoryPage() {
           if (!open) setEditingItem(null);
         }}
         item={editingItem}
+        categories={allCategories}
+        customFields={customFields}
         onSave={(data) => {
           if (editingItem) {
             updateMutation.mutate({ id: editingItem.id, ...data });
@@ -319,6 +394,15 @@ export default function InventoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Settings Dialog */}
+      <InventorySettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        categories={customCategories}
+        customFields={customFields}
+        organizationId={organization?.id || ''}
+      />
     </AdminLayout>
   );
 }
@@ -327,22 +411,53 @@ function InventoryDialog({
   open,
   onOpenChange,
   item,
+  categories,
+  customFields,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: InventoryItem | null;
-  onSave: (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string }) => void;
+  categories: string[];
+  customFields: CustomField[];
+  onSave: (data: { name: string; description?: string; category: string; quantity: number; min_quantity: number; cost_per_unit: number; supplier?: string; custom_fields?: Record<string, any> }) => void;
 }) {
   const [formData, setFormData] = useState({
-    name: item?.name || '',
-    description: item?.description || '',
-    category: item?.category || 'supplies',
-    quantity: item?.quantity?.toString() || '0',
-    min_quantity: item?.min_quantity?.toString() || '5',
-    cost_per_unit: item?.cost_per_unit?.toString() || '0',
-    supplier: item?.supplier || '',
+    name: '',
+    description: '',
+    category: 'supplies',
+    quantity: '0',
+    min_quantity: '5',
+    cost_per_unit: '0',
+    supplier: '',
+    custom_fields: {} as Record<string, any>,
   });
+
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name || '',
+        description: item.description || '',
+        category: item.category || 'supplies',
+        quantity: item.quantity?.toString() || '0',
+        min_quantity: item.min_quantity?.toString() || '5',
+        cost_per_unit: item.cost_per_unit?.toString() || '0',
+        supplier: item.supplier || '',
+        custom_fields: item.custom_fields || {},
+      });
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        category: 'supplies',
+        quantity: '0',
+        min_quantity: '5',
+        cost_per_unit: '0',
+        supplier: '',
+        custom_fields: {},
+      });
+    }
+  }, [item, open]);
 
   const handleSubmit = () => {
     if (!formData.name) return;
@@ -354,9 +469,16 @@ function InventoryDialog({
     });
   };
 
+  const updateCustomField = (fieldName: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      custom_fields: { ...prev.custom_fields, [fieldName]: value }
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{item ? 'Edit' : 'Add'} Item</DialogTitle>
         </DialogHeader>
@@ -383,7 +505,7 @@ function InventoryDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <SelectItem key={cat} value={cat} className="capitalize">
                       {cat}
                     </SelectItem>
@@ -426,10 +548,438 @@ function InventoryDialog({
               onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
             />
           </div>
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div className="border-t pt-4 mt-4 space-y-4">
+              <p className="text-sm font-medium text-muted-foreground">Custom Fields</p>
+              {customFields.map((field) => (
+                <div key={field.id}>
+                  <Label>{field.field_name} {field.is_required && '*'}</Label>
+                  {field.field_type === 'text' && (
+                    <Input
+                      value={formData.custom_fields[field.field_name] || ''}
+                      onChange={(e) => updateCustomField(field.field_name, e.target.value)}
+                    />
+                  )}
+                  {field.field_type === 'number' && (
+                    <Input
+                      type="number"
+                      value={formData.custom_fields[field.field_name] || ''}
+                      onChange={(e) => updateCustomField(field.field_name, e.target.value)}
+                    />
+                  )}
+                  {field.field_type === 'select' && field.options && (
+                    <Select 
+                      value={formData.custom_fields[field.field_name] || ''} 
+                      onValueChange={(v) => updateCustomField(field.field_name, v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {field.options.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit}>{item ? 'Update' : 'Create'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InventorySettingsDialog({
+  open,
+  onOpenChange,
+  categories,
+  customFields,
+  organizationId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: InventoryCategory[];
+  customFields: CustomField[];
+  organizationId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState<InventoryCategory | null>(null);
+  const [newFieldName, setNewFieldName] = useState('');
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'select'>('text');
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+  const [newFieldOptions, setNewFieldOptions] = useState('');
+  const [editingField, setEditingField] = useState<CustomField | null>(null);
+
+  // Category mutations
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase.from('inventory_categories').insert([{ name, organization_id: organizationId }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-categories'] });
+      setNewCategoryName('');
+      toast.success('Category added');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase.from('inventory_categories').update({ name }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-categories'] });
+      setEditingCategory(null);
+      toast.success('Category updated');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('inventory_categories').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-categories'] });
+      toast.success('Category deleted');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  // Custom field mutations
+  const createFieldMutation = useMutation({
+    mutationFn: async (data: { field_name: string; field_type: string; is_required: boolean; options?: string[] }) => {
+      const { error } = await supabase.from('inventory_custom_fields').insert([{ 
+        ...data, 
+        organization_id: organizationId,
+        sort_order: customFields.length 
+      }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-custom-fields'] });
+      setNewFieldName('');
+      setNewFieldType('text');
+      setNewFieldRequired(false);
+      setNewFieldOptions('');
+      toast.success('Field added');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const updateFieldMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; field_name?: string; field_type?: string; is_required?: boolean; options?: string[] | null }) => {
+      const { error } = await supabase.from('inventory_custom_fields').update(data).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-custom-fields'] });
+      setEditingField(null);
+      toast.success('Field updated');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const deleteFieldMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('inventory_custom_fields').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-custom-fields'] });
+      toast.success('Field deleted');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    createCategoryMutation.mutate(newCategoryName.trim());
+  };
+
+  const handleAddField = () => {
+    if (!newFieldName.trim()) return;
+    const options = newFieldType === 'select' && newFieldOptions 
+      ? newFieldOptions.split(',').map(o => o.trim()).filter(Boolean)
+      : undefined;
+    createFieldMutation.mutate({
+      field_name: newFieldName.trim(),
+      field_type: newFieldType,
+      is_required: newFieldRequired,
+      options,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Inventory Settings</DialogTitle>
+          <DialogDescription>Manage categories and custom fields for your inventory items.</DialogDescription>
+        </DialogHeader>
+
+        <Tabs defaultValue="categories" className="mt-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="fields">Custom Fields</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="categories" className="space-y-4 mt-4">
+            {/* Default Categories Info */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Default Categories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULT_CATEGORIES.map((cat) => (
+                    <Badge key={cat} variant="secondary" className="capitalize">{cat}</Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">These categories are built-in and cannot be removed.</p>
+              </CardContent>
+            </Card>
+
+            {/* Custom Categories */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Custom Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No custom categories yet.</p>
+                ) : (
+                  categories.map((cat) => (
+                    <div key={cat.id} className="flex items-center justify-between p-2 border rounded-md">
+                      {editingCategory?.id === cat.id ? (
+                        <Input
+                          value={editingCategory.name}
+                          onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                          className="flex-1 mr-2"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="capitalize">{cat.name}</span>
+                      )}
+                      <div className="flex gap-1">
+                        {editingCategory?.id === cat.id ? (
+                          <>
+                            <Button size="sm" onClick={() => updateCategoryMutation.mutate({ id: cat.id, name: editingCategory.name })}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingCategory(null)}>
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingCategory(cat)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                if (confirm('Delete this category?')) {
+                                  deleteCategoryMutation.mutate(cat.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Add new category */}
+                <div className="flex gap-2 pt-2 border-t">
+                  <Input
+                    placeholder="New category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()}>
+                    <Plus className="w-4 h-4 mr-1" /> Add
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="fields" className="space-y-4 mt-4">
+            {/* Existing Custom Fields */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Custom Fields</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {customFields.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No custom fields yet. Add fields to capture additional data for your inventory items.</p>
+                ) : (
+                  customFields.map((field) => (
+                    <div key={field.id} className="flex items-center justify-between p-3 border rounded-md">
+                      {editingField?.id === field.id ? (
+                        <div className="flex-1 space-y-2 mr-2">
+                          <Input
+                            value={editingField.field_name}
+                            onChange={(e) => setEditingField({ ...editingField, field_name: e.target.value })}
+                            placeholder="Field name"
+                          />
+                          <div className="flex gap-2">
+                            <Select 
+                              value={editingField.field_type} 
+                              onValueChange={(v: 'text' | 'number' | 'select') => setEditingField({ ...editingField, field_type: v })}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="text">Text</SelectItem>
+                                <SelectItem value="number">Number</SelectItem>
+                                <SelectItem value="select">Select</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={editingField.is_required}
+                                onCheckedChange={(checked) => setEditingField({ ...editingField, is_required: checked })}
+                              />
+                              <span className="text-sm">Required</span>
+                            </div>
+                          </div>
+                          {editingField.field_type === 'select' && (
+                            <Input
+                              placeholder="Options (comma separated)"
+                              value={editingField.options?.join(', ') || ''}
+                              onChange={(e) => setEditingField({ 
+                                ...editingField, 
+                                options: e.target.value.split(',').map(o => o.trim()).filter(Boolean)
+                              })}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{field.field_name}</span>
+                            <Badge variant="outline" className="text-xs">{field.field_type}</Badge>
+                            {field.is_required && <Badge variant="secondary" className="text-xs">Required</Badge>}
+                          </div>
+                          {field.field_type === 'select' && field.options && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Options: {field.options.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex gap-1">
+                        {editingField?.id === field.id ? (
+                          <>
+                            <Button 
+                              size="sm" 
+                              onClick={() => updateFieldMutation.mutate({ 
+                                id: field.id, 
+                                field_name: editingField.field_name,
+                                field_type: editingField.field_type,
+                                is_required: editingField.is_required,
+                                options: editingField.field_type === 'select' ? editingField.options : null,
+                              })}
+                            >
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingField(null)}>
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingField(field)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                if (confirm('Delete this field? Existing data for this field will be preserved but hidden.')) {
+                                  deleteFieldMutation.mutate(field.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Add new field */}
+                <div className="space-y-3 pt-3 border-t">
+                  <p className="text-sm font-medium">Add New Field</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Field name"
+                      value={newFieldName}
+                      onChange={(e) => setNewFieldName(e.target.value)}
+                    />
+                    <Select value={newFieldType} onValueChange={(v: 'text' | 'number' | 'select') => setNewFieldType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="select">Select (Dropdown)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {newFieldType === 'select' && (
+                    <Input
+                      placeholder="Options (comma separated, e.g. Option 1, Option 2)"
+                      value={newFieldOptions}
+                      onChange={(e) => setNewFieldOptions(e.target.value)}
+                    />
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={newFieldRequired}
+                        onCheckedChange={setNewFieldRequired}
+                      />
+                      <span className="text-sm">Required field</span>
+                    </div>
+                    <Button onClick={handleAddField} disabled={!newFieldName.trim()}>
+                      <Plus className="w-4 h-4 mr-1" /> Add Field
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

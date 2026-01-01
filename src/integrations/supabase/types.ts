@@ -1016,11 +1016,88 @@ export type Database = {
           },
         ]
       }
+      inventory_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_custom_fields: {
+        Row: {
+          created_at: string
+          field_name: string
+          field_type: string
+          id: string
+          is_required: boolean | null
+          options: Json | null
+          organization_id: string | null
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_name: string
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          organization_id?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          organization_id?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           category: string | null
           cost_per_unit: number | null
           created_at: string
+          custom_fields: Json | null
           description: string | null
           id: string
           last_restocked_at: string | null
@@ -1036,6 +1113,7 @@ export type Database = {
           category?: string | null
           cost_per_unit?: number | null
           created_at?: string
+          custom_fields?: Json | null
           description?: string | null
           id?: string
           last_restocked_at?: string | null
@@ -1051,6 +1129,7 @@ export type Database = {
           category?: string | null
           cost_per_unit?: number | null
           created_at?: string
+          custom_fields?: Json | null
           description?: string | null
           id?: string
           last_restocked_at?: string | null
