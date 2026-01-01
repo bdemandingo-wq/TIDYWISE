@@ -165,6 +165,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     const monthlyJobCount = Array(12).fill(0);
     const monthlyFirstTimeCustomers = Array(12).fill(0);
     const monthlyRepeatCustomers = Array(12).fill(0);
+    const monthlyFirstTimeRevenue = Array(12).fill(0);
+    const monthlyRecurringRevenue = Array(12).fill(0);
     
     // Track customer first booking dates
     const customerFirstBooking: Record<string, Date> = {};
@@ -181,7 +183,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     yearBookings.forEach(b => {
       if (b.status === 'completed') {
         const month = getMonth(new Date(b.scheduled_at));
-        monthlyRevenue[month] += Number(b.total_amount || 0);
+        const amount = Number(b.total_amount || 0);
+        monthlyRevenue[month] += amount;
         monthlyJobCount[month] += 1;
         
         // Check if first-time or repeat
@@ -191,8 +194,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           const firstBookingYear = getYear(customerFirstBooking[customerId]);
           if (firstBookingYear === currentYear && firstBookingMonth === month) {
             monthlyFirstTimeCustomers[month] += 1;
+            monthlyFirstTimeRevenue[month] += amount;
           } else {
             monthlyRepeatCustomers[month] += 1;
+            monthlyRecurringRevenue[month] += amount;
           }
         }
       }
@@ -203,18 +208,40 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     const avgJobSize = totalJobs > 0 ? totalRevenue / totalJobs : 0;
     const totalFirstTime = monthlyFirstTimeCustomers.reduce((a, b) => a + b, 0);
     const totalRepeat = monthlyRepeatCustomers.reduce((a, b) => a + b, 0);
+    const totalFirstTimeRevenue = monthlyFirstTimeRevenue.reduce((a, b) => a + b, 0);
+    const totalRecurringRevenue = monthlyRecurringRevenue.reduce((a, b) => a + b, 0);
+    
+    // Calculate customer retention rate (unique recurring customers / total unique customers)
+    const uniqueCustomers = new Set(yearBookings.filter(b => b.customer?.id).map(b => b.customer!.id));
+    const recurringCustomerIds = new Set<string>();
+    yearBookings.forEach(b => {
+      if (b.status === 'completed' && b.customer?.id) {
+        const customerId = b.customer.id;
+        const firstBookingYear = customerFirstBooking[customerId] ? getYear(customerFirstBooking[customerId]) : null;
+        if (firstBookingYear && firstBookingYear < currentYear) {
+          recurringCustomerIds.add(customerId);
+        }
+      }
+    });
+    const retentionRate = uniqueCustomers.size > 0 ? (recurringCustomerIds.size / uniqueCustomers.size) * 100 : 0;
     
     return {
       monthlyRevenue,
       monthlyJobCount,
       monthlyFirstTimeCustomers,
       monthlyRepeatCustomers,
+      monthlyFirstTimeRevenue,
+      monthlyRecurringRevenue,
       totalRevenue,
       totalJobs,
       avgJobSize,
       totalFirstTime,
       totalRepeat,
-      repeatRevenuePercent: totalRevenue > 0 ? (totalRepeat / (totalFirstTime + totalRepeat)) * 100 : 0,
+      totalFirstTimeRevenue,
+      totalRecurringRevenue,
+      repeatRevenuePercent: totalRevenue > 0 ? (totalRecurringRevenue / totalRevenue) * 100 : 0,
+      retentionRate,
+      uniqueCustomers: uniqueCustomers.size,
     };
   }, [bookings, currentYear]);
 
@@ -424,6 +451,42 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   });
   
   const totalMarketingSpend = monthlyMarketingTotals.reduce((a, b) => a + b, 0);
+  
+  // Marketing KPIs - CPL and CPA (linked to actuals)
+  const totalLeadsGoal = settings.monthly_inbound_leads_goals.reduce((a, b) => a + b, 0);
+  const costPerLead = totalLeadsGoal > 0 ? totalMarketingSpend / totalLeadsGoal : 0;
+  const costPerAcquisition = actuals.totalFirstTime > 0 ? totalMarketingSpend / actuals.totalFirstTime : 0;
+  
+  // Status helpers
+  const getStatus = (actual: number, goal: number, higherIsBetter = true): 'on-track' | 'behind' | 'ahead' | 'at-risk' => {
+    if (goal === 0) return 'on-track';
+    const ratio = actual / goal;
+    if (higherIsBetter) {
+      if (ratio >= 1) return 'ahead';
+      if (ratio >= 0.9) return 'on-track';
+      if (ratio >= 0.7) return 'at-risk';
+      return 'behind';
+    } else {
+      if (ratio <= 1) return 'ahead';
+      if (ratio <= 1.1) return 'on-track';
+      if (ratio <= 1.3) return 'at-risk';
+      return 'behind';
+    }
+  };
+  
+  const statusColors = {
+    'ahead': 'bg-green-500/20 text-green-700 dark:text-green-400',
+    'on-track': 'bg-green-500/20 text-green-700 dark:text-green-400',
+    'at-risk': 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
+    'behind': 'bg-red-500/20 text-red-700 dark:text-red-400',
+  };
+  
+  const statusIcons = {
+    'ahead': '✅',
+    'on-track': '✅',
+    'at-risk': '⚠️',
+    'behind': '🔴',
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -525,6 +588,134 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         </CardContent>
       </Card>
 
+      {/* P&L Summary Table with Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">P&L Summary at a Glance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Actual</TableHead>
+                <TableHead className="text-right">Goal</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium">Total Revenue</TableCell>
+                <TableCell className="text-right">${actuals.totalRevenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${settings.annual_revenue_goal.toLocaleString()}</TableCell>
+                <TableCell className="text-center">
+                  <Badge className={statusColors[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]}>
+                    {statusIcons[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]} {getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12) === 'behind' ? 'Behind' : 'On Track'}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium pl-6 text-muted-foreground">→ First-Time Revenue</TableCell>
+                <TableCell className="text-right">${actuals.totalFirstTimeRevenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                <TableCell className="text-center text-muted-foreground">—</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium pl-6 text-muted-foreground">→ Recurring Revenue</TableCell>
+                <TableCell className="text-right">${actuals.totalRecurringRevenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{settings.goal_repeat_revenue_percent}% of total</TableCell>
+                <TableCell className="text-center">
+                  <Badge className={statusColors[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
+                    {statusIcons[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {actuals.repeatRevenuePercent.toFixed(0)}%
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Field Labor ({settings.contractor_percent}%)</TableCell>
+                <TableCell className="text-right text-destructive">-${pnlTotals.contractorCost.toLocaleString()}</TableCell>
+                <TableCell className="text-right">-${(settings.annual_revenue_goal * settings.contractor_percent / 100).toLocaleString()}</TableCell>
+                <TableCell className="text-center">
+                  <Badge className={statusColors[getStatus(settings.annual_revenue_goal * settings.contractor_percent / 100 * (new Date().getMonth() + 1) / 12, pnlTotals.contractorCost, false)]}>
+                    {statusIcons[getStatus(settings.annual_revenue_goal * settings.contractor_percent / 100 * (new Date().getMonth() + 1) / 12, pnlTotals.contractorCost, false)]} On Track
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Marketing Spend</TableCell>
+                <TableCell className="text-right text-destructive">-${totalMarketingSpend.toLocaleString()}</TableCell>
+                <TableCell className="text-right">-${totalMarketingBudget.toLocaleString()}</TableCell>
+                <TableCell className="text-center">
+                  <Badge className={statusColors[getStatus(totalMarketingBudget, totalMarketingSpend, false)]}>
+                    {statusIcons[getStatus(totalMarketingBudget, totalMarketingSpend, false)]} {totalMarketingSpend <= totalMarketingBudget ? 'Under Budget' : 'Over Budget'}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Fixed Costs</TableCell>
+                <TableCell className="text-right text-destructive">-${pnlTotals.fixedOverhead.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-muted-foreground">-${(settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0) * 12).toLocaleString()}</TableCell>
+                <TableCell className="text-center text-muted-foreground">—</TableCell>
+              </TableRow>
+              <TableRow className="bg-muted/50 border-t-2">
+                <TableCell className="font-bold">Net Profit</TableCell>
+                <TableCell className={`text-right font-bold ${pnlTotals.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${pnlTotals.netProfit.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  ${(settings.annual_revenue_goal * 0.2).toLocaleString()} (20% goal)
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge className={statusColors[pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? 'ahead' : pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 10 ? 'at-risk' : 'behind']}>
+                    {pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? '✅' : '⚠️'} {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Avg Job Size</p>
+            <p className="text-xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+            <Badge variant={actuals.avgJobSize >= settings.avg_job_size_goal ? 'default' : 'secondary'} className="mt-1">
+              Goal: ${settings.avg_job_size_goal}
+            </Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">First-Time Clients</p>
+            <p className="text-xl font-bold">{actuals.totalFirstTime}</p>
+            <p className="text-xs text-muted-foreground">${actuals.totalFirstTimeRevenue.toLocaleString()} revenue</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Recurring Clients</p>
+            <p className="text-xl font-bold">{actuals.totalRepeat}</p>
+            <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Cost Per Lead (CPL)</p>
+            <p className="text-xl font-bold">${costPerLead.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">{totalLeadsGoal} leads goal</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Cost Per Acquisition (CPA)</p>
+            <p className="text-xl font-bold">${costPerAcquisition.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">{actuals.totalFirstTime} new customers</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
@@ -609,19 +800,103 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Avg Job Size</p>
                     <p className="text-2xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+                    <Badge variant={actuals.avgJobSize >= settings.avg_job_size_goal ? 'default' : 'secondary'} className="mt-1">
+                      {actuals.avgJobSize >= settings.avg_job_size_goal ? '✅' : '⚠️'} Goal: ${settings.avg_job_size_goal}
+                    </Badge>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">First-Time Clients</p>
                     <p className="text-2xl font-bold">{actuals.totalFirstTime}</p>
+                    <p className="text-xs text-muted-foreground">${actuals.totalFirstTimeRevenue.toLocaleString()} revenue</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Repeat Clients</p>
                     <p className="text-2xl font-bold">{actuals.totalRepeat}</p>
+                    <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Revenue Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Revenue Breakdown by Client Type</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Revenue Type</TableHead>
+                    <TableHead className="text-right">Actual</TableHead>
+                    <TableHead className="text-right">% of Total</TableHead>
+                    <TableHead className="text-right">Goal %</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">First-Time Client Revenue</TableCell>
+                    <TableCell className="text-right">${actuals.totalFirstTimeRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{actuals.totalRevenue > 0 ? ((actuals.totalFirstTimeRevenue / actuals.totalRevenue) * 100).toFixed(1) : 0}%</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{100 - settings.goal_repeat_revenue_percent}%</TableCell>
+                    <TableCell className="text-center">—</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Recurring Client Revenue</TableCell>
+                    <TableCell className="text-right">${actuals.totalRecurringRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{actuals.repeatRevenuePercent.toFixed(1)}%</TableCell>
+                    <TableCell className="text-right">{settings.goal_repeat_revenue_percent}%</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={statusColors[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
+                        {statusIcons[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {actuals.repeatRevenuePercent >= settings.goal_repeat_revenue_percent ? 'On Track' : 'Review'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="bg-muted/50 border-t">
+                    <TableCell className="font-bold">Total Revenue</TableCell>
+                    <TableCell className="text-right font-bold">${actuals.totalRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-bold">100%</TableCell>
+                    <TableCell className="text-right">—</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={statusColors[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]}>
+                        {statusIcons[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]} {progressPercent.toFixed(0)}% of goal
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Bookings Required Calculator */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Bookings Required to Hit Goal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Annual Goal</p>
+                  <p className="text-xl font-bold">${settings.annual_revenue_goal.toLocaleString()}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Bookings/Year Needed</p>
+                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal) : 0}</p>
+                  <p className="text-xs text-muted-foreground">@ ${settings.avg_job_size_goal}/job</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Bookings/Month</p>
+                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal / 12) : 0}</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Bookings/Week</p>
+                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal / 52) : 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Monthly Sales Goals Table */}
           <Card>
@@ -704,6 +979,42 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
         {/* Marketing Budget Tab */}
         <TabsContent value="marketing" className="space-y-6">
+          {/* Marketing KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Total Budget</p>
+                <p className="text-2xl font-bold">${totalMarketingBudget.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{settings.marketing_percent_of_revenue}% of revenue goal</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Planned Spend</p>
+                <p className={`text-2xl font-bold ${totalMarketingSpend <= totalMarketingBudget ? 'text-green-600' : 'text-red-600'}`}>
+                  ${totalMarketingSpend.toLocaleString()}
+                </p>
+                <Badge className={statusColors[getStatus(totalMarketingBudget, totalMarketingSpend, false)]}>
+                  {totalMarketingSpend <= totalMarketingBudget ? '✅ Under Budget' : '🔴 Over Budget'}
+                </Badge>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Cost Per Lead (CPL)</p>
+                <p className="text-2xl font-bold">${costPerLead.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{totalLeadsGoal} leads / yr goal</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">Cost Per Acquisition (CPA)</p>
+                <p className="text-2xl font-bold">${costPerAcquisition.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">{actuals.totalFirstTime} new customers YTD</p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Marketing Budget Settings</CardTitle>
@@ -719,15 +1030,69 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   />
                 </div>
                 <div>
-                  <Label>Suggested Budget</Label>
-                  <p className="text-2xl font-bold">${totalMarketingBudget.toLocaleString()}</p>
+                  <Label>Lead Count Goal (Annual)</Label>
+                  <p className="text-lg font-medium">{totalLeadsGoal}</p>
+                  <p className="text-xs text-muted-foreground">Sum of monthly lead goals below</p>
                 </div>
                 <div>
-                  <Label>Planned Spend</Label>
-                  <p className={`text-2xl font-bold ${totalMarketingSpend <= totalMarketingBudget ? 'text-success' : 'text-destructive'}`}>
-                    ${totalMarketingSpend.toLocaleString()}
-                  </p>
+                  <Label>Closing Rate Goal</Label>
+                  <p className="text-lg font-medium">{settings.closing_rate_goal}%</p>
+                  <p className="text-xs text-muted-foreground">Expected {Math.round(totalLeadsGoal * settings.closing_rate_goal / 100)} new customers</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Lead Goals */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Monthly Inbound Lead Goals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Metric</TableHead>
+                      {MONTHS.map(m => <TableHead key={m} className="text-right text-xs">{m}</TableHead>)}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Lead Goal</TableCell>
+                      {MONTHS.map((_, i) => (
+                        <TableCell key={i} className="p-1">
+                          <Input
+                            type="number"
+                            value={settings.monthly_inbound_leads_goals[i]}
+                            onChange={(e) => updateMonthlyLeads(i, Number(e.target.value))}
+                            className="w-16 text-xs text-right"
+                          />
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right font-bold">{totalLeadsGoal}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Expected Sales</TableCell>
+                      {MONTHS.map((_, i) => (
+                        <TableCell key={i} className="text-right text-xs text-muted-foreground">
+                          {Math.round(settings.monthly_inbound_leads_goals[i] * settings.closing_rate_goal / 100)}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right font-medium">{Math.round(totalLeadsGoal * settings.closing_rate_goal / 100)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Actual New Customers</TableCell>
+                      {MONTHS.map((_, i) => (
+                        <TableCell key={i} className="text-right text-xs">
+                          {actuals.monthlyFirstTimeCustomers[i]}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right font-medium">{actuals.totalFirstTime}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
