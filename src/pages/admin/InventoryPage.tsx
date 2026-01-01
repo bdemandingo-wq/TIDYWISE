@@ -556,34 +556,48 @@ function InventoryDialog({
               {customFields.map((field) => (
                 <div key={field.id}>
                   <Label>{field.field_name} {field.is_required && '*'}</Label>
-                  {field.field_type === 'text' && (
-                    <Input
-                      value={formData.custom_fields[field.field_name] || ''}
-                      onChange={(e) => updateCustomField(field.field_name, e.target.value)}
-                    />
-                  )}
-                  {field.field_type === 'number' && (
-                    <Input
-                      type="number"
-                      value={formData.custom_fields[field.field_name] || ''}
-                      onChange={(e) => updateCustomField(field.field_name, e.target.value)}
-                    />
-                  )}
-                  {field.field_type === 'select' && field.options && (
-                    <Select 
-                      value={formData.custom_fields[field.field_name] || ''} 
-                      onValueChange={(v) => updateCustomField(field.field_name, v)}
+                  <div className="flex items-center gap-2">
+                    {field.field_type === 'text' && (
+                      <Input
+                        className="flex-1"
+                        value={formData.custom_fields[field.field_name] || ''}
+                        onChange={(e) => updateCustomField(field.field_name, e.target.value)}
+                      />
+                    )}
+                    {field.field_type === 'number' && (
+                      <Input
+                        className="flex-1"
+                        type="number"
+                        value={formData.custom_fields[field.field_name] || ''}
+                        onChange={(e) => updateCustomField(field.field_name, e.target.value)}
+                      />
+                    )}
+                    {field.field_type === 'select' && field.options && (
+                      <Select 
+                        value={formData.custom_fields[field.field_name] || ''} 
+                        onValueChange={(v) => updateCustomField(field.field_name, v)}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.options.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                      onClick={() => updateCustomField(field.field_name, '')}
+                      title="Clear field"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {field.options.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
