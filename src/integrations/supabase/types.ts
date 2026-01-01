@@ -1596,6 +1596,101 @@ export type Database = {
         }
         Relationships: []
       }
+      pnl_settings: {
+        Row: {
+          annual_revenue_goal: number | null
+          avg_job_size_goal: number | null
+          churn_rate_goal: number | null
+          closing_rate_goal: number | null
+          contractor_percent: number | null
+          created_at: string
+          credit_card_percent: number | null
+          direct_mail_spend: Json | null
+          facebook_ads_spend: Json | null
+          first_time_to_recurring_goal: number | null
+          fixed_overhead_items: Json | null
+          goal_repeat_revenue_percent: number | null
+          google_lsa_spend: Json | null
+          id: string
+          last_year_revenue: number | null
+          local_marketing_spend: Json | null
+          marketing_percent_of_revenue: number | null
+          monthly_inbound_leads_goals: Json | null
+          monthly_sales_goals: Json | null
+          organization_id: string | null
+          other_online_spend: Json | null
+          recruiting_costs: Json | null
+          refunds_percent: number | null
+          updated_at: string
+          variable_overhead_items: Json | null
+          year: number
+        }
+        Insert: {
+          annual_revenue_goal?: number | null
+          avg_job_size_goal?: number | null
+          churn_rate_goal?: number | null
+          closing_rate_goal?: number | null
+          contractor_percent?: number | null
+          created_at?: string
+          credit_card_percent?: number | null
+          direct_mail_spend?: Json | null
+          facebook_ads_spend?: Json | null
+          first_time_to_recurring_goal?: number | null
+          fixed_overhead_items?: Json | null
+          goal_repeat_revenue_percent?: number | null
+          google_lsa_spend?: Json | null
+          id?: string
+          last_year_revenue?: number | null
+          local_marketing_spend?: Json | null
+          marketing_percent_of_revenue?: number | null
+          monthly_inbound_leads_goals?: Json | null
+          monthly_sales_goals?: Json | null
+          organization_id?: string | null
+          other_online_spend?: Json | null
+          recruiting_costs?: Json | null
+          refunds_percent?: number | null
+          updated_at?: string
+          variable_overhead_items?: Json | null
+          year?: number
+        }
+        Update: {
+          annual_revenue_goal?: number | null
+          avg_job_size_goal?: number | null
+          churn_rate_goal?: number | null
+          closing_rate_goal?: number | null
+          contractor_percent?: number | null
+          created_at?: string
+          credit_card_percent?: number | null
+          direct_mail_spend?: Json | null
+          facebook_ads_spend?: Json | null
+          first_time_to_recurring_goal?: number | null
+          fixed_overhead_items?: Json | null
+          goal_repeat_revenue_percent?: number | null
+          google_lsa_spend?: Json | null
+          id?: string
+          last_year_revenue?: number | null
+          local_marketing_spend?: Json | null
+          marketing_percent_of_revenue?: number | null
+          monthly_inbound_leads_goals?: Json | null
+          monthly_sales_goals?: Json | null
+          organization_id?: string | null
+          other_online_spend?: Json | null
+          recruiting_costs?: Json | null
+          refunds_percent?: number | null
+          updated_at?: string
+          variable_overhead_items?: Json | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pnl_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
