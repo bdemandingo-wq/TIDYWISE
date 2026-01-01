@@ -144,20 +144,25 @@ const handler = async (req: Request): Promise<Response> => {
     // Manual reminder send
     if (isManualSend) {
       // PRIORITY: Use pre-formatted strings from client to ensure timezone accuracy
-      const formattedDate = payload?.formattedDate || payload?.scheduledAt 
-        ? new Date(payload.scheduledAt).toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-          })
-        : 'your scheduled date';
-      const formattedTime = payload?.formattedTime || payload?.scheduledAt 
-        ? new Date(payload.scheduledAt).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          })
-        : 'your scheduled time';
+      // Only fall back to server-side formatting if client didn't provide formatted strings
+      const formattedDate = payload?.formattedDate 
+        ? payload.formattedDate 
+        : (payload?.scheduledAt 
+            ? new Date(payload.scheduledAt).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'your scheduled date');
+      const formattedTime = payload?.formattedTime 
+        ? payload.formattedTime 
+        : (payload?.scheduledAt 
+            ? new Date(payload.scheduledAt).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })
+            : 'your scheduled time');
 
       const customerName = payload?.customerName || 'there';
       const serviceName = payload?.serviceName || 'cleaning';
