@@ -157,6 +157,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
+  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -168,6 +169,42 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Load hidden items from localStorage
+  useEffect(() => {
+    const savedHidden = localStorage.getItem('tidywise_nav_hidden');
+    if (savedHidden) {
+      try {
+        setHiddenItems(JSON.parse(savedHidden));
+      } catch (e) {
+        console.error('Error parsing hidden nav items:', e);
+      }
+    }
+  }, []);
+
+  // Listen for changes to hidden items (from settings page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedHidden = localStorage.getItem('tidywise_nav_hidden');
+      if (savedHidden) {
+        try {
+          setHiddenItems(JSON.parse(savedHidden));
+        } catch (e) {
+          console.error('Error parsing hidden nav items:', e);
+        }
+      } else {
+        setHiddenItems([]);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for custom event for same-tab updates
+    window.addEventListener('navHiddenChanged', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('navHiddenChanged', handleStorageChange);
+    };
+  }, []);
 
   // Load navigation order from localStorage
   useEffect(() => {
@@ -192,6 +229,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       }
     }
   }, []);
+
+  // Filter out hidden items
+  const visibleNavigation = navigation.filter(item => !hiddenItems.includes(item.href));
 
   useEffect(() => {
     const fetchLogo = async () => {
@@ -269,11 +309,11 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={navigation.map(item => item.href)}
+            items={visibleNavigation.map(item => item.href)}
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-1">
-              {navigation.map((item) => {
+              {visibleNavigation.map((item) => {
                 const isActive = location.pathname === item.href || 
                   (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
                 return (
