@@ -1608,7 +1608,10 @@ export type Database = {
           direct_mail_spend: Json | null
           facebook_ads_spend: Json | null
           first_time_to_recurring_goal: number | null
+          fixed_cost_goal: number | null
           fixed_overhead_items: Json | null
+          goal_first_time_revenue_amount: number | null
+          goal_repeat_revenue_amount: number | null
           goal_repeat_revenue_percent: number | null
           google_lsa_spend: Json | null
           id: string
@@ -1636,7 +1639,10 @@ export type Database = {
           direct_mail_spend?: Json | null
           facebook_ads_spend?: Json | null
           first_time_to_recurring_goal?: number | null
+          fixed_cost_goal?: number | null
           fixed_overhead_items?: Json | null
+          goal_first_time_revenue_amount?: number | null
+          goal_repeat_revenue_amount?: number | null
           goal_repeat_revenue_percent?: number | null
           google_lsa_spend?: Json | null
           id?: string
@@ -1664,7 +1670,10 @@ export type Database = {
           direct_mail_spend?: Json | null
           facebook_ads_spend?: Json | null
           first_time_to_recurring_goal?: number | null
+          fixed_cost_goal?: number | null
           fixed_overhead_items?: Json | null
+          goal_first_time_revenue_amount?: number | null
+          goal_repeat_revenue_amount?: number | null
           goal_repeat_revenue_percent?: number | null
           google_lsa_spend?: Json | null
           id?: string
