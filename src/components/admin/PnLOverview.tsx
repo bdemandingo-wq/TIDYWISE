@@ -55,6 +55,7 @@ interface PnLSettings {
   other_online_spend: number[];
   local_marketing_spend: number[];
   direct_mail_spend: number[];
+  marketing_channel_names: { [key: string]: string };  // Custom names for marketing channels
   credit_card_percent: number;
   refunds_percent: number;
   fixed_overhead_items: MonthlyOverheadItem[];
@@ -84,6 +85,13 @@ const defaultSettings: PnLSettings = {
   other_online_spend: Array(12).fill(0),
   local_marketing_spend: Array(12).fill(0),
   direct_mail_spend: Array(12).fill(0),
+  marketing_channel_names: {
+    google_lsa_spend: 'Google LSA',
+    facebook_ads_spend: 'Facebook Ads',
+    other_online_spend: 'Other Online',
+    local_marketing_spend: 'Local Marketing',
+    direct_mail_spend: 'Direct Mail',
+  },
   credit_card_percent: 2.9,
   refunds_percent: 2,
   fixed_overhead_items: [
@@ -1369,14 +1377,28 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   </TableHeader>
                   <TableBody>
                     {[
-                      { key: 'google_lsa_spend', name: 'Google LSA' },
-                      { key: 'facebook_ads_spend', name: 'Facebook Ads' },
-                      { key: 'other_online_spend', name: 'Other Online' },
-                      { key: 'local_marketing_spend', name: 'Local Marketing' },
-                      { key: 'direct_mail_spend', name: 'Direct Mail' },
-                    ].map(({ key, name }) => (
+                      'google_lsa_spend',
+                      'facebook_ads_spend',
+                      'other_online_spend',
+                      'local_marketing_spend',
+                      'direct_mail_spend',
+                    ].map((key) => (
                       <TableRow key={key}>
-                        <TableCell className="font-medium">{name}</TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="text"
+                            value={settings.marketing_channel_names?.[key] || key.replace(/_/g, ' ').replace(/spend/i, '').trim()}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              marketing_channel_names: {
+                                ...settings.marketing_channel_names,
+                                [key]: e.target.value
+                              }
+                            })}
+                            className="w-28 text-xs font-medium"
+                            placeholder="Channel name"
+                          />
+                        </TableCell>
                         {MONTHS.map((_, i) => (
                           <TableCell key={i} className="p-1">
                             <Input
