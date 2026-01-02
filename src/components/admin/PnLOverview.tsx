@@ -74,9 +74,6 @@ interface PnLSettings {
   fixed_overhead_items: MonthlyOverheadItem[];
   variable_overhead_items: MonthlyOverheadItem[];
   recruiting_costs: number[];
-  // Manual CPL/CPA inputs
-  target_cpl: number;
-  target_cpa: number;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -133,8 +130,6 @@ const defaultSettings: PnLSettings = {
     { name: 'Gas/Mileage', monthly: Array(12).fill(0) },
   ],
   recruiting_costs: Array(12).fill(0),
-  target_cpl: 0,
-  target_cpa: 0,
 };
 
 // Helper to migrate old format to new format
@@ -256,8 +251,6 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           fixed_overhead_items: migrateOverheadItems(data.fixed_overhead_items as any[]),
           variable_overhead_items: migrateOverheadItems(data.variable_overhead_items as any[]),
           recruiting_costs: Array.isArray(data.recruiting_costs) ? (data.recruiting_costs as number[]) : defaultSettings.recruiting_costs,
-          target_cpl: Number((data as any).target_cpl) || 0,
-          target_cpa: Number((data as any).target_cpa) || 0,
         });
       }
       setLoading(false);
@@ -465,8 +458,6 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       monthly_first_time_goals: settings.monthly_first_time_goals as unknown as Json,
       monthly_recurring_goals: settings.monthly_recurring_goals as unknown as Json,
       monthly_fixed_cost_goals: settings.monthly_fixed_cost_goals as unknown as Json,
-      target_cpl: settings.target_cpl,
-      target_cpa: settings.target_cpa,
       avg_job_size_goal: settings.avg_job_size_goal,
       closing_rate_goal: settings.closing_rate_goal,
       first_time_to_recurring_goal: settings.first_time_to_recurring_goal,
@@ -697,12 +688,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   
   const totalMarketingSpend = monthlyMarketingTotals.reduce((a, b) => a + b, 0);
   
-  // Marketing KPIs - CPL and CPA (use target values if set, otherwise calculate)
+  // Marketing KPIs - CPL and CPA
   const totalLeadsGoal = settings.monthly_inbound_leads_goals.reduce((a, b) => a + b, 0);
   const calculatedCPL = totalLeadsGoal > 0 ? totalMarketingSpend / totalLeadsGoal : 0;
   const calculatedCPA = actuals.totalFirstTime > 0 ? totalMarketingSpend / actuals.totalFirstTime : 0;
-  const costPerLead = settings.target_cpl > 0 ? settings.target_cpl : calculatedCPL;
-  const costPerAcquisition = settings.target_cpa > 0 ? settings.target_cpa : calculatedCPA;
   
   // Status helpers
   const getStatus = (actual: number, goal: number, higherIsBetter = true): 'on-track' | 'behind' | 'ahead' | 'at-risk' => {
@@ -1042,7 +1031,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       </Card>
 
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Avg Job Size</p>
@@ -1054,52 +1043,16 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">First-Time Clients</p>
+            <p className="text-xs text-muted-foreground">First-Time Clients ({currentYear})</p>
             <p className="text-xl font-bold">{actuals.totalFirstTime}</p>
             <p className="text-xs text-muted-foreground">${actuals.totalFirstTimeRevenue.toLocaleString()} revenue</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Recurring Clients</p>
+            <p className="text-xs text-muted-foreground">Recurring Clients ({currentYear})</p>
             <p className="text-xl font-bold">{actuals.totalRepeat}</p>
             <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Target CPL</p>
-            <div className="flex items-center gap-1">
-              <span className="text-xl font-bold">$</span>
-              <Input
-                type="number"
-                value={inputValue(settings.target_cpl)}
-                onChange={(e) => setSettings({ ...settings, target_cpl: parseInputValue(e.target.value) })}
-                className="w-20 text-xl font-bold"
-                placeholder="0"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Actual: ${calculatedCPL.toFixed(2)} ({totalLeadsGoal} leads)
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Target CPA</p>
-            <div className="flex items-center gap-1">
-              <span className="text-xl font-bold">$</span>
-              <Input
-                type="number"
-                value={inputValue(settings.target_cpa)}
-                onChange={(e) => setSettings({ ...settings, target_cpa: parseInputValue(e.target.value) })}
-                className="w-20 text-xl font-bold"
-                placeholder="0"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Actual: ${calculatedCPA.toFixed(2)} ({actuals.totalFirstTime} customers)
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -1504,14 +1457,14 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Cost Per Lead (CPL)</p>
-                <p className="text-2xl font-bold">${costPerLead.toFixed(2)}</p>
+                <p className="text-2xl font-bold">${calculatedCPL.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">{totalLeadsGoal} leads / yr goal</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Cost Per Acquisition (CPA)</p>
-                <p className="text-2xl font-bold">${costPerAcquisition.toFixed(2)}</p>
+                <p className="text-2xl font-bold">${calculatedCPA.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">{actuals.totalFirstTime} new customers YTD</p>
               </CardContent>
             </Card>
