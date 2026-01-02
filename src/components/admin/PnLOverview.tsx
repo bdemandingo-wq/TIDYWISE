@@ -11,7 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useToast } from '@/hooks/use-toast';
 import { BookingWithDetails } from '@/hooks/useBookings';
-import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, Trash2 } from 'lucide-react';
+import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, Trash2, Calendar } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
 import {
@@ -116,6 +117,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('revenue-map');
   const [selectedOverheadMonth, setSelectedOverheadMonth] = useState(new Date().getMonth());
+  const [summaryPeriod, setSummaryPeriod] = useState<'month' | 'year'>('year');
+  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(new Date().getMonth());
+  const [netProfitPeriod, setNetProfitPeriod] = useState<'ytd' | 'qtd' | 'mtd' | '1y' | '4w' | '1w'>('ytd');
 
   const currentYear = new Date().getFullYear();
   const organizationId = orgId.organizationId;
@@ -560,6 +564,77 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   const inputValue = (val: number) => val === 0 ? '' : val;
   const parseInputValue = (val: string) => val === '' ? 0 : Number(val);
 
+  // Calculate summary data based on selected period (month or year)
+  const summaryData = useMemo(() => {
+    if (summaryPeriod === 'month') {
+      const monthData = pnlData[selectedSummaryMonth];
+      return {
+        revenue: monthData.revenue,
+        firstTimeRevenue: actuals.monthlyFirstTimeRevenue[selectedSummaryMonth],
+        recurringRevenue: actuals.monthlyRecurringRevenue[selectedSummaryMonth],
+        laborCost: monthData.laborCost,
+        marketingSpend: monthData.marketing,
+        fixedCosts: monthData.fixedOverhead,
+        variableCosts: monthData.variableOverhead,
+        netProfit: monthData.netProfit,
+        grossProfit: monthData.grossProfit,
+        repeatRevenuePercent: monthData.revenue > 0 ? (actuals.monthlyRecurringRevenue[selectedSummaryMonth] / monthData.revenue) * 100 : 0,
+        periodLabel: MONTHS[selectedSummaryMonth],
+        revenueGoal: settings.monthly_sales_goals[selectedSummaryMonth] || 0,
+        marketingBudget: settings.monthly_marketing_budget[selectedSummaryMonth] || 0,
+      };
+    }
+    return {
+      revenue: pnlTotals.revenue,
+      firstTimeRevenue: actuals.totalFirstTimeRevenue,
+      recurringRevenue: actuals.totalRecurringRevenue,
+      laborCost: pnlTotals.laborCost,
+      marketingSpend: pnlTotals.marketing,
+      fixedCosts: pnlTotals.fixedOverhead,
+      variableCosts: pnlTotals.variableOverhead,
+      netProfit: pnlTotals.netProfit,
+      grossProfit: pnlTotals.grossProfit,
+      repeatRevenuePercent: actuals.repeatRevenuePercent,
+      periodLabel: 'YTD',
+      revenueGoal: settings.annual_revenue_goal,
+      marketingBudget: totalMarketingBudget,
+    };
+  }, [summaryPeriod, selectedSummaryMonth, pnlData, pnlTotals, actuals, settings, totalMarketingBudget]);
+
+  // Calculate Net Profit based on selected time period
+  const netProfitByPeriod = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentDate = now.getDate();
+    
+    // YTD - sum of all months up to current
+    const ytd = pnlData.slice(0, currentMonth + 1).reduce((sum, m) => sum + m.netProfit, 0);
+    
+    // QTD - current quarter
+    const quarterStart = Math.floor(currentMonth / 3) * 3;
+    const qtd = pnlData.slice(quarterStart, currentMonth + 1).reduce((sum, m) => sum + m.netProfit, 0);
+    
+    // MTD - current month
+    const mtd = pnlData[currentMonth]?.netProfit || 0;
+    
+    // 1Y - full year (same as YTD for current year)
+    const oneYear = pnlTotals.netProfit;
+    
+    // 4W - last 4 weeks (approximate with current month)
+    const fourWeeks = mtd;
+    
+    // 1W - last week (approximate with current month / 4)
+    const oneWeek = mtd / 4;
+    
+    return { ytd, qtd, mtd, '1y': oneYear, '4w': fourWeeks, '1w': oneWeek };
+  }, [pnlData, pnlTotals]);
+
+  const currentNetProfit = netProfitByPeriod[netProfitPeriod];
+  const currentNetProfitRevenue = netProfitPeriod === 'mtd' ? pnlData[new Date().getMonth()]?.revenue || 0 :
+    netProfitPeriod === 'qtd' ? pnlData.slice(Math.floor(new Date().getMonth() / 3) * 3, new Date().getMonth() + 1).reduce((sum, m) => sum + m.revenue, 0) :
+    pnlTotals.revenue;
+  const currentNetProfitMargin = currentNetProfitRevenue > 0 ? (currentNetProfit / currentNetProfitRevenue) * 100 : 0;
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -625,22 +700,28 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Net Profit YTD</p>
-                <p className={`text-2xl font-bold ${pnlTotals.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  ${pnlTotals.netProfit.toLocaleString()}
-                </p>
-              </div>
-              {pnlTotals.netProfit >= 0 ? (
-                <TrendingUp className="w-8 h-8 text-success opacity-50" />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-muted-foreground">Net Profit</p>
+              {currentNetProfit >= 0 ? (
+                <TrendingUp className="w-6 h-6 text-success opacity-50" />
               ) : (
-                <TrendingDown className="w-8 h-8 text-destructive opacity-50" />
+                <TrendingDown className="w-6 h-6 text-destructive opacity-50" />
               )}
             </div>
+            <p className={`text-2xl font-bold ${currentNetProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+              ${currentNetProfit.toLocaleString()}
+            </p>
+            <ToggleGroup type="single" value={netProfitPeriod} onValueChange={(v) => v && setNetProfitPeriod(v as typeof netProfitPeriod)} className="mt-2 flex flex-wrap justify-start gap-1">
+              <ToggleGroupItem value="ytd" size="sm" className="text-xs px-2 py-1 h-6">YTD</ToggleGroupItem>
+              <ToggleGroupItem value="qtd" size="sm" className="text-xs px-2 py-1 h-6">QTD</ToggleGroupItem>
+              <ToggleGroupItem value="mtd" size="sm" className="text-xs px-2 py-1 h-6">MTD</ToggleGroupItem>
+              <ToggleGroupItem value="1y" size="sm" className="text-xs px-2 py-1 h-6">1Y</ToggleGroupItem>
+              <ToggleGroupItem value="4w" size="sm" className="text-xs px-2 py-1 h-6">4W</ToggleGroupItem>
+              <ToggleGroupItem value="1w" size="sm" className="text-xs px-2 py-1 h-6">1W</ToggleGroupItem>
+            </ToggleGroup>
             <div className="mt-2">
-              <Badge variant={pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? 'default' : 'secondary'}>
-                {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+              <Badge variant={currentNetProfitMargin >= 20 ? 'default' : 'secondary'}>
+                {currentNetProfitMargin.toFixed(1)}% margin
               </Badge>
             </div>
           </CardContent>
@@ -662,10 +743,31 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
       {/* P&L Summary Table with Status */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">P&L Summary at a Glance</CardTitle>
+          <div className="flex items-center gap-2">
+            <ToggleGroup type="single" value={summaryPeriod} onValueChange={(v) => v && setSummaryPeriod(v as 'month' | 'year')} className="gap-1">
+              <ToggleGroupItem value="month" size="sm" className="text-xs px-3 h-8">Month</ToggleGroupItem>
+              <ToggleGroupItem value="year" size="sm" className="text-xs px-3 h-8">Year</ToggleGroupItem>
+            </ToggleGroup>
+            {summaryPeriod === 'month' && (
+              <Select value={String(selectedSummaryMonth)} onValueChange={(v) => setSelectedSummaryMonth(Number(v))}>
+                <SelectTrigger className="w-24 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Showing data for: <strong>{summaryData.periodLabel} {currentYear}</strong>
+          </p>
           <Table>
             <TableHeader>
               <TableRow>
@@ -678,63 +780,63 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
             <TableBody>
               <TableRow>
                 <TableCell className="font-medium">Total Revenue</TableCell>
-                <TableCell className="text-right">${actuals.totalRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">${settings.annual_revenue_goal.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${summaryData.revenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${summaryData.revenueGoal.toLocaleString()}</TableCell>
                 <TableCell className="text-center">
-                  <Badge className={statusColors[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]}>
-                    {statusIcons[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]} {getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12) === 'behind' ? 'Behind' : 'On Track'}
+                  <Badge className={statusColors[getStatus(summaryData.revenue, summaryData.revenueGoal)]}>
+                    {statusIcons[getStatus(summaryData.revenue, summaryData.revenueGoal)]} {getStatus(summaryData.revenue, summaryData.revenueGoal) === 'behind' ? 'Behind' : 'On Track'}
                   </Badge>
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ First-Time Revenue</TableCell>
-                <TableCell className="text-right">${actuals.totalFirstTimeRevenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${summaryData.firstTimeRevenue.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-muted-foreground">—</TableCell>
                 <TableCell className="text-center text-muted-foreground">—</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ Recurring Revenue</TableCell>
-                <TableCell className="text-right">${actuals.totalRecurringRevenue.toLocaleString()}</TableCell>
+                <TableCell className="text-right">${summaryData.recurringRevenue.toLocaleString()}</TableCell>
                 <TableCell className="text-right">{settings.goal_repeat_revenue_percent}% of total</TableCell>
                 <TableCell className="text-center">
-                  <Badge className={statusColors[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
-                    {statusIcons[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {actuals.repeatRevenuePercent.toFixed(0)}%
+                  <Badge className={statusColors[getStatus(summaryData.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
+                    {statusIcons[getStatus(summaryData.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {summaryData.repeatRevenuePercent.toFixed(0)}%
                   </Badge>
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Field Labor (Payroll)</TableCell>
-                <TableCell className="text-right text-destructive">-${actuals.totalLaborCost.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-destructive">-${summaryData.laborCost.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-muted-foreground">From Payroll</TableCell>
                 <TableCell className="text-center text-muted-foreground">—</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Marketing Spend</TableCell>
-                <TableCell className="text-right text-destructive">-${totalMarketingSpend.toLocaleString()}</TableCell>
-                <TableCell className="text-right">-${totalMarketingBudget.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-destructive">-${summaryData.marketingSpend.toLocaleString()}</TableCell>
+                <TableCell className="text-right">-${summaryData.marketingBudget.toLocaleString()}</TableCell>
                 <TableCell className="text-center">
-                  <Badge className={statusColors[getStatus(totalMarketingBudget, totalMarketingSpend, false)]}>
-                    {statusIcons[getStatus(totalMarketingBudget, totalMarketingSpend, false)]} {totalMarketingSpend <= totalMarketingBudget ? 'Under Budget' : 'Over Budget'}
+                  <Badge className={statusColors[getStatus(summaryData.marketingBudget, summaryData.marketingSpend, false)]}>
+                    {statusIcons[getStatus(summaryData.marketingBudget, summaryData.marketingSpend, false)]} {summaryData.marketingSpend <= summaryData.marketingBudget ? 'Under Budget' : 'Over Budget'}
                   </Badge>
                 </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Fixed Costs</TableCell>
-                <TableCell className="text-right text-destructive">-${pnlTotals.fixedOverhead.toLocaleString()}</TableCell>
+                <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
+                <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-muted-foreground">—</TableCell>
                 <TableCell className="text-center text-muted-foreground">—</TableCell>
               </TableRow>
               <TableRow className="bg-muted/50 border-t-2">
-                <TableCell className="font-bold">Net Profit</TableCell>
-                <TableCell className={`text-right font-bold ${pnlTotals.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${pnlTotals.netProfit.toLocaleString()}
+                <TableCell className="font-bold">Net Profit ({summaryData.periodLabel})</TableCell>
+                <TableCell className={`text-right font-bold ${summaryData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${summaryData.netProfit.toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${(settings.annual_revenue_goal * 0.2).toLocaleString()} (20% goal)
+                  ${(summaryData.revenueGoal * 0.2).toLocaleString()} (20% goal)
                 </TableCell>
                 <TableCell className="text-center">
-                  <Badge className={statusColors[pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? 'ahead' : pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 10 ? 'at-risk' : 'behind']}>
-                    {pnlTotals.revenue > 0 && (pnlTotals.netProfit / pnlTotals.revenue) * 100 >= 20 ? '✅' : '⚠️'} {pnlTotals.revenue > 0 ? ((pnlTotals.netProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
+                  <Badge className={statusColors[summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= 20 ? 'ahead' : summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= 10 ? 'at-risk' : 'behind']}>
+                    {summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= 20 ? '✅' : '⚠️'} {summaryData.revenue > 0 ? ((summaryData.netProfit / summaryData.revenue) * 100).toFixed(1) : 0}% margin
                   </Badge>
                 </TableCell>
               </TableRow>
