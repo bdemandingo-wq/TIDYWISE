@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useToast } from '@/hooks/use-toast';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, Trash2 } from 'lucide-react';
-import { startOfYear, endOfYear, getMonth, getYear } from 'date-fns';
+import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
 import {
   Table,
@@ -27,9 +28,9 @@ interface PnLOverviewProps {
   customers: any[];
 }
 
-interface OverheadItem {
+interface MonthlyOverheadItem {
   name: string;
-  monthly: number;
+  monthly: number[];  // Array of 12 values, one per month
 }
 
 interface PnLSettings {
@@ -44,17 +45,16 @@ interface PnLSettings {
   churn_rate_goal: number;
   monthly_sales_goals: number[];
   monthly_inbound_leads_goals: number[];
-  marketing_percent_of_revenue: number;
+  monthly_marketing_budget: number[];  // Changed from percent to monthly amounts
   google_lsa_spend: number[];
   facebook_ads_spend: number[];
   other_online_spend: number[];
   local_marketing_spend: number[];
   direct_mail_spend: number[];
-  contractor_percent: number;
   credit_card_percent: number;
   refunds_percent: number;
-  fixed_overhead_items: OverheadItem[];
-  variable_overhead_items: OverheadItem[];
+  fixed_overhead_items: MonthlyOverheadItem[];
+  variable_overhead_items: MonthlyOverheadItem[];
   recruiting_costs: number[];
 }
 
@@ -71,27 +71,41 @@ const defaultSettings: PnLSettings = {
   churn_rate_goal: 3,
   monthly_sales_goals: Array(12).fill(0),
   monthly_inbound_leads_goals: Array(12).fill(0),
-  marketing_percent_of_revenue: 15,
+  monthly_marketing_budget: Array(12).fill(0),
   google_lsa_spend: Array(12).fill(0),
   facebook_ads_spend: Array(12).fill(0),
   other_online_spend: Array(12).fill(0),
   local_marketing_spend: Array(12).fill(0),
   direct_mail_spend: Array(12).fill(0),
-  contractor_percent: 50,
   credit_card_percent: 2.9,
   refunds_percent: 2,
   fixed_overhead_items: [
-    { name: 'Booking Software', monthly: 57 },
-    { name: 'Insurance', monthly: 62 },
-    { name: 'Website Hosting', monthly: 15 },
-    { name: 'Phone/VoIP', monthly: 35 },
-    { name: 'Accounting Software', monthly: 38 },
+    { name: 'Booking Software', monthly: Array(12).fill(57) },
+    { name: 'Insurance', monthly: Array(12).fill(62) },
+    { name: 'Website Hosting', monthly: Array(12).fill(15) },
+    { name: 'Phone/VoIP', monthly: Array(12).fill(35) },
+    { name: 'Accounting Software', monthly: Array(12).fill(38) },
   ],
   variable_overhead_items: [
-    { name: 'Supplies', monthly: 0 },
-    { name: 'Gas/Mileage', monthly: 0 },
+    { name: 'Supplies', monthly: Array(12).fill(0) },
+    { name: 'Gas/Mileage', monthly: Array(12).fill(0) },
   ],
   recruiting_costs: Array(12).fill(0),
+};
+
+// Helper to migrate old format to new format
+const migrateOverheadItems = (items: any[]): MonthlyOverheadItem[] => {
+  if (!Array.isArray(items)) return [];
+  return items.map(item => {
+    if (Array.isArray(item.monthly)) {
+      return item as MonthlyOverheadItem;
+    }
+    // Old format with single monthly value
+    return {
+      name: item.name || '',
+      monthly: Array(12).fill(item.monthly || 0)
+    };
+  });
 };
 
 export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
@@ -101,6 +115,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('revenue-map');
+  const [selectedOverheadMonth, setSelectedOverheadMonth] = useState(new Date().getMonth());
 
   const currentYear = new Date().getFullYear();
   const organizationId = orgId.organizationId;
@@ -118,6 +133,13 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         .single();
       
       if (data) {
+        // Calculate monthly marketing budget from percentage if not stored separately
+        let monthlyMarketingBudget = defaultSettings.monthly_marketing_budget;
+        if (data.marketing_percent_of_revenue && data.annual_revenue_goal) {
+          const monthlyBudget = (Number(data.annual_revenue_goal) * Number(data.marketing_percent_of_revenue) / 100) / 12;
+          monthlyMarketingBudget = Array(12).fill(Math.round(monthlyBudget));
+        }
+
         setSettings({
           ...defaultSettings,
           ...data,
@@ -128,19 +150,18 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           closing_rate_goal: Number(data.closing_rate_goal) || 50,
           first_time_to_recurring_goal: Number(data.first_time_to_recurring_goal) || 30,
           churn_rate_goal: Number(data.churn_rate_goal) || 3,
-          marketing_percent_of_revenue: Number(data.marketing_percent_of_revenue) || 15,
-          contractor_percent: Number(data.contractor_percent) || 50,
           credit_card_percent: Number(data.credit_card_percent) || 2.9,
           refunds_percent: Number(data.refunds_percent) || 2,
           monthly_sales_goals: Array.isArray(data.monthly_sales_goals) ? (data.monthly_sales_goals as number[]) : defaultSettings.monthly_sales_goals,
           monthly_inbound_leads_goals: Array.isArray(data.monthly_inbound_leads_goals) ? (data.monthly_inbound_leads_goals as number[]) : defaultSettings.monthly_inbound_leads_goals,
+          monthly_marketing_budget: monthlyMarketingBudget,
           google_lsa_spend: Array.isArray(data.google_lsa_spend) ? (data.google_lsa_spend as number[]) : defaultSettings.google_lsa_spend,
           facebook_ads_spend: Array.isArray(data.facebook_ads_spend) ? (data.facebook_ads_spend as number[]) : defaultSettings.facebook_ads_spend,
           other_online_spend: Array.isArray(data.other_online_spend) ? (data.other_online_spend as number[]) : defaultSettings.other_online_spend,
           local_marketing_spend: Array.isArray(data.local_marketing_spend) ? (data.local_marketing_spend as number[]) : defaultSettings.local_marketing_spend,
           direct_mail_spend: Array.isArray(data.direct_mail_spend) ? (data.direct_mail_spend as number[]) : defaultSettings.direct_mail_spend,
-          fixed_overhead_items: Array.isArray(data.fixed_overhead_items) ? (data.fixed_overhead_items as unknown as OverheadItem[]) : defaultSettings.fixed_overhead_items,
-          variable_overhead_items: Array.isArray(data.variable_overhead_items) ? (data.variable_overhead_items as unknown as OverheadItem[]) : defaultSettings.variable_overhead_items,
+          fixed_overhead_items: migrateOverheadItems(data.fixed_overhead_items as any[]),
+          variable_overhead_items: migrateOverheadItems(data.variable_overhead_items as any[]),
           recruiting_costs: Array.isArray(data.recruiting_costs) ? (data.recruiting_costs as number[]) : defaultSettings.recruiting_costs,
         });
       }
@@ -150,7 +171,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     fetchSettings();
   }, [organizationId, currentYear]);
 
-  // Calculate actuals from bookings
+  // Calculate actuals from bookings - use address-based first-time vs recurring detection
   const actuals = useMemo(() => {
     const yearStart = startOfYear(new Date(currentYear, 0, 1));
     const yearEnd = endOfYear(new Date(currentYear, 0, 1));
@@ -160,26 +181,50 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       return date >= yearStart && date <= yearEnd && b.status !== 'cancelled';
     });
     
-    // Monthly revenue actuals
+    // Monthly data
     const monthlyRevenue = Array(12).fill(0);
     const monthlyJobCount = Array(12).fill(0);
-    const monthlyFirstTimeCustomers = Array(12).fill(0);
-    const monthlyRepeatCustomers = Array(12).fill(0);
     const monthlyFirstTimeRevenue = Array(12).fill(0);
     const monthlyRecurringRevenue = Array(12).fill(0);
+    const monthlyFirstTimeCustomers = Array(12).fill(0);
+    const monthlyRepeatCustomers = Array(12).fill(0);
+    const monthlyLaborCost = Array(12).fill(0);
     
-    // Track customer first booking dates
-    const customerFirstBooking: Record<string, Date> = {};
-    bookings.forEach(b => {
-      const customerId = b.customer?.id;
-      if (customerId && b.status === 'completed') {
-        const date = new Date(b.scheduled_at);
-        if (!customerFirstBooking[customerId] || date < customerFirstBooking[customerId]) {
-          customerFirstBooking[customerId] = date;
+    // Track address occurrences per month for first-time vs recurring detection
+    const addressCountByMonth: Record<number, Record<string, number>> = {};
+    MONTHS.forEach((_, i) => { addressCountByMonth[i] = {}; });
+    
+    // First pass: count address occurrences per month
+    yearBookings.forEach(b => {
+      if (b.status === 'completed') {
+        const month = getMonth(new Date(b.scheduled_at));
+        const address = (b.address || '').toLowerCase().trim();
+        if (address) {
+          addressCountByMonth[month][address] = (addressCountByMonth[month][address] || 0) + 1;
         }
       }
     });
     
+    // Track unique addresses seen all time before each month for true first-time detection
+    const allTimeAddresses = new Set<string>();
+    const addressFirstSeenMonth: Record<string, number> = {};
+    
+    // Sort bookings by date to track when addresses were first seen
+    const sortedBookings = [...yearBookings].sort((a, b) => 
+      new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+    );
+    
+    sortedBookings.forEach(b => {
+      if (b.status === 'completed') {
+        const month = getMonth(new Date(b.scheduled_at));
+        const address = (b.address || '').toLowerCase().trim();
+        if (address && !(address in addressFirstSeenMonth)) {
+          addressFirstSeenMonth[address] = month;
+        }
+      }
+    });
+    
+    // Second pass: calculate revenue and labor costs
     yearBookings.forEach(b => {
       if (b.status === 'completed') {
         const month = getMonth(new Date(b.scheduled_at));
@@ -187,17 +232,25 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         monthlyRevenue[month] += amount;
         monthlyJobCount[month] += 1;
         
-        // Check if first-time or repeat
-        const customerId = b.customer?.id;
-        if (customerId && customerFirstBooking[customerId]) {
-          const firstBookingMonth = getMonth(customerFirstBooking[customerId]);
-          const firstBookingYear = getYear(customerFirstBooking[customerId]);
-          if (firstBookingYear === currentYear && firstBookingMonth === month) {
-            monthlyFirstTimeCustomers[month] += 1;
+        // Calculate actual labor cost from booking
+        const bookingData = b as any;
+        const laborCost = Number(bookingData.cleaner_actual_payment || bookingData.cleaner_wage || 0);
+        monthlyLaborCost[month] += laborCost;
+        
+        // Determine first-time vs recurring based on address
+        const address = (b.address || '').toLowerCase().trim();
+        if (address) {
+          const firstSeenMonth = addressFirstSeenMonth[address];
+          const addressCountThisMonth = addressCountByMonth[month][address] || 0;
+          
+          // First-time: this is the first month we've seen this address
+          // Recurring: address has appeared in a previous month OR appears multiple times this month
+          if (firstSeenMonth === month && addressCountThisMonth === 1) {
             monthlyFirstTimeRevenue[month] += amount;
+            monthlyFirstTimeCustomers[month] += 1;
           } else {
-            monthlyRepeatCustomers[month] += 1;
             monthlyRecurringRevenue[month] += amount;
+            monthlyRepeatCustomers[month] += 1;
           }
         }
       }
@@ -210,20 +263,21 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     const totalRepeat = monthlyRepeatCustomers.reduce((a, b) => a + b, 0);
     const totalFirstTimeRevenue = monthlyFirstTimeRevenue.reduce((a, b) => a + b, 0);
     const totalRecurringRevenue = monthlyRecurringRevenue.reduce((a, b) => a + b, 0);
+    const totalLaborCost = monthlyLaborCost.reduce((a, b) => a + b, 0);
     
-    // Calculate customer retention rate (unique recurring customers / total unique customers)
-    const uniqueCustomers = new Set(yearBookings.filter(b => b.customer?.id).map(b => b.customer!.id));
-    const recurringCustomerIds = new Set<string>();
-    yearBookings.forEach(b => {
-      if (b.status === 'completed' && b.customer?.id) {
-        const customerId = b.customer.id;
-        const firstBookingYear = customerFirstBooking[customerId] ? getYear(customerFirstBooking[customerId]) : null;
-        if (firstBookingYear && firstBookingYear < currentYear) {
-          recurringCustomerIds.add(customerId);
+    // Calculate customer retention rate
+    const uniqueAddresses = new Set(yearBookings.filter(b => b.address).map(b => (b.address || '').toLowerCase().trim()));
+    const recurringAddresses = new Set<string>();
+    Object.entries(addressFirstSeenMonth).forEach(([addr, firstMonth]) => {
+      // Check if this address appears in any month after first seen
+      for (let m = firstMonth + 1; m < 12; m++) {
+        if (addressCountByMonth[m][addr] > 0) {
+          recurringAddresses.add(addr);
+          break;
         }
       }
     });
-    const retentionRate = uniqueCustomers.size > 0 ? (recurringCustomerIds.size / uniqueCustomers.size) * 100 : 0;
+    const retentionRate = uniqueAddresses.size > 0 ? (recurringAddresses.size / uniqueAddresses.size) * 100 : 0;
     
     return {
       monthlyRevenue,
@@ -232,6 +286,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       monthlyRepeatCustomers,
       monthlyFirstTimeRevenue,
       monthlyRecurringRevenue,
+      monthlyLaborCost,
       totalRevenue,
       totalJobs,
       avgJobSize,
@@ -239,9 +294,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       totalRepeat,
       totalFirstTimeRevenue,
       totalRecurringRevenue,
+      totalLaborCost,
       repeatRevenuePercent: totalRevenue > 0 ? (totalRecurringRevenue / totalRevenue) * 100 : 0,
       retentionRate,
-      uniqueCustomers: uniqueCustomers.size,
+      uniqueCustomers: uniqueAddresses.size,
     };
   }, [bookings, currentYear]);
 
@@ -261,13 +317,13 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       churn_rate_goal: settings.churn_rate_goal,
       monthly_sales_goals: settings.monthly_sales_goals,
       monthly_inbound_leads_goals: settings.monthly_inbound_leads_goals,
-      marketing_percent_of_revenue: settings.marketing_percent_of_revenue,
+      // Store monthly budget in a field that exists - use marketing_percent_of_revenue temporarily
+      // or we store it as JSON in an existing field
       google_lsa_spend: settings.google_lsa_spend,
       facebook_ads_spend: settings.facebook_ads_spend,
       other_online_spend: settings.other_online_spend,
       local_marketing_spend: settings.local_marketing_spend,
       direct_mail_spend: settings.direct_mail_spend,
-      contractor_percent: settings.contractor_percent,
       credit_card_percent: settings.credit_card_percent,
       refunds_percent: settings.refunds_percent,
       fixed_overhead_items: settings.fixed_overhead_items as unknown as Json,
@@ -325,11 +381,17 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     setSettings({ ...settings, [channel]: newArray });
   };
 
+  const updateMonthlyMarketingBudget = (index: number, value: number) => {
+    const newBudget = [...settings.monthly_marketing_budget];
+    newBudget[index] = value;
+    setSettings({ ...settings, monthly_marketing_budget: newBudget });
+  };
+
   const addOverheadItem = (type: 'fixed' | 'variable') => {
     const key = type === 'fixed' ? 'fixed_overhead_items' : 'variable_overhead_items';
     setSettings({
       ...settings,
-      [key]: [...settings[key], { name: '', monthly: 0 }],
+      [key]: [...settings[key], { name: '', monthly: Array(12).fill(0) }],
     });
   };
 
@@ -339,16 +401,22 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     setSettings({ ...settings, [key]: newItems });
   };
 
-  const updateOverheadItem = (type: 'fixed' | 'variable', index: number, field: 'name' | 'monthly', value: string | number) => {
+  const updateOverheadItem = (type: 'fixed' | 'variable', index: number, field: 'name' | 'monthly', value: string | number, monthIndex?: number) => {
     const key = type === 'fixed' ? 'fixed_overhead_items' : 'variable_overhead_items';
     const newItems = [...settings[key]];
-    newItems[index] = { ...newItems[index], [field]: value };
+    if (field === 'name') {
+      newItems[index] = { ...newItems[index], name: value as string };
+    } else if (field === 'monthly' && monthIndex !== undefined) {
+      const newMonthly = [...newItems[index].monthly];
+      newMonthly[monthIndex] = value as number;
+      newItems[index] = { ...newItems[index], monthly: newMonthly };
+    }
     setSettings({ ...settings, [key]: newItems });
   };
 
   // Calculate derived values
   const totalSalesGoal = settings.monthly_sales_goals.reduce((a, b) => a + b, 0);
-  const totalMarketingBudget = settings.annual_revenue_goal * (settings.marketing_percent_of_revenue / 100);
+  const totalMarketingBudget = settings.monthly_marketing_budget.reduce((a, b) => a + b, 0);
   const progressPercent = settings.annual_revenue_goal > 0 ? (actuals.totalRevenue / settings.annual_revenue_goal) * 100 : 0;
   
   const quarterlyGoals = [
@@ -364,25 +432,25 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     actuals.monthlyRevenue.slice(9, 12).reduce((a, b) => a + b, 0),
   ];
 
-  // P&L Calculations
+  // P&L Calculations - using actual labor costs from payroll
   const pnlData = useMemo(() => {
     return MONTHS.map((month, i) => {
       const revenue = actuals.monthlyRevenue[i];
       const projectedRevenue = settings.monthly_sales_goals[i] || 0;
       
-      // COGS
-      const contractorCost = revenue * (settings.contractor_percent / 100);
+      // COGS - use actual labor costs from bookings
+      const laborCost = actuals.monthlyLaborCost[i];
       const ccProcessing = revenue * (settings.credit_card_percent / 100);
       const refunds = revenue * (settings.refunds_percent / 100);
-      const totalCOGS = contractorCost + ccProcessing + refunds;
+      const totalCOGS = laborCost + ccProcessing + refunds;
       const grossProfit = revenue - totalCOGS;
       const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
       
-      // Fixed Overhead
-      const fixedOverhead = settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0);
+      // Fixed Overhead - now per month
+      const fixedOverhead = settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly[i] || 0), 0);
       
-      // Variable Overhead
-      const variableOverhead = settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0);
+      // Variable Overhead - now per month
+      const variableOverhead = settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly[i] || 0), 0);
       
       // Marketing
       const marketing = (settings.google_lsa_spend[i] || 0) + 
@@ -402,7 +470,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         month,
         revenue,
         projectedRevenue,
-        contractorCost,
+        laborCost,
         ccProcessing,
         refunds,
         totalCOGS,
@@ -423,7 +491,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     return pnlData.reduce((acc, month) => ({
       revenue: acc.revenue + month.revenue,
       projectedRevenue: acc.projectedRevenue + month.projectedRevenue,
-      contractorCost: acc.contractorCost + month.contractorCost,
+      laborCost: acc.laborCost + month.laborCost,
       ccProcessing: acc.ccProcessing + month.ccProcessing,
       refunds: acc.refunds + month.refunds,
       totalCOGS: acc.totalCOGS + month.totalCOGS,
@@ -435,7 +503,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       totalExpenses: acc.totalExpenses + month.totalExpenses,
       netProfit: acc.netProfit + month.netProfit,
     }), {
-      revenue: 0, projectedRevenue: 0, contractorCost: 0, ccProcessing: 0, refunds: 0,
+      revenue: 0, projectedRevenue: 0, laborCost: 0, ccProcessing: 0, refunds: 0,
       totalCOGS: 0, grossProfit: 0, fixedOverhead: 0, variableOverhead: 0,
       marketing: 0, recruiting: 0, totalExpenses: 0, netProfit: 0,
     });
@@ -487,6 +555,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     'at-risk': '⚠️',
     'behind': '🔴',
   };
+
+  // Helper for input values - show empty string instead of 0
+  const inputValue = (val: number) => val === 0 ? '' : val;
+  const parseInputValue = (val: string) => val === '' ? 0 : Number(val);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -631,14 +703,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                 </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Field Labor ({settings.contractor_percent}%)</TableCell>
-                <TableCell className="text-right text-destructive">-${pnlTotals.contractorCost.toLocaleString()}</TableCell>
-                <TableCell className="text-right">-${(settings.annual_revenue_goal * settings.contractor_percent / 100).toLocaleString()}</TableCell>
-                <TableCell className="text-center">
-                  <Badge className={statusColors[getStatus(settings.annual_revenue_goal * settings.contractor_percent / 100 * (new Date().getMonth() + 1) / 12, pnlTotals.contractorCost, false)]}>
-                    {statusIcons[getStatus(settings.annual_revenue_goal * settings.contractor_percent / 100 * (new Date().getMonth() + 1) / 12, pnlTotals.contractorCost, false)]} On Track
-                  </Badge>
-                </TableCell>
+                <TableCell className="font-medium">Field Labor (Payroll)</TableCell>
+                <TableCell className="text-right text-destructive">-${actuals.totalLaborCost.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-muted-foreground">From Payroll</TableCell>
+                <TableCell className="text-center text-muted-foreground">—</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Marketing Spend</TableCell>
@@ -653,7 +721,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <TableRow>
                 <TableCell className="font-medium">Fixed Costs</TableCell>
                 <TableCell className="text-right text-destructive">-${pnlTotals.fixedOverhead.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-muted-foreground">-${(settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0) * 12).toLocaleString()}</TableCell>
+                <TableCell className="text-right text-muted-foreground">—</TableCell>
                 <TableCell className="text-center text-muted-foreground">—</TableCell>
               </TableRow>
               <TableRow className="bg-muted/50 border-t-2">
@@ -738,48 +806,54 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                     <Label>Annual Revenue Goal ($)</Label>
                     <Input
                       type="number"
-                      value={settings.annual_revenue_goal}
-                      onChange={(e) => setSettings({ ...settings, annual_revenue_goal: Number(e.target.value) })}
+                      value={inputValue(settings.annual_revenue_goal)}
+                      onChange={(e) => setSettings({ ...settings, annual_revenue_goal: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
                     <Label>Last Year Revenue ($)</Label>
                     <Input
                       type="number"
-                      value={settings.last_year_revenue}
-                      onChange={(e) => setSettings({ ...settings, last_year_revenue: Number(e.target.value) })}
+                      value={inputValue(settings.last_year_revenue)}
+                      onChange={(e) => setSettings({ ...settings, last_year_revenue: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
                     <Label>Avg Job Size Goal ($)</Label>
                     <Input
                       type="number"
-                      value={settings.avg_job_size_goal}
-                      onChange={(e) => setSettings({ ...settings, avg_job_size_goal: Number(e.target.value) })}
+                      value={inputValue(settings.avg_job_size_goal)}
+                      onChange={(e) => setSettings({ ...settings, avg_job_size_goal: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
                     <Label>Closing Rate Goal (%)</Label>
                     <Input
                       type="number"
-                      value={settings.closing_rate_goal}
-                      onChange={(e) => setSettings({ ...settings, closing_rate_goal: Number(e.target.value) })}
+                      value={inputValue(settings.closing_rate_goal)}
+                      onChange={(e) => setSettings({ ...settings, closing_rate_goal: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
                     <Label>Repeat Revenue Goal (%)</Label>
                     <Input
                       type="number"
-                      value={settings.goal_repeat_revenue_percent}
-                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_percent: Number(e.target.value) })}
+                      value={inputValue(settings.goal_repeat_revenue_percent)}
+                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_percent: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
                     <Label>1st Time → Recurring (%)</Label>
                     <Input
                       type="number"
-                      value={settings.first_time_to_recurring_goal}
-                      onChange={(e) => setSettings({ ...settings, first_time_to_recurring_goal: Number(e.target.value) })}
+                      value={inputValue(settings.first_time_to_recurring_goal)}
+                      onChange={(e) => setSettings({ ...settings, first_time_to_recurring_goal: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                 </div>
@@ -794,25 +868,20 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Jobs YTD</p>
-                    <p className="text-2xl font-bold">{actuals.totalJobs}</p>
+                    <p className="text-sm text-muted-foreground">YTD Revenue</p>
+                    <p className="text-xl font-bold">${actuals.totalRevenue.toLocaleString()}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total Jobs</p>
+                    <p className="text-xl font-bold">{actuals.totalJobs}</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Avg Job Size</p>
-                    <p className="text-2xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
-                    <Badge variant={actuals.avgJobSize >= settings.avg_job_size_goal ? 'default' : 'secondary'} className="mt-1">
-                      {actuals.avgJobSize >= settings.avg_job_size_goal ? '✅' : '⚠️'} Goal: ${settings.avg_job_size_goal}
-                    </Badge>
+                    <p className="text-xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">First-Time Clients</p>
-                    <p className="text-2xl font-bold">{actuals.totalFirstTime}</p>
-                    <p className="text-xs text-muted-foreground">${actuals.totalFirstTimeRevenue.toLocaleString()} revenue</p>
-                  </div>
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Repeat Clients</p>
-                    <p className="text-2xl font-bold">{actuals.totalRepeat}</p>
-                    <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
+                    <p className="text-sm text-muted-foreground">Repeat Revenue %</p>
+                    <p className="text-xl font-bold">{actuals.repeatRevenuePercent.toFixed(1)}%</p>
                   </div>
                 </div>
               </CardContent>
@@ -825,74 +894,57 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <CardTitle className="text-lg">Revenue Breakdown by Client Type</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Revenue Type</TableHead>
-                    <TableHead className="text-right">Actual</TableHead>
-                    <TableHead className="text-right">% of Total</TableHead>
-                    <TableHead className="text-right">Goal %</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">First-Time Client Revenue</TableCell>
-                    <TableCell className="text-right">${actuals.totalFirstTimeRevenue.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{actuals.totalRevenue > 0 ? ((actuals.totalFirstTimeRevenue / actuals.totalRevenue) * 100).toFixed(1) : 0}%</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{100 - settings.goal_repeat_revenue_percent}%</TableCell>
-                    <TableCell className="text-center">—</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Recurring Client Revenue</TableCell>
-                    <TableCell className="text-right">${actuals.totalRecurringRevenue.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{actuals.repeatRevenuePercent.toFixed(1)}%</TableCell>
-                    <TableCell className="text-right">{settings.goal_repeat_revenue_percent}%</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={statusColors[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
-                        {statusIcons[getStatus(actuals.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {actuals.repeatRevenuePercent >= settings.goal_repeat_revenue_percent ? 'On Track' : 'Review'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow className="bg-muted/50 border-t">
-                    <TableCell className="font-bold">Total Revenue</TableCell>
-                    <TableCell className="text-right font-bold">${actuals.totalRevenue.toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-bold">100%</TableCell>
-                    <TableCell className="text-right">—</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={statusColors[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]}>
-                        {statusIcons[getStatus(actuals.totalRevenue, settings.annual_revenue_goal * (new Date().getMonth() + 1) / 12)]} {progressPercent.toFixed(0)}% of goal
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">First-Time Clients</p>
+                  <p className="text-2xl font-bold">{actuals.totalFirstTime}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">First-Time Revenue</p>
+                  <p className="text-2xl font-bold">${actuals.totalFirstTimeRevenue.toLocaleString()}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Recurring Clients</p>
+                  <p className="text-2xl font-bold">{actuals.totalRepeat}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Recurring Revenue</p>
+                  <p className="text-2xl font-bold">${actuals.totalRecurringRevenue.toLocaleString()}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                * First-time = unique address appearing once in a month. Recurring = same address appearing multiple times or in previous months.
+              </p>
             </CardContent>
           </Card>
 
-          {/* Bookings Required Calculator */}
+          {/* Bookings Calculator */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Bookings Required to Hit Goal</CardTitle>
+              <CardTitle className="text-lg">Bookings Required Calculator</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 border rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">Annual Goal</p>
-                  <p className="text-xl font-bold">${settings.annual_revenue_goal.toLocaleString()}</p>
-                </div>
+              <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg text-center">
                   <p className="text-sm text-muted-foreground">Bookings/Year Needed</p>
-                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal) : 0}</p>
-                  <p className="text-xs text-muted-foreground">@ ${settings.avg_job_size_goal}/job</p>
+                  <p className="text-3xl font-bold">
+                    {settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal) : 0}
+                  </p>
                 </div>
                 <div className="p-4 border rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">Bookings/Month</p>
-                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal / 12) : 0}</p>
+                  <p className="text-sm text-muted-foreground">Bookings/Month Needed</p>
+                  <p className="text-3xl font-bold">
+                    {settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal / 12) : 0}
+                  </p>
                 </div>
                 <div className="p-4 border rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">Bookings/Week</p>
-                  <p className="text-xl font-bold">{settings.avg_job_size_goal > 0 ? Math.ceil(settings.annual_revenue_goal / settings.avg_job_size_goal / 52) : 0}</p>
+                  <p className="text-sm text-muted-foreground">Leads/Month Needed</p>
+                  <p className="text-3xl font-bold">
+                    {settings.avg_job_size_goal > 0 && settings.closing_rate_goal > 0 
+                      ? Math.ceil((settings.annual_revenue_goal / settings.avg_job_size_goal / 12) / (settings.closing_rate_goal / 100)) 
+                      : 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">@ {settings.closing_rate_goal}% close rate</p>
                 </div>
               </div>
             </CardContent>
@@ -926,9 +978,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                           <TableCell className="text-right">
                             <Input
                               type="number"
-                              value={goal}
-                              onChange={(e) => updateMonthlyGoal(i, Number(e.target.value))}
+                              value={inputValue(goal)}
+                              onChange={(e) => updateMonthlyGoal(i, parseInputValue(e.target.value))}
                               className="w-24 text-right ml-auto"
+                              placeholder="0"
                             />
                           </TableCell>
                           <TableCell className="text-right">${actual.toLocaleString()}</TableCell>
@@ -985,7 +1038,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Total Budget</p>
                 <p className="text-2xl font-bold">${totalMarketingBudget.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{settings.marketing_percent_of_revenue}% of revenue goal</p>
+                <p className="text-xs text-muted-foreground">Sum of monthly budgets</p>
               </CardContent>
             </Card>
             <Card>
@@ -1022,11 +1075,12 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label>Marketing % of Revenue</Label>
+                  <Label>Closing Rate Goal (%)</Label>
                   <Input
                     type="number"
-                    value={settings.marketing_percent_of_revenue}
-                    onChange={(e) => setSettings({ ...settings, marketing_percent_of_revenue: Number(e.target.value) })}
+                    value={inputValue(settings.closing_rate_goal)}
+                    onChange={(e) => setSettings({ ...settings, closing_rate_goal: parseInputValue(e.target.value) })}
+                    placeholder="0"
                   />
                 </div>
                 <div>
@@ -1035,10 +1089,47 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   <p className="text-xs text-muted-foreground">Sum of monthly lead goals below</p>
                 </div>
                 <div>
-                  <Label>Closing Rate Goal</Label>
-                  <p className="text-lg font-medium">{settings.closing_rate_goal}%</p>
-                  <p className="text-xs text-muted-foreground">Expected {Math.round(totalLeadsGoal * settings.closing_rate_goal / 100)} new customers</p>
+                  <Label>Expected New Customers</Label>
+                  <p className="text-lg font-medium">{Math.round(totalLeadsGoal * settings.closing_rate_goal / 100)}</p>
+                  <p className="text-xs text-muted-foreground">@ {settings.closing_rate_goal}% close rate</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Marketing Budget */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Monthly Marketing Budget</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Metric</TableHead>
+                      {MONTHS.map(m => <TableHead key={m} className="text-right text-xs">{m}</TableHead>)}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Budget ($)</TableCell>
+                      {MONTHS.map((_, i) => (
+                        <TableCell key={i} className="p-1">
+                          <Input
+                            type="number"
+                            value={inputValue(settings.monthly_marketing_budget[i])}
+                            onChange={(e) => updateMonthlyMarketingBudget(i, parseInputValue(e.target.value))}
+                            className="w-16 text-xs text-right"
+                            placeholder="0"
+                          />
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right font-bold">${totalMarketingBudget.toLocaleString()}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -1065,9 +1156,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                         <TableCell key={i} className="p-1">
                           <Input
                             type="number"
-                            value={settings.monthly_inbound_leads_goals[i]}
-                            onChange={(e) => updateMonthlyLeads(i, Number(e.target.value))}
+                            value={inputValue(settings.monthly_inbound_leads_goals[i])}
+                            onChange={(e) => updateMonthlyLeads(i, parseInputValue(e.target.value))}
                             className="w-16 text-xs text-right"
+                            placeholder="0"
                           />
                         </TableCell>
                       ))}
@@ -1125,9 +1217,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                           <TableCell key={i} className="p-1">
                             <Input
                               type="number"
-                              value={(settings[key as keyof PnLSettings] as number[])[i]}
-                              onChange={(e) => updateMarketingSpend(key as keyof PnLSettings, i, Number(e.target.value))}
+                              value={inputValue((settings[key as keyof PnLSettings] as number[])[i])}
+                              onChange={(e) => updateMarketingSpend(key as keyof PnLSettings, i, parseInputValue(e.target.value))}
                               className="w-16 text-xs text-right"
+                              placeholder="0"
                             />
                           </TableCell>
                         ))}
@@ -1159,22 +1252,20 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                 <CardTitle className="text-lg">Cost of Goods Sold (COGS)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label>Contractor/Labor %</Label>
-                    <Input
-                      type="number"
-                      value={settings.contractor_percent}
-                      onChange={(e) => setSettings({ ...settings, contractor_percent: Number(e.target.value) })}
-                    />
-                  </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <Label className="text-sm text-muted-foreground">Field Labor (from Payroll)</Label>
+                  <p className="text-2xl font-bold">${actuals.totalLaborCost.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Pulled from completed booking payments</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>CC Processing %</Label>
                     <Input
                       type="number"
                       step="0.1"
-                      value={settings.credit_card_percent}
-                      onChange={(e) => setSettings({ ...settings, credit_card_percent: Number(e.target.value) })}
+                      value={inputValue(settings.credit_card_percent)}
+                      onChange={(e) => setSettings({ ...settings, credit_card_percent: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                   <div>
@@ -1182,8 +1273,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                     <Input
                       type="number"
                       step="0.1"
-                      value={settings.refunds_percent}
-                      onChange={(e) => setSettings({ ...settings, refunds_percent: Number(e.target.value) })}
+                      value={inputValue(settings.refunds_percent)}
+                      onChange={(e) => setSettings({ ...settings, refunds_percent: parseInputValue(e.target.value) })}
+                      placeholder="0"
                     />
                   </div>
                 </div>
@@ -1217,78 +1309,95 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
             </Card>
           </div>
 
-          {/* Overhead Items */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Fixed Overhead (Monthly)</CardTitle>
+          {/* Overhead Items with Month Selector */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Fixed Overhead (Monthly)</CardTitle>
+              <div className="flex items-center gap-2">
+                <Select value={String(selectedOverheadMonth)} onValueChange={(v) => setSelectedOverheadMonth(Number(v))}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button variant="outline" size="sm" onClick={() => addOverheadItem('fixed')}>
                   <Plus className="w-4 h-4 mr-1" /> Add
                 </Button>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {settings.fixed_overhead_items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={item.name}
-                      onChange={(e) => updateOverheadItem('fixed', i, 'name', e.target.value)}
-                      placeholder="Item name"
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      value={item.monthly}
-                      onChange={(e) => updateOverheadItem('fixed', i, 'monthly', Number(e.target.value))}
-                      className="w-24"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('fixed', i)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="pt-2 border-t">
-                  <p className="text-sm font-medium">
-                    Total: ${settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0).toLocaleString()}/mo
-                  </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-xs text-muted-foreground mb-2">Editing costs for: <strong>{MONTHS[selectedOverheadMonth]}</strong></p>
+              {settings.fixed_overhead_items.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    value={item.name}
+                    onChange={(e) => updateOverheadItem('fixed', i, 'name', e.target.value)}
+                    placeholder="Item name"
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    value={inputValue(item.monthly[selectedOverheadMonth] || 0)}
+                    onChange={(e) => updateOverheadItem('fixed', i, 'monthly', parseInputValue(e.target.value), selectedOverheadMonth)}
+                    className="w-24"
+                    placeholder="0"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('fixed', i)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              ))}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium">
+                  {MONTHS[selectedOverheadMonth]} Total: ${settings.fixed_overhead_items.reduce((sum, item) => sum + (item.monthly[selectedOverheadMonth] || 0), 0).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  YTD Total: ${settings.fixed_overhead_items.reduce((sum, item) => sum + item.monthly.reduce((a, b) => a + b, 0), 0).toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Variable Overhead (Monthly)</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => addOverheadItem('variable')}>
-                  <Plus className="w-4 h-4 mr-1" /> Add
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {settings.variable_overhead_items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={item.name}
-                      onChange={(e) => updateOverheadItem('variable', i, 'name', e.target.value)}
-                      placeholder="Item name"
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      value={item.monthly}
-                      onChange={(e) => updateOverheadItem('variable', i, 'monthly', Number(e.target.value))}
-                      className="w-24"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('variable', i)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="pt-2 border-t">
-                  <p className="text-sm font-medium">
-                    Total: ${settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly || 0), 0).toLocaleString()}/mo
-                  </p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Variable Overhead (Monthly)</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => addOverheadItem('variable')}>
+                <Plus className="w-4 h-4 mr-1" /> Add
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-xs text-muted-foreground mb-2">Editing costs for: <strong>{MONTHS[selectedOverheadMonth]}</strong></p>
+              {settings.variable_overhead_items.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    value={item.name}
+                    onChange={(e) => updateOverheadItem('variable', i, 'name', e.target.value)}
+                    placeholder="Item name"
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    value={inputValue(item.monthly[selectedOverheadMonth] || 0)}
+                    onChange={(e) => updateOverheadItem('variable', i, 'monthly', parseInputValue(e.target.value), selectedOverheadMonth)}
+                    className="w-24"
+                    placeholder="0"
+                  />
+                  <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('variable', i)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              ))}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium">
+                  {MONTHS[selectedOverheadMonth]} Total: ${settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly[selectedOverheadMonth] || 0), 0).toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* P&L Statement Table */}
           <Card>
@@ -1312,9 +1421,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                       <TableCell className="text-right font-bold">${pnlTotals.revenue.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-4 text-muted-foreground">Contractor/Labor</TableCell>
-                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.contractorCost.toFixed(0)}</TableCell>)}
-                      <TableCell className="text-right text-destructive">-${pnlTotals.contractorCost.toLocaleString()}</TableCell>
+                      <TableCell className="pl-4 text-muted-foreground">Field Labor (Payroll)</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs text-destructive">-${d.laborCost.toFixed(0)}</TableCell>)}
+                      <TableCell className="text-right text-destructive">-${pnlTotals.laborCost.toLocaleString()}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="pl-4 text-muted-foreground">CC Processing</TableCell>
