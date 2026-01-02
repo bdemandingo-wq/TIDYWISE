@@ -40,6 +40,9 @@ interface PnLSettings {
   annual_revenue_goal: number;
   last_year_revenue: number;
   goal_repeat_revenue_percent: number;
+  goal_repeat_revenue_amount: number;  // Dollar amount goal for recurring revenue
+  goal_first_time_revenue_amount: number;  // Dollar amount goal for first-time revenue
+  fixed_cost_goal: number;  // Goal for max fixed costs
   avg_job_size_goal: number;
   closing_rate_goal: number;
   first_time_to_recurring_goal: number;
@@ -66,6 +69,9 @@ const defaultSettings: PnLSettings = {
   annual_revenue_goal: 0,
   last_year_revenue: 0,
   goal_repeat_revenue_percent: 50,
+  goal_repeat_revenue_amount: 0,
+  goal_first_time_revenue_amount: 0,
+  fixed_cost_goal: 0,
   avg_job_size_goal: 250,
   closing_rate_goal: 50,
   first_time_to_recurring_goal: 30,
@@ -150,6 +156,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           annual_revenue_goal: Number(data.annual_revenue_goal) || 0,
           last_year_revenue: Number(data.last_year_revenue) || 0,
           goal_repeat_revenue_percent: Number(data.goal_repeat_revenue_percent) || 50,
+          goal_repeat_revenue_amount: Number((data as any).goal_repeat_revenue_amount) || 0,
+          goal_first_time_revenue_amount: Number((data as any).goal_first_time_revenue_amount) || 0,
+          fixed_cost_goal: Number((data as any).fixed_cost_goal) || 0,
           avg_job_size_goal: Number(data.avg_job_size_goal) || 250,
           closing_rate_goal: Number(data.closing_rate_goal) || 50,
           first_time_to_recurring_goal: Number(data.first_time_to_recurring_goal) || 30,
@@ -582,6 +591,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         periodLabel: MONTHS[selectedSummaryMonth],
         revenueGoal: settings.monthly_sales_goals[selectedSummaryMonth] || 0,
         marketingBudget: settings.monthly_marketing_budget[selectedSummaryMonth] || 0,
+        firstTimeRevenueGoal: settings.goal_first_time_revenue_amount / 12,
+        recurringRevenueGoal: settings.goal_repeat_revenue_amount / 12,
+        fixedCostGoal: settings.fixed_cost_goal / 12,
       };
     }
     return {
@@ -598,6 +610,9 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       periodLabel: 'YTD',
       revenueGoal: settings.annual_revenue_goal,
       marketingBudget: totalMarketingBudget,
+      firstTimeRevenueGoal: settings.goal_first_time_revenue_amount,
+      recurringRevenueGoal: settings.goal_repeat_revenue_amount,
+      fixedCostGoal: settings.fixed_cost_goal,
     };
   }, [summaryPeriod, selectedSummaryMonth, pnlData, pnlTotals, actuals, settings, totalMarketingBudget]);
 
@@ -791,17 +806,25 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ First-Time Revenue</TableCell>
                 <TableCell className="text-right">${summaryData.firstTimeRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-muted-foreground">—</TableCell>
-                <TableCell className="text-center text-muted-foreground">—</TableCell>
+                <TableCell className="text-right">{summaryData.firstTimeRevenueGoal > 0 ? `$${summaryData.firstTimeRevenueGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-center">
+                  {summaryData.firstTimeRevenueGoal > 0 ? (
+                    <Badge className={statusColors[getStatus(summaryData.firstTimeRevenue, summaryData.firstTimeRevenueGoal)]}>
+                      {statusIcons[getStatus(summaryData.firstTimeRevenue, summaryData.firstTimeRevenueGoal)]} {getStatus(summaryData.firstTimeRevenue, summaryData.firstTimeRevenueGoal) === 'behind' ? 'Behind' : 'On Track'}
+                    </Badge>
+                  ) : <span className="text-muted-foreground">—</span>}
+                </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ Recurring Revenue</TableCell>
                 <TableCell className="text-right">${summaryData.recurringRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{settings.goal_repeat_revenue_percent}% of total</TableCell>
+                <TableCell className="text-right">{summaryData.recurringRevenueGoal > 0 ? `$${summaryData.recurringRevenueGoal.toLocaleString()}` : '—'}</TableCell>
                 <TableCell className="text-center">
-                  <Badge className={statusColors[getStatus(summaryData.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]}>
-                    {statusIcons[getStatus(summaryData.repeatRevenuePercent, settings.goal_repeat_revenue_percent)]} {summaryData.repeatRevenuePercent.toFixed(0)}%
-                  </Badge>
+                  {summaryData.recurringRevenueGoal > 0 ? (
+                    <Badge className={statusColors[getStatus(summaryData.recurringRevenue, summaryData.recurringRevenueGoal)]}>
+                      {statusIcons[getStatus(summaryData.recurringRevenue, summaryData.recurringRevenueGoal)]} {getStatus(summaryData.recurringRevenue, summaryData.recurringRevenueGoal) === 'behind' ? 'Behind' : 'On Track'}
+                    </Badge>
+                  ) : <span className="text-muted-foreground">—</span>}
                 </TableCell>
               </TableRow>
               <TableRow>
@@ -823,8 +846,14 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <TableRow>
                 <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
                 <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-muted-foreground">—</TableCell>
-                <TableCell className="text-center text-muted-foreground">—</TableCell>
+                <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Max -$${summaryData.fixedCostGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-center">
+                  {summaryData.fixedCostGoal > 0 ? (
+                    <Badge className={statusColors[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]}>
+                      {statusIcons[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]} {summaryData.fixedCosts <= summaryData.fixedCostGoal ? 'Under Goal' : 'Over Goal'}
+                    </Badge>
+                  ) : <span className="text-muted-foreground">—</span>}
+                </TableCell>
               </TableRow>
               <TableRow className="bg-muted/50 border-t-2">
                 <TableCell className="font-bold">Net Profit ({summaryData.periodLabel})</TableCell>
@@ -941,20 +970,29 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                     />
                   </div>
                   <div>
-                    <Label>Repeat Revenue Goal (%)</Label>
+                    <Label>First-Time Revenue Goal ($)</Label>
                     <Input
                       type="number"
-                      value={inputValue(settings.goal_repeat_revenue_percent)}
-                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_percent: parseInputValue(e.target.value) })}
+                      value={inputValue(settings.goal_first_time_revenue_amount)}
+                      onChange={(e) => setSettings({ ...settings, goal_first_time_revenue_amount: parseInputValue(e.target.value) })}
                       placeholder="0"
                     />
                   </div>
                   <div>
-                    <Label>1st Time → Recurring (%)</Label>
+                    <Label>Recurring Revenue Goal ($)</Label>
                     <Input
                       type="number"
-                      value={inputValue(settings.first_time_to_recurring_goal)}
-                      onChange={(e) => setSettings({ ...settings, first_time_to_recurring_goal: parseInputValue(e.target.value) })}
+                      value={inputValue(settings.goal_repeat_revenue_amount)}
+                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_amount: parseInputValue(e.target.value) })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label>Fixed Cost Goal (Max $)</Label>
+                    <Input
+                      type="number"
+                      value={inputValue(settings.fixed_cost_goal)}
+                      onChange={(e) => setSettings({ ...settings, fixed_cost_goal: parseInputValue(e.target.value) })}
                       placeholder="0"
                     />
                   </div>
