@@ -925,80 +925,62 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
         {/* Revenue Map Tab */}
         <TabsContent value="revenue-map" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Goals Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Revenue Goals</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Annual Revenue Goal ($)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.annual_revenue_goal)}
-                      onChange={(e) => setSettings({ ...settings, annual_revenue_goal: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Last Year Revenue ($)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.last_year_revenue)}
-                      onChange={(e) => setSettings({ ...settings, last_year_revenue: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Avg Job Size Goal ($)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.avg_job_size_goal)}
-                      onChange={(e) => setSettings({ ...settings, avg_job_size_goal: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Closing Rate Goal (%)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.closing_rate_goal)}
-                      onChange={(e) => setSettings({ ...settings, closing_rate_goal: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>First-Time Revenue Goal ($)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.goal_first_time_revenue_amount)}
-                      onChange={(e) => setSettings({ ...settings, goal_first_time_revenue_amount: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Recurring Revenue Goal ($)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.goal_repeat_revenue_amount)}
-                      onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_amount: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Fixed Cost Goal (Max $)</Label>
-                    <Input
-                      type="number"
-                      value={inputValue(settings.fixed_cost_goal)}
-                      onChange={(e) => setSettings({ ...settings, fixed_cost_goal: parseInputValue(e.target.value) })}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Sub-tabs for Annual vs Monthly */}
+          <Tabs defaultValue="annual" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-xs">
+              <TabsTrigger value="annual">Annual</TabsTrigger>
+              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+            </TabsList>
+
+            {/* Annual Goals Tab */}
+            <TabsContent value="annual" className="mt-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Goals Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Revenue Goals</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Annual Revenue Goal ($)</Label>
+                        <Input
+                          type="number"
+                          value={inputValue(settings.annual_revenue_goal)}
+                          onChange={(e) => setSettings({ ...settings, annual_revenue_goal: parseInputValue(e.target.value) })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Last Year Revenue ($)</Label>
+                        <Input
+                          type="number"
+                          value={inputValue(settings.last_year_revenue)}
+                          onChange={(e) => setSettings({ ...settings, last_year_revenue: parseInputValue(e.target.value) })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Avg Job Size Goal ($)</Label>
+                        <Input
+                          type="number"
+                          value={inputValue(settings.avg_job_size_goal)}
+                          onChange={(e) => setSettings({ ...settings, avg_job_size_goal: parseInputValue(e.target.value) })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Closing Rate Goal (%)</Label>
+                        <Input
+                          type="number"
+                          value={inputValue(settings.closing_rate_goal)}
+                          onChange={(e) => setSettings({ ...settings, closing_rate_goal: parseInputValue(e.target.value) })}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
             {/* KPIs */}
             <Card>
@@ -1026,7 +1008,49 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                 </div>
               </CardContent>
             </Card>
-          </div>
+              </div>
+            </TabsContent>
+
+            {/* Monthly Goals Tab */}
+            <TabsContent value="monthly" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Monthly Revenue & Cost Goals</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>First-Time Revenue Goal ($)</Label>
+                      <Input
+                        type="number"
+                        value={inputValue(settings.goal_first_time_revenue_amount)}
+                        onChange={(e) => setSettings({ ...settings, goal_first_time_revenue_amount: parseInputValue(e.target.value) })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label>Recurring Revenue Goal ($)</Label>
+                      <Input
+                        type="number"
+                        value={inputValue(settings.goal_repeat_revenue_amount)}
+                        onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_amount: parseInputValue(e.target.value) })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label>Fixed Cost Goal (Max $)</Label>
+                      <Input
+                        type="number"
+                        value={inputValue(settings.fixed_cost_goal)}
+                        onChange={(e) => setSettings({ ...settings, fixed_cost_goal: parseInputValue(e.target.value) })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Revenue Breakdown */}
           <Card>
