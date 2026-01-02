@@ -1618,12 +1618,18 @@ export type Database = {
           last_year_revenue: number | null
           local_marketing_spend: Json | null
           marketing_percent_of_revenue: number | null
+          monthly_first_time_goals: Json | null
+          monthly_fixed_cost_goals: Json | null
           monthly_inbound_leads_goals: Json | null
+          monthly_recurring_goals: Json | null
           monthly_sales_goals: Json | null
+          net_profit_goal_percent: number | null
           organization_id: string | null
           other_online_spend: Json | null
           recruiting_costs: Json | null
           refunds_percent: number | null
+          target_cpa: number | null
+          target_cpl: number | null
           updated_at: string
           variable_overhead_items: Json | null
           year: number
@@ -1649,12 +1655,18 @@ export type Database = {
           last_year_revenue?: number | null
           local_marketing_spend?: Json | null
           marketing_percent_of_revenue?: number | null
+          monthly_first_time_goals?: Json | null
+          monthly_fixed_cost_goals?: Json | null
           monthly_inbound_leads_goals?: Json | null
+          monthly_recurring_goals?: Json | null
           monthly_sales_goals?: Json | null
+          net_profit_goal_percent?: number | null
           organization_id?: string | null
           other_online_spend?: Json | null
           recruiting_costs?: Json | null
           refunds_percent?: number | null
+          target_cpa?: number | null
+          target_cpl?: number | null
           updated_at?: string
           variable_overhead_items?: Json | null
           year?: number
@@ -1680,12 +1692,18 @@ export type Database = {
           last_year_revenue?: number | null
           local_marketing_spend?: Json | null
           marketing_percent_of_revenue?: number | null
+          monthly_first_time_goals?: Json | null
+          monthly_fixed_cost_goals?: Json | null
           monthly_inbound_leads_goals?: Json | null
+          monthly_recurring_goals?: Json | null
           monthly_sales_goals?: Json | null
+          net_profit_goal_percent?: number | null
           organization_id?: string | null
           other_online_spend?: Json | null
           recruiting_costs?: Json | null
           refunds_percent?: number | null
+          target_cpa?: number | null
+          target_cpl?: number | null
           updated_at?: string
           variable_overhead_items?: Json | null
           year?: number
