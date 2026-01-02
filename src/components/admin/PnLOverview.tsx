@@ -37,8 +37,6 @@ interface PnLSettings {
   net_profit_goal_percent: number;
   avg_job_size_goal: number;
   closing_rate_goal: number;
-  target_cpl: number;
-  target_cpa: number;
   credit_card_percent: number;
   refunds_percent: number;
   fixed_overhead: OverheadItem[];
@@ -56,8 +54,6 @@ const defaultSettings: PnLSettings = {
   net_profit_goal_percent: 20,
   avg_job_size_goal: 250,
   closing_rate_goal: 50,
-  target_cpl: 0,
-  target_cpa: 0,
   credit_card_percent: 2.9,
   refunds_percent: 2,
   fixed_overhead: [
@@ -139,8 +135,6 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           net_profit_goal_percent: Number((data as any).net_profit_goal_percent) || 20,
           avg_job_size_goal: Number(data.avg_job_size_goal) || 250,
           closing_rate_goal: Number(data.closing_rate_goal) || 50,
-          target_cpl: Number((data as any).target_cpl) || 0,
-          target_cpa: Number((data as any).target_cpa) || 0,
           credit_card_percent: Number(data.credit_card_percent) || 2.9,
           refunds_percent: Number(data.refunds_percent) || 2,
           fixed_overhead: fixedOverhead.length ? fixedOverhead : defaultSettings.fixed_overhead,
@@ -276,8 +270,6 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       net_profit_goal_percent: settings.net_profit_goal_percent,
       avg_job_size_goal: settings.avg_job_size_goal,
       closing_rate_goal: settings.closing_rate_goal,
-      target_cpl: settings.target_cpl,
-      target_cpa: settings.target_cpa,
       credit_card_percent: settings.credit_card_percent,
       refunds_percent: settings.refunds_percent,
       fixed_overhead_items: fixedOverheadItems as unknown as Json,
@@ -483,26 +475,6 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                       value={inputVal(settings.closing_rate_goal)}
                       onChange={(e) => setSettings({ ...settings, closing_rate_goal: parseVal(e.target.value) })}
                       placeholder="50"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Target Cost Per Lead</Label>
-                    <Input
-                      type="number"
-                      value={inputVal(settings.target_cpl)}
-                      onChange={(e) => setSettings({ ...settings, target_cpl: parseVal(e.target.value) })}
-                      placeholder="$0"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Target Cost Per Acquisition</Label>
-                    <Input
-                      type="number"
-                      value={inputVal(settings.target_cpa)}
-                      onChange={(e) => setSettings({ ...settings, target_cpa: parseVal(e.target.value) })}
-                      placeholder="$0"
                     />
                   </div>
                 </div>
