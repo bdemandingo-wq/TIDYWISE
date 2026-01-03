@@ -390,7 +390,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     }
   };
 
-  // Check if this customer has future bookings that could be affected by staff change
+  // Check if this customer has future bookings that could be affected by changes
   const getFutureBookingsForCustomer = () => {
     if (!booking?.customer?.id) return [];
     const now = new Date();
@@ -402,6 +402,66 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     );
   };
 
+  // Detect what fields changed between original booking and current form state
+  const getChangedFields = () => {
+    if (!booking) return [];
+    
+    const changes: { field: string; oldValue: string; newValue: string; key: string }[] = [];
+    
+    // Staff change
+    const oldStaffId = booking.staff?.id || '';
+    if (selectedStaffId !== oldStaffId) {
+      changes.push({
+        field: 'Staff',
+        oldValue: booking.staff?.name || 'Unassigned',
+        newValue: staff?.find(s => s.id === selectedStaffId)?.name || 'Unassigned',
+        key: 'staff_id'
+      });
+    }
+    
+    // Price change
+    if (totalAmount !== booking.total_amount) {
+      changes.push({
+        field: 'Price',
+        oldValue: `$${booking.total_amount?.toFixed(2) || '0.00'}`,
+        newValue: `$${totalAmount.toFixed(2)}`,
+        key: 'total_amount'
+      });
+    }
+    
+    // Time change (compare just the time portion)
+    const oldDate = new Date(booking.scheduled_at);
+    const oldTimeStr = `${oldDate.getHours().toString().padStart(2, '0')}:${oldDate.getMinutes().toString().padStart(2, '0')}`;
+    if (selectedTime !== oldTimeStr) {
+      const [newH, newM] = selectedTime.split(':').map(Number);
+      const newPeriod = newH >= 12 ? 'PM' : 'AM';
+      const newDisplayH = newH === 0 ? 12 : newH > 12 ? newH - 12 : newH;
+      const oldPeriod = oldDate.getHours() >= 12 ? 'PM' : 'AM';
+      const oldDisplayH = oldDate.getHours() === 0 ? 12 : oldDate.getHours() > 12 ? oldDate.getHours() - 12 : oldDate.getHours();
+      
+      changes.push({
+        field: 'Time',
+        oldValue: `${oldDisplayH}:${oldDate.getMinutes().toString().padStart(2, '0')} ${oldPeriod}`,
+        newValue: `${newDisplayH}:${newM.toString().padStart(2, '0')} ${newPeriod}`,
+        key: 'scheduled_time'
+      });
+    }
+    
+    // Service change
+    const isReclean = selectedServiceId === 'reclean';
+    const oldServiceId = booking.service?.id || '';
+    if (!isReclean && selectedServiceId !== oldServiceId) {
+      changes.push({
+        field: 'Service',
+        oldValue: booking.service?.name || 'None',
+        newValue: selectedService?.name || 'None',
+        key: 'service_id'
+      });
+    }
+    
+    return changes;
+  };
+
   const handleSubmit = async (isDraft: boolean = false, skipRecurringCheck: boolean = false) => {
     // Final validation - validate all steps
     for (let i = 0; i < steps.length; i++) {
@@ -411,14 +471,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       }
     }
 
-    // Check if we're editing an existing booking and staff changed
+    // Check if we're editing an existing booking and important fields changed
     if (booking?.id && !skipRecurringCheck) {
-      const staffChanged = selectedStaffId !== (booking.staff?.id || '');
+      const changedFields = getChangedFields();
       const futureBookings = getFutureBookingsForCustomer();
       
-      if (staffChanged && futureBookings.length > 0) {
+      if (changedFields.length > 0 && futureBookings.length > 0) {
         const bookingData = await buildBookingData(isDraft);
-        setPendingBookingData({ bookingData, isDraft, futureBookings });
+        setPendingBookingData({ bookingData, isDraft, futureBookings, changedFields });
         setShowRecurringDialog(true);
         return;
       }
@@ -441,15 +501,36 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
         
         // If user chose to apply to future bookings, update those too
-        if (updateFutureBookings && pendingBookingData?.futureBookings) {
+        if (updateFutureBookings && pendingBookingData?.futureBookings && pendingBookingData?.changedFields) {
           const futureBookings = pendingBookingData.futureBookings as BookingWithDetails[];
+          const changedFields = pendingBookingData.changedFields as { key: string }[];
+          
           for (const futureBooking of futureBookings) {
-            await updateBooking.mutateAsync({ 
-              id: futureBooking.id, 
-              staff_id: bookingData.staff_id 
-            });
+            const updateData: Record<string, any> = { id: futureBooking.id };
+            
+            // Apply each changed field to future bookings
+            for (const change of changedFields) {
+              if (change.key === 'staff_id') {
+                updateData.staff_id = bookingData.staff_id;
+              }
+              if (change.key === 'total_amount') {
+                updateData.total_amount = bookingData.total_amount;
+              }
+              if (change.key === 'scheduled_time') {
+                // Update just the time on the future booking's date
+                const futureDate = new Date(futureBooking.scheduled_at);
+                const [hours, minutes] = selectedTime.split(':').map(Number);
+                futureDate.setHours(hours, minutes, 0, 0);
+                updateData.scheduled_at = futureDate.toISOString();
+              }
+              if (change.key === 'service_id') {
+                updateData.service_id = bookingData.service_id;
+              }
+            }
+            
+            await updateBooking.mutateAsync(updateData as { id: string } & Partial<typeof bookingData>);
           }
-          toast.success(`Booking updated and staff assigned to ${futureBookings.length} future booking(s)`);
+          toast.success(`Booking updated and ${changedFields.length} change(s) applied to ${futureBookings.length} future booking(s)`);
         } else {
           toast.success('Booking updated successfully');
         }
@@ -576,19 +657,33 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Apply to Future Bookings?
+              Apply Changes to Future Bookings?
             </DialogTitle>
             <DialogDescription>
               This customer has {pendingBookingData?.futureBookings?.length || 0} upcoming booking(s). 
-              Would you like to assign the same staff member to all future bookings?
+              Would you like to apply {pendingBookingData?.changedFields?.length === 1 ? 'this change' : 'these changes'} to all future bookings?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Staff change: <span className="font-medium text-foreground">{booking?.staff?.name || 'Unassigned'}</span> → <span className="font-medium text-foreground">{staff?.find(s => s.id === selectedStaffId)?.name || 'Unassigned'}</span>
-            </p>
+            {/* Show all detected changes */}
+            <div className="space-y-2">
+              {pendingBookingData?.changedFields?.map((change: { field: string; oldValue: string; newValue: string; key: string }, idx: number) => (
+                <div key={idx} className="text-sm p-2 bg-secondary/50 rounded flex justify-between items-center">
+                  <span className="font-medium">{change.field}:</span>
+                  <span>
+                    <span className="text-muted-foreground line-through mr-2">{change.oldValue}</span>
+                    →
+                    <span className="font-medium text-foreground ml-2">{change.newValue}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            
+            <Separator />
+            
+            <p className="text-xs text-muted-foreground font-medium">Future bookings affected:</p>
             {pendingBookingData?.futureBookings?.slice(0, 3).map((fb: BookingWithDetails) => (
-              <div key={fb.id} className="flex items-center justify-between text-sm p-2 bg-secondary/50 rounded">
+              <div key={fb.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
                 <span>{format(new Date(fb.scheduled_at), 'MMM d, yyyy')}</span>
                 <span className="text-muted-foreground">{fb.service?.name}</span>
               </div>
