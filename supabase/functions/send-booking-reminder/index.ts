@@ -125,10 +125,16 @@ const handler = async (req: Request): Promise<Response> => {
         formattedPhone = `+${formattedPhone}`;
       }
 
+      // OpenPhone API requires Bearer prefix
+      const apiKey = smsSettings.openphone_api_key!;
+      const authHeader = apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
+      
+      console.log(`[send-booking-reminder] Sending SMS to ${formattedPhone}`);
+      
       const response = await fetch("https://api.openphone.com/v1/messages", {
         method: "POST",
         headers: {
-          "Authorization": smsSettings.openphone_api_key!,
+          "Authorization": authHeader,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -137,6 +143,11 @@ const handler = async (req: Request): Promise<Response> => {
           content: message,
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[send-booking-reminder] OpenPhone API error: ${response.status} - ${errorText}`);
+      }
 
       return response.ok;
     };

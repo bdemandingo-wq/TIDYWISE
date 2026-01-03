@@ -220,9 +220,14 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           monthlyMarketingBudget = Array(12).fill(Math.round(monthlyBudget));
         }
 
+        const channelNames = (data.marketing_channel_names && typeof data.marketing_channel_names === 'object' && !Array.isArray(data.marketing_channel_names)) 
+          ? (data.marketing_channel_names as { [key: string]: string }) 
+          : {};
+        
         setSettings({
           ...defaultSettings,
           ...data,
+          marketing_channel_names: channelNames,
           annual_revenue_goal: Number(data.annual_revenue_goal) || 0,
           last_year_revenue: Number(data.last_year_revenue) || 0,
           goal_repeat_revenue_percent: Number(data.goal_repeat_revenue_percent) || 50,
@@ -242,7 +247,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
           monthly_sales_goals: Array.isArray(data.monthly_sales_goals) ? (data.monthly_sales_goals as number[]) : defaultSettings.monthly_sales_goals,
           monthly_inbound_leads_goals: Array.isArray(data.monthly_inbound_leads_goals) ? (data.monthly_inbound_leads_goals as number[]) : defaultSettings.monthly_inbound_leads_goals,
           monthly_marketing_budget: monthlyMarketingBudget,
-          marketing_channels: migrateMarketingChannels(data, (data as any).marketing_channel_names || {}),
+          marketing_channels: migrateMarketingChannels(data, channelNames),
           google_lsa_spend: Array.isArray(data.google_lsa_spend) ? (data.google_lsa_spend as number[]) : defaultSettings.google_lsa_spend,
           facebook_ads_spend: Array.isArray(data.facebook_ads_spend) ? (data.facebook_ads_spend as number[]) : defaultSettings.facebook_ads_spend,
           other_online_spend: Array.isArray(data.other_online_spend) ? (data.other_online_spend as number[]) : defaultSettings.other_online_spend,
