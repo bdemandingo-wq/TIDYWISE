@@ -50,8 +50,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending help inquiry SMS to admin:', ADMIN_PHONE);
 
-    // OpenPhone API requires Bearer prefix
-    const authHeader = openPhoneApiKey.startsWith('Bearer ') ? openPhoneApiKey : `Bearer ${openPhoneApiKey}`;
+    // OpenPhone expects the raw API key in the Authorization header
+    const authHeader = openPhoneApiKey.trim().replace(/^Bearer\s+/i, '');
 
     // Send SMS via OpenPhone
     const openPhoneResponse = await fetch('https://api.openphone.com/v1/messages', {

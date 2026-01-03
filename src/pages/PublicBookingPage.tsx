@@ -122,6 +122,7 @@ export default function PublicBookingPage() {
             extras: extraNames,
             totalPrice: calculateTotal(),
             confirmationNumber: newConfirmationNumber,
+            organizationId: organizationId || undefined,
           },
         });
         

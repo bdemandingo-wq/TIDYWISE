@@ -195,9 +195,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Send SMS via OpenPhone
     const smsMessage = `${companyName}: Your cleaning service total is $${amount.toFixed(2)}. Pay securely here: ${session.url}`;
 
-    // OpenPhone API requires Bearer prefix
-    const apiKey = smsSettings.openphone_api_key;
-    const authHeader = apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
+     // OpenPhone expects the raw API key in the Authorization header
+     const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
     const openPhoneResponse = await fetch('https://api.openphone.com/v1/messages', {
       method: 'POST',

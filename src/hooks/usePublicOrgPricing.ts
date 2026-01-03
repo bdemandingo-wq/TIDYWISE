@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  cleaningServices as defaultCleaningServices, 
+import {
+  cleaningServices as defaultCleaningServices,
   extras as defaultExtras,
-  squareFootageRanges,
 } from '@/data/pricingData';
 
 export interface PublicService {
@@ -33,6 +32,28 @@ export interface PublicOrgData {
   error: string | null;
 }
 
+type PublicBookingDataResponse = {
+  success: boolean;
+  error?: string;
+  organization?: { id: string; name: string; logo_url: string | null };
+  services?: any[];
+  servicePricing?: any[];
+};
+
+function getDefaultPayload() {
+  const services: PublicService[] = defaultCleaningServices.map((s) => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    color: s.color,
+    minimumPrice: s.minimumPrice,
+    prices: s.prices,
+    duration: 60,
+  }));
+
+  return { services, extras: defaultExtras };
+}
+
 export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string>('');
@@ -43,133 +64,94 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orgSlug) {
-      // No slug, use defaults
-      const defaultServices = defaultCleaningServices.map(s => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        color: s.color,
-        minimumPrice: s.minimumPrice,
-        prices: s.prices,
-        duration: 60,
-      }));
-      setServices(defaultServices);
-      setExtras(defaultExtras);
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    fetchOrgData();
-  }, [orgSlug]);
+    const applyDefaults = () => {
+      const defaults = getDefaultPayload();
+      setServices(defaults.services);
+      setExtras(defaults.extras);
+    };
 
-  const fetchOrgData = async () => {
-    try {
+    const run = async () => {
       setLoading(true);
       setError(null);
 
-      // 1. Lookup organization by slug
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .select('id, name, logo_url')
-        .eq('slug', orgSlug)
-        .maybeSingle();
-
-      if (orgError) throw orgError;
-
-      if (!org) {
-        setError('Organization not found');
+      // No slug: just show defaults
+      if (!orgSlug) {
+        applyDefaults();
         setLoading(false);
         return;
       }
 
-      setOrganizationId(org.id);
-      setOrganizationName(org.name);
-      setLogoUrl(org.logo_url);
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke<PublicBookingDataResponse>(
+          'public-booking-data',
+          { body: { orgSlug } },
+        );
 
-      // 2. Fetch org's services
-      const { data: orgServices, error: servicesError } = await supabase
-        .from('services')
-        .select('*')
-        .eq('organization_id', org.id)
-        .eq('is_active', true)
-        .order('name');
+        if (invokeError) throw invokeError;
+        if (!data?.success) throw new Error(data?.error || 'Failed to load booking data');
+        if (!data.organization) throw new Error('Organization not found');
 
-      if (servicesError) throw servicesError;
+        if (cancelled) return;
 
-      // 3. Fetch service_pricing for this org
-      const { data: pricingData, error: pricingError } = await supabase
-        .from('service_pricing')
-        .select('*')
-        .eq('organization_id', org.id);
+        setOrganizationId(data.organization.id);
+        setOrganizationName(data.organization.name);
+        setLogoUrl(data.organization.logo_url);
 
-      if (pricingError) throw pricingError;
+        const pricingMap = new Map<string, any>();
+        (data.servicePricing || []).forEach((p: any) => pricingMap.set(p.service_id, p));
 
-      // Build pricing map
-      const pricingMap = new Map<string, any>();
-      (pricingData || []).forEach((p: any) => {
-        pricingMap.set(p.service_id, p);
-      });
+        const rawServices = data.services || [];
 
-      // 4. Map services with their pricing
-      if (orgServices && orgServices.length > 0) {
-        const mappedServices: PublicService[] = orgServices.map((svc: any) => {
-          const pricing = pricingMap.get(svc.id);
-          const defaultSvc = defaultCleaningServices.find(d => d.id === svc.id || d.name.toLowerCase() === svc.name?.toLowerCase());
-          
-          return {
-            id: svc.id,
-            name: svc.name,
-            description: svc.description || defaultSvc?.description || '',
-            color: svc.color || defaultSvc?.color || '#3b82f6',
-            minimumPrice: pricing?.minimum_price || svc.price || defaultSvc?.minimumPrice || 0,
-            prices: pricing?.sqft_prices || defaultSvc?.prices || [],
-            duration: svc.duration || 60,
-          };
-        });
-        setServices(mappedServices);
+        if (rawServices.length > 0) {
+          const mappedServices: PublicService[] = rawServices.map((svc: any) => {
+            const pricing = pricingMap.get(svc.id);
+            const defaultSvc = defaultCleaningServices.find(
+              (d) => d.id === svc.id || d.name.toLowerCase() === svc.name?.toLowerCase(),
+            );
 
-        // Get extras from first service's pricing, or use defaults
-        const firstPricing = pricingData?.[0];
-        if (firstPricing?.extras && Array.isArray(firstPricing.extras) && firstPricing.extras.length > 0) {
-          setExtras(firstPricing.extras as unknown as PublicExtra[]);
+            return {
+              id: svc.id,
+              name: svc.name,
+              description: svc.description || defaultSvc?.description || '',
+              color: defaultSvc?.color || '#3b82f6',
+              minimumPrice: pricing?.minimum_price ?? svc.price ?? defaultSvc?.minimumPrice ?? 0,
+              prices: (pricing?.sqft_prices as number[]) || defaultSvc?.prices || [],
+              duration: svc.duration || 60,
+            };
+          });
+
+          setServices(mappedServices);
+
+          const firstPricing = (data.servicePricing || [])[0];
+          const pricingExtras = firstPricing?.extras;
+
+          if (Array.isArray(pricingExtras) && pricingExtras.length > 0) {
+            setExtras(pricingExtras as unknown as PublicExtra[]);
+          } else {
+            setExtras(defaultExtras);
+          }
         } else {
-          setExtras(defaultExtras);
+          applyDefaults();
         }
-      } else {
-        // No custom services, use defaults
-        const defaultServices = defaultCleaningServices.map(s => ({
-          id: s.id,
-          name: s.name,
-          description: s.description,
-          color: s.color,
-          minimumPrice: s.minimumPrice,
-          prices: s.prices,
-          duration: 60,
-        }));
-        setServices(defaultServices);
-        setExtras(defaultExtras);
+      } catch (err: any) {
+        console.error('Error fetching public booking data:', err);
+        if (!cancelled) {
+          setError(err?.message || 'Failed to load booking form');
+          applyDefaults();
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (err: any) {
-      console.error('Error fetching org pricing:', err);
-      setError(err.message || 'Failed to load organization data');
-      
-      // Fallback to defaults
-      const defaultServices = defaultCleaningServices.map(s => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        color: s.color,
-        minimumPrice: s.minimumPrice,
-        prices: s.prices,
-        duration: 60,
-      }));
-      setServices(defaultServices);
-      setExtras(defaultExtras);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orgSlug]);
 
   return {
     organizationId,
@@ -181,3 +163,4 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
     error,
   };
 }
+

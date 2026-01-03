@@ -91,12 +91,13 @@ export function SMSSettingsCard() {
 
     setSaving(true);
     try {
-      // Extract the phone number ID in case user pasted full URL
+      // Extract/normalize values in case user pasted full URL or included prefix/whitespace
       const cleanPhoneNumberId = extractPhoneNumberId(settings.openphone_phone_number_id);
-      
+      const cleanApiKey = settings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
+
       const settingsData = {
         organization_id: organization.id,
-        openphone_api_key: settings.openphone_api_key,
+        openphone_api_key: cleanApiKey,
         openphone_phone_number_id: cleanPhoneNumberId,
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
@@ -120,8 +121,8 @@ export function SMSSettingsCard() {
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
-      // Update local state with cleaned value
-      setSettings(prev => ({ ...prev, openphone_phone_number_id: cleanPhoneNumberId }));
+      // Update local state with cleaned values
+      setSettings(prev => ({ ...prev, openphone_phone_number_id: cleanPhoneNumberId, openphone_api_key: cleanApiKey }));
       toast.success('SMS settings saved successfully');
     } catch (error) {
       console.error('Error saving SMS settings:', error);
