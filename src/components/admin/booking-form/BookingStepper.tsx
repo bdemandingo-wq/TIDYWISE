@@ -331,9 +331,12 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     const scheduledAt = new Date(selectedDate!);
     scheduledAt.setHours(hours, minutes, 0, 0);
 
+    // Handle "reclean" special case - it's not a real service UUID
+    const isReclean = selectedServiceId === 'reclean';
+    
     return {
       customer_id: customerId || null,
-      service_id: selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null,
+      service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
       staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
       scheduled_at: scheduledAt.toISOString(),
       duration: selectedService?.duration || 60,
