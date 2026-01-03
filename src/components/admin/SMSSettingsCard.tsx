@@ -73,15 +73,31 @@ export function SMSSettingsCard() {
     }
   };
 
+  // Extract phone number ID from full URL if pasted
+  const extractPhoneNumberId = (input: string): string => {
+    // If it's a full URL like https://my.openphone.com/settings/phone-numbers/PNr7XukuaV
+    const urlMatch = input.match(/phone-numbers\/(PN[a-zA-Z0-9]+)/);
+    if (urlMatch) return urlMatch[1];
+    
+    // If it already looks like an ID (starts with PN)
+    if (input.startsWith('PN')) return input;
+    
+    // Otherwise return as-is
+    return input;
+  };
+
   const saveSettings = async () => {
     if (!organization?.id) return;
 
     setSaving(true);
     try {
+      // Extract the phone number ID in case user pasted full URL
+      const cleanPhoneNumberId = extractPhoneNumberId(settings.openphone_phone_number_id);
+      
       const settingsData = {
         organization_id: organization.id,
         openphone_api_key: settings.openphone_api_key,
-        openphone_phone_number_id: settings.openphone_phone_number_id,
+        openphone_phone_number_id: cleanPhoneNumberId,
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
         sms_appointment_reminder: settings.sms_appointment_reminder,
@@ -104,6 +120,8 @@ export function SMSSettingsCard() {
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
+      // Update local state with cleaned value
+      setSettings(prev => ({ ...prev, openphone_phone_number_id: cleanPhoneNumberId }));
       toast.success('SMS settings saved successfully');
     } catch (error) {
       console.error('Error saving SMS settings:', error);

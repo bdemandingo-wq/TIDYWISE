@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
-import { usePricing } from '@/hooks/usePricing';
+import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -42,6 +43,7 @@ const timeSlots = Array.from({ length: 19 }, (_, i) => {
 });
 
 export default function PublicBookingPage() {
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedSqFtIndex, setSelectedSqFtIndex] = useState<number | null>(null);
@@ -61,10 +63,17 @@ export default function PublicBookingPage() {
     notes: '',
   });
 
-  // Use live pricing data
-  const pricing = usePricing();
+  // Use organization-specific pricing
+  const { 
+    services, 
+    extras, 
+    organizationName, 
+    organizationId,
+    logoUrl,
+    loading: pricingLoading 
+  } = usePublicOrgPricing(orgSlug);
 
-  const service = pricing.services.find(s => s.id === selectedService);
+  const service = services.find(s => s.id === selectedService);
   
   const calculateTotal = () => {
     let total = 0;
@@ -73,7 +82,11 @@ export default function PublicBookingPage() {
     }
     
     // Add extras
-    total += pricing.getExtrasTotal(selectedExtras);
+    const extrasTotal = selectedExtras.reduce((sum, extraId) => {
+      const extra = extras.find(e => e.id === extraId);
+      return sum + (extra?.price || 0);
+    }, 0);
+    total += extrasTotal;
     
     return total;
   };
@@ -86,7 +99,7 @@ export default function PublicBookingPage() {
       setConfirmationNumber(newConfirmationNumber);
       
       try {
-        const extraNames = selectedExtras.map(id => pricing.extras.find(e => e.id === id)?.name).filter(Boolean) as string[];
+        const extraNames = selectedExtras.map(id => extras.find(e => e.id === id)?.name).filter(Boolean) as string[];
         
         const { error } = await supabase.functions.invoke('send-booking-email', {
           body: {
@@ -151,6 +164,17 @@ export default function PublicBookingPage() {
     }
   };
 
+  if (pricingLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading booking form...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -158,11 +182,15 @@ export default function PublicBookingPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <CalendarIcon className="w-6 h-6 text-primary-foreground" />
-              </div>
+              {logoUrl ? (
+                <img src={logoUrl} alt={organizationName} className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <CalendarIcon className="w-6 h-6 text-primary-foreground" />
+                </div>
+              )}
               <div>
-                <h1 className="text-xl font-bold">Footprint Cleaning</h1>
+                <h1 className="text-xl font-bold">{organizationName || 'Book Your Service'}</h1>
                 <p className="text-sm text-sidebar-foreground/70">Book your service online</p>
               </div>
             </div>
@@ -262,7 +290,7 @@ export default function PublicBookingPage() {
                 <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
                 <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {pricing.services.map((svc) => {
+                  {services.map((svc) => {
                     const price = selectedSqFtIndex !== null 
                       ? (svc.prices[selectedSqFtIndex] || svc.minimumPrice)
                       : svc.minimumPrice;
@@ -317,7 +345,7 @@ export default function PublicBookingPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {pricing.extras.map((extra) => (
+                      {extras.map((extra) => (
                         <div 
                           key={extra.id} 
                           onClick={() => toggleExtra(extra.id)}
@@ -532,7 +560,7 @@ export default function PublicBookingPage() {
                       <span>${selectedSqFtIndex !== null && service ? (service.prices[selectedSqFtIndex] || service.minimumPrice) : 0}</span>
                     </div>
                     {selectedExtras.map(extraId => {
-                      const extra = pricing.extras.find(e => e.id === extraId);
+                      const extra = extras.find(e => e.id === extraId);
                       if (!extra) return null;
                       return (
                         <div key={extraId} className="flex justify-between text-sm text-muted-foreground">
@@ -649,7 +677,7 @@ export default function PublicBookingPage() {
                       <div className="col-span-2">
                         <p className="text-sm text-muted-foreground">Extras</p>
                         <p className="font-medium">
-                          {selectedExtras.map(id => pricing.extras.find(e => e.id === id)?.name).join(', ')}
+                          {selectedExtras.map(id => extras.find(e => e.id === id)?.name).join(', ')}
                         </p>
                       </div>
                     )}
