@@ -151,33 +151,34 @@ const handler = async (req: Request): Promise<Response> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[send-cleaner-notification] OpenPhone API error: ${response.status} - ${errorText}`);
-      
-      // Handle billing/payment issues gracefully
+
+      let provider: any = null;
+      try {
+        provider = JSON.parse(errorText);
+      } catch {
+        // ignore
+      }
+
+      // Always return 200 so the app can handle the error gracefully (no blank screens)
+      let errorCode = 'SMS_FAILED';
+      let userMessage = 'SMS delivery failed. Please try again later.';
+
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "SMS service requires payment. Please check your OpenPhone account billing.", 
-            errorCode: "BILLING_REQUIRED" 
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        errorCode = 'BILLING_REQUIRED';
+        userMessage = 'SMS is temporarily unavailable because your SMS provider account has insufficient credits or billing is past due.';
+      } else if (response.status === 401) {
+        errorCode = 'AUTH_FAILED';
+        userMessage = 'Invalid SMS provider API key. Please update your SMS settings.';
       }
-      
-      // Handle auth issues
-      if (response.status === 401) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Invalid OpenPhone API key. Please update your SMS settings.", 
-            errorCode: "AUTH_FAILED" 
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+
       return new Response(
-        JSON.stringify({ success: false, error: `SMS delivery failed. Please try again later.` }),
+        JSON.stringify({
+          success: false,
+          error: userMessage,
+          errorCode,
+          providerStatus: response.status,
+          providerMessage: provider?.message || provider?.title || errorText,
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

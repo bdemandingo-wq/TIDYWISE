@@ -582,7 +582,7 @@ export default function BookingsPage() {
         .filter(Boolean)
         .join(', ');
 
-      const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+      const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
         body: {
           cleanerName: booking.staff.name,
           cleanerPhone: booking.staff.phone,
@@ -598,6 +598,17 @@ export default function BookingsPage() {
       });
 
       if (error) throw error;
+
+      if (!data?.success) {
+        const title = data?.errorCode === 'BILLING_REQUIRED' ? 'SMS Paused' : 'SMS Not Sent';
+        toast({
+          title,
+          description: data?.error || 'Failed to send cleaner notification',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       toast({ title: "Notification Sent", description: `SMS sent to ${booking.staff.name} (${booking.staff.phone})` });
     } catch (error: any) {
       console.error('Failed to send cleaner notification:', error);
@@ -630,7 +641,7 @@ export default function BookingsPage() {
             .filter(Boolean)
             .join(', ');
 
-          const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
               cleanerName: booking.staff!.name,
               cleanerPhone: booking.staff!.phone,
@@ -646,6 +657,7 @@ export default function BookingsPage() {
           });
 
           if (error) throw error;
+          if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
           successCount++;
         } catch (error) {
           console.error(`Failed to notify cleaner for booking #${booking.booking_number}:`, error);
@@ -768,7 +780,7 @@ export default function BookingsPage() {
             .filter(Boolean)
             .join(', ');
 
-          const { error } = await supabase.functions.invoke('send-cleaner-notification', {
+          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
               cleanerName: booking.staff!.name,
               cleanerPhone: booking.staff!.phone,
@@ -784,6 +796,7 @@ export default function BookingsPage() {
           });
 
           if (error) throw error;
+          if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
           successCount++;
         } catch (error) {
           console.error(`Failed to notify cleaner for booking #${booking.booking_number}:`, error);
