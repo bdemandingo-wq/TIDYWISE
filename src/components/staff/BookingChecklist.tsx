@@ -31,6 +31,19 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
   const queryClient = useQueryClient();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
+  // Fetch booking service info
+  const { data: bookingService } = useQuery({
+    queryKey: ['booking-service', bookingId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select('service:services(name)')
+        .eq('id', bookingId)
+        .single();
+      return data?.service;
+    },
+  });
+
   // Fetch or create booking checklist
   const { data: checklist, isLoading } = useQuery({
     queryKey: ['booking-checklist', bookingId],
@@ -347,9 +360,16 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="w-5 h-5 text-primary" />
-            <CardTitle className="text-lg">Cleaning Checklist</CardTitle>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Cleaning Checklist</CardTitle>
+            </div>
+            {bookingService?.name && (
+              <Badge variant="outline" className="w-fit text-xs">
+                {bookingService.name}
+              </Badge>
+            )}
           </div>
           {isCompleted ? (
             <Badge variant="default" className="bg-green-500">

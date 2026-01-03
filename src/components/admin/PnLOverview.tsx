@@ -999,32 +999,37 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                   </Badge>
                 </TableCell>
               </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
-                <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: $${summaryData.fixedCostGoal.toLocaleString()}` : '—'}</TableCell>
-                <TableCell className="text-center">
-                  {summaryData.fixedCostGoal > 0 ? (
-                    <Badge className={statusColors[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]}>
-                      {statusIcons[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]} {summaryData.fixedCosts <= summaryData.fixedCostGoal ? 'Under Goal' : 'Over Goal'}
-                    </Badge>
-                  ) : <span className="text-muted-foreground">—</span>}
-                </TableCell>
-              </TableRow>
-              <TableRow className="bg-muted/50 border-t-2">
-                <TableCell className="font-bold">Net Profit ({summaryData.periodLabel})</TableCell>
-                <TableCell className={`text-right font-bold ${summaryData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${summaryData.netProfit.toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ${(summaryData.revenueGoal * (settings.net_profit_goal_percent || 20) / 100).toLocaleString()} ({settings.net_profit_goal_percent || 20}% goal)
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge className={statusColors[summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) ? 'ahead' : summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) / 2 ? 'at-risk' : 'behind']}>
-                    {summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) ? '✅' : '⚠️'} {summaryData.revenue > 0 ? ((summaryData.netProfit / summaryData.revenue) * 100).toFixed(1) : 0}% margin
-                  </Badge>
-                </TableCell>
-              </TableRow>
+              {/* Fixed Costs and Net Profit only show for Month view */}
+              {summaryPeriod === 'month' && (
+                <>
+                  <TableRow>
+                    <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
+                    <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: $${summaryData.fixedCostGoal.toLocaleString()}` : '—'}</TableCell>
+                    <TableCell className="text-center">
+                      {summaryData.fixedCostGoal > 0 ? (
+                        <Badge className={statusColors[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]}>
+                          {statusIcons[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]} {summaryData.fixedCosts <= summaryData.fixedCostGoal ? 'Under Goal' : 'Over Goal'}
+                        </Badge>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="bg-muted/50 border-t-2">
+                    <TableCell className="font-bold">Net Profit ({summaryData.periodLabel})</TableCell>
+                    <TableCell className={`text-right font-bold ${summaryData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${summaryData.netProfit.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${(summaryData.revenueGoal * (settings.net_profit_goal_percent || 20) / 100).toLocaleString()} ({settings.net_profit_goal_percent || 20}% goal)
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={statusColors[summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) ? 'ahead' : summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) / 2 ? 'at-risk' : 'behind']}>
+                        {summaryData.revenue > 0 && (summaryData.netProfit / summaryData.revenue) * 100 >= (settings.net_profit_goal_percent || 20) ? '✅' : '⚠️'} {summaryData.revenue > 0 ? ((summaryData.netProfit / summaryData.revenue) * 100).toFixed(1) : 0}% margin
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                </>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -1153,7 +1158,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               </div>
             </TabsContent>
 
-            {/* Monthly Goals Tab */}
+            {/* Monthly Goals Tab - Only Net Profit Goal % */}
             <TabsContent value="monthly" className="mt-4 space-y-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -1169,122 +1174,10 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                     />
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Set annual goals (used when viewing Yearly summary):</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>First-Time Revenue Goal (Annual $)</Label>
-                      <Input
-                        type="number"
-                        value={inputValue(settings.goal_first_time_revenue_amount)}
-                        onChange={(e) => setSettings({ ...settings, goal_first_time_revenue_amount: parseInputValue(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <Label>Recurring Revenue Goal (Annual $)</Label>
-                      <Input
-                        type="number"
-                        value={inputValue(settings.goal_repeat_revenue_amount)}
-                        onChange={(e) => setSettings({ ...settings, goal_repeat_revenue_amount: parseInputValue(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <Label>Fixed Cost Goal (Annual Max $)</Label>
-                      <Input
-                        type="number"
-                        value={inputValue(settings.fixed_cost_goal)}
-                        onChange={(e) => setSettings({ ...settings, fixed_cost_goal: parseInputValue(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Monthly breakdown tables */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Monthly Goals (used when viewing Monthly summary)</CardTitle>
-                </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Goal Type</TableHead>
-                          {MONTHS.map(m => <TableHead key={m} className="text-right text-xs">{m}</TableHead>)}
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="font-medium">First-Time ($)</TableCell>
-                          {MONTHS.map((_, i) => (
-                            <TableCell key={i} className="p-1">
-                              <Input
-                                type="number"
-                                value={inputValue(settings.monthly_first_time_goals?.[i] || 0)}
-                                onChange={(e) => {
-                                  const updated = [...(settings.monthly_first_time_goals || Array(12).fill(0))];
-                                  updated[i] = parseInputValue(e.target.value);
-                                  setSettings({ ...settings, monthly_first_time_goals: updated });
-                                }}
-                                className="w-16 text-xs text-right"
-                                placeholder="0"
-                              />
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right font-bold">
-                            ${(settings.monthly_first_time_goals || Array(12).fill(0)).reduce((a, b) => a + b, 0).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell className="font-medium">Recurring ($)</TableCell>
-                          {MONTHS.map((_, i) => (
-                            <TableCell key={i} className="p-1">
-                              <Input
-                                type="number"
-                                value={inputValue(settings.monthly_recurring_goals?.[i] || 0)}
-                                onChange={(e) => {
-                                  const updated = [...(settings.monthly_recurring_goals || Array(12).fill(0))];
-                                  updated[i] = parseInputValue(e.target.value);
-                                  setSettings({ ...settings, monthly_recurring_goals: updated });
-                                }}
-                                className="w-16 text-xs text-right"
-                                placeholder="0"
-                              />
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right font-bold">
-                            ${(settings.monthly_recurring_goals || Array(12).fill(0)).reduce((a, b) => a + b, 0).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell className="font-medium">Fixed Cost Max ($)</TableCell>
-                          {MONTHS.map((_, i) => (
-                            <TableCell key={i} className="p-1">
-                              <Input
-                                type="number"
-                                value={inputValue(settings.monthly_fixed_cost_goals?.[i] || 0)}
-                                onChange={(e) => {
-                                  const updated = [...(settings.monthly_fixed_cost_goals || Array(12).fill(0))];
-                                  updated[i] = parseInputValue(e.target.value);
-                                  setSettings({ ...settings, monthly_fixed_cost_goals: updated });
-                                }}
-                                className="w-16 text-xs text-right"
-                                placeholder="0"
-                              />
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right font-bold">
-                            ${(settings.monthly_fixed_cost_goals || Array(12).fill(0)).reduce((a, b) => a + b, 0).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Net profit goal percentage applies to all monthly summaries.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

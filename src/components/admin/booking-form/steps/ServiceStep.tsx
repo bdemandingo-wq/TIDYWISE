@@ -95,11 +95,20 @@ export function ServiceStep() {
         <CardContent className="pt-6 space-y-5">
           <div>
             <Label className="text-sm font-medium">Service Type *</Label>
-            <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+            <Select value={selectedServiceId} onValueChange={(value) => {
+              setSelectedServiceId(value);
+              // Auto-set price to $0 for Re-clean
+              if (value === 're-clean') {
+                setTotalAmount(0);
+              }
+            }}>
               <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
                 <SelectValue placeholder="Select a service" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
+                <SelectItem value="re-clean">
+                  Re-clean ($0)
+                </SelectItem>
                 {services?.map((service) => (
                   <SelectItem key={service.id} value={service.id}>
                     {service.name}

@@ -309,14 +309,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       customerId = customer.id;
     }
 
-    const [time, period] = selectedTime.split(' ');
-    const [hours, minutes] = time.split(':').map(Number);
-    let hour24 = hours;
-    if (period === 'PM' && hours !== 12) hour24 += 12;
-    if (period === 'AM' && hours === 12) hour24 = 0;
+    // Parse 24h time format (HH:mm)
+    const [hours, minutes] = selectedTime.split(':').map(Number);
 
     const scheduledAt = new Date(selectedDate!);
-    scheduledAt.setHours(hour24, minutes, 0, 0);
+    scheduledAt.setHours(hours, minutes, 0, 0);
 
     return {
       customer_id: customerId || null,
@@ -413,12 +410,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
         if (!isDraft) {
           const adminScheduledDate = new Date(selectedDate!);
-          const [adminTime, adminPeriod] = selectedTime.split(' ');
-          const [adminHours, adminMinutes] = adminTime.split(':').map(Number);
-          let adminHour24 = adminHours;
-          if (adminPeriod === 'PM' && adminHours !== 12) adminHour24 += 12;
-          if (adminPeriod === 'AM' && adminHours === 12) adminHour24 = 0;
-          adminScheduledDate.setHours(adminHour24, adminMinutes, 0, 0);
+          // Parse 24h time format (HH:mm)
+          const [adminHours, adminMinutes] = selectedTime.split(':').map(Number);
+          adminScheduledDate.setHours(adminHours, adminMinutes, 0, 0);
           
           const formattedDateStr = format(adminScheduledDate, 'MMMM d, yyyy');
           const formattedTimeStr = format(adminScheduledDate, 'h:mm a');
@@ -446,14 +440,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             const customerPhone = customerTab === 'existing' && selectedCustomer ? selectedCustomer.phone : newCustomer.phone;
             if (customerPhone) {
               try {
-                const [time, period] = selectedTime.split(' ');
-                const [hours, minutes] = time.split(':').map(Number);
-                let hour24 = hours;
-                if (period === 'PM' && hours !== 12) hour24 += 12;
-                if (period === 'AM' && hours === 12) hour24 = 0;
+                // Parse 24h time format (HH:mm)
+                const [hours, minutes] = selectedTime.split(':').map(Number);
                 
                 const scheduledDate = new Date(selectedDate!);
-                scheduledDate.setHours(hour24, minutes, 0, 0);
+                scheduledDate.setHours(hours, minutes, 0, 0);
                 
                 const { error } = await supabase.functions.invoke('send-openphone-sms', {
                   body: {

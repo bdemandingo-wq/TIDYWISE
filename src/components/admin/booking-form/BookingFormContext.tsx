@@ -361,9 +361,8 @@ export function BookingFormProvider({
     setSelectedDate(scheduledDate);
     const hours = scheduledDate.getHours();
     const minutes = scheduledDate.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    setSelectedTime(`${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`);
+    // Use 24h format (HH:mm)
+    setSelectedTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
     setNotes(booking.notes || '');
     setTotalAmount(booking.total_amount || 0);
     setAddress(booking.address || '');
