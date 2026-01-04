@@ -469,6 +469,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       churn_rate_goal: settings.churn_rate_goal,
       monthly_sales_goals: settings.monthly_sales_goals as unknown as Json,
       monthly_inbound_leads_goals: settings.monthly_inbound_leads_goals as unknown as Json,
+      monthly_marketing_budget: settings.monthly_marketing_budget as unknown as Json,
       google_lsa_spend: (channelData['google_lsa_spend'] || settings.marketing_channels[0]?.monthly || Array(12).fill(0)) as unknown as Json,
       facebook_ads_spend: (channelData['facebook_ads_spend'] || settings.marketing_channels[1]?.monthly || Array(12).fill(0)) as unknown as Json,
       other_online_spend: (channelData['other_online_spend'] || settings.marketing_channels[2]?.monthly || Array(12).fill(0)) as unknown as Json,

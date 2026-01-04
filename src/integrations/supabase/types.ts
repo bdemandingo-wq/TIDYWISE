@@ -1622,6 +1622,7 @@ export type Database = {
           monthly_first_time_goals: Json | null
           monthly_fixed_cost_goals: Json | null
           monthly_inbound_leads_goals: Json | null
+          monthly_marketing_budget: Json | null
           monthly_recurring_goals: Json | null
           monthly_sales_goals: Json | null
           net_profit_goal_percent: number | null
@@ -1660,6 +1661,7 @@ export type Database = {
           monthly_first_time_goals?: Json | null
           monthly_fixed_cost_goals?: Json | null
           monthly_inbound_leads_goals?: Json | null
+          monthly_marketing_budget?: Json | null
           monthly_recurring_goals?: Json | null
           monthly_sales_goals?: Json | null
           net_profit_goal_percent?: number | null
@@ -1698,6 +1700,7 @@ export type Database = {
           monthly_first_time_goals?: Json | null
           monthly_fixed_cost_goals?: Json | null
           monthly_inbound_leads_goals?: Json | null
+          monthly_marketing_budget?: Json | null
           monthly_recurring_goals?: Json | null
           monthly_sales_goals?: Json | null
           net_profit_goal_percent?: number | null
