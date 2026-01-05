@@ -28,6 +28,9 @@ import { Loader2, Video, Plus, Trash2, GripVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrgId } from '@/hooks/useOrgId';
+import { useAuth } from '@/hooks/useAuth';
+
+const PLATFORM_ADMIN_EMAIL = 'support@tidywisecleaning.com';
 
 interface HelpVideo {
   id: string;
@@ -41,7 +44,10 @@ interface HelpVideo {
 
 export default function HelpPage() {
   const { organizationId } = useOrgId();
+  const { user } = useAuth();
   const [videos, setVideos] = useState<HelpVideo[]>([]);
+  
+  const isPlatformAdmin = user?.email === PLATFORM_ADMIN_EMAIL;
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -179,64 +185,66 @@ export default function HelpPage() {
       title="Help Center"
       subtitle="Tutorial videos and support"
       actions={
-        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="btn-hover">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Video
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Tutorial Video</DialogTitle>
-              <DialogDescription>
-                Add a video from Loom, YouTube, or Vimeo. The URL will be automatically converted for embedding.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., How to create a booking"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="url">Video URL *</Label>
-                <Input
-                  id="url"
-                  placeholder="https://www.loom.com/share/..."
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Supports Loom, YouTube, and Vimeo links
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Brief description of what this video covers..."
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddVideo} disabled={saving}>
-                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+        isPlatformAdmin ? (
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="btn-hover">
+                <Plus className="w-4 h-4 mr-2" />
                 Add Video
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Tutorial Video</DialogTitle>
+                <DialogDescription>
+                  Add a video from Loom, YouTube, or Vimeo. The URL will be automatically converted for embedding.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., How to create a booking"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="url">Video URL *</Label>
+                  <Input
+                    id="url"
+                    placeholder="https://www.loom.com/share/..."
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Supports Loom, YouTube, and Vimeo links
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Brief description of what this video covers..."
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddVideo} disabled={saving}>
+                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Add Video
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : undefined
       }
     >
       <div className="space-y-8">
@@ -252,12 +260,16 @@ export default function HelpPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No Help Videos Yet</h3>
                 <p className="text-muted-foreground max-w-md mb-4">
-                  Add tutorial videos to help your team learn how to use the system.
+                  {isPlatformAdmin 
+                    ? 'Add tutorial videos to help your team learn how to use the system.'
+                    : 'Tutorial videos will appear here once they are added.'}
                 </p>
-                <Button onClick={() => setAddDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Video
-                </Button>
+                {isPlatformAdmin && (
+                  <Button onClick={() => setAddDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Video
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -286,14 +298,16 @@ export default function HelpPage() {
                           </p>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => openDeleteDialog(video)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {isPlatformAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => openDeleteDialog(video)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
