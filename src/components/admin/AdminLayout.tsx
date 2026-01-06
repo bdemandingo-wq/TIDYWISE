@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { SubscriptionDialog } from './SubscriptionDialog';
+import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,8 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         onOpenChange={setShowSubscriptionDialog}
         onSubscriptionActive={checkSubscription}
       />
+      
+      <OfflineIndicator />
     </div>
   );
 }
