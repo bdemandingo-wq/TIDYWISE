@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.public-booking-data]
 verify_jwt = false
+
+[functions.openphone-webhook]
+verify_jwt = false

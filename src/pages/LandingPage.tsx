@@ -22,6 +22,7 @@ import { Seo } from "@/components/Seo";
 import { PrivacyPolicyDialog } from "@/components/legal/PrivacyPolicyDialog";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 import { AIBusinessTools } from "@/components/landing/AIBusinessTools";
+import { CompetitorComparison } from "@/components/landing/CompetitorComparison";
 
 const cleaningConfig = {
   jobLabel: "Cleans",
@@ -311,6 +312,9 @@ export default function LandingPage() {
 
       {/* AI Business Tools Section */}
       <AIBusinessTools />
+
+      {/* Competitor Comparison Section */}
+      <CompetitorComparison />
 
       {/* Security & Trust Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">

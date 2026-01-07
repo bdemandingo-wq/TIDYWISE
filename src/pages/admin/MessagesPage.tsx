@@ -57,8 +57,44 @@ export default function MessagesPage() {
   useEffect(() => {
     if (organizationId) {
       fetchConversations();
+
+      // Subscribe to realtime updates for incoming messages
+      const channel = supabase
+        .channel('sms-messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'sms_messages',
+            filter: `organization_id=eq.${organizationId}`,
+          },
+          (payload) => {
+            console.log('New message received:', payload);
+            const newMsg = payload.new as any;
+            
+            // If it's for the selected conversation, add to messages
+            if (selectedConversation && newMsg.conversation_id === selectedConversation.id) {
+              setMessages(prev => [...prev, {
+                id: newMsg.id,
+                direction: newMsg.direction as 'inbound' | 'outbound',
+                content: newMsg.content,
+                sent_at: newMsg.sent_at,
+                status: newMsg.status,
+              }]);
+            }
+            
+            // Refresh conversations to update unread counts
+            fetchConversations();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [organizationId]);
+  }, [organizationId, selectedConversation?.id]);
 
   useEffect(() => {
     if (selectedConversation) {
