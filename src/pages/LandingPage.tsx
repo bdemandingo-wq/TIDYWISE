@@ -54,23 +54,21 @@ const cleaningConfig = {
     },
   ],
   features: [
+    "Online booking form",
     "Recurring bookings",
-    "Customer portal",
-    "Inventory tracking",
-    "Lead management",
-    "Quote generator",
-    "Loyalty programs",
+    "Staff portal & app",
     "GPS check-ins",
+    "Quote generator",
+    "Lead management",
     "Photo documentation",
-    "Email campaigns",
     "Review requests",
+    "Loyalty programs",
+    "P&L reports",
+    "Revenue forecasting",
     "Multi-location",
-    "Team messaging",
     "Demo/Test Mode",
-    "Per-service pricing",
-    "Sales tax automation",
-    "Coupon codes",
-    "SqFt toggle option"
+    "In-App SMS inbox",
+    "Inventory tracking"
   ]
 };
 
@@ -310,11 +308,11 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Competitor Comparison Section - moved up to hook customers */}
+      <CompetitorComparison />
+
       {/* AI Business Tools Section */}
       <AIBusinessTools />
-
-      {/* Competitor Comparison Section */}
-      <CompetitorComparison />
 
       {/* Security & Trust Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">

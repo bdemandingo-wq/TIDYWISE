@@ -14,10 +14,8 @@ const features: Feature[] = [
   { name: "Recurring Bookings", tidywise: true, bookingKoala: true, jobber: true },
   { name: "Staff Portal & App", tidywise: true, bookingKoala: true, jobber: true },
   { name: "GPS Check-ins", tidywise: true, bookingKoala: true, jobber: "Add-on" },
-  { name: "Customer Portal", tidywise: true, bookingKoala: true, jobber: true },
   { name: "Stripe Payments", tidywise: true, bookingKoala: true, jobber: true },
   { name: "SMS Notifications", tidywise: true, bookingKoala: "Add-on", jobber: "Add-on" },
-  { name: "Email Campaigns", tidywise: true, bookingKoala: "Premium", jobber: "$79/mo extra" },
   { name: "Loyalty Programs", tidywise: true, bookingKoala: true, jobber: false },
   { name: "Lead Management", tidywise: true, bookingKoala: true, jobber: true },
   { name: "Quote Generator", tidywise: true, bookingKoala: true, jobber: true },
@@ -41,34 +39,25 @@ const pricingPlans = [
   {
     name: "TIDYWISE",
     tagline: "Built for cleaning businesses",
-    starter: "$0",
-    starterNote: "Free forever",
-    professional: "$29",
-    professionalNote: "/month",
-    premium: "$79",
-    premiumNote: "/month",
+    price: "$50",
+    priceNote: "/month",
+    trial: "2 months free",
     highlight: true,
   },
   {
     name: "Booking Koala",
     tagline: "General service booking",
-    starter: "$27",
-    starterNote: "/month",
-    professional: "$57",
-    professionalNote: "/month",
-    premium: "$197",
-    premiumNote: "/month",
+    price: "$197",
+    priceNote: "/month",
+    trial: "14-day trial",
     highlight: false,
   },
   {
     name: "Jobber",
     tagline: "Field service management",
-    starter: "$39",
-    starterNote: "/month",
-    professional: "$129",
-    professionalNote: "/month (5 users)",
-    premium: "$349",
-    premiumNote: "/month (10 users)",
+    price: "$349",
+    priceNote: "/month",
+    trial: "14-day trial",
     highlight: false,
   },
 ];
@@ -118,48 +107,18 @@ export function CompetitorComparison() {
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg ${plan.highlight ? "bg-primary-foreground/10" : "bg-muted"}`}>
-                  <p className={`text-xs uppercase font-medium ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    Starter
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-bold ${plan.highlight ? "" : "text-foreground"}`}>
-                      {plan.starter}
-                    </span>
-                    <span className={`text-sm ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {plan.starterNote}
-                    </span>
-                  </div>
+              <div className={`p-6 rounded-lg text-center ${plan.highlight ? "bg-primary-foreground/10" : "bg-muted"}`}>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className={`text-4xl font-bold ${plan.highlight ? "" : "text-foreground"}`}>
+                    {plan.price}
+                  </span>
+                  <span className={`text-sm ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {plan.priceNote}
+                  </span>
                 </div>
-
-                <div className={`p-4 rounded-lg ${plan.highlight ? "bg-primary-foreground/10" : "bg-muted"}`}>
-                  <p className={`text-xs uppercase font-medium ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    Professional
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-bold ${plan.highlight ? "" : "text-foreground"}`}>
-                      {plan.professional}
-                    </span>
-                    <span className={`text-sm ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {plan.professionalNote}
-                    </span>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-lg ${plan.highlight ? "bg-primary-foreground/10" : "bg-muted"}`}>
-                  <p className={`text-xs uppercase font-medium ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    Premium
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-bold ${plan.highlight ? "" : "text-foreground"}`}>
-                      {plan.premium}
-                    </span>
-                    <span className={`text-sm ${plan.highlight ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {plan.premiumNote}
-                    </span>
-                  </div>
-                </div>
+                <p className={`text-sm mt-2 font-medium ${plan.highlight ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
+                  {plan.trial}
+                </p>
               </div>
 
               {plan.highlight && (
@@ -168,7 +127,7 @@ export function CompetitorComparison() {
                   className="w-full mt-6"
                   onClick={() => navigate("/auth")}
                 >
-                  Start Free Trial
+                  Start 2-Month Free Trial
                 </Button>
               )}
             </div>
