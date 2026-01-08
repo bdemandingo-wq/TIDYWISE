@@ -95,32 +95,6 @@ export default function FinancePage() {
     enabled: isSubscribed,
   });
 
-  // Show subscription gate if not subscribed
-  if (!isSubscribed) {
-    return (
-      <AdminLayout
-        title="Finance & Taxes"
-        subtitle="Profit & loss, transactions, and tax exports"
-      >
-        <Card className="border-dashed border-2 border-muted-foreground/20">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <Lock className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
-            <p className="text-muted-foreground mb-4 max-w-sm">
-              Finance & Tax reports require an active subscription. Start your free 2-month trial to unlock all features.
-            </p>
-            <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Start Free Trial
-            </Button>
-          </CardContent>
-        </Card>
-      </AdminLayout>
-    );
-  }
-
   // Transform bookings to transactions with calculated fees
   const transactions: Transaction[] = useMemo(() => {
     return bookings.map((b: any) => {
@@ -221,6 +195,32 @@ export default function FinancePage() {
       estimated_tax: Math.round(data.total * 0.07 * 100) / 100,
     }));
   }, [transactions]);
+
+  // Show subscription gate if not subscribed (after all hooks)
+  if (!isSubscribed) {
+    return (
+      <AdminLayout
+        title="Finance & Taxes"
+        subtitle="Profit & loss, transactions, and tax exports"
+      >
+        <Card className="border-dashed border-2 border-muted-foreground/20">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Lock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
+            <p className="text-muted-foreground mb-4 max-w-sm">
+              Finance & Tax reports require an active subscription. Start your free 2-month trial to unlock all features.
+            </p>
+            <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Start Free Trial
+            </Button>
+          </CardContent>
+        </Card>
+      </AdminLayout>
+    );
+  }
 
   // Export functions
   const exportQuickBooksCSV = () => {
