@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -511,26 +511,20 @@ function OperationsDialog({
   defaultDate?: Date;
   onSave: (data: Partial<OperationsEntry>) => void;
 }) {
-  const getInitialDate = () => {
-    if (entry?.track_date) return entry.track_date;
-    if (defaultDate) return format(defaultDate, 'yyyy-MM-dd');
-    return format(new Date(), 'yyyy-MM-dd');
-  };
-
   const [formData, setFormData] = useState({
-    track_date: getInitialDate(),
-    incoming_calls: entry?.incoming_calls?.toString() || '0',
-    closed_deals: entry?.closed_deals?.toString() || '0',
-    revenue_booked: entry?.revenue_booked?.toString() || '0',
-    cold_emails_sent: entry?.cold_emails_sent?.toString() || '0',
-    cold_calls_made: entry?.cold_calls_made?.toString() || '0',
-    leads_followed_up: entry?.leads_followed_up?.toString() || '0',
-    jobs_completed: entry?.jobs_completed?.toString() || '0',
-    notes: entry?.notes || '',
+    track_date: '',
+    incoming_calls: '0',
+    closed_deals: '0',
+    revenue_booked: '0',
+    cold_emails_sent: '0',
+    cold_calls_made: '0',
+    leads_followed_up: '0',
+    jobs_completed: '0',
+    notes: '',
   });
 
   // Reset form when entry or defaultDate changes
-  useState(() => {
+  useEffect(() => {
     if (entry) {
       setFormData({
         track_date: entry.track_date,
@@ -556,7 +550,7 @@ function OperationsDialog({
         notes: '',
       });
     }
-  });
+  }, [entry, defaultDate, open]);
 
   const handleSubmit = () => {
     onSave({

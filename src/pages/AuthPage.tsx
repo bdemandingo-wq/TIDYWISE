@@ -14,12 +14,18 @@ export default function AuthPage() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   
-  // Get email and mode from navigation state (from landing page)
+  // Get email and mode from navigation state or URL params (from landing page)
   const stateEmail = (location.state as { email?: string })?.email || '';
   const stateMode = (location.state as { mode?: string })?.mode;
+  const queryParams = new URLSearchParams(location.search);
+  const urlMode = queryParams.get('mode');
   
   // Default to signup mode if coming from landing page with email or mode=signup
-  const [isLogin, setIsLogin] = useState(stateMode === 'signup' ? false : !stateEmail);
+  const [isLogin, setIsLogin] = useState(() => {
+    if (urlMode === 'signup' || stateMode === 'signup') return false;
+    if (stateEmail) return false;
+    return true;
+  });
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

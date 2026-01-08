@@ -66,7 +66,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   contacted: { label: 'Contacted', color: 'bg-yellow-500' },
   qualified: { label: 'Qualified', color: 'bg-purple-500' },
   converted: { label: 'Converted', color: 'bg-green-500' },
-  lost: { label: 'Lost', color: 'bg-gray-500' },
+  lost: { label: 'Lost', color: 'bg-red-500' },
 };
 
 const SOURCE_OPTIONS = [

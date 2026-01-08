@@ -207,7 +207,7 @@ export default function FinancePage() {
   const salesTaxByZip = useMemo(() => {
     const zipMap = new Map<string, { count: number; total: number }>();
     transactions.forEach(t => {
-      const zip = t.zip_code || 'Unknown';
+      const zip = t.zip_code || 'No Zip';
       const existing = zipMap.get(zip) || { count: 0, total: 0 };
       zipMap.set(zip, {
         count: existing.count + 1,
