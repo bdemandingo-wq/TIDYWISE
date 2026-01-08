@@ -2332,6 +2332,7 @@ export type Database = {
       }
       sms_conversations: {
         Row: {
+          conversation_type: string | null
           created_at: string
           customer_id: string | null
           customer_name: string | null
@@ -2343,6 +2344,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -2354,6 +2356,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null

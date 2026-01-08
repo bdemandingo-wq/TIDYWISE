@@ -44,8 +44,11 @@ const handler = async (req: Request): Promise<Response> => {
     const payload = await req.json() as OpenPhoneWebhookPayload;
     console.log("[openphone-webhook] Received payload:", JSON.stringify(payload, null, 2));
 
-    // Only process incoming messages
-    if (payload.type !== 'message.received') {
+    // Process both incoming messages AND outgoing messages sent from OpenPhone app
+    const isInbound = payload.type === 'message.received';
+    const isOutbound = payload.type === 'message.completed' || payload.type === 'message.created';
+    
+    if (!isInbound && !isOutbound) {
       console.log("[openphone-webhook] Ignoring event type:", payload.type);
       return new Response(
         JSON.stringify({ success: true, message: "Event type ignored" }),
@@ -55,11 +58,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     const message = payload.data.object;
     const fromPhone = message.from;
+    const toPhone = message.to;
     const toPhoneNumberId = message.phoneNumberId;
     const content = message.body;
     const openphoneMessageId = message.id;
+    const direction = isInbound ? 'inbound' : 'outbound';
+    const customerPhone = isInbound ? fromPhone : toPhone;
 
-    console.log(`[openphone-webhook] Incoming SMS from ${fromPhone} to phone ID ${toPhoneNumberId}`);
+    console.log(`[openphone-webhook] ${direction} SMS - from ${fromPhone} to ${toPhone} (phone ID: ${toPhoneNumberId})`);
 
     // Find the organization by the OpenPhone phone number ID
     const { data: smsSettings, error: settingsError } = await supabase
@@ -98,12 +104,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] Found organization: ${organizationId}`);
 
-    // Find or create conversation
+    // Find or create conversation using the customer phone (not the org's OpenPhone number)
     const { data: existingConversation } = await supabase
       .from('sms_conversations')
       .select('id')
       .eq('organization_id', organizationId)
-      .eq('customer_phone', fromPhone)
+      .eq('customer_phone', customerPhone)
       .maybeSingle();
 
     let conversationId: string;
@@ -117,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from('customers')
         .select('id, first_name, last_name')
         .eq('organization_id', organizationId)
-        .eq('phone', fromPhone)
+        .eq('phone', customerPhone)
         .maybeSingle();
 
       const customerName = customer ? `${customer.first_name} ${customer.last_name}` : null;
@@ -127,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from('sms_conversations')
         .insert({
           organization_id: organizationId,
-          customer_phone: fromPhone,
+          customer_phone: customerPhone,
           customer_name: customerName,
           customer_id: customer?.id || null,
         })
@@ -146,15 +152,30 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`[openphone-webhook] Created new conversation: ${conversationId}`);
     }
 
+    // Check if message already exists (avoid duplicates from our app sending)
+    const { data: existingMessage } = await supabase
+      .from('sms_messages')
+      .select('id')
+      .eq('openphone_message_id', openphoneMessageId)
+      .maybeSingle();
+    
+    if (existingMessage) {
+      console.log(`[openphone-webhook] Message ${openphoneMessageId} already exists, skipping`);
+      return new Response(
+        JSON.stringify({ success: true, message: "Message already exists" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Insert the message
     const { error: messageError } = await supabase
       .from('sms_messages')
       .insert({
         conversation_id: conversationId,
         organization_id: organizationId,
-        direction: 'inbound',
+        direction: direction,
         content: content,
-        status: 'received',
+        status: direction === 'inbound' ? 'received' : 'sent',
         openphone_message_id: openphoneMessageId,
         sent_at: message.createdAt || new Date().toISOString(),
       });
@@ -167,25 +188,33 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Update conversation's last_message_at and increment unread_count
-    // First get current unread count
-    const { data: currentConv } = await supabase
-      .from('sms_conversations')
-      .select('unread_count')
-      .eq('id', conversationId)
-      .single();
+    // Update conversation's last_message_at and increment unread_count for inbound only
+    if (direction === 'inbound') {
+      // First get current unread count
+      const { data: currentConv } = await supabase
+        .from('sms_conversations')
+        .select('unread_count')
+        .eq('id', conversationId)
+        .single();
 
-    const newUnreadCount = (currentConv?.unread_count || 0) + 1;
+      const newUnreadCount = (currentConv?.unread_count || 0) + 1;
 
-    await supabase
-      .from('sms_conversations')
-      .update({
-        last_message_at: new Date().toISOString(),
-        unread_count: newUnreadCount,
-      })
-      .eq('id', conversationId);
+      await supabase
+        .from('sms_conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          unread_count: newUnreadCount,
+        })
+        .eq('id', conversationId);
+    } else {
+      // For outbound, just update last_message_at
+      await supabase
+        .from('sms_conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversationId);
+    }
 
-    console.log(`[openphone-webhook] Successfully saved inbound message`);
+    console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
     return new Response(
       JSON.stringify({ success: true }),

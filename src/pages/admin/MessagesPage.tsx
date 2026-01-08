@@ -38,7 +38,7 @@ interface Conversation {
   customer_name: string | null;
   last_message_at: string;
   unread_count: number;
-  conversation_type?: 'client' | 'cleaner';
+  conversation_type?: string;
 }
 
 interface Message {

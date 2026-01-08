@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, Percent, Clock, Send, CreditCard } from "lucide-react";
+import { Loader2, DollarSign, Percent, Clock, Send, CreditCard, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,6 +39,7 @@ export function BookingDetailsDialog({
   booking: BookingWithDetails | null;
 }) {
   const [sendingLink, setSendingLink] = useState(false);
+  const [creatingQuote, setCreatingQuote] = useState(false);
   const { organizationId } = useOrgId();
 
   if (!booking) return null;
@@ -78,6 +79,63 @@ export function BookingDetailsDialog({
       });
     } finally {
       setSendingLink(false);
+    }
+  };
+
+  const handleCreateQuote = async () => {
+    if (!booking.customer?.id) {
+      toast({
+        title: "Error",
+        description: "Customer is required to create a quote",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingQuote(true);
+    try {
+      const extras = (booking as any).extras || [];
+      const { data: quote, error } = await supabase
+        .from('quotes')
+        .insert({
+          organization_id: organizationId,
+          customer_id: booking.customer.id,
+          service_id: booking.service?.id || null,
+          address: booking.address || null,
+          city: booking.city || null,
+          state: booking.state || null,
+          zip_code: booking.zip_code || null,
+          bedrooms: (booking as any).bedrooms || null,
+          bathrooms: (booking as any).bathrooms || null,
+          square_footage: (booking as any).square_footage || null,
+          extras: extras,
+          subtotal: (booking as any).subtotal || booking.total_amount,
+          total_amount: booking.total_amount,
+          notes: booking.notes || null,
+          status: 'draft',
+          valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Quote created!",
+        description: `Quote #${quote.quote_number} created. Go to Leads page to send it.`,
+      });
+      
+      // Navigate to leads/quotes page
+      window.location.href = '/dashboard/leads';
+    } catch (error: any) {
+      console.error('Error creating quote:', error);
+      toast({
+        title: "Failed to create quote",
+        description: error.message || "Could not create quote",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingQuote(false);
     }
   };
 
@@ -169,6 +227,22 @@ export function BookingDetailsDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
+          {booking.customer?.id && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={handleCreateQuote}
+              disabled={creatingQuote}
+            >
+              {creatingQuote ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              Create Quote
+            </Button>
+          )}
           {booking.customer?.email && (
             <Button
               type="button"
@@ -182,7 +256,7 @@ export function BookingDetailsDialog({
               ) : (
                 <CreditCard className="h-4 w-4" />
               )}
-              Send Secure Card Link
+              Send Card Link
             </Button>
           )}
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>

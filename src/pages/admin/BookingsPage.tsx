@@ -944,6 +944,14 @@ export default function BookingsPage() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger 
+            value="quotes" 
+            className="gap-2"
+            onClick={() => window.location.href = '/dashboard/leads'}
+          >
+            <Star className="w-4 h-4" />
+            Quotes
+          </TabsTrigger>
           <TabsTrigger value="cleaner-wages" className="gap-2">
             <Settings2 className="w-4 h-4" />
             Cleaner Wages
