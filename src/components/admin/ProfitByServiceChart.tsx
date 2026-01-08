@@ -4,12 +4,14 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ProfitByServiceChartProps {
   bookings: BookingWithDetails[];
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'];
+const REFUND_COLOR = '#ef4444'; // Red for refunds
 
 export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
   const serviceData = useMemo(() => {
@@ -74,18 +76,22 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
 
   const pieData = serviceData.map(s => ({
     name: s.name,
-    value: s.profit,
-    percentage: totalProfit > 0 ? (s.profit / totalProfit) * 100 : 0,
+    value: Math.abs(s.profit), // Use absolute for pie chart slice size
+    actualValue: s.profit, // Keep actual for display
+    percentage: totalProfit !== 0 ? (s.profit / Math.abs(totalProfit)) * 100 : 0,
+    isRefund: s.name === 'Refund',
   }));
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const displayValue = data.actualValue ?? data.profit ?? data.value;
+      const isNegative = displayValue < 0;
       return (
         <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
           <p className="font-medium text-foreground">{data.name}</p>
-          <p className="text-sm text-emerald-600">
-            Profit: ${data.value?.toLocaleString() || data.profit?.toLocaleString()}
+          <p className={cn("text-sm font-medium", isNegative ? "text-red-600" : "text-emerald-600")}>
+            Profit: {isNegative ? '-' : ''}${Math.abs(displayValue)?.toLocaleString()}
           </p>
           {data.percentage !== undefined && (
             <p className="text-sm text-muted-foreground">
@@ -146,8 +152,8 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
                     label={({ name, percentage }) => `${name} (${percentage.toFixed(0)}%)`}
                     labelLine={false}
                   >
-                    {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.isRefund ? REFUND_COLOR : COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -181,8 +187,8 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
                             <p className="text-sm text-muted-foreground">
                               Cleaner Pay: ${data.cleanerPay.toLocaleString()}
                             </p>
-                            <p className="text-sm text-emerald-600 font-medium">
-                              Profit: ${data.profit.toLocaleString()}
+                            <p className={cn("text-sm font-medium", data.profit < 0 ? "text-red-600" : "text-emerald-600")}>
+                              Profit: {data.profit < 0 ? '-' : ''}${Math.abs(data.profit).toLocaleString()}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               Margin: {data.marginPercent.toFixed(1)}%
@@ -193,7 +199,18 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
                       return null;
                     }}
                   />
-                  <Bar dataKey="profit" fill="hsl(142, 71%, 45%)" radius={[0, 4, 4, 0]} />
+                  <Bar 
+                    dataKey="profit" 
+                    radius={[0, 4, 4, 0]}
+                    fill="hsl(142, 71%, 45%)"
+                  >
+                    {serviceData.map((entry, index) => (
+                      <Cell 
+                        key={`bar-${index}`} 
+                        fill={entry.name === 'Refund' || entry.profit < 0 ? '#ef4444' : 'hsl(142, 71%, 45%)'}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -207,12 +224,12 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
               <div key={service.name} className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                  style={{ backgroundColor: service.name === 'Refund' ? REFUND_COLOR : COLORS[idx % COLORS.length] }}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{service.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    ${service.profit.toLocaleString()} ({service.marginPercent.toFixed(0)}%)
+                  <p className={cn("text-xs", service.profit < 0 ? "text-red-600" : "text-muted-foreground")}>
+                    {service.profit < 0 ? '-' : ''}${Math.abs(service.profit).toLocaleString()} ({service.marginPercent.toFixed(0)}%)
                   </p>
                 </div>
               </div>

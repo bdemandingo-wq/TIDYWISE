@@ -79,12 +79,12 @@ export default function ReportsPage() {
     // Service breakdown - include all bookings for revenue tracking
     const serviceMap = new Map<string, { name: string; count: number; revenue: number; color: string }>();
     filteredBookings.forEach((booking, index) => {
-      const serviceId = booking.service?.id || 'unassigned';
+      const serviceId = booking.service?.id || 'refund';
       const existing = serviceMap.get(serviceId) || { 
-        name: booking.service?.name || 'Unassigned Service', 
+        name: booking.service?.name || 'Refund', 
         count: 0,
         revenue: 0,
-        color: defaultColors[index % defaultColors.length]
+        color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444'
       };
       existing.count += 1;
       existing.revenue += Number(booking.total_amount || 0);

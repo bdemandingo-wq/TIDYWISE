@@ -99,6 +99,21 @@ export default function MessagesPage() {
               }]);
             }
             
+            // Show in-app notification for inbound messages (client texted)
+            if (newMsg.direction === 'inbound') {
+              toast.info('New message received', {
+                description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
+                action: {
+                  label: 'View',
+                  onClick: () => {
+                    // Find and select the conversation
+                    const conv = conversations.find(c => c.id === newMsg.conversation_id);
+                    if (conv) setSelectedConversation(conv);
+                  }
+                }
+              });
+            }
+            
             // Refresh conversations to update unread counts
             fetchConversations();
           }
