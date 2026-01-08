@@ -430,15 +430,30 @@ export default function MessagesPage() {
                   >
                     <div className="flex items-start gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {getInitials(conv.customer_name, conv.customer_phone)}
+                        <AvatarFallback className={cn(
+                          "text-sm",
+                          conv.conversation_type === 'cleaner' 
+                            ? "bg-amber-100 text-amber-700" 
+                            : "bg-primary/10 text-primary"
+                        )}>
+                          {conv.conversation_type === 'cleaner' 
+                            ? <HardHat className="h-4 w-4" />
+                            : getInitials(conv.customer_name, conv.customer_phone)
+                          }
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium truncate">
-                            {conv.customer_name || conv.customer_phone}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">
+                              {conv.customer_name || conv.customer_phone}
+                            </p>
+                            {conv.conversation_type === 'cleaner' && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-300 text-amber-600">
+                                Cleaner
+                              </Badge>
+                            )}
+                          </div>
                           {conv.unread_count > 0 && (
                             <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
                               {conv.unread_count}

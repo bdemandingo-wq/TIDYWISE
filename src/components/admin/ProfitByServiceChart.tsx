@@ -24,7 +24,7 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
     bookings
       .filter(b => b.status === 'completed')
       .forEach(booking => {
-        const serviceName = booking.service?.name || 'Unassigned Service';
+        const serviceName = booking.service?.name || 'Refund';
         const revenue = Number(booking.total_amount || 0);
         const bookingAny = booking as any;
         

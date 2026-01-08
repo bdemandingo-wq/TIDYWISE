@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,6 +114,7 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 };
 
 export default function BookingsPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -947,7 +949,7 @@ export default function BookingsPage() {
           <TabsTrigger 
             value="quotes" 
             className="gap-2"
-            onClick={() => window.location.href = '/dashboard/leads'}
+            onClick={() => navigate('/dashboard/leads')}
           >
             <Star className="w-4 h-4" />
             Quotes
