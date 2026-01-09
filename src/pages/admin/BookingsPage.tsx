@@ -1486,7 +1486,7 @@ export default function BookingsPage() {
                               {booking.payment_status === 'paid'
                                 ? 'Payment Captured'
                                 : !(booking as any).payment_intent_id
-                                  ? 'No Hold'
+                                  ? 'Place Hold'
                                   : 'Capture Hold'}
                             </DropdownMenuItem>
                             <DropdownMenuItem

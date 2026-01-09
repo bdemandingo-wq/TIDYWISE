@@ -75,7 +75,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
           customerName: booking.customer 
             ? `${booking.customer.first_name} ${booking.customer.last_name}`
             : 'Unknown',
-          serviceName: booking.service?.name || 'Unknown',
+          serviceName: booking.service?.name || 'Refund',
           scheduledAt: new Date(booking.scheduled_at),
           revenue,
           cleanerPay,

@@ -339,32 +339,42 @@ export default function PublicBookingPage() {
                 </div>
               </div>
 
-              {/* Extras */}
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Add Extras</h2>
-                <p className="text-muted-foreground mb-4">Optional add-on services</p>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {extras.map((extra) => (
-                        <div 
-                          key={extra.id} 
-                          onClick={() => toggleExtra(extra.id)}
-                          className={cn(
-                            "flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all h-[100px]",
-                            selectedExtras.includes(extra.id) 
-                              ? "border-primary bg-primary/5" 
-                              : "border-border hover:border-primary/50"
-                          )}
-                        >
-                          <span className="font-medium text-center text-sm mb-1">{extra.name}</span>
-                          <span className="text-primary font-semibold">+${extra.price}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Extras - Only show if NOT Deep Clean (deep clean includes all add-ons) */}
+              {service && !service.name.toLowerCase().includes('deep') && (
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Add Extras</h2>
+                  <p className="text-muted-foreground mb-4">Optional add-on services</p>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {extras.map((extra) => (
+                          <div 
+                            key={extra.id} 
+                            onClick={() => toggleExtra(extra.id)}
+                            className={cn(
+                              "flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all h-[100px]",
+                              selectedExtras.includes(extra.id) 
+                                ? "border-primary bg-primary/5" 
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
+                            <span className="font-medium text-center text-sm mb-1">{extra.name}</span>
+                            <span className="text-primary font-semibold">+${extra.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+              
+              {service && service.name.toLowerCase().includes('deep') && (
+                <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                  <p className="text-sm font-medium text-primary">
+                    ✨ Deep Clean includes all add-on services (windows, appliances, baseboards, walls, and more)
+                  </p>
+                </div>
+              )}
 
               {/* Price Summary */}
               {selectedService && selectedSqFtIndex !== null && (

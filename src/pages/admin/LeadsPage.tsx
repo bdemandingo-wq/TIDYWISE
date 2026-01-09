@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,8 +63,9 @@ interface Lead {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   new: { label: 'New', color: 'bg-blue-500' },
-  contacted: { label: 'Contacted', color: 'bg-yellow-500' },
-  qualified: { label: 'Qualified', color: 'bg-purple-500' },
+  follow_up: { label: 'Follow Up', color: 'bg-yellow-500' },
+  quoted: { label: 'Quoted', color: 'bg-purple-500' },
+  commercial: { label: 'Commercial', color: 'bg-amber-500' },
   converted: { label: 'Converted', color: 'bg-green-500' },
   lost: { label: 'Lost', color: 'bg-red-500' },
 };
@@ -194,20 +195,21 @@ export default function LeadsPage() {
   const stats = {
     total: leads.length,
     new: leads.filter(l => l.status === 'new').length,
-    contacted: leads.filter(l => l.status === 'contacted').length,
-    qualified: leads.filter(l => l.status === 'qualified').length,
+    follow_up: leads.filter(l => l.status === 'follow_up').length,
+    quoted: leads.filter(l => l.status === 'quoted').length,
+    commercial: leads.filter(l => l.status === 'commercial').length,
     converted: leads.filter(l => l.status === 'converted').length,
     lost: leads.filter(l => l.status === 'lost').length,
   };
 
   const funnelData = useMemo(() => {
-    const stages = ['new', 'contacted', 'qualified', 'converted'];
+    const stages = ['new', 'follow_up', 'quoted', 'converted'];
     const counts = stages.map(s => leads.filter(l => l.status === s).length);
     const maxCount = Math.max(...counts, 1);
     
     return stages.map((stage, i) => ({
       stage,
-      label: STATUS_CONFIG[stage].label,
+      label: STATUS_CONFIG[stage]?.label || stage,
       count: counts[i],
       percentage: maxCount > 0 ? Math.round((counts[i] / maxCount) * 100) : 0,
       conversionRate: i > 0 && counts[i - 1] > 0 
@@ -368,7 +370,7 @@ export default function LeadsPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total</p>
@@ -383,14 +385,20 @@ export default function LeadsPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Contacted</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.contacted}</p>
+            <p className="text-sm text-muted-foreground">Follow Up</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats.follow_up}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Qualified</p>
-            <p className="text-2xl font-bold text-purple-600">{stats.qualified}</p>
+            <p className="text-sm text-muted-foreground">Quoted</p>
+            <p className="text-2xl font-bold text-purple-600">{stats.quoted}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Commercial</p>
+            <p className="text-2xl font-bold text-amber-600">{stats.commercial}</p>
           </CardContent>
         </Card>
         <Card>
@@ -402,7 +410,7 @@ export default function LeadsPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Lost</p>
-            <p className="text-2xl font-bold text-muted-foreground">{stats.lost}</p>
+            <p className="text-2xl font-bold text-red-600">{stats.lost}</p>
           </CardContent>
         </Card>
       </div>
@@ -605,6 +613,24 @@ function LeadDialog({
   lead: Lead | null;
   onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; message?: string; notes?: string; source: string; status: string }) => void;
 }) {
+  // Reset form data when lead changes
+  useEffect(() => {
+    setFormData({
+      name: lead?.name || '',
+      email: lead?.email || '',
+      phone: lead?.phone || '',
+      address: lead?.address || '',
+      city: lead?.city || '',
+      state: lead?.state || '',
+      zip_code: lead?.zip_code || '',
+      service_interest: lead?.service_interest || '',
+      message: lead?.message || '',
+      notes: lead?.notes || '',
+      source: lead?.source || 'website',
+      status: lead?.status || 'new',
+    });
+  }, [lead]);
+  
   const [formData, setFormData] = useState({
     name: lead?.name || '',
     email: lead?.email || '',

@@ -33,7 +33,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
-import { DemoModeToggle } from './DemoModeToggle';
+
 import {
   DndContext,
   closestCenter,
@@ -352,10 +352,6 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           </div>
         )}
 
-        {/* Demo Mode Toggle */}
-        <div className="mt-4 pt-4 border-t border-sidebar-border">
-          <DemoModeToggle isOpen={isOpen} isMobile={isMobile} />
-        </div>
       </nav>
 
       {/* User Profile */}

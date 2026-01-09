@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
-import { Loader2, CreditCard } from 'lucide-react';
+import { Loader2, CreditCard, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface CardFormProps {
   email: string;
@@ -12,6 +15,9 @@ interface CardFormProps {
   organizationId: string;
   onCardSaved: (cardInfo: { last4: string; brand: string; paymentMethodId: string }) => void;
   onError?: (error: string) => void;
+  onHoldPlaced?: (holdInfo: { paymentIntentId: string; amount: number }) => void;
+  showHoldOption?: boolean;
+  defaultHoldAmount?: number;
 }
 
 const CARD_ELEMENT_OPTIONS = {
@@ -32,11 +38,22 @@ const CARD_ELEMENT_OPTIONS = {
   hidePostalCode: true,
 };
 
-function CardFormInner({ email, customerName, organizationId, onCardSaved, onError }: CardFormProps) {
+function CardFormInner({ 
+  email, 
+  customerName, 
+  organizationId, 
+  onCardSaved, 
+  onError,
+  onHoldPlaced,
+  showHoldOption = true,
+  defaultHoldAmount = 50
+}: CardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
+  const [placeHold, setPlaceHold] = useState(false);
+  const [holdAmount, setHoldAmount] = useState(defaultHoldAmount.toString());
 
   const handleSaveCard = async () => {
     if (!stripe || !elements) {
@@ -97,10 +114,39 @@ function CardFormInner({ email, customerName, organizationId, onCardSaved, onErr
           paymentMethodId: setupIntent.payment_method as string,
         });
 
-        toast({
-          title: 'Success',
-          description: `Card saved (${cardData.brand} ending in ${cardData.last4})`,
-        });
+        // If hold is requested, place it now
+        if (placeHold && parseFloat(holdAmount) > 0) {
+          const { data: holdData, error: holdError } = await supabase.functions.invoke('charge-customer-card', {
+            body: {
+              email,
+              amount: parseFloat(holdAmount),
+              description: `Temporary hold for ${customerName}`,
+              organizationId,
+            },
+          });
+
+          if (holdError) {
+            toast({
+              title: 'Card saved, but hold failed',
+              description: holdError.message,
+              variant: 'destructive',
+            });
+          } else if (holdData?.success) {
+            toast({
+              title: 'Success',
+              description: `Card saved and $${parseFloat(holdAmount).toFixed(2)} hold placed (not charged)`,
+            });
+            onHoldPlaced?.({
+              paymentIntentId: holdData.paymentIntentId,
+              amount: parseFloat(holdAmount),
+            });
+          }
+        } else {
+          toast({
+            title: 'Success',
+            description: `Card saved (${cardData.brand} ending in ${cardData.last4})`,
+          });
+        }
 
         // Clear the card element
         cardElement.clear();
@@ -120,6 +166,49 @@ function CardFormInner({ email, customerName, organizationId, onCardSaved, onErr
       <div className="p-3 border rounded-md bg-background">
         <CardElement options={CARD_ELEMENT_OPTIONS} onChange={(e) => setCardComplete(e.complete)} />
       </div>
+      
+      {showHoldOption && (
+        <div className="space-y-3 p-4 bg-secondary/30 rounded-lg border border-border/50">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="placeHold"
+              checked={placeHold}
+              onCheckedChange={(checked) => setPlaceHold(checked === true)}
+            />
+            <Label htmlFor="placeHold" className="flex items-center gap-2 text-sm cursor-pointer">
+              <Lock className="w-4 h-4 text-muted-foreground" />
+              Place temporary hold (not charged)
+            </Label>
+          </div>
+          
+          {placeHold && (
+            <div className="flex items-center gap-2 ml-6">
+              <Label htmlFor="holdAmount" className="text-sm text-muted-foreground whitespace-nowrap">
+                Hold amount:
+              </Label>
+              <div className="relative flex-1 max-w-[120px]">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="holdAmount"
+                  type="number"
+                  value={holdAmount}
+                  onChange={(e) => setHoldAmount(e.target.value)}
+                  className="pl-7 h-9"
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          )}
+          
+          {placeHold && (
+            <p className="text-xs text-muted-foreground ml-6">
+              This hold authorizes but does not charge the card. You can capture or release it later.
+            </p>
+          )}
+        </div>
+      )}
+      
       <Button
         type="button"
         variant="secondary"
@@ -132,7 +221,7 @@ function CardFormInner({ email, customerName, organizationId, onCardSaved, onErr
         ) : (
           <CreditCard className="w-4 h-4 mr-2" />
         )}
-        Add Card
+        {placeHold ? `Add Card & Place $${parseFloat(holdAmount || '0').toFixed(2)} Hold` : 'Add Card'}
       </Button>
     </div>
   );

@@ -441,6 +441,8 @@ export function PaymentStep() {
                   organizationId={organizationId || ''}
                   onCardSaved={handleCardSaved}
                   onError={(error) => setChargeError(error)}
+                  showHoldOption={true}
+                  defaultHoldAmount={pricingBreakdown.grandTotal || 50}
                 />
               </div>
 
