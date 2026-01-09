@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
 
 interface StaffMember {
   id: string;
@@ -65,6 +66,7 @@ export default function StaffPage() {
   const [isResendingLink, setIsResendingLink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   
   const { data: staff = [], isLoading } = useStaff();
   const { data: services = [] } = useServices();
@@ -319,7 +321,13 @@ export default function StaffPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2">
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => {
+                            setSelectedStaff(member);
+                            setScheduleDialogOpen(true);
+                          }}
+                        >
                           <Calendar className="w-4 h-4" /> View Schedule
                         </DropdownMenuItem>
                         <DropdownMenuItem 
@@ -488,6 +496,23 @@ export default function StaffPage() {
           )}
           <DialogFooter>
             <Button onClick={handleResendLinkDialogClose}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedStaff?.name}'s Schedule
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStaff && (
+            <CleanerCalendar staffId={selectedStaff.id} />
+          )}
+          <DialogFooter>
+            <Button onClick={() => setScheduleDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
