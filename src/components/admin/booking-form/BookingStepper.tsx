@@ -340,7 +340,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
       scheduled_at: scheduledAt.toISOString(),
       duration: selectedService?.duration || 60,
-      total_amount: totalAmount,
+      total_amount: totalAmount > 0 ? totalAmount : calculatedPrice,
       status: isDraft ? 'pending' as const : 'confirmed' as const,
       payment_status: 'pending' as const,
       notes: notes || null,
