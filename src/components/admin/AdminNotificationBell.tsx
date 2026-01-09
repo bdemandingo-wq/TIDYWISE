@@ -34,25 +34,44 @@ export function AdminNotificationBell() {
     if (!organizationId) return;
 
     try {
-      // Fetch recent bookings as notifications
+      // Fetch recent bookings with customer and service info
       const { data: recentBookings, error } = await supabase
         .from('bookings')
-        .select('id, booking_number, status, created_at, payment_status')
+        .select(`
+          id, 
+          booking_number, 
+          status, 
+          created_at, 
+          payment_status,
+          scheduled_at,
+          customers:customer_id (first_name, last_name),
+          services:service_id (name)
+        `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (!error && recentBookings) {
-        const bookingNotifications: AdminNotification[] = recentBookings.map((booking) => ({
-          id: `booking-${booking.id}`,
-          type: 'booking' as const,
-          title: `Booking #${booking.booking_number}`,
-          message: `Status: ${booking.status} | Payment: ${booking.payment_status}`,
-          is_read: true, // Mark as read by default since these are historical
-          created_at: booking.created_at,
-          resource_id: booking.id,
-          resource_type: 'booking',
-        }));
+        const bookingNotifications: AdminNotification[] = recentBookings.map((booking: any) => {
+          const customerName = booking.customers 
+            ? `${booking.customers.first_name} ${booking.customers.last_name}` 
+            : 'Unknown Customer';
+          const serviceName = booking.services?.name || 'Service';
+          const cleanDate = booking.scheduled_at 
+            ? format(new Date(booking.scheduled_at), 'MMM d, yyyy')
+            : 'TBD';
+          
+          return {
+            id: `booking-${booking.id}`,
+            type: 'booking' as const,
+            title: customerName,
+            message: `${serviceName} • ${cleanDate}`,
+            is_read: true,
+            created_at: booking.created_at,
+            resource_id: booking.id,
+            resource_type: 'booking',
+          };
+        });
 
         // Get today's bookings as unread
         const today = new Date().toISOString().split('T')[0];
@@ -85,11 +104,13 @@ export function AdminNotificationBell() {
           },
           (payload) => {
             const newBooking = payload.new as any;
+            // Fetch full booking details for better notification
+            fetchNotifications();
             const newNotification: AdminNotification = {
               id: `booking-${newBooking.id}`,
               type: 'booking',
-              title: `New Booking #${newBooking.booking_number}`,
-              message: `A new booking has been created`,
+              title: 'New Booking Created',
+              message: `Scheduled for ${newBooking.scheduled_at ? format(new Date(newBooking.scheduled_at), 'MMM d') : 'TBD'}`,
               is_read: false,
               created_at: newBooking.created_at,
               resource_id: newBooking.id,

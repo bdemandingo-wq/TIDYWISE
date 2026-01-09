@@ -53,25 +53,33 @@ interface StaffMember {
 
 export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const [resendLinkDialogOpen, setResendLinkDialogOpen] = useState(false);
   const [resendLinkData, setResendLinkData] = useState<{ name: string; email: string; link: string } | null>(null);
   const [isResendingLink, setIsResendingLink] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
   
   const { data: staff = [], isLoading } = useStaff();
   const { data: services = [] } = useServices();
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
 
-  const filteredStaff = staff.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = staff.filter((s) => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesActiveFilter = showInactive ? true : s.is_active;
+    return matchesSearch && matchesActiveFilter;
+  });
+
+  const activeCount = staff.filter(s => s.is_active).length;
+  const inactiveCount = staff.filter(s => !s.is_active).length;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -94,6 +102,52 @@ export default function StaffPage() {
   const handleDeleteClick = (member: StaffMember) => {
     setStaffToDelete(member);
     setDeleteDialogOpen(true);
+  };
+
+  const handlePermanentDeleteClick = (member: StaffMember) => {
+    setStaffToDelete(member);
+    setPermanentDeleteDialogOpen(true);
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    if (!staffToDelete) return;
+
+    setIsDeletingPermanently(true);
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', staffToDelete.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast.success('Staff member permanently deleted');
+      setPermanentDeleteDialogOpen(false);
+      setStaffToDelete(null);
+    } catch (error: any) {
+      console.error('Error permanently deleting staff:', error);
+      toast.error(error.message || 'Failed to delete staff member. They may have associated bookings.');
+    } finally {
+      setIsDeletingPermanently(false);
+    }
+  };
+
+  const handleReactivateStaff = async (member: StaffMember) => {
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({ is_active: true })
+        .eq('id', member.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast.success('Staff member reactivated');
+    } catch (error) {
+      console.error('Error reactivating staff:', error);
+      toast.error('Failed to reactivate staff member');
+    }
   };
 
   const handleResendPasswordLink = async (member: StaffMember) => {
@@ -177,8 +231,8 @@ export default function StaffPage() {
         </Button>
       }
     >
-      {/* Search */}
-      <div className="flex gap-4 mb-6">
+      {/* Search and Filters */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -188,6 +242,33 @@ export default function StaffPage() {
             className="pl-9"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showInactive ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowInactive(!showInactive)}
+            className="gap-2"
+          >
+            {showInactive ? 'Showing All' : 'Show Inactive'}
+            {inactiveCount > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {inactiveCount}
+              </Badge>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="flex gap-4 mb-4">
+        <Badge variant="outline" className="text-sm py-1 px-3">
+          Active: {activeCount}
+        </Badge>
+        {inactiveCount > 0 && (
+          <Badge variant="secondary" className="text-sm py-1 px-3">
+            Inactive: {inactiveCount}
+          </Badge>
+        )}
       </div>
 
       {/* Staff Grid */}
@@ -254,11 +335,19 @@ export default function StaffPage() {
                         >
                           <KeyRound className="w-4 h-4" /> Resend Password Link
                         </DropdownMenuItem>
+                        {!member.is_active && (
+                          <DropdownMenuItem 
+                            className="gap-2 text-green-600"
+                            onClick={() => handleReactivateStaff(member)}
+                          >
+                            <Edit className="w-4 h-4" /> Reactivate
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem 
                           className="gap-2 text-destructive"
-                          onClick={() => handleDeleteClick(member)}
+                          onClick={() => member.is_active ? handleDeleteClick(member) : handlePermanentDeleteClick(member)}
                         >
-                          <Trash2 className="w-4 h-4" /> Delete
+                          <Trash2 className="w-4 h-4" /> {member.is_active ? 'Deactivate' : 'Delete Permanently'}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -317,9 +406,9 @@ export default function StaffPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate Staff Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {staffToDelete?.name}? This will deactivate their account.
+              Are you sure you want to deactivate {staffToDelete?.name}? They won't be able to log in, but their records will be preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -328,7 +417,29 @@ export default function StaffPage() {
               onClick={handleConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={permanentDeleteDialogOpen} onOpenChange={setPermanentDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Permanently Delete Staff Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-destructive">Warning:</strong> This will permanently delete {staffToDelete?.name} from the database. 
+              This action cannot be undone. All associated data will be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingPermanently}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmPermanentDelete}
+              disabled={isDeletingPermanently}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingPermanently ? 'Deleting...' : 'Delete Permanently'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

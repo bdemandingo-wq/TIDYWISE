@@ -4,10 +4,13 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Clock, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, X, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useState } from 'react';
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -50,6 +53,42 @@ export function ScheduleStep() {
     setSelectedStaffId,
     staff,
   } = useBookingForm();
+
+  const [isTeamMode, setIsTeamMode] = useState(false);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+
+  // Handle team member toggle
+  const toggleTeamMember = (staffId: string) => {
+    setSelectedTeamMembers(prev => 
+      prev.includes(staffId) 
+        ? prev.filter(id => id !== staffId)
+        : [...prev, staffId]
+    );
+  };
+
+  // Remove team member
+  const removeTeamMember = (staffId: string) => {
+    setSelectedTeamMembers(prev => prev.filter(id => id !== staffId));
+  };
+
+  // Update primary staff when team mode changes
+  const handleTeamModeChange = (checked: boolean) => {
+    setIsTeamMode(checked);
+    if (!checked) {
+      // Keep only the first team member as primary when switching back
+      if (selectedTeamMembers.length > 0) {
+        setSelectedStaffId(selectedTeamMembers[0]);
+      }
+      setSelectedTeamMembers([]);
+    } else {
+      // Add current selected staff to team
+      if (selectedStaffId) {
+        setSelectedTeamMembers([selectedStaffId]);
+      }
+    }
+  };
+
+  const activeStaff = staff?.filter(s => s.is_active) || [];
 
   return (
     <div className="space-y-6">
@@ -122,23 +161,105 @@ export function ScheduleStep() {
 
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium">Assign Staff (Optional)</Label>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Assign Staff (Optional)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="teamMode"
+                checked={isTeamMode}
+                onCheckedChange={handleTeamModeChange}
+              />
+              <Label htmlFor="teamMode" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
+                <UserPlus className="h-3 w-3" />
+                Team Mode
+              </Label>
+            </div>
           </div>
-          <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
-            <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
-              <SelectValue placeholder="Select a cleaner (optional)" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {staff?.filter(s => s.is_active).map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+          {!isTeamMode ? (
+            // Single staff selection
+            <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
+              <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
+                <SelectValue placeholder="Select a cleaner (optional)" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {activeStaff.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            // Team selection mode
+            <div className="space-y-4">
+              {/* Selected Team Members */}
+              {selectedTeamMembers.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  {selectedTeamMembers.map((staffId) => {
+                    const member = activeStaff.find(s => s.id === staffId);
+                    if (!member) return null;
+                    return (
+                      <Badge 
+                        key={staffId} 
+                        variant="secondary" 
+                        className="flex items-center gap-1 py-1 px-3"
+                      >
+                        {member.name}
+                        <button
+                          type="button"
+                          onClick={() => removeTeamMember(staffId)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Add Team Members */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {activeStaff.map((member) => {
+                  const isSelected = selectedTeamMembers.includes(member.id);
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => toggleTeamMember(member.id)}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border text-left transition-all",
+                        isSelected 
+                          ? "border-primary bg-primary/10 text-primary" 
+                          : "border-border/50 bg-secondary/30 hover:border-primary/50"
+                      )}
+                    >
+                      <Checkbox checked={isSelected} className="pointer-events-none" />
+                      <span className="text-sm font-medium truncate">{member.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedTeamMembers.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Select team members for this job
+                </p>
+              )}
+            </div>
+          )}
+
+          {isTeamMode && selectedTeamMembers.length > 1 && (
+            <p className="text-xs text-muted-foreground mt-3">
+              <strong>Note:</strong> The first selected member will be the primary assignee. 
+              Team assignments are tracked for scheduling purposes.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
