@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
+import { logAudit } from "../_shared/audit-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,45 +19,18 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Verify the caller is an authenticated admin
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+    if (!authResult.success) {
+      console.error("[RESEND-STAFF-PASSWORD-LINK] Authorization failed:", authResult.error);
+      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    // Verify the requesting user is an admin
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Check if user has admin role
-    const { data: adminRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
-
-    if (!adminRole) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { staffId, redirectUrl }: ResendLinkRequest = await req.json();
 
@@ -74,11 +49,31 @@ serve(async (req) => {
       .single();
 
     if (staffError || !staffMember) {
-      console.error("Error finding staff:", staffError);
+      console.error("[RESEND-STAFF-PASSWORD-LINK] Error finding staff:", staffError);
       return new Response(JSON.stringify({ error: "Staff member not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // SECURITY: Verify staff belongs to the caller's organization
+    if (staffMember.organization_id !== authResult.organizationId) {
+      console.error("[RESEND-STAFF-PASSWORD-LINK] Organization mismatch:", {
+        staffOrg: staffMember.organization_id,
+        adminOrg: authResult.organizationId
+      });
+      
+      logAudit({
+        action: "STAFF_PASSWORD_LINK_BLOCKED",
+        organizationId: authResult.organizationId || "unknown",
+        userId: authResult.userId || "unknown",
+        resourceType: "staff",
+        resourceId: staffId,
+        success: false,
+        error: "Attempted to generate password link for staff in different organization"
+      });
+
+      return createForbiddenResponse("Cannot generate password link for staff outside your organization", corsHeaders);
     }
 
     if (!staffMember.user_id) {
