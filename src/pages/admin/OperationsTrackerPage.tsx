@@ -236,8 +236,13 @@ export default function OperationsTrackerPage() {
         </div>
       }
     >
-      {/* Weekly Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      {/* Weekly Stats - This Week */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+          <CalendarDays className="w-4 h-4" />
+          This Week's Performance
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -301,6 +306,7 @@ export default function OperationsTrackerPage() {
             <p className="text-2xl font-bold">{isTestMode ? 'XX' : stats.weeklyTotals.jobs}</p>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Calendar and Monthly Summary */}

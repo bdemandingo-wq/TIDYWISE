@@ -33,9 +33,10 @@ interface Booking {
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
   cleaner_actual_payment: number | null;
-  square_footage: string | null;
-  bedrooms: string | null;
-  bathrooms: string | null;
+  square_footage?: string | null;
+  bedrooms?: string | null;
+  bathrooms?: string | null;
+  team_pay_share?: number | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -150,13 +151,14 @@ export default function StaffPortal() {
     };
   }, [staffInfo?.id, queryClient]);
 
-  // Fetch assigned bookings
+  // Fetch assigned bookings (including team assignments)
   const { data: assignedBookings = [], isLoading: loadingAssigned } = useQuery({
     queryKey: ['staff-bookings', 'assigned', staffInfo?.id],
     queryFn: async () => {
       if (!staffInfo?.id) return [];
 
-      const { data, error } = await supabase
+      // First get directly assigned bookings
+      const { data: directBookings, error: directError } = await supabase
         .from('bookings')
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state,
@@ -169,8 +171,53 @@ export default function StaffPortal() {
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true });
 
-      if (error) throw error;
-      return data as Booking[];
+      if (directError) throw directError;
+
+      // Then get team assignment bookings
+      const { data: teamAssignments, error: teamError } = await supabase
+        .from('booking_team_assignments')
+        .select(`
+          pay_share,
+          is_primary,
+          booking:bookings(
+            id, booking_number, scheduled_at, duration, status, address, city, state,
+            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+            customer:customers(first_name, last_name, phone),
+            service:services(name)
+          )
+        `)
+        .eq('staff_id', staffInfo.id);
+
+      if (teamError) throw teamError;
+
+      // Process team bookings - filter to upcoming active ones and add pay_share
+      const teamBookings = teamAssignments
+        ?.filter(ta => {
+          const booking = ta.booking as any;
+          return booking && 
+            ['pending', 'confirmed', 'in_progress'].includes(booking.status) &&
+            new Date(booking.scheduled_at) >= new Date();
+        })
+        .map(ta => ({
+          ...(ta.booking as any),
+          team_pay_share: ta.pay_share,
+        })) || [];
+
+      // Merge and deduplicate (prefer team booking with pay_share if exists)
+      const bookingMap = new Map<string, Booking>();
+      
+      for (const b of directBookings || []) {
+        bookingMap.set(b.id, b as Booking);
+      }
+      
+      for (const b of teamBookings) {
+        // Team assignment overrides or adds
+        bookingMap.set(b.id, b as Booking);
+      }
+
+      return Array.from(bookingMap.values()).sort(
+        (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+      );
     },
     enabled: !!staffInfo?.id,
   });

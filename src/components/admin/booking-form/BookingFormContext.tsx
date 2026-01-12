@@ -59,6 +59,8 @@ interface BookingFormState {
   selectedDate: Date | undefined;
   selectedTime: string;
   selectedStaffId: string;
+  isTeamMode: boolean;
+  selectedTeamMembers: string[];
   
   notes: string;
   totalAmount: number;
@@ -116,6 +118,8 @@ interface BookingFormContextType extends BookingFormState {
   setSelectedDate: (date: Date | undefined) => void;
   setSelectedTime: (time: string) => void;
   setSelectedStaffId: (id: string) => void;
+  setIsTeamMode: (mode: boolean) => void;
+  setSelectedTeamMembers: (members: string[]) => void;
   setNotes: (notes: string) => void;
   setTotalAmount: (amount: number) => void;
   setCleanerWage: (wage: string) => void;
@@ -190,6 +194,8 @@ export function BookingFormProvider({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [isTeamMode, setIsTeamMode] = useState(false);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   
   // Payment/Notes state
   const [notes, setNotes] = useState('');
@@ -338,6 +344,8 @@ export function BookingFormProvider({
     setSquareFootage('');
     setSelectedExtras([]);
     setCardInfo(null);
+    setIsTeamMode(false);
+    setSelectedTeamMembers([]);
     setCleanerWage('');
     setCleanerWageType('hourly');
     setCleanerOverrideHours('');
@@ -443,6 +451,8 @@ export function BookingFormProvider({
       selectedDate,
       selectedTime,
       selectedStaffId,
+      isTeamMode,
+      selectedTeamMembers,
       notes,
       totalAmount,
       cleanerWage,
@@ -492,6 +502,8 @@ export function BookingFormProvider({
       setSelectedDate,
       setSelectedTime,
       setSelectedStaffId,
+      setIsTeamMode,
+      setSelectedTeamMembers,
       setNotes,
       setTotalAmount,
       setCleanerWage,
