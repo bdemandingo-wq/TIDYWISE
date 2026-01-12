@@ -4,13 +4,12 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Clock, Users, X, UserPlus } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useState } from 'react';
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -51,24 +50,30 @@ export function ScheduleStep() {
     setSelectedTime,
     selectedStaffId,
     setSelectedStaffId,
+    isTeamMode,
+    setIsTeamMode,
+    selectedTeamMembers,
+    setSelectedTeamMembers,
     staff,
+    cleanerWage,
+    cleanerWageType,
+    totalAmount,
+    calculatedPrice,
+    selectedService,
   } = useBookingForm();
-
-  const [isTeamMode, setIsTeamMode] = useState(false);
-  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
 
   // Handle team member toggle
   const toggleTeamMember = (staffId: string) => {
-    setSelectedTeamMembers(prev => 
-      prev.includes(staffId) 
-        ? prev.filter(id => id !== staffId)
-        : [...prev, staffId]
+    setSelectedTeamMembers(
+      selectedTeamMembers.includes(staffId) 
+        ? selectedTeamMembers.filter(id => id !== staffId)
+        : [...selectedTeamMembers, staffId]
     );
   };
 
   // Remove team member
   const removeTeamMember = (staffId: string) => {
-    setSelectedTeamMembers(prev => prev.filter(id => id !== staffId));
+    setSelectedTeamMembers(selectedTeamMembers.filter(id => id !== staffId));
   };
 
   // Update primary staff when team mode changes
@@ -86,6 +91,42 @@ export function ScheduleStep() {
         setSelectedTeamMembers([selectedStaffId]);
       }
     }
+  };
+
+  // Calculate individual pay share for team members
+  const calculateIndividualPay = (staffId: string) => {
+    const staffMember = staff?.find(s => s.id === staffId);
+    if (!staffMember) return null;
+
+    const jobTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
+    const teamSize = selectedTeamMembers.length || 1;
+
+    // Use booking-level wage if set, otherwise use staff's default
+    const wageToUse = cleanerWage ? parseFloat(cleanerWage) : null;
+    const wageTypeToUse = cleanerWageType;
+
+    if (wageToUse) {
+      if (wageTypeToUse === 'flat') {
+        // Flat rate split evenly
+        return { amount: wageToUse / teamSize, type: 'flat' };
+      } else if (wageTypeToUse === 'percentage') {
+        // Percentage of job total split evenly
+        return { amount: (jobTotal * wageToUse / 100) / teamSize, type: 'percentage' };
+      } else {
+        // Hourly - estimate 2 hours per person
+        return { amount: wageToUse * 2, type: 'hourly' };
+      }
+    }
+
+    // Fall back to staff's default rates
+    if (staffMember.percentage_rate && staffMember.percentage_rate > 0) {
+      return { amount: (jobTotal * staffMember.percentage_rate / 100) / teamSize, type: 'percentage' };
+    }
+    if (staffMember.hourly_rate && staffMember.hourly_rate > 0) {
+      return { amount: staffMember.hourly_rate * 2, type: 'hourly' };
+    }
+
+    return null;
   };
 
   const activeStaff = staff?.filter(s => s.is_active) || [];
@@ -197,27 +238,41 @@ export function ScheduleStep() {
           ) : (
             // Team selection mode
             <div className="space-y-4">
-              {/* Selected Team Members */}
+              {/* Selected Team Members with Pay */}
               {selectedTeamMembers.length > 0 && (
-                <div className="flex flex-wrap gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                  {selectedTeamMembers.map((staffId) => {
+                <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Team Members & Pay</p>
+                  {selectedTeamMembers.map((staffId, idx) => {
                     const member = activeStaff.find(s => s.id === staffId);
+                    const pay = calculateIndividualPay(staffId);
                     if (!member) return null;
                     return (
-                      <Badge 
+                      <div 
                         key={staffId} 
-                        variant="secondary" 
-                        className="flex items-center gap-1 py-1 px-3"
+                        className="flex items-center justify-between p-2 bg-background rounded border"
                       >
-                        {member.name}
-                        <button
-                          type="button"
-                          onClick={() => removeTeamMember(staffId)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={idx === 0 ? "default" : "secondary"} className="text-xs">
+                            {idx === 0 ? 'Lead' : `#${idx + 1}`}
+                          </Badge>
+                          <span className="font-medium">{member.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {pay && (
+                            <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              {pay.amount.toFixed(2)}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeTeamMember(staffId)}
+                            className="p-1 hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -257,7 +312,7 @@ export function ScheduleStep() {
           {isTeamMode && selectedTeamMembers.length > 1 && (
             <p className="text-xs text-muted-foreground mt-3">
               <strong>Note:</strong> The first selected member will be the primary assignee. 
-              Team assignments are tracked for scheduling purposes.
+              Individual pay is calculated based on wage settings.
             </p>
           )}
         </CardContent>

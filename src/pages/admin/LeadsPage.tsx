@@ -723,6 +723,22 @@ function LeadDialog({
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="follow_up">Follow Up</SelectItem>
+                <SelectItem value="quoted">Quoted</SelectItem>
+                <SelectItem value="commercial">Commercial</SelectItem>
+                <SelectItem value="converted">Converted</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="col-span-2">
             <Label>Message</Label>
             <Textarea

@@ -223,6 +223,55 @@ export type Database = {
           },
         ]
       }
+      booking_team_assignments: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          pay_share: number | null
+          staff_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          pay_share?: number | null
+          staff_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          pay_share?: number | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_team_assignments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_team_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_team_assignments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           address: string | null

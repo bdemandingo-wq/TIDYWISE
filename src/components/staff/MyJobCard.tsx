@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, TrendingUp, ClipboardCheck } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck } from 'lucide-react';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 
@@ -35,6 +35,7 @@ interface Booking {
   service: {
     name: string;
   } | null;
+  team_pay_share?: number | null;
 }
 
 interface Props {
@@ -46,50 +47,81 @@ interface Props {
 
 export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Props) {
   const [checklistOpen, setChecklistOpen] = useState(false);
-  // Calculate potential earnings based on staff pay type (same logic as AvailableJobCard)
-  const calculatePotentialEarnings = (): { amount: number; type: string } => {
+  
+  // Calculate exact pay based on wage type
+  const calculatePay = (): { amount: number; type: string; isExact: boolean } => {
+    // If team pay share is set, use it directly
+    if (booking.team_pay_share && booking.team_pay_share > 0) {
+      return {
+        amount: booking.team_pay_share,
+        type: 'Team share',
+        isExact: true,
+      };
+    }
+
+    // If actual payment is already set by admin, use it
+    if (booking.cleaner_actual_payment && booking.cleaner_actual_payment > 0) {
+      return {
+        amount: booking.cleaner_actual_payment,
+        type: 'Confirmed',
+        isExact: true,
+      };
+    }
+
     // If booking has specific cleaner wage set
     if (booking.cleaner_wage && booking.cleaner_wage_type) {
       if (booking.cleaner_wage_type === 'percentage') {
         return {
           amount: (booking.total_amount * booking.cleaner_wage) / 100,
-          type: 'Based on job value',
+          type: `${booking.cleaner_wage}% of job`,
+          isExact: true,
+        };
+      } else if (booking.cleaner_wage_type === 'flat') {
+        // FLAT RATE - exact amount
+        return {
+          amount: booking.cleaner_wage,
+          type: 'Flat rate',
+          isExact: true,
         };
       } else {
-        // Hourly wage from booking
-        const hours = 5;
+        // Hourly wage - estimate based on duration
+        const hours = booking.duration / 60 || 2;
         return {
           amount: booking.cleaner_wage * hours,
-          type: `$${booking.cleaner_wage}/hr × ${hours}hrs`,
+          type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs`,
+          isExact: false,
         };
       }
     }
 
-    // Fall back to staff's default rates - check percentage first (most common)
+    // Fall back to staff's default rates - check percentage first
     if (staffInfo.percentage_rate && staffInfo.percentage_rate > 0) {
       return {
         amount: (booking.total_amount * staffInfo.percentage_rate) / 100,
-        type: 'Based on job value',
+        type: `${staffInfo.percentage_rate}% of job`,
+        isExact: true,
       };
     }
 
     // Then check hourly rate
     if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      const hours = 5;
+      const hours = booking.duration / 60 || 2;
       return {
         amount: staffInfo.hourly_rate * hours,
-        type: `$${staffInfo.hourly_rate}/hr × ${hours}hrs`,
+        type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs`,
+        isExact: false,
       };
     }
 
-    // Default estimate if no wage info
+    // Default if no wage info
     return {
       amount: 0,
       type: 'TBD',
+      isExact: false,
     };
   };
 
-  const earnings = calculatePotentialEarnings();
+  const pay = calculatePay();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'destructive'; label: string }> = {
@@ -123,34 +155,31 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Potential/Actual Earnings */}
-        {booking.cleaner_actual_payment && booking.cleaner_actual_payment > 0 ? (
-          <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+        {/* Pay Display - Exact vs Estimated */}
+        {pay.amount > 0 && (
+          <div className={`p-3 rounded-lg border ${
+            pay.isExact 
+              ? 'bg-primary/10 border-primary/20' 
+              : 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-primary">
+              <div className={`flex items-center gap-2 text-sm ${
+                pay.isExact ? 'text-primary' : 'text-blue-700 dark:text-blue-300'
+              }`}>
                 <DollarSign className="w-4 h-4" />
-                <span>Your Pay</span>
+                <span>{pay.isExact ? 'Your Pay' : 'Estimated Pay'}</span>
               </div>
-              <span className="font-bold text-primary">
-                ${booking.cleaner_actual_payment.toFixed(2)}
+              <span className={`font-bold text-lg ${
+                pay.isExact ? 'text-primary' : 'text-blue-700 dark:text-blue-300'
+              }`}>
+                ${pay.amount.toFixed(2)}
               </span>
             </div>
-          </div>
-        ) : earnings.amount > 0 && (
-          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-                <DollarSign className="w-4 h-4" />
-                <span>Potential Pay</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-                <span className="font-bold text-lg text-blue-700 dark:text-blue-300">
-                  ${earnings.amount.toFixed(2)}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{earnings.type}</p>
+            <p className={`text-xs mt-1 ${
+              pay.isExact ? 'text-primary/70' : 'text-blue-600 dark:text-blue-400'
+            }`}>
+              {pay.type}
+            </p>
           </div>
         )}
 

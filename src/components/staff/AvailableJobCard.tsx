@@ -33,9 +33,9 @@ interface Booking {
   total_amount: number;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
-  square_footage: string | null;
-  bedrooms: string | null;
-  bathrooms: string | null;
+  square_footage?: string | null;
+  bedrooms?: string | null;
+  bathrooms?: string | null;
   customer: {
     first_name: string;
     last_name: string;
