@@ -61,6 +61,7 @@ interface BookingFormState {
   selectedStaffId: string;
   isTeamMode: boolean;
   selectedTeamMembers: string[];
+  teamMemberPay: Record<string, number>; // staffId -> pay amount
   
   notes: string;
   totalAmount: number;
@@ -120,6 +121,8 @@ interface BookingFormContextType extends BookingFormState {
   setSelectedStaffId: (id: string) => void;
   setIsTeamMode: (mode: boolean) => void;
   setSelectedTeamMembers: (members: string[]) => void;
+  setTeamMemberPay: (pay: Record<string, number>) => void;
+  updateTeamMemberPay: (staffId: string, amount: number) => void;
   setNotes: (notes: string) => void;
   setTotalAmount: (amount: number) => void;
   setCleanerWage: (wage: string) => void;
@@ -196,7 +199,11 @@ export function BookingFormProvider({
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [isTeamMode, setIsTeamMode] = useState(false);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [teamMemberPay, setTeamMemberPay] = useState<Record<string, number>>({});
   
+  const updateTeamMemberPay = (staffId: string, amount: number) => {
+    setTeamMemberPay(prev => ({ ...prev, [staffId]: amount }));
+  };
   // Payment/Notes state
   const [notes, setNotes] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
@@ -453,6 +460,7 @@ export function BookingFormProvider({
       selectedStaffId,
       isTeamMode,
       selectedTeamMembers,
+      teamMemberPay,
       notes,
       totalAmount,
       cleanerWage,
@@ -504,6 +512,8 @@ export function BookingFormProvider({
       setSelectedStaffId,
       setIsTeamMode,
       setSelectedTeamMembers,
+      setTeamMemberPay,
+      updateTeamMemberPay,
       setNotes,
       setTotalAmount,
       setCleanerWage,

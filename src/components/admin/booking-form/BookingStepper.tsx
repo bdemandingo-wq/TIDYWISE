@@ -250,6 +250,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     selectedStaffId,
     isTeamMode,
     selectedTeamMembers,
+    teamMemberPay,
     notes,
     totalAmount,
     cleanerWage,
@@ -547,29 +548,34 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
         // Save team assignments if in team mode
         if (isTeamMode && selectedTeamMembers.length > 0 && newBooking?.id) {
-          const jobTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
-          const teamSize = selectedTeamMembers.length;
-          
           for (let i = 0; i < selectedTeamMembers.length; i++) {
             const staffId = selectedTeamMembers[i];
-            const staffMember = staff?.find(s => s.id === staffId);
             
-            // Calculate pay share for this team member
-            let payShare = 0;
-            const wageToUse = cleanerWage ? parseFloat(cleanerWage) : null;
+            // Use the manually entered pay from teamMemberPay, or fall back to calculation
+            let payShare = teamMemberPay[staffId];
             
-            if (wageToUse) {
-              if (cleanerWageType === 'flat') {
-                payShare = wageToUse / teamSize;
-              } else if (cleanerWageType === 'percentage') {
-                payShare = (jobTotal * wageToUse / 100) / teamSize;
+            if (payShare === undefined || payShare === 0) {
+              // Fall back to calculation if no manual entry
+              const staffMember = staff?.find(s => s.id === staffId);
+              const jobTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
+              const teamSize = selectedTeamMembers.length;
+              const wageToUse = cleanerWage ? parseFloat(cleanerWage) : null;
+              
+              if (wageToUse) {
+                if (cleanerWageType === 'flat') {
+                  payShare = wageToUse / teamSize;
+                } else if (cleanerWageType === 'percentage') {
+                  payShare = (jobTotal * wageToUse / 100) / teamSize;
+                } else {
+                  payShare = wageToUse * 2;
+                }
+              } else if (staffMember?.percentage_rate) {
+                payShare = (jobTotal * staffMember.percentage_rate / 100) / teamSize;
+              } else if (staffMember?.hourly_rate) {
+                payShare = staffMember.hourly_rate * 2;
               } else {
-                payShare = wageToUse * 2; // hourly estimate
+                payShare = 0;
               }
-            } else if (staffMember?.percentage_rate) {
-              payShare = (jobTotal * staffMember.percentage_rate / 100) / teamSize;
-            } else if (staffMember?.hourly_rate) {
-              payShare = staffMember.hourly_rate * 2;
             }
 
             await supabase.from('booking_team_assignments').insert({

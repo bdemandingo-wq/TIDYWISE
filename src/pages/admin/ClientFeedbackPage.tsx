@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -320,36 +320,27 @@ function FeedbackDialog({
   onSave: (data: Partial<FeedbackEntry>) => void;
 }) {
   const [formData, setFormData] = useState({
-    customer_name: entry?.customer_name || '',
-    feedback_date: entry?.feedback_date || format(new Date(), 'yyyy-MM-dd'),
-    is_resolved: entry?.is_resolved || false,
-    followup_needed: entry?.followup_needed || false,
-    issue_description: entry?.issue_description || '',
-    resolution: entry?.resolution || '',
+    customer_name: '',
+    feedback_date: format(new Date(), 'yyyy-MM-dd'),
+    is_resolved: false,
+    followup_needed: false,
+    issue_description: '',
+    resolution: '',
   });
 
-  // Reset form when entry changes
-  useState(() => {
-    if (entry) {
+  // Reset form when entry changes or dialog opens
+  useEffect(() => {
+    if (open) {
       setFormData({
-        customer_name: entry.customer_name,
-        feedback_date: entry.feedback_date,
-        is_resolved: entry.is_resolved,
-        followup_needed: entry.followup_needed,
-        issue_description: entry.issue_description || '',
-        resolution: entry.resolution || '',
-      });
-    } else {
-      setFormData({
-        customer_name: '',
-        feedback_date: format(new Date(), 'yyyy-MM-dd'),
-        is_resolved: false,
-        followup_needed: false,
-        issue_description: '',
-        resolution: '',
+        customer_name: entry?.customer_name || '',
+        feedback_date: entry?.feedback_date || format(new Date(), 'yyyy-MM-dd'),
+        is_resolved: entry?.is_resolved || false,
+        followup_needed: entry?.followup_needed || false,
+        issue_description: entry?.issue_description || '',
+        resolution: entry?.resolution || '',
       });
     }
-  });
+  }, [entry, open]);
 
   const handleSubmit = () => {
     if (!formData.customer_name) {

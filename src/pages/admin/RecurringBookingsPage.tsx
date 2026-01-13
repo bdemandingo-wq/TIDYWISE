@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -421,15 +421,31 @@ function RecurringBookingDialog({
   onSave: (data: any) => void;
 }) {
   const [formData, setFormData] = useState({
-    customer_id: booking?.customer_id || '',
-    service_id: booking?.service_id || '',
-    staff_id: booking?.staff_id || '',
-    frequency: booking?.frequency || 'weekly',
-    preferred_day: booking?.preferred_day?.toString() || '',
-    preferred_time: booking?.preferred_time || '',
-    total_amount: booking?.total_amount?.toString() || '',
-    is_active: booking?.is_active ?? true,
+    customer_id: '',
+    service_id: '',
+    staff_id: '',
+    frequency: 'weekly',
+    preferred_day: '',
+    preferred_time: '',
+    total_amount: '',
+    is_active: true,
   });
+
+  // Reset form when booking changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        customer_id: booking?.customer_id || '',
+        service_id: booking?.service_id || '',
+        staff_id: booking?.staff_id || '',
+        frequency: booking?.frequency || 'weekly',
+        preferred_day: booking?.preferred_day?.toString() || '',
+        preferred_time: booking?.preferred_time || '',
+        total_amount: booking?.total_amount?.toString() || '',
+        is_active: booking?.is_active ?? true,
+      });
+    }
+  }, [booking, open]);
 
   const handleSubmit = () => {
     if (!formData.customer_id || !formData.service_id || !formData.total_amount) {

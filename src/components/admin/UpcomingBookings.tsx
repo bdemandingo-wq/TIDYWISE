@@ -158,7 +158,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
             variant="ghost" 
             size="sm" 
             className="gap-1 text-primary"
-            onClick={() => navigate('/admin/bookings')}
+            onClick={() => navigate('/dashboard/bookings')}
           >
             View all <ChevronRight className="w-4 h-4" />
           </Button>

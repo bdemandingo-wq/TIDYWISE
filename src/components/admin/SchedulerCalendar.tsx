@@ -9,7 +9,7 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-  closestCenter,
+  pointerWithin,
 } from '@dnd-kit/core';
 import {
   ChevronLeft,
@@ -298,6 +298,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
   const goToToday = () => {
     setCurrentDate(new Date());
+    setViewMode('week'); // Switch to week view to show today's bookings clearly
   };
 
   const isToday = (date: Date) => {
@@ -435,7 +436,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

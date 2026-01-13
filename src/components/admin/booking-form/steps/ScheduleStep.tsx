@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useEffect } from 'react';
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -54,6 +56,8 @@ export function ScheduleStep() {
     setIsTeamMode,
     selectedTeamMembers,
     setSelectedTeamMembers,
+    teamMemberPay,
+    updateTeamMemberPay,
     staff,
     cleanerWage,
     cleanerWageType,
@@ -93,10 +97,10 @@ export function ScheduleStep() {
     }
   };
 
-  // Calculate individual pay share for team members
-  const calculateIndividualPay = (staffId: string) => {
+  // Calculate suggested pay share for team members
+  const calculateSuggestedPay = (staffId: string) => {
     const staffMember = staff?.find(s => s.id === staffId);
-    if (!staffMember) return null;
+    if (!staffMember) return 0;
 
     const jobTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
     const teamSize = selectedTeamMembers.length || 1;
@@ -107,27 +111,34 @@ export function ScheduleStep() {
 
     if (wageToUse) {
       if (wageTypeToUse === 'flat') {
-        // Flat rate split evenly
-        return { amount: wageToUse / teamSize, type: 'flat' };
+        return wageToUse / teamSize;
       } else if (wageTypeToUse === 'percentage') {
-        // Percentage of job total split evenly
-        return { amount: (jobTotal * wageToUse / 100) / teamSize, type: 'percentage' };
+        return (jobTotal * wageToUse / 100) / teamSize;
       } else {
-        // Hourly - estimate 2 hours per person
-        return { amount: wageToUse * 2, type: 'hourly' };
+        return wageToUse * 2; // Hourly - estimate 2 hours per person
       }
     }
 
     // Fall back to staff's default rates
     if (staffMember.percentage_rate && staffMember.percentage_rate > 0) {
-      return { amount: (jobTotal * staffMember.percentage_rate / 100) / teamSize, type: 'percentage' };
+      return (jobTotal * staffMember.percentage_rate / 100) / teamSize;
     }
     if (staffMember.hourly_rate && staffMember.hourly_rate > 0) {
-      return { amount: staffMember.hourly_rate * 2, type: 'hourly' };
+      return staffMember.hourly_rate * 2;
     }
 
-    return null;
+    return 0;
   };
+
+  // Initialize pay when team members change
+  useEffect(() => {
+    selectedTeamMembers.forEach(staffId => {
+      if (teamMemberPay[staffId] === undefined) {
+        const suggestedPay = calculateSuggestedPay(staffId);
+        updateTeamMemberPay(staffId, Math.round(suggestedPay * 100) / 100);
+      }
+    });
+  }, [selectedTeamMembers, totalAmount, calculatedPrice]);
 
   const activeStaff = staff?.filter(s => s.is_active) || [];
 
@@ -238,32 +249,38 @@ export function ScheduleStep() {
           ) : (
             // Team selection mode
             <div className="space-y-4">
-              {/* Selected Team Members with Pay */}
+              {/* Selected Team Members with Editable Pay */}
               {selectedTeamMembers.length > 0 && (
                 <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Team Members & Pay</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Team Members & Pay (Editable)</p>
                   {selectedTeamMembers.map((staffId, idx) => {
                     const member = activeStaff.find(s => s.id === staffId);
-                    const pay = calculateIndividualPay(staffId);
+                    const currentPay = teamMemberPay[staffId] ?? 0;
                     if (!member) return null;
                     return (
                       <div 
                         key={staffId} 
-                        className="flex items-center justify-between p-2 bg-background rounded border"
+                        className="flex items-center justify-between p-2 bg-background rounded border gap-2"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge variant={idx === 0 ? "default" : "secondary"} className="text-xs">
                             {idx === 0 ? 'Lead' : `#${idx + 1}`}
                           </Badge>
                           <span className="font-medium">{member.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {pay && (
-                            <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              {pay.amount.toFixed(2)}
-                            </span>
-                          )}
+                          <div className="relative">
+                            <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={currentPay || ''}
+                              onChange={(e) => updateTeamMemberPay(staffId, parseFloat(e.target.value) || 0)}
+                              className="w-24 h-8 pl-6 text-sm"
+                              placeholder="0.00"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeTeamMember(staffId)}
