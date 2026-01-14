@@ -946,11 +946,7 @@ export default function BookingsPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger 
-            value="quotes" 
-            className="gap-2"
-            onClick={() => navigate('/dashboard/leads')}
-          >
+          <TabsTrigger value="quotes" className="gap-2">
             <Star className="w-4 h-4" />
             Quotes
           </TabsTrigger>
@@ -1076,13 +1072,9 @@ export default function BookingsPage() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border rounded-xl">
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending Payment</SelectItem>
-              <SelectItem value="confirmed">Uncleaned</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Clean Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="no_show">No Show</SelectItem>
+              <SelectItem value="all">All Bookings</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
           <Button 
