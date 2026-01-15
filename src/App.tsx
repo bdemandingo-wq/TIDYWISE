@@ -81,6 +81,16 @@ const App = () => (
                   <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
                   <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                   <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
+                  
+                  {/* Comparison Pages */}
+                  <Route path="/compare/jobber" element={<CompareJobber />} />
+                  <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
+                  
+                  {/* Feature Pages */}
+                  <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
+                  <Route path="/features/quote-software" element={<QuoteSoftware />} />
+                  <Route path="/features/sms-notifications" element={<SMSNotifications />} />
+                  <Route path="/features/payment-processing" element={<PaymentProcessing />} />
 
                   {/* Staff Portal (legacy - for staff invited by org owners) */}
                   <Route path="/staff/login" element={<StaffLoginPage />} />

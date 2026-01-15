@@ -24,6 +24,7 @@ import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 import { AIBusinessTools } from "@/components/landing/AIBusinessTools";
 import { CompetitorComparison } from "@/components/landing/CompetitorComparison";
 import { BlogSection } from "@/components/landing/BlogSection";
+import { InteractiveDemo } from "@/components/landing/InteractiveDemo";
 
 const cleaningConfig = {
   jobLabel: "Cleans",
@@ -310,6 +311,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Interactive Demo Section */}
+      <InteractiveDemo />
 
       {/* Competitor Comparison Section - moved up to hook customers */}
       <CompetitorComparison />
