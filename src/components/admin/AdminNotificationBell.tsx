@@ -28,10 +28,12 @@ export function AdminNotificationBell() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
 
   // Simulated notifications based on recent activity
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (force = false) => {
     if (!organizationId) return;
+    if (hasFetched && !force) return;
 
     try {
       // Fetch recent bookings with customer and service info
@@ -81,6 +83,7 @@ export function AdminNotificationBell() {
 
         setNotifications([...unread, ...bookingNotifications.filter(n => !n.created_at.startsWith(today))]);
         setUnreadCount(unread.length);
+        setHasFetched(true);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -167,6 +170,7 @@ export function AdminNotificationBell() {
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
+    setIsOpen(false);
   };
 
   const handleNotificationClick = (notification: AdminNotification) => {
