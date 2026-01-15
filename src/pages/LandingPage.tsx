@@ -311,9 +311,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Blog Section */}
-      <BlogSection />
-
       {/* Competitor Comparison Section - moved up to hook customers */}
       <CompetitorComparison />
 
@@ -410,6 +407,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Blog Section */}
+      <BlogSection />
 
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary">
