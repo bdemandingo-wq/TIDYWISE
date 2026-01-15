@@ -31,7 +31,18 @@ export default function CampaignsPage() {
   const { organizationId: orgId } = useOrgId();
   
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
-  const [smsTestResult, setSmsTestResult] = useState<{ inactive: number; contactable: number } | null>(null);
+  const [smsTestResult, setSmsTestResult] = useState<{ 
+    inactive: number; 
+    contactable: number;
+    customers?: Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      email: string;
+      marketing_status: string;
+    }>;
+  } | null>(null);
   const [smsFormData, setSmsFormData] = useState({
     name: "",
     type: "inactive_customer",
@@ -73,22 +84,27 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Generate AI templates
+  // Generate AI templates - always fresh with timestamp
   const generateTemplates = useMutation({
     mutationFn: async () => {
+      // Clear previous templates first
+      setAiTemplates([]);
       const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
         body: { 
           companyName: businessSettings?.company_name || "Your Cleaning Service",
-          serviceType: "cleaning"
+          serviceType: "cleaning",
+          timestamp: Date.now() // Force fresh generation
         },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      if (data.templates) {
+      if (data.templates && data.templates.length > 0) {
         setAiTemplates(data.templates);
-        toast({ title: "Templates generated!", description: "3 high-conversion templates ready to use" });
+        toast({ title: "Templates generated!", description: "3 new high-conversion templates ready to use" });
+      } else {
+        toast({ title: "Error", description: "No templates were generated. Please try again.", variant: "destructive" });
       }
     },
     onError: (error: Error) => {
@@ -138,7 +154,8 @@ export default function CampaignsPage() {
     onSuccess: (data) => {
       setSmsTestResult({ 
         inactive: data.inactiveCount || 0, 
-        contactable: data.toContactCount || 0 
+        contactable: data.toContactCount || 0,
+        customers: data.customers || []
       });
       toast({ title: "Preview complete", description: `Found ${data.toContactCount || 0} customers to contact` });
     },
@@ -361,11 +378,35 @@ export default function CampaignsPage() {
             </div>
 
             {smsTestResult && (
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <p className="text-sm font-medium">
                   Found <strong>{smsTestResult.inactive}</strong> inactive customers, 
                   <strong> {smsTestResult.contactable}</strong> have phone numbers and will receive SMS.
                 </p>
+                {smsTestResult.customers && smsTestResult.customers.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recipients Preview:</p>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {smsTestResult.customers.map((customer, idx) => (
+                        <div key={customer.id} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground text-xs w-5">{idx + 1}.</span>
+                            <span className="font-medium">{customer.first_name} {customer.last_name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{customer.phone || 'No phone'}</span>
+                            <span className={customer.marketing_status === 'active' ? 'text-green-600' : 'text-red-500'}>
+                              {customer.marketing_status === 'active' ? '✓ Active' : '⊘ Opted-out'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {smsTestResult.contactable > 10 && (
+                      <p className="text-xs text-muted-foreground">...and {smsTestResult.contactable - 10} more</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

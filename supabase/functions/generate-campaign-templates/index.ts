@@ -16,23 +16,30 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { companyName, serviceType = "cleaning" } = await req.json();
+    const { companyName, serviceType = "cleaning", timestamp } = await req.json();
+    
+    // Use timestamp to ensure unique generation each time
+    const uniqueId = timestamp || Date.now();
 
     const systemPrompt = `You are an expert SMS marketing copywriter for ${serviceType} service businesses. 
-Generate 3 high-conversion SMS templates that are:
+Generate 3 UNIQUE high-conversion SMS templates that are:
 - Under 160 characters each (SMS limit)
 - Personal and friendly
 - Include a clear call-to-action
 - Use {first_name} and {company_name} placeholders
 - End with "Reply STOP to opt out"
+- Be creative and vary the approach each time - don't repeat similar patterns
 
+Important: Each generation should produce DIFFERENT messages with varied offers, wording, and approaches. Be creative!
 Always return valid JSON with exactly 3 templates.`;
 
-    const userPrompt = `Generate 3 SMS marketing templates for "${companyName || 'a cleaning business'}":
+    const userPrompt = `Generate 3 FRESH and UNIQUE SMS marketing templates for "${companyName || 'a cleaning business'}" (Request ID: ${uniqueId}):
 
-1. "The Discount Offer" - A time-limited discount to bring customers back
-2. "The Follow-Up" - A friendly check-in asking how they've been
-3. "The Referral Request" - Asking for referrals with an incentive
+1. "The Discount Offer" - A time-limited discount to bring customers back (vary the discount %, urgency, and phrasing)
+2. "The Follow-Up" - A friendly check-in asking how they've been (use different tones: caring, casual, or curious)
+3. "The Referral Request" - Asking for referrals with an incentive (vary the reward type and approach)
+
+Make each message DIFFERENT from typical templates. Be creative with emojis, offers, and wording!
 
 Return JSON format:
 {
