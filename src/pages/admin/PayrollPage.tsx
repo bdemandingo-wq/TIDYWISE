@@ -373,7 +373,7 @@ export default function PayrollPage() {
                 {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
               <Calendar
                 mode="range"
                 selected={{ from: dateRange.from, to: dateRange.to }}
@@ -383,6 +383,7 @@ export default function PayrollPage() {
                   }
                 }}
                 numberOfMonths={2}
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
