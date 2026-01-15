@@ -63,6 +63,9 @@ interface BookingFormState {
   selectedTeamMembers: string[];
   teamMemberPay: Record<string, number>; // staffId -> pay amount
   
+  // Conflict override
+  conflictOverride: boolean;
+  
   notes: string;
   totalAmount: number;
   cleanerWage: string;
@@ -123,6 +126,7 @@ interface BookingFormContextType extends BookingFormState {
   setSelectedTeamMembers: (members: string[]) => void;
   setTeamMemberPay: (pay: Record<string, number>) => void;
   updateTeamMemberPay: (staffId: string, amount: number) => void;
+  setConflictOverride: (override: boolean) => void;
   setNotes: (notes: string) => void;
   setTotalAmount: (amount: number) => void;
   setCleanerWage: (wage: string) => void;
@@ -200,6 +204,7 @@ export function BookingFormProvider({
   const [isTeamMode, setIsTeamMode] = useState(false);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [teamMemberPay, setTeamMemberPay] = useState<Record<string, number>>({});
+  const [conflictOverride, setConflictOverride] = useState(false);
   
   const updateTeamMemberPay = (staffId: string, amount: number) => {
     setTeamMemberPay(prev => ({ ...prev, [staffId]: amount }));
@@ -359,6 +364,7 @@ export function BookingFormProvider({
     setPricingMode('sqft');
     setHomeCondition(1);
     setPetOption('no_pets');
+    setConflictOverride(false);
   };
 
   const prefillFromBooking = (booking: BookingWithDetails) => {
@@ -461,6 +467,7 @@ export function BookingFormProvider({
       isTeamMode,
       selectedTeamMembers,
       teamMemberPay,
+      conflictOverride,
       notes,
       totalAmount,
       cleanerWage,
@@ -514,6 +521,7 @@ export function BookingFormProvider({
       setSelectedTeamMembers,
       setTeamMemberPay,
       updateTeamMemberPay,
+      setConflictOverride,
       setNotes,
       setTotalAmount,
       setCleanerWage,

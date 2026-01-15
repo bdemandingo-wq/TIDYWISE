@@ -144,6 +144,9 @@ export default function BookingsPage() {
   const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
   const [sendingReviewRequest, setSendingReviewRequest] = useState<string | null>(null);
   const [bulkNotifyingWeek, setBulkNotifyingWeek] = useState(false);
+  const [weeklyReminderDialogOpen, setWeeklyReminderDialogOpen] = useState(false);
+  const [weeklyReminderClients, setWeeklyReminderClients] = useState<BookingWithDetails[]>([]);
+  const [sendingWeeklyReminders, setSendingWeeklyReminders] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -866,6 +869,89 @@ export default function BookingsPage() {
     }
   };
 
+  // Prepare weekly client reminders
+  const handlePrepareWeeklyReminders = () => {
+    const now = new Date();
+    const weekEnd = addDays(now, 7);
+    
+    // Get all upcoming bookings for the next 7 days with clients
+    const upcomingWeekBookings = sortedBookings.filter(b => {
+      const scheduledDate = new Date(b.scheduled_at);
+      const customer = b.customer;
+      // Filter for clients with phone numbers
+      const isEligible = customer && customer.phone;
+      return scheduledDate >= now && 
+             scheduledDate <= weekEnd && 
+             isEligible &&
+             !['cancelled', 'completed'].includes(b.status);
+    });
+
+    if (upcomingWeekBookings.length === 0) {
+      toast({ title: "No Clients to Notify", description: "No upcoming bookings with eligible clients found for this week.", variant: "destructive" });
+      return;
+    }
+
+    setWeeklyReminderClients(upcomingWeekBookings);
+    setWeeklyReminderDialogOpen(true);
+  };
+
+  // Send weekly client reminders
+  const handleSendWeeklyReminders = async () => {
+    if (weeklyReminderClients.length === 0) return;
+    
+    setSendingWeeklyReminders(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const booking of weeklyReminderClients) {
+        try {
+          const scheduledDate = new Date(booking.scheduled_at);
+          const customerName = booking.customer ? `${booking.customer.first_name}` : 'there';
+          const formattedDate = format(scheduledDate, 'EEEE, MMMM d');
+          const formattedTime = format(scheduledDate, 'h:mm a');
+          
+          // AI-style friendly reminder message
+          const message = `Hey ${customerName}! 👋 Quick reminder: Your ${booking.service?.name || 'cleaning'} is scheduled for ${formattedDate} at ${formattedTime}.\n\n` +
+            `Any special entry instructions? (Key under mat, gate code, etc.) Just reply to let us know!\n\n` +
+            `Looking forward to making your space shine! ✨`;
+
+          const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+            body: {
+              to: booking.customer!.phone,
+              message,
+              organizationId: organization?.id,
+            }
+          });
+
+          if (error) throw error;
+          
+          // Update booking with reminder sent tag
+          await supabase.from('bookings').update({
+            notes: (booking.notes ? booking.notes + '\n' : '') + `[Reminder Sent: ${format(new Date(), 'MMM d, h:mm a')}]`
+          }).eq('id', booking.id);
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to send reminder for booking #${booking.booking_number}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({ 
+          title: "Reminders Sent!", 
+          description: `Successfully sent ${successCount} reminder(s)${failCount > 0 ? `. ${failCount} failed.` : '.'}`
+        });
+      } else {
+        toast({ title: "Error", description: "Failed to send reminders", variant: "destructive" });
+      }
+    } finally {
+      setSendingWeeklyReminders(false);
+      setWeeklyReminderDialogOpen(false);
+    }
+  };
+
   const handleExport = async (type: 'csv' | 'json') => {
     setExporting(true);
     try {
@@ -1132,6 +1218,14 @@ export default function BookingsPage() {
           >
             {bulkNotifyingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
             Notify Week's Cleaners
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-11 gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            onClick={handlePrepareWeeklyReminders}
+          >
+            <Phone className="w-4 h-4" />
+            Remind Clients
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
