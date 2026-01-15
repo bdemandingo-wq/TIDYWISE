@@ -457,6 +457,7 @@ export default function LandingPage() {
               <h4 className="font-semibold text-foreground mb-4">Product</h4>
               <ul className="space-y-2">
                 <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a></li>
+                <li><a href="#blog" className="text-sm text-muted-foreground hover:text-foreground">Blog</a></li>
                 <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground">Testimonials</a></li>
               </ul>
             </div>

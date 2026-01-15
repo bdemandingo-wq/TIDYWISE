@@ -5,13 +5,11 @@ import {
   ArrowLeft, 
   Calendar, 
   Clock, 
-  Users, 
   DollarSign, 
   Target,
   CheckCircle2,
   ArrowRight,
   Sparkles,
-  BarChart3,
   MessageSquare,
   Package
 } from "lucide-react";

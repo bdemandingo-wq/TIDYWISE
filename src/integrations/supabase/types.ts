@@ -1689,6 +1689,59 @@ export type Database = {
         }
         Relationships: []
       }
+      page_seo_metadata: {
+        Row: {
+          canonical_url: string | null
+          created_at: string
+          id: string
+          meta_description: string | null
+          no_index: boolean | null
+          og_description: string | null
+          og_image_url: string | null
+          og_title: string | null
+          organization_id: string | null
+          page_path: string
+          seo_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          canonical_url?: string | null
+          created_at?: string
+          id?: string
+          meta_description?: string | null
+          no_index?: boolean | null
+          og_description?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          organization_id?: string | null
+          page_path: string
+          seo_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canonical_url?: string | null
+          created_at?: string
+          id?: string
+          meta_description?: string | null
+          no_index?: boolean | null
+          og_description?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
+          organization_id?: string | null
+          page_path?: string
+          seo_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_seo_metadata_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_payments: {
         Row: {
           amount: number | null
