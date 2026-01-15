@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ import {
   CheckSquare,
   Square,
   X,
+  Check,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
@@ -53,6 +55,13 @@ interface Message {
   status: string;
 }
 
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  type: 'client' | 'cleaner';
+}
+
 type ConversationTab = 'all' | 'clients' | 'cleaners';
 
 export default function MessagesPage() {
@@ -73,11 +82,53 @@ export default function MessagesPage() {
   const [editingName, setEditingName] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactSearch, setContactSearch] = useState('');
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch contacts (customers and staff) for the contact picker
+  const fetchContacts = async () => {
+    if (!organizationId) return;
+    
+    const [customersRes, staffRes] = await Promise.all([
+      supabase
+        .from('customers')
+        .select('id, first_name, last_name, phone')
+        .eq('organization_id', organizationId)
+        .not('phone', 'is', null),
+      supabase
+        .from('staff')
+        .select('id, name, phone')
+        .eq('organization_id', organizationId)
+        .not('phone', 'is', null)
+    ]);
+
+    const customerContacts: Contact[] = (customersRes.data || [])
+      .filter(c => c.phone)
+      .map(c => ({
+        id: c.id,
+        name: `${c.first_name} ${c.last_name}`.trim(),
+        phone: c.phone!,
+        type: 'client' as const
+      }));
+
+    const staffContacts: Contact[] = (staffRes.data || [])
+      .filter(s => s.phone)
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        phone: s.phone!,
+        type: 'cleaner' as const
+      }));
+
+    setContacts([...customerContacts, ...staffContacts]);
+  };
 
   useEffect(() => {
     if (organizationId) {
       fetchConversations();
+      fetchContacts();
 
       // Subscribe to realtime updates for incoming messages
       const channel = supabase
@@ -230,10 +281,14 @@ export default function MessagesPage() {
   };
 
   const handleStartNewConversation = async () => {
-    if (!newPhone.trim() || !organizationId) return;
+    const phoneToUse = selectedContact?.phone || newPhone.trim();
+    const nameToUse = selectedContact?.name || newName.trim();
+    const typeToUse = selectedContact?.type || conversationType;
+    
+    if (!phoneToUse || !organizationId) return;
 
     // Format phone number
-    const formattedPhone = newPhone.replace(/\D/g, '');
+    const formattedPhone = phoneToUse.replace(/\D/g, '');
     const phoneWithCountry = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
 
     // Check if conversation exists
@@ -246,9 +301,7 @@ export default function MessagesPage() {
 
     if (existing) {
       setSelectedConversation(existing);
-      setNewConversationOpen(false);
-      setNewPhone('');
-      setNewName('');
+      resetNewConversationState();
       return;
     }
 
@@ -258,8 +311,8 @@ export default function MessagesPage() {
       .insert({
         organization_id: organizationId,
         customer_phone: phoneWithCountry,
-        customer_name: newName.trim() || null,
-        conversation_type: conversationType
+        customer_name: nameToUse || null,
+        conversation_type: typeToUse
       })
       .select()
       .single();
@@ -271,11 +324,32 @@ export default function MessagesPage() {
 
     setConversations([data, ...conversations]);
     setSelectedConversation(data);
+    resetNewConversationState();
+  };
+
+  const resetNewConversationState = () => {
     setNewConversationOpen(false);
     setNewPhone('');
     setNewName('');
     setConversationType('client');
+    setSelectedContact(null);
+    setContactSearch('');
   };
+
+  const handleSelectContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setNewPhone(contact.phone);
+    setNewName(contact.name);
+    setConversationType(contact.type);
+  };
+
+  const filteredContacts = contacts.filter(c => {
+    const matchesType = conversationType === 'client' ? c.type === 'client' : c.type === 'cleaner';
+    const matchesSearch = contactSearch === '' || 
+      c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+      c.phone.includes(contactSearch);
+    return matchesType && matchesSearch;
+  });
 
   const handleUpdateCustomerName = async () => {
     if (!selectedConversation) return;
@@ -412,7 +486,14 @@ export default function MessagesPage() {
               <div className="space-y-4 pt-4">
                 <div>
                   <Label className="text-sm font-medium">Contact Type</Label>
-                  <Tabs value={conversationType} onValueChange={(v) => setConversationType(v as 'client' | 'cleaner')} className="mt-2">
+                  <Tabs 
+                    value={conversationType} 
+                    onValueChange={(v) => {
+                      setConversationType(v as 'client' | 'cleaner');
+                      setSelectedContact(null);
+                    }} 
+                    className="mt-2"
+                  >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="client" className="gap-2">
                         <Users className="h-4 w-4" />
@@ -425,12 +506,75 @@ export default function MessagesPage() {
                     </TabsList>
                   </Tabs>
                 </div>
+                
+                {/* Contact Picker */}
+                <div>
+                  <Label className="text-sm font-medium">
+                    Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}
+                  </Label>
+                  <Command className="border rounded-md mt-2">
+                    <CommandInput 
+                      placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`}
+                      value={contactSearch}
+                      onValueChange={setContactSearch}
+                    />
+                    <CommandList className="max-h-40">
+                      <CommandEmpty>
+                        No {conversationType === 'client' ? 'customers' : 'staff'} found.
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {filteredContacts.slice(0, 10).map((contact) => (
+                          <CommandItem
+                            key={contact.id}
+                            value={`${contact.name} ${contact.phone}`}
+                            onSelect={() => handleSelectContact(contact)}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className={cn(
+                                  "text-xs",
+                                  contact.type === 'cleaner' 
+                                    ? "bg-amber-100 text-amber-700" 
+                                    : "bg-primary/10 text-primary"
+                                )}>
+                                  {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{contact.name}</p>
+                                <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                              </div>
+                              {selectedContact?.id === contact.id && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </div>
+
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or enter manually</span>
+                  </div>
+                </div>
+
                 <div>
                   <Label className="text-sm font-medium">Phone Number</Label>
                   <Input
                     placeholder="(555) 123-4567"
                     value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
+                    onChange={(e) => {
+                      setNewPhone(e.target.value);
+                      setSelectedContact(null);
+                    }}
                   />
                 </div>
                 <div>
@@ -441,7 +585,11 @@ export default function MessagesPage() {
                     onChange={(e) => setNewName(e.target.value)}
                   />
                 </div>
-                <Button onClick={handleStartNewConversation} className="w-full">
+                <Button 
+                  onClick={handleStartNewConversation} 
+                  className="w-full"
+                  disabled={!newPhone.trim() && !selectedContact}
+                >
                   Start Conversation
                 </Button>
               </div>
