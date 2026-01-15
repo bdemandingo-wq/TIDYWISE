@@ -1621,6 +1621,14 @@ export default function BookingsPage() {
                         <Edit className="w-4 h-4 mr-1" />
                         Edit
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(booking)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}

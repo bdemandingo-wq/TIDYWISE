@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, FileText, Send, Check, Trash2, Edit, Loader2, Mail, DollarSign, Star } from 'lucide-react';
+import { Plus, FileText, Send, Check, Trash2, Edit, Loader2, Phone, DollarSign, Star } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -65,7 +65,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 export function QuotesTabContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
-  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
 
@@ -131,36 +131,39 @@ export function QuotesTabContent() {
     updateMutation.mutate({ id: quote.id, status: 'accepted' });
   };
 
-  const sendQuoteEmail = async (quote: Quote) => {
-    if (!quote.customer?.email) {
-      toast.error('No customer email found');
+  const sendQuoteReminderSms = async (quote: Quote) => {
+    // Get customer phone from the full customer object
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('phone, first_name, last_name')
+      .eq('id', quote.customer_id)
+      .single();
+
+    if (!customer?.phone) {
+      toast.error('No customer phone number found');
       return;
     }
 
-    setSendingInvoice(quote.id);
+    setSendingReminder(quote.id);
     try {
-      const { error } = await supabase.functions.invoke('send-invoice', {
+      const validUntil = quote.valid_until ? format(new Date(quote.valid_until), 'MMM d, yyyy') : 'soon';
+      const message = `Hi ${customer.first_name}! Just a reminder - your quote #${quote.quote_number} for $${quote.total_amount.toFixed(2)} expires on ${validUntil}. Reply YES to confirm or call us with any questions!`;
+
+      const { error } = await supabase.functions.invoke('send-openphone-sms', {
         body: {
-          customerName: `${quote.customer.first_name} ${quote.customer.last_name}`,
-          customerEmail: quote.customer.email,
-          invoiceNumber: quote.quote_number,
-          serviceName: quote.service?.name || 'Cleaning Service',
-          amount: quote.total_amount,
-          address: quote.address,
-          validUntil: quote.valid_until ? format(new Date(quote.valid_until), 'MMM d, yyyy') : undefined,
-          notes: quote.notes,
+          to: customer.phone,
+          message,
         },
       });
 
       if (error) throw error;
 
-      toast.success(`Quote sent to ${quote.customer.email}`);
-      updateMutation.mutate({ id: quote.id, status: 'sent' });
+      toast.success(`Reminder SMS sent to ${customer.first_name}`);
     } catch (error: any) {
-      console.error('Failed to send quote:', error);
-      toast.error(error.message || 'Failed to send quote');
+      console.error('Failed to send reminder:', error);
+      toast.error(error.message || 'Failed to send reminder SMS');
     } finally {
-      setSendingInvoice(null);
+      setSendingReminder(null);
     }
   };
 
@@ -347,7 +350,7 @@ export function QuotesTabContent() {
                     </TableCell>
                     <TableCell>{quote.service?.name || '-'}</TableCell>
                     <TableCell className="font-semibold">
-                      ${Number(maskAmount(quote.total_amount)).toFixed(2)}
+                      ${(isTestMode ? 0 : quote.total_amount).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       {quote.valid_until 
@@ -366,14 +369,14 @@ export function QuotesTabContent() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => sendQuoteEmail(quote)}
-                          disabled={sendingInvoice === quote.id || !quote.customer?.email}
-                          title="Send quote via email"
+                          onClick={() => sendQuoteReminderSms(quote)}
+                          disabled={sendingReminder === quote.id || !quote.customer_id}
+                          title="Send reminder SMS"
                         >
-                          {sendingInvoice === quote.id ? (
+                          {sendingReminder === quote.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <Mail className="w-4 h-4" />
+                            <Phone className="w-4 h-4" />
                           )}
                         </Button>
                         {quote.status !== 'accepted' && (

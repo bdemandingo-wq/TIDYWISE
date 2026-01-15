@@ -99,9 +99,16 @@ export default function CustomersPage() {
 
   const handleConfirmDelete = async () => {
     if (customerToDelete) {
-      await deleteCustomer.mutateAsync(customerToDelete.id);
-      setDeleteDialogOpen(false);
-      setCustomerToDelete(null);
+      try {
+        // First delete quotes referencing this customer
+        await supabase.from('quotes').delete().eq('customer_id', customerToDelete.id);
+        // Then delete the customer
+        await deleteCustomer.mutateAsync(customerToDelete.id);
+        setDeleteDialogOpen(false);
+        setCustomerToDelete(null);
+      } catch (error: any) {
+        console.error('Failed to delete customer:', error);
+      }
     }
   };
 

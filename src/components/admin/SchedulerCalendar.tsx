@@ -630,10 +630,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       >
                         {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                       </span>
-                      <div className="w-full space-y-1 overflow-hidden">
-                        {dayBookings
-                          .slice(0, viewMode === 'week' ? 10 : 3)
-                          .map((booking, bIndex) => (
+                      <div className="w-full space-y-1 overflow-y-auto max-h-[200px] scrollbar-thin">
+                        {dayBookings.map((booking, bIndex) => (
                             <DraggableBooking
                               key={booking.id}
                               booking={booking}
@@ -642,11 +640,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                               staffList={staffList}
                             />
                           ))}
-                        {dayBookings.length > (viewMode === 'week' ? 10 : 3) && (
-                          <span className="text-xs text-muted-foreground pl-2">
-                            +{dayBookings.length - (viewMode === 'week' ? 10 : 3)} more
-                          </span>
-                        )}
                       </div>
                     </>
                   )}
