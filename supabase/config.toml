@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.openphone-webhook]
 verify_jwt = false
+
+[functions.run-inactive-campaign]
+verify_jwt = false
