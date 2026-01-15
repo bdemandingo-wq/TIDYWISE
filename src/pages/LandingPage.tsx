@@ -76,33 +76,33 @@ const cleaningConfig = {
 const baseFeatures = [
   {
     icon: Calendar,
-    title: "Smart Scheduling",
-    description: "Intelligent booking system that automatically assigns the best available cleaners based on location, skills, and availability."
+    title: "Smart Scheduling & Online Booking",
+    description: "Cleaning business scheduling software that auto-assigns cleaners by location, skills, and availability. Let customers book online 24/7."
   },
   {
     icon: Users,
-    title: "Team Management",
-    description: "Complete staff portal with job assignments, earnings tracking, availability management, and performance reviews."
+    title: "House Cleaning CRM",
+    description: "Complete customer relationship management for maid services. Track client history, preferences, and lifetime value."
   },
   {
     icon: CreditCard,
-    title: "Seamless Payments",
-    description: "Accept payments online with Stripe integration. Handle deposits, tips, and automatic invoicing."
+    title: "Automated Payments & Invoicing",
+    description: "Accept payments online with Stripe. Auto-generate invoices, handle deposits, tips, and send professional quotes in seconds."
   },
   {
     icon: BarChart3,
-    title: "Business Analytics",
-    description: "Track revenue, customer lifetime value, staff productivity, and profit margins with real-time dashboards."
+    title: "Cleaning Business Reports & Analytics",
+    description: "P&L tracking, revenue forecasting, and staff productivity metrics. Know your numbers like the pros."
   },
   {
     icon: Smartphone,
-    title: "Mobile Ready",
-    description: "Staff mobile app for check-ins, photo documentation, checklists, and real-time job updates."
+    title: "Mobile App with GPS Tracking",
+    description: "Staff app with GPS check-ins, on-my-way texts, photo documentation, and real-time job updates."
   },
   {
     icon: Bell,
-    title: "Automated Campaigns",
-    description: "Re-engage customers with automated follow-up emails, review requests, and loyalty programs."
+    title: "Automated Follow-ups & Reviews",
+    description: "Auto-send quote follow-ups, booking confirmations, review requests, and win-back campaigns. Boost your Google reviews."
   },
 ];
 
@@ -124,8 +124,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="TIDYWISE - The Perfect Platform to Grow Your Cleaning Business"
-        description="Complete business management platform for cleaning companies. Smart scheduling, team management, payments, and analytics built specifically for house cleaners."
+        title="TIDYWISE - #1 Cleaning Business Software | Booking Koala & Jobber Alternative"
+        description="Best cleaning business software for maid services. Smart scheduling, automated payroll, CRM, GPS tracking & online booking. Better than Booking Koala & Jobber. Start free."
         canonicalPath="/"
       />
 
@@ -186,14 +186,14 @@ export default function LandingPage() {
             <div className="text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
                 <Sparkles className="h-4 w-4" />
-                Built for Cleaning Businesses
+                #1 Rated Cleaning Business Software
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
-                The perfect platform to grow your{" "}
-                <span className="text-primary">cleaning business.</span>
+                The best{" "}
+                <span className="text-primary">maid service software</span> to grow your cleaning business
               </h1>
               <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto lg:mx-0">
-                We help cleaning companies from start to scale by giving your customers the perfect experience while making your life easier. Compete with multi-million dollar cleaning services in seconds.
+                Looking for Booking Koala or Jobber alternatives? TIDYWISE gives you online booking, smart scheduling, automated payroll, and house cleaning CRM—all in one platform. Scale from startup to $1M+ revenue.
               </p>
 
               {/* CTA Form */}
@@ -272,10 +272,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Everything you need to run your cleaning business
+              Complete cleaning service app with all the features you need
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              We're not just booking software. TIDYWISE is the complete platform with everything you need to grow your cleaning company.
+              More than just janitorial software. TIDYWISE is the all-in-one cleaning business management platform—from automated booking to GPS route optimization.
             </p>
           </div>
 
@@ -324,20 +324,20 @@ export default function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
                 <Shield className="h-4 w-4" />
-                Enterprise-grade security
+                Trusted by cleaning businesses worldwide
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-                Compete with multi-million dollar cleaning services in 60 seconds
+                How to start a cleaning business and scale to $1M+
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Whether you have a website or not, in less than 60 seconds you can have access to features that will take your cleaning business to the next level.
+                Whether you're just starting or ready to scale, TIDYWISE gives you the same tools multi-million dollar cleaning services use. No coding, no website needed—just sign up and start booking.
               </p>
               <div className="space-y-4">
                 {[
-                  "Secure payment processing with Stripe",
-                  "GDPR compliant data handling",
-                  "99.9% uptime guarantee",
-                  "Automatic backups & data protection"
+                  "Set it and forget it online booking",
+                  "GPS route optimization saves 30% travel time",
+                  "Automated review requests for Google Guaranteed",
+                  "Professional quotes & invoices in seconds"
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full bg-success/10 flex items-center justify-center">
