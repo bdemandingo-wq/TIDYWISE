@@ -64,6 +64,57 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          excerpt: string
+          id: string
+          is_featured: boolean
+          is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string
+          read_time: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          excerpt: string
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string
+          read_time?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          is_featured?: boolean
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string
+          read_time?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       booking_checklist_items: {
         Row: {
           booking_checklist_id: string

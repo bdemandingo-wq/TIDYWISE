@@ -47,6 +47,7 @@ import StaffResetPasswordPage from "./pages/staff/StaffResetPasswordPage";
 import ReviewPage from "./pages/ReviewPage";
 import BlogIndex from "./pages/blog/BlogIndex";
 import HowToStartCleaningBusiness from "./pages/blog/HowToStartCleaningBusiness";
+import DynamicBlogPost from "./pages/blog/DynamicBlogPost";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ const App = () => (
                   <Route path="/review/:token" element={<ReviewPage />} />
                   <Route path="/blog" element={<BlogIndex />} />
                   <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
+                  <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
 
                   {/* Staff Portal (legacy - for staff invited by org owners) */}
                   <Route path="/staff/login" element={<StaffLoginPage />} />

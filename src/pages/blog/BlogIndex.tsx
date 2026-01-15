@@ -1,9 +1,13 @@
 import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, BookOpen, Clock, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Calendar, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const blogPosts = [
+// Static cornerstone posts that have dedicated pages
+const staticPosts = [
   {
     slug: "how-to-start-a-cleaning-business",
     title: "The Ultimate Guide on How to Start a Cleaning Business in 2026",
@@ -11,29 +15,43 @@ const blogPosts = [
     category: "Business Guide",
     readTime: "15 min read",
     date: "January 2026",
-    featured: true
-  },
-  {
-    slug: "cleaning-business-scheduling-tips",
-    title: "Master Your Cleaning Schedule: Tips for Maximum Efficiency",
-    excerpt: "Discover how professional cleaning companies use smart scheduling to increase bookings by 40% and reduce travel time.",
-    category: "Operations",
-    readTime: "8 min read",
-    date: "January 2026",
-    featured: false
-  },
-  {
-    slug: "real-time-messenger-cleaning-teams",
-    title: "Why Your Cleaning Team Needs Real-Time Communication",
-    excerpt: "Explore how a real-time messenger for cleaning teams improves coordination, reduces no-shows, and boosts customer satisfaction.",
-    category: "Team Management",
-    readTime: "6 min read",
-    date: "January 2026",
-    featured: false
+    featured: true,
+    isStatic: true
   }
 ];
 
 export default function BlogIndex() {
+  // Fetch dynamic blog posts from database
+  const { data: dynamicPosts = [], isLoading } = useQuery({
+    queryKey: ["blog-posts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Combine static and dynamic posts
+  const allPosts = [
+    ...staticPosts,
+    ...dynamicPosts.map(post => ({
+      slug: post.slug,
+      title: post.title,
+      excerpt: post.excerpt,
+      category: post.category,
+      readTime: post.read_time,
+      date: format(new Date(post.published_at), "MMMM yyyy"),
+      featured: post.is_featured,
+      isStatic: false
+    }))
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Seo 
@@ -75,16 +93,23 @@ export default function BlogIndex() {
               Cleaning Business Resources
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              Expert insights on growing your cleaning business. From automated payroll to inventory management, we've got you covered.
+              Expert insights on growing your cleaning business. From automated payroll to inventory management, we&apos;ve got you covered.
             </p>
           </div>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+
           {/* Articles Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogPosts.map((post) => (
+            {allPosts.map((post) => (
               <Link 
                 key={post.slug}
-                to={`/blog/${post.slug}`}
+                to={post.isStatic ? `/blog/${post.slug}` : `/blog/post/${post.slug}`}
                 className="group"
               >
                 <article className="bg-card rounded-xl border border-border p-6 h-full hover:shadow-lg hover:border-primary/50 transition-all duration-300 flex flex-col">
@@ -93,7 +118,7 @@ export default function BlogIndex() {
                       Featured
                     </span>
                   )}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4 flex-wrap">
                     <span className="px-3 py-1 bg-secondary text-foreground rounded-full font-medium">
                       {post.category}
                     </span>
@@ -102,14 +127,20 @@ export default function BlogIndex() {
                       {post.readTime}
                     </span>
                   </div>
-                  <h2 className="text-xl font-semibold text-foreground mb-3 group-hover:text-primary transition-colors">
+                  <h2 className="text-xl font-semibold text-foreground mb-3 group-hover:text-primary transition-colors line-clamp-2">
                     {post.title}
                   </h2>
-                  <p className="text-muted-foreground mb-4 flex-1">
+                  <p className="text-muted-foreground mb-4 flex-1 line-clamp-3">
                     {post.excerpt}
                   </p>
-                  <div className="flex items-center gap-2 text-primary text-sm font-medium group-hover:gap-3 transition-all">
-                    Read article <ArrowRight className="h-4 w-4" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {post.date}
+                    </span>
+                    <span className="flex items-center gap-2 text-primary text-sm font-medium group-hover:gap-3 transition-all">
+                      Read <ArrowRight className="h-4 w-4" />
+                    </span>
                   </div>
                 </article>
               </Link>
