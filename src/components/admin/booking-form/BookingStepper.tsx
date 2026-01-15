@@ -317,7 +317,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         extras: selectedExtras || [],
         subtotal: quoteAmount,
         total_amount: quoteAmount,
-        status: 'pending',
+        status: 'sent',
         valid_until: validUntil.toISOString(),
         notes: notes || null,
       });
