@@ -19,7 +19,7 @@ interface AITemplate {
   message: string;
 }
 
-type AudienceType = 'all_eligible' | 'leads' | 'active_clients';
+type AudienceType = 'all_eligible' | 'active_clients' | 'inactive_clients';
 
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
@@ -29,8 +29,8 @@ const campaignTypes = [
 
 const audienceOptions = [
   { value: "all_eligible", label: "All Eligible (Excluding opted-out)" },
-  { value: "leads", label: "Leads Only (Non-converted)" },
-  { value: "active_clients", label: "Active Clients Only (Converted)" },
+  { value: "active_clients", label: "Active Clients" },
+  { value: "inactive_clients", label: "Inactive Clients" },
 ];
 
 export default function CampaignsPage() {
@@ -113,7 +113,7 @@ export default function CampaignsPage() {
     onSuccess: (data) => {
       if (data.templates && data.templates.length > 0) {
         setAiTemplates(data.templates);
-        const audienceLabel = aiAudience === 'leads' ? 'Leads' : aiAudience === 'active_clients' ? 'Active Clients' : 'All Eligible';
+        const audienceLabel = aiAudience === 'inactive_clients' ? 'Inactive Clients' : aiAudience === 'active_clients' ? 'Active Clients' : 'All Eligible';
         toast({ title: "Templates generated!", description: `3 new ${audienceLabel} templates ready to use` });
       } else {
         toast({ title: "Error", description: "No templates were generated. Please try again.", variant: "destructive" });
@@ -170,7 +170,7 @@ export default function CampaignsPage() {
         contactable: data.toContactCount || 0,
         customers: data.customers || []
       });
-      const audienceLabel = targetAudience === 'leads' ? 'leads' : targetAudience === 'active_clients' ? 'active clients' : 'eligible customers';
+      const audienceLabel = targetAudience === 'inactive_clients' ? 'inactive clients' : targetAudience === 'active_clients' ? 'active clients' : 'eligible customers';
       toast({ title: "Preview complete", description: `Found ${data.toContactCount || 0} ${audienceLabel} to contact` });
     },
     onError: (error: Error) => {
@@ -299,8 +299,8 @@ export default function CampaignsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all_eligible">All Eligible Customers</SelectItem>
-                    <SelectItem value="leads">Leads Only (Conversion-focused)</SelectItem>
-                    <SelectItem value="active_clients">Active Clients (Loyalty/Upsell)</SelectItem>
+                    <SelectItem value="active_clients">Active Clients</SelectItem>
+                    <SelectItem value="inactive_clients">Inactive Clients</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -316,7 +316,7 @@ export default function CampaignsPage() {
             </div>
             
             <p className="text-xs text-muted-foreground">
-              {aiAudience === 'leads' && "💡 AI will generate high-pressure conversion copy with urgency and special offers to convert leads into customers."}
+              {aiAudience === 'inactive_clients' && "💡 AI will generate win-back copy with urgency and special offers to re-engage inactive customers."}
               {aiAudience === 'active_clients' && "💡 AI will generate loyalty, appreciation, and upsell copy to retain and grow existing client relationships."}
               {aiAudience === 'all_eligible' && "💡 AI will generate balanced messaging suitable for mixed audiences."}
             </p>
