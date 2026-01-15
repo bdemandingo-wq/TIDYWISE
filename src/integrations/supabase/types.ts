@@ -621,6 +621,61 @@ export type Database = {
           },
         ]
       }
+      campaign_sms_sends: {
+        Row: {
+          campaign_id: string | null
+          customer_id: string | null
+          id: string
+          message_content: string | null
+          organization_id: string | null
+          phone_number: string | null
+          sent_at: string
+          status: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          customer_id?: string | null
+          id?: string
+          message_content?: string | null
+          organization_id?: string | null
+          phone_number?: string | null
+          sent_at?: string
+          status?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          customer_id?: string | null
+          id?: string
+          message_content?: string | null
+          organization_id?: string | null
+          phone_number?: string | null
+          sent_at?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sms_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "automated_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_sms_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_sms_sends_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_items: {
         Row: {
           created_at: string
@@ -2532,6 +2587,8 @@ export type Database = {
           content: string
           conversation_id: string
           created_at: string
+          delivered_at: string | null
+          delivery_status: string | null
           direction: string
           id: string
           openphone_message_id: string | null
@@ -2543,6 +2600,8 @@ export type Database = {
           content: string
           conversation_id: string
           created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string | null
           direction: string
           id?: string
           openphone_message_id?: string | null
@@ -2554,6 +2613,8 @@ export type Database = {
           content?: string
           conversation_id?: string
           created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string | null
           direction?: string
           id?: string
           openphone_message_id?: string | null

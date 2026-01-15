@@ -112,12 +112,39 @@ const handler = async (req: Request): Promise<Response> => {
     const payload = await req.json() as OpenPhoneWebhookPayload;
     console.log("[openphone-webhook] Received payload:", JSON.stringify(payload, null, 2));
 
-    // Process both incoming messages AND outgoing messages sent from OpenPhone app
+    // Process incoming messages, outgoing messages, and delivery status updates
     // OpenPhone event types: message.received (inbound), message.created/message.completed/message.delivered (outbound)
     const isInbound = payload.type === 'message.received';
-    const isOutbound = payload.type === 'message.completed' || payload.type === 'message.created' || payload.type === 'message.delivered';
+    const isOutbound = payload.type === 'message.completed' || payload.type === 'message.created';
+    const isDeliveryUpdate = payload.type === 'message.delivered';
     
-    console.log(`[openphone-webhook] Event type: ${payload.type}, isInbound: ${isInbound}, isOutbound: ${isOutbound}`);
+    console.log(`[openphone-webhook] Event type: ${payload.type}, isInbound: ${isInbound}, isOutbound: ${isOutbound}, isDeliveryUpdate: ${isDeliveryUpdate}`);
+    
+    // Handle delivery status updates (read receipts)
+    if (isDeliveryUpdate) {
+      const openphoneMessageId = payload.data.object.id;
+      console.log(`[openphone-webhook] Processing delivery status for message: ${openphoneMessageId}`);
+      
+      const { error: updateError } = await supabase
+        .from('sms_messages')
+        .update({ 
+          delivery_status: 'delivered',
+          delivered_at: new Date().toISOString(),
+          status: 'delivered'
+        })
+        .eq('openphone_message_id', openphoneMessageId);
+      
+      if (updateError) {
+        console.error("[openphone-webhook] Error updating delivery status:", updateError);
+      } else {
+        console.log(`[openphone-webhook] Updated delivery status for message: ${openphoneMessageId}`);
+      }
+      
+      return new Response(
+        JSON.stringify({ success: true, message: "Delivery status updated" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     if (!isInbound && !isOutbound) {
       console.log("[openphone-webhook] Ignoring event type:", payload.type);
