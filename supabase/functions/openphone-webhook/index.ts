@@ -21,6 +21,74 @@ interface OpenPhoneWebhookPayload {
   };
 }
 
+interface OpenPhoneContact {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  phoneNumbers?: Array<{ phoneNumber: string }>;
+}
+
+// Fetch contact name from OpenPhone API
+async function fetchOpenPhoneContactName(
+  phoneNumber: string,
+  apiKey: string
+): Promise<string | null> {
+  try {
+    // Format phone number for query (remove + if present)
+    const formattedPhone = phoneNumber.replace(/^\+/, '');
+    
+    console.log(`[openphone-webhook] Fetching contact for phone: ${phoneNumber}`);
+    
+    const response = await fetch(
+      `https://api.openphone.com/v1/contacts?phoneNumbers=${encodeURIComponent(phoneNumber)}`,
+      {
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`[openphone-webhook] OpenPhone API returned ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(`[openphone-webhook] OpenPhone contacts response:`, JSON.stringify(data));
+    
+    // OpenPhone returns { data: [...contacts] }
+    const contacts = data.data as OpenPhoneContact[] | undefined;
+    
+    if (!contacts || contacts.length === 0) {
+      console.log(`[openphone-webhook] No contacts found for ${phoneNumber}`);
+      return null;
+    }
+
+    const contact = contacts[0];
+    const firstName = contact.firstName?.trim() || '';
+    const lastName = contact.lastName?.trim() || '';
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
+    
+    if (fullName) {
+      console.log(`[openphone-webhook] Found contact name: ${fullName}`);
+      return fullName;
+    }
+    
+    // Fallback to company name if no personal name
+    if (contact.company) {
+      console.log(`[openphone-webhook] Found company name: ${contact.company}`);
+      return contact.company;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`[openphone-webhook] Error fetching contact:`, error);
+    return null;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -70,28 +138,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] ${direction} SMS - from ${fromPhone} to ${toPhone} (phoneNumberId: ${phoneNumberId})`);
 
-    // Find the organization by the OpenPhone phone number ID
-    // phoneNumberId is always the org's OpenPhone number (sender for outbound, receiver for inbound)
+    // Find the organization by the OpenPhone phone number ID and get API key
     const { data: smsSettings, error: settingsError } = await supabase
       .from('organization_sms_settings')
-      .select('organization_id')
+      .select('organization_id, openphone_api_key')
       .eq('openphone_phone_number_id', phoneNumberId)
       .maybeSingle();
 
     // Also try matching by partial phone number ID (in case URL was stored)
     let organizationId = smsSettings?.organization_id;
+    let openphoneApiKey = smsSettings?.openphone_api_key;
     
     if (!organizationId) {
       // Try finding by partial match
       const { data: allSettings } = await supabase
         .from('organization_sms_settings')
-        .select('organization_id, openphone_phone_number_id');
+        .select('organization_id, openphone_phone_number_id, openphone_api_key');
 
       if (allSettings) {
         for (const setting of allSettings) {
           if (setting.openphone_phone_number_id?.includes(phoneNumberId) ||
               phoneNumberId.includes(setting.openphone_phone_number_id || '')) {
             organizationId = setting.organization_id;
+            openphoneApiKey = setting.openphone_api_key;
             break;
           }
         }
@@ -111,18 +180,20 @@ const handler = async (req: Request): Promise<Response> => {
     // Find or create conversation using the customer phone (not the org's OpenPhone number)
     const { data: existingConversation } = await supabase
       .from('sms_conversations')
-      .select('id')
+      .select('id, customer_name')
       .eq('organization_id', organizationId)
       .eq('customer_phone', customerPhone)
       .maybeSingle();
 
     let conversationId: string;
+    let needsContactLookup = false;
 
     if (existingConversation) {
       conversationId = existingConversation.id;
-      console.log(`[openphone-webhook] Found existing conversation: ${conversationId}`);
+      needsContactLookup = !existingConversation.customer_name;
+      console.log(`[openphone-webhook] Found existing conversation: ${conversationId}, has name: ${!needsContactLookup}`);
     } else {
-      // Try to find customer by phone
+      // Try to find customer by phone in our customers table
       const { data: customer } = await supabase
         .from('customers')
         .select('id, first_name, last_name')
@@ -130,7 +201,14 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('phone', customerPhone)
         .maybeSingle();
 
-      const customerName = customer ? `${customer.first_name} ${customer.last_name}` : null;
+      let customerName = customer ? `${customer.first_name} ${customer.last_name}` : null;
+      
+      // If no local customer found and we have API key, try OpenPhone
+      if (!customerName && openphoneApiKey) {
+        customerName = await fetchOpenPhoneContactName(customerPhone, openphoneApiKey);
+      }
+      
+      needsContactLookup = !customerName;
 
       // Create new conversation
       const { data: newConversation, error: createError } = await supabase
@@ -154,6 +232,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       conversationId = newConversation.id;
       console.log(`[openphone-webhook] Created new conversation: ${conversationId}`);
+    }
+
+    // If existing conversation has no name, try to fetch from OpenPhone
+    if (needsContactLookup && openphoneApiKey && existingConversation) {
+      const contactName = await fetchOpenPhoneContactName(customerPhone, openphoneApiKey);
+      if (contactName) {
+        await supabase
+          .from('sms_conversations')
+          .update({ customer_name: contactName })
+          .eq('id', conversationId);
+        console.log(`[openphone-webhook] Updated conversation with contact name: ${contactName}`);
+      }
     }
 
     // Check if message already exists (avoid duplicates from our app sending)
