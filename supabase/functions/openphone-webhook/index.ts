@@ -45,8 +45,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("[openphone-webhook] Received payload:", JSON.stringify(payload, null, 2));
 
     // Process both incoming messages AND outgoing messages sent from OpenPhone app
+    // OpenPhone event types: message.received (inbound), message.created/message.completed/message.delivered (outbound)
     const isInbound = payload.type === 'message.received';
-    const isOutbound = payload.type === 'message.completed' || payload.type === 'message.created';
+    const isOutbound = payload.type === 'message.completed' || payload.type === 'message.created' || payload.type === 'message.delivered';
+    
+    console.log(`[openphone-webhook] Event type: ${payload.type}, isInbound: ${isInbound}, isOutbound: ${isOutbound}`);
     
     if (!isInbound && !isOutbound) {
       console.log("[openphone-webhook] Ignoring event type:", payload.type);
