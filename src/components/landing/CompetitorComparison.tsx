@@ -76,14 +76,14 @@ export function CompetitorComparison() {
   const navigate = useNavigate();
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+    <section id="comparison" className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Compare & Save Thousands
+            TIDYWISE vs Booking Koala vs Jobber: Which Cleaning Software Wins?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            See how TIDYWISE stacks up against the competition. More features, lower prices, built specifically for cleaning businesses.
+            Looking for Booking Koala alternatives or Jobber alternatives? Compare the best cleaning business software side by side. More features, 75% lower price.
           </p>
         </div>
 
