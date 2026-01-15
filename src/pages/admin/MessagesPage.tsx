@@ -28,7 +28,11 @@ import {
   Trash2,
   Users,
   HardHat,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 interface Conversation {
@@ -67,6 +71,8 @@ export default function MessagesPage() {
   const [activeTab, setActiveTab] = useState<ConversationTab>('all');
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editingName, setEditingName] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -315,6 +321,57 @@ export default function MessagesPage() {
     toast.success('Conversation deleted');
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} conversation(s) and all their messages?`)) return;
+    
+    setBulkDeleting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      
+      // Delete messages first
+      await supabase.from('sms_messages').delete().in('conversation_id', idsArray);
+      // Then delete conversations
+      const { error } = await supabase.from('sms_conversations').delete().in('id', idsArray);
+      
+      if (error) throw error;
+      
+      setConversations(prev => prev.filter(c => !selectedIds.has(c.id)));
+      if (selectedConversation && selectedIds.has(selectedConversation.id)) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+      setSelectedIds(new Set());
+      toast.success(`${idsArray.length} conversation(s) deleted`);
+    } catch (error) {
+      console.error('Error bulk deleting:', error);
+      toast.error('Failed to delete conversations');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectConversation = (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(convId)) {
+        next.delete(convId);
+      } else {
+        next.add(convId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredConversations.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredConversations.map(c => c.id)));
+    }
+  };
+
   const filteredConversations = conversations.filter(conv => {
     const matchesSearch = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.customer_phone.includes(searchQuery);
@@ -421,6 +478,43 @@ export default function MessagesPage() {
             </div>
           </div>
           
+          {/* Bulk Delete Bar */}
+          {selectedIds.size > 0 && (
+            <div className="p-2 border-b bg-muted/50 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  checked={selectedIds.size === filteredConversations.length}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.size} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-1" />
+                  )}
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <ScrollArea className="flex-1">
             {loading ? (
               <div className="flex items-center justify-center p-8">
@@ -435,55 +529,68 @@ export default function MessagesPage() {
             ) : (
               <div className="divide-y">
                 {filteredConversations.map((conv) => (
-                  <button
+                  <div
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
                     className={cn(
-                      "w-full p-3 text-left hover:bg-muted/50 transition-colors",
+                      "w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-2",
                       selectedConversation?.id === conv.id && "bg-muted"
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className={cn(
-                          "text-sm",
-                          conv.conversation_type === 'cleaner' 
-                            ? "bg-amber-100 text-amber-700" 
-                            : "bg-primary/10 text-primary"
-                        )}>
-                          {conv.conversation_type === 'cleaner' 
-                            ? <HardHat className="h-4 w-4" />
-                            : getInitials(conv.customer_name, conv.customer_phone)
-                          }
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">
-                              {conv.customer_name || conv.customer_phone}
-                            </p>
-                            {conv.conversation_type === 'cleaner' && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-300 text-amber-600">
-                                Cleaner
+                    <div 
+                      className="pt-1"
+                      onClick={(e) => toggleSelectConversation(conv.id, e)}
+                    >
+                      <Checkbox 
+                        checked={selectedIds.has(conv.id)}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+                    <button
+                      onClick={() => setSelectedConversation(conv)}
+                      className="flex-1 text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className={cn(
+                            "text-sm",
+                            conv.conversation_type === 'cleaner' 
+                              ? "bg-amber-100 text-amber-700" 
+                              : "bg-primary/10 text-primary"
+                          )}>
+                            {conv.conversation_type === 'cleaner' 
+                              ? <HardHat className="h-4 w-4" />
+                              : getInitials(conv.customer_name, conv.customer_phone)
+                            }
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">
+                                {conv.customer_name || conv.customer_phone}
+                              </p>
+                              {conv.conversation_type === 'cleaner' && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-300 text-amber-600">
+                                  Cleaner
+                                </Badge>
+                              )}
+                            </div>
+                            {conv.unread_count > 0 && (
+                              <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                                {conv.unread_count}
                               </Badge>
                             )}
                           </div>
-                          {conv.unread_count > 0 && (
-                            <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                              {conv.unread_count}
-                            </Badge>
-                          )}
+                          <p className="text-xs text-muted-foreground truncate">
+                            {conv.customer_phone}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {conv.customer_phone}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
-                        </p>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
