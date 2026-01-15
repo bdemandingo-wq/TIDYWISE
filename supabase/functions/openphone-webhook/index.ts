@@ -62,19 +62,20 @@ const handler = async (req: Request): Promise<Response> => {
     const message = payload.data.object;
     const fromPhone = message.from;
     const toPhone = message.to;
-    const toPhoneNumberId = message.phoneNumberId;
+    const phoneNumberId = message.phoneNumberId; // This is always the org's OpenPhone number ID
     const content = message.body;
     const openphoneMessageId = message.id;
     const direction = isInbound ? 'inbound' : 'outbound';
     const customerPhone = isInbound ? fromPhone : toPhone;
 
-    console.log(`[openphone-webhook] ${direction} SMS - from ${fromPhone} to ${toPhone} (phone ID: ${toPhoneNumberId})`);
+    console.log(`[openphone-webhook] ${direction} SMS - from ${fromPhone} to ${toPhone} (phoneNumberId: ${phoneNumberId})`);
 
     // Find the organization by the OpenPhone phone number ID
+    // phoneNumberId is always the org's OpenPhone number (sender for outbound, receiver for inbound)
     const { data: smsSettings, error: settingsError } = await supabase
       .from('organization_sms_settings')
       .select('organization_id')
-      .eq('openphone_phone_number_id', toPhoneNumberId)
+      .eq('openphone_phone_number_id', phoneNumberId)
       .maybeSingle();
 
     // Also try matching by partial phone number ID (in case URL was stored)
@@ -88,8 +89,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (allSettings) {
         for (const setting of allSettings) {
-          if (setting.openphone_phone_number_id?.includes(toPhoneNumberId) ||
-              toPhoneNumberId.includes(setting.openphone_phone_number_id || '')) {
+          if (setting.openphone_phone_number_id?.includes(phoneNumberId) ||
+              phoneNumberId.includes(setting.openphone_phone_number_id || '')) {
             organizationId = setting.organization_id;
             break;
           }
@@ -98,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!organizationId) {
-      console.error("[openphone-webhook] Could not find organization for phone number ID:", toPhoneNumberId);
+      console.error("[openphone-webhook] Could not find organization for phone number ID:", phoneNumberId);
       return new Response(
         JSON.stringify({ success: false, error: "Organization not found for this phone number" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
