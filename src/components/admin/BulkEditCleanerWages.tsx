@@ -208,6 +208,9 @@ export function BulkEditCleanerWages() {
     if (wageType === 'percentage') {
       return (booking.total_amount * value) / 100;
     }
+    if (wageType === 'flat') {
+      return value; // Flat rate is direct payment amount
+    }
     // Hourly
     return value * 5;
   };
@@ -245,16 +248,17 @@ export function BulkEditCleanerWages() {
               <SelectContent>
                 <SelectItem value="percentage">Percentage</SelectItem>
                 <SelectItem value="hourly">Hourly</SelectItem>
+                <SelectItem value="flat">Flat Rate</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">
-              {bulkWageType === 'percentage' ? 'Percentage (%)' : 'Rate ($/hr)'}
+              {bulkWageType === 'percentage' ? 'Percentage (%)' : bulkWageType === 'flat' ? 'Flat Amount ($)' : 'Rate ($/hr)'}
             </label>
             <Input
               type="number"
-              placeholder={bulkWageType === 'percentage' ? '40' : '25'}
+              placeholder={bulkWageType === 'percentage' ? '40' : bulkWageType === 'flat' ? '100' : '25'}
               value={bulkWageValue}
               onChange={(e) => setBulkWageValue(e.target.value)}
               className="w-[100px]"
@@ -361,6 +365,11 @@ export function BulkEditCleanerWages() {
                                 <Percent className="w-3 h-3" /> Percentage
                               </span>
                             </SelectItem>
+                            <SelectItem value="flat">
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" /> Flat Rate
+                              </span>
+                            </SelectItem>
                             <SelectItem value="hourly">
                               <span className="flex items-center gap-1">
                                 <DollarSign className="w-3 h-3" /> Hourly
@@ -372,15 +381,16 @@ export function BulkEditCleanerWages() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {wage.type === 'percentage' && <span className="text-muted-foreground">%</span>}
-                          {wage.type === 'hourly' && <span className="text-muted-foreground">$</span>}
+                          {(wage.type === 'hourly' || wage.type === 'flat') && <span className="text-muted-foreground">$</span>}
                           <Input
                             type="number"
                             value={wage.value}
                             onChange={(e) => handleLocalEdit(booking.id, 'value', e.target.value)}
-                            placeholder={wage.type === 'percentage' ? '40' : '25'}
+                            placeholder={wage.type === 'percentage' ? '40' : wage.type === 'flat' ? '100' : '25'}
                             className="w-[70px] h-8"
                           />
                           {wage.type === 'hourly' && <span className="text-muted-foreground text-xs">/hr</span>}
+                          {wage.type === 'flat' && <span className="text-muted-foreground text-xs">flat</span>}
                         </div>
                       </TableCell>
                       <TableCell>

@@ -277,7 +277,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     ? selectedCustomer.phone 
     : newCustomer.phone;
 
-  // Send quote SMS handler
+  // Send quote SMS handler - also creates a quote record
   const handleSendQuoteSms = async () => {
     if (!customerPhone) {
       toast.error('Customer phone number is required to send a quote');
@@ -292,6 +292,39 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
     setSendingQuoteSms(true);
     try {
+      // First, ensure we have a customer ID (create new customer if needed)
+      let customerId = selectedCustomerId;
+      if (customerTab === 'new' && newCustomer.first_name && newCustomer.last_name && newCustomer.email) {
+        const customer = await createCustomer.mutateAsync(newCustomer);
+        customerId = customer.id;
+      }
+
+      // Create quote record in database
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 7); // Valid for 7 days
+
+      const { error: quoteError } = await supabase.from('quotes').insert({
+        organization_id: organizationId,
+        customer_id: customerId || null,
+        service_id: selectedServiceId === 'reclean' ? null : selectedServiceId || null,
+        address: address || null,
+        city: city || null,
+        state: state || null,
+        zip_code: zipCode || null,
+        bedrooms: bedrooms || null,
+        bathrooms: bathrooms || null,
+        square_footage: squareFootage || null,
+        extras: selectedExtras || [],
+        subtotal: quoteAmount,
+        total_amount: quoteAmount,
+        status: 'pending',
+        valid_until: validUntil.toISOString(),
+        notes: notes || null,
+      });
+
+      if (quoteError) throw quoteError;
+
+      // Send SMS
       const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
         `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
         `💰 Total: $${quoteAmount.toFixed(2)}\n\n` +
@@ -306,7 +339,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       });
       
       if (error) throw error;
-      toast.success('Quote sent via SMS!');
+      toast.success('Quote saved and sent via SMS!');
     } catch (error: any) {
       console.error('Quote SMS error:', error);
       toast.error(error.message || 'Failed to send quote via SMS');
