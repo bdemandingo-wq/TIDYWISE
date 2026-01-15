@@ -72,6 +72,7 @@ import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/Bo
 import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
 import { BulkEditCleanerWages } from '@/components/admin/BulkEditCleanerWages';
 import { supabase } from '@/integrations/supabase/client';
+import { QuotesTabContent } from '@/components/admin/QuotesTabContent';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -190,7 +191,20 @@ export default function BookingsPage() {
       customerName.includes(searchTerm.toLowerCase()) ||
       serviceName.includes(searchTerm.toLowerCase()) ||
       bookingNum.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+    // Status filter - "pending" means bookings that haven't started yet (future bookings), "completed" means completed bookings
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'pending') {
+        // Pending = bookings scheduled in the future that haven't started yet
+        const now = new Date();
+        const scheduledDate = new Date(booking.scheduled_at);
+        matchesStatus = scheduledDate > now && !['completed', 'cancelled', 'no_show'].includes(booking.status);
+      } else if (statusFilter === 'completed') {
+        matchesStatus = booking.status === 'completed';
+      } else {
+        matchesStatus = booking.status === statusFilter;
+      }
+    }
     
     // Date range filter
     let matchesDate = true;
@@ -1580,6 +1594,10 @@ export default function BookingsPage() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="quotes" className="space-y-6">
+          <QuotesTabContent />
         </TabsContent>
 
         <TabsContent value="cleaner-wages">
