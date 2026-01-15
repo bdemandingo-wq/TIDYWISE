@@ -18,15 +18,15 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       <div className={cn(
-        "transition-all duration-300",
+        "transition-all duration-300 min-h-screen",
         "pl-0 md:pl-16",
         sidebarOpen && "md:pl-64"
       )}>
         <AdminHeader title={title} subtitle={subtitle} actions={actions} />
-        <main className="p-4 md:p-6 pt-20 md:pt-6 animate-page-enter">
+        <main className="p-4 md:p-6 pt-20 md:pt-6 pb-24 md:pb-6 animate-page-enter overflow-y-auto">
           {children}
         </main>
       </div>
