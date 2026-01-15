@@ -53,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Parse the incoming payload
     const payload: ExternalBookingPayload = await req.json();
-    console.log("[external-booking-webhook] Received payload:", JSON.stringify(payload));
+    console.log("[external-booking-webhook] v2 - Received payload:", JSON.stringify(payload));
 
     // Validate required fields
     if (!payload.first_name || !payload.last_name || !payload.email || !payload.scheduled_at) {
@@ -87,21 +87,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!organizationId) {
-      // Try to get the first organization as fallback (for single-org setups)
-      const { data: orgs } = await supabase
-        .from('organizations')
-        .select('id')
-        .limit(1)
-        .single();
-      
-      if (orgs) {
-        organizationId = orgs.id;
-      } else {
-        return new Response(
-          JSON.stringify({ success: false, error: "No organization specified or found" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      // Default to TidyWise organization for external website bookings
+      organizationId = 'e95b92d0-7099-408e-a773-e4407b34f8b4';
     }
 
     console.log("[external-booking-webhook] Using organization:", organizationId);
@@ -133,7 +120,7 @@ const handler = async (req: Request): Promise<Response> => {
           zip_code: payload.zip_code || null,
           organization_id: organizationId,
           customer_status: 'active',
-          marketing_status: 'subscribed',
+          marketing_status: 'active',
         })
         .select('id')
         .single();
