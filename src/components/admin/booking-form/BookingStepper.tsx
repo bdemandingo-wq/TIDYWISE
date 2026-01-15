@@ -43,6 +43,7 @@ import { PropertyStep } from './steps/PropertyStep';
 import { ServiceStep } from './steps/ServiceStep';
 import { ScheduleStep } from './steps/ScheduleStep';
 import { PaymentStep } from './steps/PaymentStep';
+import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import {
   DndContext,
   closestCenter,
@@ -270,12 +271,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     finalPrice,
     resetForm,
     staff,
+    conflictOverride,
   } = useBookingForm();
 
   // Get customer phone for quote SMS
   const customerPhone = customerTab === 'existing' && selectedCustomer 
     ? selectedCustomer.phone 
     : newCustomer.phone;
+
+  // Conflict detection for validation
+  const { checkConflictsForStaff } = useCleanerConflicts(
+    selectedDate,
+    selectedTime,
+    selectedService?.duration || 120,
+    booking?.id
+  );
+
+  // Check if there are unresolved conflicts
+  const hasUnresolvedConflicts = () => {
+    if (conflictOverride) return false;
+    
+    if (isTeamMode && selectedTeamMembers.length > 0) {
+      return selectedTeamMembers.some(staffId => {
+        const conflicts = checkConflictsForStaff(staffId);
+        return conflicts.length > 0;
+      });
+    } else if (selectedStaffId) {
+      const conflicts = checkConflictsForStaff(selectedStaffId);
+      return conflicts.length > 0;
+    }
+    
+    return false;
+  };
 
   // Send quote SMS handler - also creates a quote record
   const handleSendQuoteSms = async () => {
@@ -371,6 +398,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       case 'schedule':
         if (!selectedDate || !selectedTime) {
           toast.error('Please select a date and time');
+          return false;
+        }
+        // Check for conflicts
+        if (hasUnresolvedConflicts()) {
+          toast.error('Please resolve the scheduling conflict or check the override box');
           return false;
         }
         return true;
@@ -764,7 +796,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       case 'customer': return <CustomerStep />;
       case 'property': return <PropertyStep />;
       case 'service': return <ServiceStep />;
-      case 'schedule': return <ScheduleStep />;
+      case 'schedule': return <ScheduleStep currentBookingId={booking?.id} />;
       case 'payment': return <PaymentStep />;
       default: return null;
     }

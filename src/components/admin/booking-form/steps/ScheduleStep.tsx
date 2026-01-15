@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
+import { CleanerConflictWarning } from '../CleanerConflictWarning';
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -44,7 +46,7 @@ const TIME_SLOTS = [
 // Helper to get display label from 24h value
 const getTimeLabel = (value: string) => TIME_SLOTS.find(t => t.value === value)?.label || value;
 
-export function ScheduleStep() {
+export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }) {
   const {
     selectedDate,
     setSelectedDate,
@@ -64,7 +66,49 @@ export function ScheduleStep() {
     totalAmount,
     calculatedPrice,
     selectedService,
+    conflictOverride,
+    setConflictOverride,
   } = useBookingForm();
+
+  // Use conflict detection hook
+  const { checkConflictsForStaff, getStaffAvailability, loading: conflictLoading } = useCleanerConflicts(
+    selectedDate,
+    selectedTime,
+    selectedService?.duration || 120,
+    currentBookingId
+  );
+
+  // Get availability for all active staff
+  const activeStaff = staff?.filter(s => s.is_active) || [];
+  const staffAvailability = useMemo(() => {
+    return getStaffAvailability(activeStaff.map(s => s.id));
+  }, [activeStaff, selectedDate, selectedTime, getStaffAvailability]);
+
+  // Get conflicts for currently selected staff (single mode)
+  const currentConflicts = useMemo(() => {
+    if (!selectedStaffId || isTeamMode) return [];
+    return checkConflictsForStaff(selectedStaffId);
+  }, [selectedStaffId, isTeamMode, checkConflictsForStaff]);
+
+  // Get conflicts for team mode
+  const teamConflicts = useMemo(() => {
+    if (!isTeamMode || selectedTeamMembers.length === 0) return new Map();
+    const conflicts = new Map<string, ReturnType<typeof checkConflictsForStaff>>();
+    for (const staffId of selectedTeamMembers) {
+      const staffConflicts = checkConflictsForStaff(staffId);
+      if (staffConflicts.length > 0) {
+        conflicts.set(staffId, staffConflicts);
+      }
+    }
+    return conflicts;
+  }, [isTeamMode, selectedTeamMembers, checkConflictsForStaff]);
+
+  const hasAnyConflict = currentConflicts.length > 0 || teamConflicts.size > 0;
+
+  // Reset conflict override when staff/date/time changes
+  useEffect(() => {
+    setConflictOverride(false);
+  }, [selectedStaffId, selectedDate, selectedTime, selectedTeamMembers.join(',')]);
 
   // Handle team member toggle
   const toggleTeamMember = (staffId: string) => {
@@ -140,7 +184,28 @@ export function ScheduleStep() {
     });
   }, [selectedTeamMembers, totalAmount, calculatedPrice]);
 
-  const activeStaff = staff?.filter(s => s.is_active) || [];
+  // Helper to render availability badge
+  const renderAvailabilityBadge = (staffId: string) => {
+    if (!selectedDate || !selectedTime) return null;
+    const availability = staffAvailability.get(staffId);
+    if (!availability) return null;
+
+    if (availability.isAvailable) {
+      return (
+        <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Available
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 text-xs">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Busy
+        </Badge>
+      );
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -233,19 +298,51 @@ export function ScheduleStep() {
 
           {!isTeamMode ? (
             // Single staff selection
-            <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
-              <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
-                <SelectValue placeholder="Select a cleaner (optional)" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {activeStaff.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
+                <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
+                  <SelectValue placeholder="Select a cleaner (optional)">
+                    {selectedStaffId && activeStaff.find(s => s.id === selectedStaffId)?.name}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {activeStaff.map((member) => {
+                    const availability = staffAvailability.get(member.id);
+                    const isBusy = availability && !availability.isAvailable;
+                    return (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{member.name}</span>
+                          {selectedDate && selectedTime && (
+                            <span className={cn(
+                              "ml-2 text-xs px-1.5 py-0.5 rounded",
+                              isBusy 
+                                ? "bg-amber-100 text-amber-700" 
+                                : "bg-emerald-100 text-emerald-700"
+                            )}>
+                              {isBusy ? 'Busy' : 'Available'}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              {/* Conflict Warning for Single Staff */}
+              {currentConflicts.length > 0 && (
+                <div className="mt-4">
+                  <CleanerConflictWarning
+                    cleanerName={activeStaff.find(s => s.id === selectedStaffId)?.name || 'Selected cleaner'}
+                    conflicts={currentConflicts}
+                    overrideConflict={conflictOverride}
+                    onOverrideChange={setConflictOverride}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             // Team selection mode
             <div className="space-y-4">
@@ -256,40 +353,69 @@ export function ScheduleStep() {
                   {selectedTeamMembers.map((staffId, idx) => {
                     const member = activeStaff.find(s => s.id === staffId);
                     const currentPay = teamMemberPay[staffId] ?? 0;
+                    const memberConflicts = teamConflicts.get(staffId);
                     if (!member) return null;
                     return (
-                      <div 
-                        key={staffId} 
-                        className="flex items-center justify-between p-2 bg-background rounded border gap-2"
-                      >
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge variant={idx === 0 ? "default" : "secondary"} className="text-xs">
-                            {idx === 0 ? 'Lead' : `#${idx + 1}`}
-                          </Badge>
-                          <span className="font-medium">{member.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={currentPay || ''}
-                              onChange={(e) => updateTeamMemberPay(staffId, parseFloat(e.target.value) || 0)}
-                              className="w-24 h-8 pl-6 text-sm"
-                              placeholder="0.00"
-                            />
+                      <div key={staffId}>
+                        <div 
+                          className={cn(
+                            "flex items-center justify-between p-2 bg-background rounded border gap-2",
+                            memberConflicts && memberConflicts.length > 0 && "border-amber-300 bg-amber-50/50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge variant={idx === 0 ? "default" : "secondary"} className="text-xs">
+                              {idx === 0 ? 'Lead' : `#${idx + 1}`}
+                            </Badge>
+                            <span className="font-medium">{member.name}</span>
+                            {memberConflicts && memberConflicts.length > 0 && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Conflict
+                              </Badge>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeTeamMember(staffId)}
-                            className="p-1 hover:text-destructive"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={currentPay || ''}
+                                onChange={(e) => updateTeamMemberPay(staffId, parseFloat(e.target.value) || 0)}
+                                className="w-24 h-8 pl-6 text-sm"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeTeamMember(staffId)}
+                              className="p-1 hover:text-destructive"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Team Conflict Warnings */}
+              {teamConflicts.size > 0 && (
+                <div className="space-y-3">
+                  {Array.from(teamConflicts.entries()).map(([staffId, conflicts]) => {
+                    const member = activeStaff.find(s => s.id === staffId);
+                    return (
+                      <CleanerConflictWarning
+                        key={staffId}
+                        cleanerName={member?.name || 'Team member'}
+                        conflicts={conflicts}
+                        overrideConflict={conflictOverride}
+                        onOverrideChange={setConflictOverride}
+                      />
                     );
                   })}
                 </div>
@@ -299,20 +425,34 @@ export function ScheduleStep() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {activeStaff.map((member) => {
                   const isSelected = selectedTeamMembers.includes(member.id);
+                  const availability = staffAvailability.get(member.id);
+                  const isBusy = availability && !availability.isAvailable;
                   return (
                     <button
                       key={member.id}
                       type="button"
                       onClick={() => toggleTeamMember(member.id)}
                       className={cn(
-                        "flex items-center gap-2 p-3 rounded-lg border text-left transition-all",
+                        "flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all",
                         isSelected 
                           ? "border-primary bg-primary/10 text-primary" 
                           : "border-border/50 bg-secondary/30 hover:border-primary/50"
                       )}
                     >
-                      <Checkbox checked={isSelected} className="pointer-events-none" />
-                      <span className="text-sm font-medium truncate">{member.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Checkbox checked={isSelected} className="pointer-events-none" />
+                        <span className="text-sm font-medium truncate">{member.name}</span>
+                      </div>
+                      {selectedDate && selectedTime && (
+                        <span className={cn(
+                          "text-xs px-1.5 py-0.5 rounded ml-6",
+                          isBusy 
+                            ? "bg-amber-100 text-amber-700" 
+                            : "bg-emerald-100 text-emerald-700"
+                        )}>
+                          {isBusy ? 'Busy' : 'Available'}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
