@@ -911,6 +911,7 @@ export type Database = {
           city: string | null
           created_at: string
           credits: number | null
+          customer_status: string
           email: string
           first_name: string
           id: string
@@ -929,6 +930,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           credits?: number | null
+          customer_status?: string
           email: string
           first_name: string
           id?: string
@@ -947,6 +949,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           credits?: number | null
+          customer_status?: string
           email?: string
           first_name?: string
           id?: string

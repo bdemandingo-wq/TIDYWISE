@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, MapPin, ShieldAlert } from 'lucide-react';
+import { Loader2, User, Mail, Phone, MapPin, ShieldAlert, UserCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -26,6 +27,7 @@ interface Customer {
   state?: string | null;
   zip_code?: string | null;
   marketing_status?: string | null;
+  customer_status?: string | null;
 }
 
 interface EditCustomerDialogProps {
@@ -47,6 +49,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
     state: '',
     zip_code: '',
     marketing_status: 'active',
+    customer_status: 'lead',
   });
   
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +66,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         state: customer.state || '',
         zip_code: customer.zip_code || '',
         marketing_status: customer.marketing_status || 'active',
+        customer_status: customer.customer_status || 'lead',
       });
     }
   }, [customer]);
@@ -93,6 +97,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
           state: formData.state || null,
           zip_code: formData.zip_code || null,
           marketing_status: formData.marketing_status,
+          customer_status: formData.customer_status,
         })
         .eq('id', customer.id);
 
@@ -214,18 +219,51 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             </div>
           </div>
 
-          {/* Marketing Status */}
+          {/* Customer Status */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-muted-foreground" />
+                <Label htmlFor="customer_status" className="font-medium">Customer Status</Label>
+              </div>
+              <Badge 
+                variant={formData.customer_status === 'active' ? 'default' : 'secondary'}
+                className={
+                  formData.customer_status === 'active' ? 'bg-green-500' : 
+                  formData.customer_status === 'lead' ? 'bg-blue-500' : 'bg-gray-500'
+                }
+              >
+                {formData.customer_status === 'lead' ? 'Lead' : 
+                 formData.customer_status === 'active' ? 'Active Client' : 'Inactive'}
+              </Badge>
+            </div>
+            <Select
+              value={formData.customer_status}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, customer_status: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lead">Lead (No booking yet)</SelectItem>
+                <SelectItem value="active">Active Client (Has booked)</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Marketing/Campaign Eligibility */}
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-muted-foreground" />
-                <Label htmlFor="marketing_status" className="font-medium">Marketing Status</Label>
+                <Label htmlFor="marketing_status" className="font-medium">Campaign Eligibility</Label>
               </div>
               <Badge 
                 variant={formData.marketing_status === 'active' ? 'default' : 'destructive'}
                 className={formData.marketing_status === 'active' ? 'bg-green-500' : ''}
               >
-                {formData.marketing_status === 'active' ? 'Active' : 'Opted-Out'}
+                {formData.marketing_status === 'active' ? 'Eligible' : 'Excluded'}
               </Badge>
             </div>
             <div className="flex items-center justify-between">

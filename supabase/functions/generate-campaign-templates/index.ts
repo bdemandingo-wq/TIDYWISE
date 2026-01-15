@@ -16,30 +16,36 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { companyName, serviceType = "cleaning", timestamp } = await req.json();
+    const { companyName, serviceType = "cleaning", audience = "all_eligible", timestamp } = await req.json();
     
-    // Use timestamp to ensure unique generation each time
     const uniqueId = timestamp || Date.now();
 
+    // Audience-specific prompts
+    const audienceContext = {
+      leads: "Target: LEADS who have NOT booked yet. Write HIGH-PRESSURE conversion copy with urgency, limited-time offers, and strong calls-to-action to get them to book their FIRST service.",
+      active_clients: "Target: ACTIVE CLIENTS who have already booked. Write LOYALTY and UPSELL copy - thank them for their business, offer exclusive perks, referral bonuses, or premium add-on services.",
+      all_eligible: "Target: MIXED audience of leads and clients. Write balanced, friendly messaging that works for both new prospects and existing customers."
+    };
+
     const systemPrompt = `You are an expert SMS marketing copywriter for ${serviceType} service businesses. 
+${audienceContext[audience as keyof typeof audienceContext] || audienceContext.all_eligible}
+
 Generate 3 UNIQUE high-conversion SMS templates that are:
 - Under 160 characters each (SMS limit)
 - Personal and friendly
 - Include a clear call-to-action
 - Use {first_name} and {company_name} placeholders
 - End with "Reply STOP to opt out"
-- Be creative and vary the approach each time - don't repeat similar patterns
+- Be creative and vary the approach each time
 
-Important: Each generation should produce DIFFERENT messages with varied offers, wording, and approaches. Be creative!
+Important: Each generation should produce DIFFERENT messages. Be creative!
 Always return valid JSON with exactly 3 templates.`;
 
-    const userPrompt = `Generate 3 FRESH and UNIQUE SMS marketing templates for "${companyName || 'a cleaning business'}" (Request ID: ${uniqueId}):
+    const userPrompt = `Generate 3 FRESH SMS templates for "${companyName || 'a cleaning business'}" targeting ${audience === 'leads' ? 'LEADS (non-converted prospects)' : audience === 'active_clients' ? 'ACTIVE CLIENTS (existing customers)' : 'all eligible customers'} (ID: ${uniqueId}):
 
-1. "The Discount Offer" - A time-limited discount to bring customers back (vary the discount %, urgency, and phrasing)
-2. "The Follow-Up" - A friendly check-in asking how they've been (use different tones: caring, casual, or curious)
-3. "The Referral Request" - Asking for referrals with an incentive (vary the reward type and approach)
-
-Make each message DIFFERENT from typical templates. Be creative with emojis, offers, and wording!
+1. "The Discount Offer" - ${audience === 'leads' ? 'First-time booking discount with urgency' : audience === 'active_clients' ? 'Loyalty reward or exclusive client discount' : 'A time-limited discount'}
+2. "The Follow-Up" - ${audience === 'leads' ? 'Friendly nudge asking if they need help booking' : audience === 'active_clients' ? 'Check-in thanking them for their loyalty' : 'A friendly check-in'}
+3. "The Referral Request" - ${audience === 'leads' ? 'Offer incentive if they refer before trying service' : audience === 'active_clients' ? 'Ask happy clients to refer friends for mutual rewards' : 'Referral with incentive'}
 
 Return JSON format:
 {

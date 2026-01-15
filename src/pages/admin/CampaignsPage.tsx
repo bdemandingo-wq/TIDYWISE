@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
-import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check, Filter } from "lucide-react";
 import { format } from "date-fns";
 
 interface AITemplate {
@@ -19,10 +19,18 @@ interface AITemplate {
   message: string;
 }
 
+type AudienceType = 'all_eligible' | 'leads' | 'active_clients';
+
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
   { value: "seasonal_promo", label: "Seasonal Promotion" },
   { value: "win_back", label: "Win Back Campaign" },
+];
+
+const audienceOptions = [
+  { value: "all_eligible", label: "All Eligible (Excluding opted-out)" },
+  { value: "leads", label: "Leads Only (Non-converted)" },
+  { value: "active_clients", label: "Active Clients Only (Converted)" },
 ];
 
 export default function CampaignsPage() {
@@ -31,6 +39,8 @@ export default function CampaignsPage() {
   const { organizationId: orgId } = useOrgId();
   
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
+  const [targetAudience, setTargetAudience] = useState<AudienceType>('all_eligible');
+  const [aiAudience, setAiAudience] = useState<AudienceType>('all_eligible');
   const [smsTestResult, setSmsTestResult] = useState<{ 
     inactive: number; 
     contactable: number;
@@ -41,6 +51,7 @@ export default function CampaignsPage() {
       phone: string;
       email: string;
       marketing_status: string;
+      customer_status?: string;
     }>;
   } | null>(null);
   const [smsFormData, setSmsFormData] = useState({
@@ -84,16 +95,16 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Generate AI templates - always fresh with timestamp
+  // Generate AI templates - with audience targeting
   const generateTemplates = useMutation({
     mutationFn: async () => {
-      // Clear previous templates first
       setAiTemplates([]);
       const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
         body: { 
           companyName: businessSettings?.company_name || "Your Cleaning Service",
           serviceType: "cleaning",
-          timestamp: Date.now() // Force fresh generation
+          audience: aiAudience,
+          timestamp: Date.now()
         },
       });
       if (error) throw error;
@@ -102,7 +113,8 @@ export default function CampaignsPage() {
     onSuccess: (data) => {
       if (data.templates && data.templates.length > 0) {
         setAiTemplates(data.templates);
-        toast({ title: "Templates generated!", description: "3 new high-conversion templates ready to use" });
+        const audienceLabel = aiAudience === 'leads' ? 'Leads' : aiAudience === 'active_clients' ? 'Active Clients' : 'All Eligible';
+        toast({ title: "Templates generated!", description: `3 new ${audienceLabel} templates ready to use` });
       } else {
         toast({ title: "Error", description: "No templates were generated. Please try again.", variant: "destructive" });
       }
@@ -145,6 +157,7 @@ export default function CampaignsPage() {
         body: { 
           organizationId: orgId, 
           daysInactive: smsFormData.days_inactive,
+          targetAudience: targetAudience,
           testMode: true 
         },
       });
@@ -157,7 +170,8 @@ export default function CampaignsPage() {
         contactable: data.toContactCount || 0,
         customers: data.customers || []
       });
-      toast({ title: "Preview complete", description: `Found ${data.toContactCount || 0} customers to contact` });
+      const audienceLabel = targetAudience === 'leads' ? 'leads' : targetAudience === 'active_clients' ? 'active clients' : 'eligible customers';
+      toast({ title: "Preview complete", description: `Found ${data.toContactCount || 0} ${audienceLabel} to contact` });
     },
     onError: (error: Error) => {
       toast({ title: "Error testing campaign", description: error.message, variant: "destructive" });
@@ -172,6 +186,7 @@ export default function CampaignsPage() {
           organizationId: orgId, 
           daysInactive: smsFormData.days_inactive,
           message: smsFormData.message,
+          targetAudience: targetAudience,
           campaignId,
           testMode: false 
         },
@@ -271,19 +286,40 @@ export default function CampaignsPage() {
               AI Template Generator
             </CardTitle>
             <CardDescription>
-              Generate high-conversion SMS templates powered by AI
+              Generate high-conversion SMS templates powered by AI, tailored to your audience
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              onClick={() => generateTemplates.mutate()}
-              disabled={generateTemplates.isPending}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-            >
-              {generateTemplates.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate High-Conversion Templates
-            </Button>
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Target Audience</Label>
+                <Select value={aiAudience} onValueChange={(v) => setAiAudience(v as AudienceType)}>
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_eligible">All Eligible Customers</SelectItem>
+                    <SelectItem value="leads">Leads Only (Conversion-focused)</SelectItem>
+                    <SelectItem value="active_clients">Active Clients (Loyalty/Upsell)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={() => generateTemplates.mutate()}
+                disabled={generateTemplates.isPending}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {generateTemplates.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Templates
+              </Button>
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              {aiAudience === 'leads' && "💡 AI will generate high-pressure conversion copy with urgency and special offers to convert leads into customers."}
+              {aiAudience === 'active_clients' && "💡 AI will generate loyalty, appreciation, and upsell copy to retain and grow existing client relationships."}
+              {aiAudience === 'all_eligible' && "💡 AI will generate balanced messaging suitable for mixed audiences."}
+            </p>
 
             {aiTemplates.length > 0 && (
               <div className="grid gap-4 md:grid-cols-3 mt-4">
@@ -330,15 +366,31 @@ export default function CampaignsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Phone className="h-5 w-5" />
-              Win Back Inactive Customers
+              Send Campaign
             </CardTitle>
             <CardDescription>
-              Automatically send SMS to customers who haven't booked recently. 
+              Send SMS to targeted customer segments.
               <span className="text-amber-600 font-medium"> Customers marked as "Opted-Out" are automatically excluded.</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Target Audience</Label>
+                <Select 
+                  value={targetAudience} 
+                  onValueChange={(v) => setTargetAudience(v as AudienceType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {audienceOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Days Inactive</Label>
                 <Select 
@@ -363,7 +415,7 @@ export default function CampaignsPage() {
                   disabled={testSmsCampaign.isPending}
                 >
                   {testSmsCampaign.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  <Users className="h-4 w-4 mr-2" />
+                  <Filter className="h-4 w-4 mr-2" />
                   Preview List
                 </Button>
                 <Button 
@@ -372,7 +424,7 @@ export default function CampaignsPage() {
                 >
                   {runSmsCampaign.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   <Send className="h-4 w-4 mr-2" />
-                  Send SMS Campaign
+                  Send
                 </Button>
               </div>
             </div>

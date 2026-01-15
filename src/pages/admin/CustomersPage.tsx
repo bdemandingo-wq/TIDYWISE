@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -10,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard, Upload } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard, Upload, Users, UserX } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +41,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
@@ -57,11 +61,15 @@ Jane,Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001`;
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'inactive' | 'remove_campaigns' | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const { data: customers = [], isLoading } = useCustomers();
@@ -100,9 +108,7 @@ export default function CustomersPage() {
   const handleConfirmDelete = async () => {
     if (customerToDelete) {
       try {
-        // First delete quotes referencing this customer
         await supabase.from('quotes').delete().eq('customer_id', customerToDelete.id);
-        // Then delete the customer
         await deleteCustomer.mutateAsync(customerToDelete.id);
         setDeleteDialogOpen(false);
         setCustomerToDelete(null);
@@ -112,14 +118,82 @@ export default function CustomersPage() {
     }
   };
 
-  const filteredCustomers = customers.filter((customer) =>
-    `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.phone?.includes(searchTerm) ?? false)
-  );
+  const handleBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+    
+    const ids = Array.from(selectedIds);
+    
+    try {
+      if (bulkAction === 'inactive') {
+        const { error } = await supabase
+          .from('customers')
+          .update({ customer_status: 'inactive' })
+          .in('id', ids);
+        if (error) throw error;
+        toast.success(`Moved ${ids.length} customers to Inactive`);
+      } else if (bulkAction === 'remove_campaigns') {
+        const { error } = await supabase
+          .from('customers')
+          .update({ marketing_status: 'opted_out' })
+          .in('id', ids);
+        if (error) throw error;
+        toast.success(`Removed ${ids.length} customers from campaigns`);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setSelectedIds(new Set());
+      setBulkActionDialogOpen(false);
+      setBulkAction(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update customers');
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredCustomers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCustomers.map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const filteredCustomers = customers.filter((customer) => {
+    const matchesSearch = 
+      `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.phone?.includes(searchTerm) ?? false);
+    
+    const matchesStatus = statusFilter === 'all' || 
+      (customer as any).customer_status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case 'active':
+        return <Badge className="bg-green-500 text-xs">Active</Badge>;
+      case 'lead':
+        return <Badge className="bg-blue-500 text-xs">Lead</Badge>;
+      case 'inactive':
+        return <Badge variant="secondary" className="text-xs">Inactive</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{status || 'Lead'}</Badge>;
+    }
   };
 
   return (
@@ -139,8 +213,8 @@ export default function CustomersPage() {
         </div>
       }
     >
-      {/* Search */}
-      <div className="flex gap-4 mb-6">
+      {/* Filters & Bulk Actions */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -150,6 +224,47 @@ export default function CustomersPage() {
             className="pl-9"
           />
         </div>
+        
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Customers</SelectItem>
+            <SelectItem value="lead">Leads Only</SelectItem>
+            <SelectItem value="active">Active Clients</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {selectedIds.size > 0 && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBulkAction('inactive');
+                setBulkActionDialogOpen(true);
+              }}
+              className="gap-1"
+            >
+              <Users className="w-4 h-4" />
+              Move to Inactive ({selectedIds.size})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBulkAction('remove_campaigns');
+                setBulkActionDialogOpen(true);
+              }}
+              className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+            >
+              <UserX className="w-4 h-4" />
+              Remove from Campaigns ({selectedIds.size})
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -157,7 +272,14 @@ export default function CustomersPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox 
+                  checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Address</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -166,19 +288,25 @@ export default function CustomersPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Loading customers...
                 </TableCell>
               </TableRow>
             ) : filteredCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   No customers found
                 </TableCell>
               </TableRow>
             ) : (
               filteredCustomers.map((customer) => (
                 <TableRow key={customer.id} className="hover:bg-muted/30">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(customer.id)}
+                      onCheckedChange={() => toggleSelect(customer.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
@@ -192,6 +320,14 @@ export default function CustomersPage() {
                           Since {new Date(customer.created_at).toLocaleDateString()}
                         </p>
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {getStatusBadge((customer as any).customer_status)}
+                      {(customer as any).marketing_status === 'opted_out' && (
+                        <Badge variant="destructive" className="text-xs">No Campaigns</Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -296,6 +432,28 @@ export default function CustomersPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkActionDialogOpen} onOpenChange={setBulkActionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === 'inactive' ? 'Move to Inactive' : 'Remove from Campaigns'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkAction === 'inactive' 
+                ? `Are you sure you want to mark ${selectedIds.size} customer(s) as Inactive?`
+                : `Are you sure you want to remove ${selectedIds.size} customer(s) from all campaigns? They will no longer receive marketing messages.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkAction}>
+              Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
