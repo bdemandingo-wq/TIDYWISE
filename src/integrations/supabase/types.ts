@@ -915,6 +915,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          marketing_status: string
           notes: string | null
           organization_id: string | null
           phone: string | null
@@ -932,6 +933,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          marketing_status?: string
           notes?: string | null
           organization_id?: string | null
           phone?: string | null
@@ -949,6 +951,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          marketing_status?: string
           notes?: string | null
           organization_id?: string | null
           phone?: string | null

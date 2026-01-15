@@ -11,8 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
-import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2 } from "lucide-react";
+import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
+
+interface AITemplate {
+  name: string;
+  message: string;
+}
 
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
@@ -33,6 +38,23 @@ export default function CampaignsPage() {
     days_inactive: 30,
     message: 'Hi {first_name}! We miss you at {company_name}. It\'s been a while since your last clean. Book now and get 15% off! Reply STOP to opt out.'
   });
+  const [aiTemplates, setAiTemplates] = useState<AITemplate[]>([]);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // Fetch business settings for company name
+  const { data: businessSettings } = useQuery({
+    queryKey: ["business-settings", orgId],
+    queryFn: async () => {
+      if (!orgId) return null;
+      const { data } = await supabase
+        .from("business_settings")
+        .select("company_name")
+        .eq("organization_id", orgId)
+        .single();
+      return data;
+    },
+    enabled: !!orgId,
+  });
 
   // Fetch SMS campaigns
   const { data: smsCampaigns = [], isLoading } = useQuery({
@@ -49,6 +71,29 @@ export default function CampaignsPage() {
       return data || [];
     },
     enabled: !!orgId,
+  });
+
+  // Generate AI templates
+  const generateTemplates = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-campaign-templates", {
+        body: { 
+          companyName: businessSettings?.company_name || "Your Cleaning Service",
+          serviceType: "cleaning"
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.templates) {
+        setAiTemplates(data.templates);
+        toast({ title: "Templates generated!", description: "3 high-conversion templates ready to use" });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error generating templates", description: error.message, variant: "destructive" });
+    },
   });
 
   // Create SMS campaign template
@@ -139,6 +184,18 @@ export default function CampaignsPage() {
     },
   });
 
+  const handleUseTemplate = (template: AITemplate) => {
+    setSmsFormData(prev => ({ ...prev, message: template.message }));
+    toast({ title: "Template applied!", description: `"${template.name}" copied to message composer` });
+  };
+
+  const handleCopyTemplate = (template: AITemplate, index: number) => {
+    navigator.clipboard.writeText(template.message);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+    toast({ title: "Copied to clipboard!" });
+  };
+
   if (isLoading) {
     return (
       <AdminLayout title="SMS Campaigns" subtitle="Loading...">
@@ -189,6 +246,68 @@ export default function CampaignsPage() {
           </Card>
         </div>
 
+        {/* AI Template Generator */}
+        <Card className="border-purple-500/20 bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              AI Template Generator
+            </CardTitle>
+            <CardDescription>
+              Generate high-conversion SMS templates powered by AI
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={() => generateTemplates.mutate()}
+              disabled={generateTemplates.isPending}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              {generateTemplates.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate High-Conversion Templates
+            </Button>
+
+            {aiTemplates.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-3 mt-4">
+                {aiTemplates.map((template, index) => (
+                  <div 
+                    key={index} 
+                    className="p-4 border rounded-lg bg-background hover:border-purple-300 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-sm text-purple-600">{template.name}</h4>
+                      <div className="flex gap-1">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0"
+                          onClick={() => handleCopyTemplate(template, index)}
+                        >
+                          {copiedIndex === index ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{template.message}</p>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => handleUseTemplate(template)}
+                    >
+                      Use This
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Win Back Inactive Customers */}
         <Card>
           <CardHeader>
@@ -197,7 +316,8 @@ export default function CampaignsPage() {
               Win Back Inactive Customers
             </CardTitle>
             <CardDescription>
-              Automatically send SMS to customers who haven't booked recently
+              Automatically send SMS to customers who haven't booked recently. 
+              <span className="text-amber-600 font-medium"> Customers marked as "Opted-Out" are automatically excluded.</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

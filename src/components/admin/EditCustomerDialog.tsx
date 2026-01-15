@@ -8,8 +8,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Loader2, User, Mail, Phone, MapPin, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -23,6 +25,7 @@ interface Customer {
   city?: string | null;
   state?: string | null;
   zip_code?: string | null;
+  marketing_status?: string | null;
 }
 
 interface EditCustomerDialogProps {
@@ -43,6 +46,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
     city: '',
     state: '',
     zip_code: '',
+    marketing_status: 'active',
   });
   
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +62,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         city: customer.city || '',
         state: customer.state || '',
         zip_code: customer.zip_code || '',
+        marketing_status: customer.marketing_status || 'active',
       });
     }
   }, [customer]);
@@ -87,6 +92,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
           city: formData.city || null,
           state: formData.state || null,
           zip_code: formData.zip_code || null,
+          marketing_status: formData.marketing_status,
         })
         .eq('id', customer.id);
 
@@ -206,6 +212,41 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                 placeholder="12345"
               />
             </div>
+          </div>
+
+          {/* Marketing Status */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+                <Label htmlFor="marketing_status" className="font-medium">Marketing Status</Label>
+              </div>
+              <Badge 
+                variant={formData.marketing_status === 'active' ? 'default' : 'destructive'}
+                className={formData.marketing_status === 'active' ? 'bg-green-500' : ''}
+              >
+                {formData.marketing_status === 'active' ? 'Active' : 'Opted-Out'}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {formData.marketing_status === 'active' 
+                  ? 'Customer will receive campaign messages' 
+                  : 'Customer excluded from all campaigns'}
+              </p>
+              <Switch
+                id="marketing_status"
+                checked={formData.marketing_status === 'active'}
+                onCheckedChange={(checked) => 
+                  setFormData(prev => ({ ...prev, marketing_status: checked ? 'active' : 'opted_out' }))
+                }
+              />
+            </div>
+            {formData.marketing_status === 'opted_out' && (
+              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                ⚠️ This customer will not receive any automated SMS campaigns including win-back, seasonal promos, or promotional messages.
+              </p>
+            )}
           </div>
 
           {/* Actions */}

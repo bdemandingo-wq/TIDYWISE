@@ -714,9 +714,30 @@ export default function MessagesPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">
-                                {conv.customer_name || conv.customer_phone}
-                              </p>
+                              {conv.customer_name ? (
+                                <p className="font-medium truncate">
+                                  {conv.customer_name}
+                                </p>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <p className="text-muted-foreground truncate">
+                                    {conv.customer_phone}
+                                  </p>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-5 px-2 text-[10px] border-amber-400 text-amber-600 hover:bg-amber-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedConversation(conv);
+                                      setEditingName('');
+                                      setEditNameOpen(true);
+                                    }}
+                                  >
+                                    Set Name
+                                  </Button>
+                                </div>
+                              )}
                               {conv.conversation_type === 'cleaner' && (
                                 <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-300 text-amber-600">
                                   Cleaner
@@ -729,9 +750,11 @@ export default function MessagesPage() {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {conv.customer_phone}
-                          </p>
+                          {conv.customer_name && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {conv.customer_phone}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-1">
                             {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
                           </p>
@@ -766,9 +789,26 @@ export default function MessagesPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">
-                      {selectedConversation.customer_name || selectedConversation.customer_phone}
-                    </p>
+                    {selectedConversation.customer_name ? (
+                      <p className="font-medium">
+                        {selectedConversation.customer_name}
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-muted-foreground">Unknown Contact</p>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-6 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
+                          onClick={() => {
+                            setEditingName('');
+                            setEditNameOpen(true);
+                          }}
+                        >
+                          Set Name
+                        </Button>
+                      </div>
+                    )}
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" />
                       {selectedConversation.customer_phone}

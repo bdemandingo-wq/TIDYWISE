@@ -98,10 +98,12 @@ const handler = async (req: Request): Promise<Response> => {
     cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
     // Get customers with phone numbers who haven't booked recently
+    // EXCLUDE customers who have opted out of marketing
     const { data: allCustomers, error: customersError } = await supabase
       .from('customers')
-      .select('id, first_name, last_name, phone, email')
+      .select('id, first_name, last_name, phone, email, marketing_status')
       .eq('organization_id', organizationId)
+      .eq('marketing_status', 'active') // Only active marketing status
       .not('phone', 'is', null);
 
     if (customersError) {
@@ -111,6 +113,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[run-inactive-campaign] Found ${allCustomers?.length || 0} active marketing customers with phones`);
 
     // Get last booking date for each customer
     const inactiveCustomers: InactiveCustomer[] = [];

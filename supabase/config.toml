@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.run-inactive-campaign]
 verify_jwt = false
+
+[functions.generate-campaign-templates]
+verify_jwt = false
