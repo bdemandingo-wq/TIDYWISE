@@ -180,7 +180,7 @@ export function QuotesTabContent() {
     total: quotes.length,
     pending: quotes.filter(q => q.status === 'draft' || q.status === 'sent').length,
     accepted: quotes.filter(q => q.status === 'accepted').length,
-    totalValue: quotes.filter(q => q.status === 'accepted').reduce((sum, q) => sum + q.total_amount, 0),
+    totalValue: quotes.reduce((sum, q) => sum + (q.total_amount || 0), 0),
   };
 
   const [formData, setFormData] = useState({
