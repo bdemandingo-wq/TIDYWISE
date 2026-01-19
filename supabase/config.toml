@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.send-invoice-reminder]
 verify_jwt = false
+
+[functions.lookup-openphone-contact]
+verify_jwt = false
