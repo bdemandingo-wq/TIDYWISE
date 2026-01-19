@@ -158,7 +158,11 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[openphone-webhook] Message ${openphoneMessageId} not found, inserting as outbound message first`);
 
         const phoneNumberId = messageObj.phoneNumberId;
-        const customerPhone = messageObj.to; // For outbound, 'to' is the customer
+        // Handle group chats: use first phone number to avoid duplicate conversations
+        const rawCustomerPhone = messageObj.to; // For outbound, 'to' is the customer
+        const customerPhone = rawCustomerPhone.includes(',') 
+          ? rawCustomerPhone.split(',')[0].trim() 
+          : rawCustomerPhone;
 
         // Find organization by phone number ID
         const { data: smsSettings } = await supabase
@@ -276,7 +280,14 @@ const handler = async (req: Request): Promise<Response> => {
     const content = message.body;
     const openphoneMessageId = message.id;
     const direction = isInbound ? 'inbound' : 'outbound';
-    const customerPhone = isInbound ? fromPhone : toPhone;
+    
+    // Handle group chats: OpenPhone may send comma-separated phone numbers
+    // For group messages, use the first phone number as the primary identifier
+    // to avoid creating duplicate conversations for the same group
+    const rawCustomerPhone = isInbound ? fromPhone : toPhone;
+    const customerPhone = rawCustomerPhone.includes(',') 
+      ? rawCustomerPhone.split(',')[0].trim() 
+      : rawCustomerPhone;
 
     console.log(`[openphone-webhook] ${direction} SMS - from ${fromPhone} to ${toPhone} (phoneNumberId: ${phoneNumberId})`);
 
