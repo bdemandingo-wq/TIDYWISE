@@ -29,6 +29,7 @@ interface PaymentSettings {
   card_fee_fixed: number;
   ach_fee_percent: number;
   ach_fee_fixed: number;
+  default_billable_hours: number;
 }
 
 export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: PaymentMethodsSheetProps) {
@@ -58,6 +59,7 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
     card_fee_fixed: 0.30,
     ach_fee_percent: 0,
     ach_fee_fixed: 0,
+    default_billable_hours: 5,
   });
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
         card_fee_fixed: settings.card_fee_fixed ?? 0.30,
         ach_fee_percent: settings.ach_fee_percent ?? 0,
         ach_fee_fixed: settings.ach_fee_fixed ?? 0,
+        default_billable_hours: (settings as any).default_billable_hours ?? 5,
       });
     }
   }, [settings]);
@@ -221,6 +224,20 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
                 </div>
               </div>
             )}
+
+            {/* Default Billable Hours */}
+            <div className="pt-4 border-t space-y-3">
+              <p className="font-medium text-sm">Default Billable Hours</p>
+              <p className="text-xs text-muted-foreground">Set the default hours when adding new line items to invoices</p>
+              <Input
+                type="number"
+                step="0.5"
+                min="0.5"
+                value={formData.default_billable_hours}
+                onChange={(e) => setFormData({ ...formData, default_billable_hours: parseFloat(e.target.value) || 5 })}
+                className="w-32"
+              />
+            </div>
           </div>
         )}
 
