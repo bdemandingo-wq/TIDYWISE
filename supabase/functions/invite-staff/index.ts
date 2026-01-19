@@ -139,23 +139,52 @@ serve(async (req) => {
       });
     }
 
-    // Get admin's organization
-    const { data: adminMembership, error: membershipError } = await supabaseAdmin
+    // Determine organization: prefer from request body, fallback to user's membership
+    if (requestBody.organizationId) {
+      organizationId = requestBody.organizationId;
+    } else {
+      // Fallback: get the first organization for this user
+      const { data: adminMemberships, error: membershipError } = await supabaseAdmin
+        .from("org_memberships")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .limit(1);
+
+      if (membershipError || !adminMemberships || adminMemberships.length === 0) {
+        await logToSystem('error', 'Admin has no organization', { userId: user.id, error: membershipError?.message });
+        return new Response(JSON.stringify({ error: "Unable to find your organization. Please contact support." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      organizationId = adminMemberships[0].organization_id;
+    }
+
+    // Verify admin has owner/admin role in this organization
+    const { data: adminRole, error: roleCheckError } = await supabaseAdmin
       .from("org_memberships")
-      .select("organization_id")
+      .select("role")
       .eq("user_id", user.id)
+      .eq("organization_id", organizationId)
       .single();
 
-    if (membershipError || !adminMembership) {
-      await logToSystem('error', 'Admin has no organization', { userId: user.id, error: membershipError?.message });
-      return new Response(JSON.stringify({ error: "Unable to find your organization. Please contact support." }), {
-        status: 400,
+    if (roleCheckError || !adminRole) {
+      await logToSystem('warn', 'User not a member of organization', { userId: user.id, organizationId });
+      return new Response(JSON.stringify({ error: "You are not a member of this organization." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    organizationId = adminMembership.organization_id;
-    console.log("Creating staff for organization:", organizationId);
+    if (adminRole.role !== 'owner' && adminRole.role !== 'admin') {
+      await logToSystem('warn', 'Non-admin attempted staff invite', { userId: user.id, organizationId, role: adminRole.role });
+      return new Response(JSON.stringify({ error: "You need admin permissions to add staff members." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Creating staff for organization:", organizationId, "by user with role:", adminRole.role);
 
     // Check if staff record already exists (including inactive ones) in this org
     const { data: existingStaff } = await supabaseAdmin

@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface AddStaffDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ interface AddStaffDialogProps {
 
 export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const queryClient = useQueryClient();
+  const { organization } = useOrganization();
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
@@ -64,6 +66,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
       const response = await supabase.functions.invoke('invite-staff', {
         body: {
+          organizationId: organization?.id,
           email: formData.email,
           name: formData.name,
           phone: formData.phone || undefined,
