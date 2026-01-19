@@ -1312,6 +1312,154 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          service_id: string | null
+          sort_order: number | null
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          service_id?: string | null
+          sort_order?: number | null
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          service_id?: string | null
+          sort_order?: number | null
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_id: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          due_date: string | null
+          id: string
+          invoice_number: number
+          lead_id: string | null
+          notes: string | null
+          organization_id: string | null
+          paid_at: string | null
+          sent_at: string | null
+          status: string
+          stripe_invoice_id: string | null
+          stripe_invoice_url: string | null
+          stripe_payment_intent_id: string | null
+          subtotal: number
+          tax_amount: number | null
+          tax_percent: number | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: number
+          lead_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          paid_at?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          stripe_payment_intent_id?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          tax_percent?: number | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: number
+          lead_id?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          paid_at?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          stripe_payment_intent_id?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          tax_percent?: number | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           address: string | null
