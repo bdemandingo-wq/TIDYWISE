@@ -584,7 +584,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     }
 
     // Check if we're editing an existing booking and important fields changed
-    if (booking?.id && !skipRecurringCheck) {
+    // Empty string id means duplicate - treat as new booking
+    const isExistingBooking = booking?.id && booking.id.length > 10;
+    if (isExistingBooking && !skipRecurringCheck) {
       const changedFields = getChangedFields();
       const futureBookings = getFutureBookingsForCustomer();
       
@@ -609,7 +611,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     try {
       const bookingData = pendingBookingData?.bookingData || await buildBookingData(isDraft);
 
-      if (booking?.id) {
+      // Check for valid UUID - empty string means this is a duplicate (new booking)
+      const isExistingBooking = booking?.id && booking.id.length > 10;
+      
+      if (isExistingBooking) {
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
         
         // If user chose to apply to future bookings, update those too
