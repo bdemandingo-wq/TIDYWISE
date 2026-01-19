@@ -755,6 +755,20 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             }
           }}
           booking={editingBooking}
+          onDuplicate={(duplicatedBooking) => {
+            // Close current dialog first, then reopen with duplicated booking
+            setEditingBooking(null);
+            setAddDialogOpen(false);
+            // Use setTimeout to ensure dialog closes before reopening
+            setTimeout(() => {
+              setEditingBooking({
+                ...duplicatedBooking,
+                id: '' as any,
+                booking_number: 0,
+              });
+              setAddDialogOpen(true);
+            }, 100);
+          }}
         />
       </div>
     </DndContext>
