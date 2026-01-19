@@ -97,6 +97,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = businessSettings?.company_name || "Your Business";
 
+    // Get organization invoice/payment settings
+    const { data: invoiceSettings } = await supabase
+      .from("organization_invoice_settings")
+      .select("accept_cards, accept_ach")
+      .eq("organization_id", data.organizationId)
+      .maybeSingle();
+
+    // Determine payment methods based on settings (default to card if no settings)
+    const paymentMethodTypes: string[] = [];
+    if (invoiceSettings?.accept_cards !== false) {
+      paymentMethodTypes.push("card");
+    }
+    if (invoiceSettings?.accept_ach === true) {
+      paymentMethodTypes.push("us_bank_account");
+    }
+    // Fallback to card if nothing enabled
+    if (paymentMethodTypes.length === 0) {
+      paymentMethodTypes.push("card");
+    }
+
+    console.log("Enabled payment methods:", paymentMethodTypes);
+
     // Create a Stripe Checkout Session for this invoice
     const lineItems = data.items.map(item => ({
       price_data: {
@@ -127,6 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
       customer: customerId,
       line_items: lineItems,
       mode: "payment",
+      payment_method_types: paymentMethodTypes as any,
       success_url: `${req.headers.get("origin")}/dashboard/invoices?paid=true`,
       cancel_url: `${req.headers.get("origin")}/dashboard/invoices`,
       metadata: {
