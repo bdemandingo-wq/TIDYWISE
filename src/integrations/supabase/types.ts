@@ -124,6 +124,7 @@ export type Database = {
           id: string
           is_completed: boolean | null
           notes: string | null
+          organization_id: string | null
           photo_url: string | null
           title: string
         }
@@ -135,6 +136,7 @@ export type Database = {
           id?: string
           is_completed?: boolean | null
           notes?: string | null
+          organization_id?: string | null
           photo_url?: string | null
           title: string
         }
@@ -146,6 +148,7 @@ export type Database = {
           id?: string
           is_completed?: boolean | null
           notes?: string | null
+          organization_id?: string | null
           photo_url?: string | null
           title?: string
         }
@@ -164,6 +167,13 @@ export type Database = {
             referencedRelation: "checklist_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "booking_checklist_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       booking_checklists: {
@@ -172,6 +182,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          organization_id: string | null
           staff_id: string | null
           template_id: string | null
         }
@@ -180,6 +191,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           staff_id?: string | null
           template_id?: string | null
         }
@@ -188,6 +200,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           staff_id?: string | null
           template_id?: string | null
         }
@@ -197,6 +210,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checklists_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -228,6 +248,7 @@ export type Database = {
           caption: string | null
           created_at: string | null
           id: string
+          organization_id: string | null
           photo_type: string | null
           photo_url: string
           staff_id: string | null
@@ -237,6 +258,7 @@ export type Database = {
           caption?: string | null
           created_at?: string | null
           id?: string
+          organization_id?: string | null
           photo_type?: string | null
           photo_url: string
           staff_id?: string | null
@@ -246,6 +268,7 @@ export type Database = {
           caption?: string | null
           created_at?: string | null
           id?: string
+          organization_id?: string | null
           photo_type?: string | null
           photo_url?: string
           staff_id?: string | null
@@ -256,6 +279,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_photos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -280,6 +310,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_primary: boolean | null
+          organization_id: string | null
           pay_share: number | null
           staff_id: string
         }
@@ -288,6 +319,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_primary?: boolean | null
+          organization_id?: string | null
           pay_share?: number | null
           staff_id: string
         }
@@ -296,6 +328,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_primary?: boolean | null
+          organization_id?: string | null
           pay_share?: number | null
           staff_id?: string
         }
@@ -305,6 +338,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_team_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -632,6 +672,7 @@ export type Database = {
           email: string
           id: string
           opened_at: string | null
+          organization_id: string | null
           sent_at: string
           status: string
         }
@@ -642,6 +683,7 @@ export type Database = {
           email: string
           id?: string
           opened_at?: string | null
+          organization_id?: string | null
           sent_at?: string
           status?: string
         }
@@ -652,6 +694,7 @@ export type Database = {
           email?: string
           id?: string
           opened_at?: string | null
+          organization_id?: string | null
           sent_at?: string
           status?: string
         }
@@ -668,6 +711,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_emails_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -823,6 +873,7 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          organization_id: string | null
           staff_id: string
           title: string
           type: string
@@ -833,6 +884,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          organization_id?: string | null
           staff_id: string
           title: string
           type?: string
@@ -843,6 +895,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          organization_id?: string | null
           staff_id?: string
           title?: string
           type?: string
@@ -853,6 +906,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -1318,6 +1378,7 @@ export type Database = {
           description: string
           id: string
           invoice_id: string
+          organization_id: string | null
           quantity: number
           service_id: string | null
           sort_order: number | null
@@ -1329,6 +1390,7 @@ export type Database = {
           description: string
           id?: string
           invoice_id: string
+          organization_id?: string | null
           quantity?: number
           service_id?: string | null
           sort_order?: number | null
@@ -1340,6 +1402,7 @@ export type Database = {
           description?: string
           id?: string
           invoice_id?: string
+          organization_id?: string | null
           quantity?: number
           service_id?: string | null
           sort_order?: number | null
@@ -1352,6 +1415,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -1658,6 +1728,7 @@ export type Database = {
           customer_id: string | null
           description: string | null
           id: string
+          organization_id: string | null
           points: number
           transaction_type: string
         }
@@ -1667,6 +1738,7 @@ export type Database = {
           customer_id?: string | null
           description?: string | null
           id?: string
+          organization_id?: string | null
           points: number
           transaction_type: string
         }
@@ -1676,6 +1748,7 @@ export type Database = {
           customer_id?: string | null
           description?: string | null
           id?: string
+          organization_id?: string | null
           points?: number
           transaction_type?: string
         }
@@ -1692,6 +1765,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3166,6 +3246,7 @@ export type Database = {
           id: string
           is_read: boolean | null
           message: string
+          organization_id: string | null
           sender_id: string
           sender_type: string
         }
@@ -3176,6 +3257,7 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           message: string
+          organization_id?: string | null
           sender_id: string
           sender_type: string
         }
@@ -3186,6 +3268,7 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           message?: string
+          organization_id?: string | null
           sender_id?: string
           sender_type?: string
         }
@@ -3195,6 +3278,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

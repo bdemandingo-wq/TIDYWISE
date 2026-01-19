@@ -2,6 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   children: ReactNode;
@@ -16,6 +17,10 @@ interface State {
   errorInfo: React.ErrorInfo | null;
 }
 
+/**
+ * Global Error Boundary - wraps features to catch render errors
+ * Logs all caught errors to system_logs table for debugging
+ */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -26,13 +31,46 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
     
     // Log error to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
-    // TODO: Log to system_logs table via edge function
+    // Log to system_logs table
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Get organization_id from org_memberships
+      let organizationId: string | null = null;
+      if (user?.id) {
+        const { data: membership } = await supabase
+          .from('org_memberships')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        organizationId = membership?.organization_id || null;
+      }
+
+      await supabase.from('system_logs').insert({
+        level: 'error',
+        source: `ErrorBoundary:${this.props.featureName || 'Unknown'}`,
+        message: error.message || 'Unknown error',
+        details: {
+          featureName: this.props.featureName,
+          componentStack: errorInfo.componentStack,
+          errorName: error.name,
+          url: window.location.href,
+        },
+        user_id: user?.id || null,
+        organization_id: organizationId,
+        stack_trace: error.stack || null,
+      });
+    } catch (logError) {
+      // Don't fail if logging fails - just log to console
+      console.error('Failed to log error to system_logs:', logError);
+    }
   }
 
   handleRetry = () => {
