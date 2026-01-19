@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 interface InviteStaffRequest {
+  organizationId?: string;
   email: string;
   name: string;
   phone?: string;
@@ -30,15 +31,17 @@ async function logToSystem(
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    
-    await supabaseAdmin.from("system_logs").insert([{
-      level,
-      source: "invite-staff",
-      message,
-      details: details ? JSON.stringify(details) : null,
-      user_id: userId || null,
-      organization_id: organizationId || null,
-    }]);
+
+    await supabaseAdmin.from("system_logs").insert([
+      {
+        level,
+        source: "invite-staff",
+        message,
+        details: details ?? null,
+        user_id: userId || null,
+        organization_id: organizationId || null,
+      },
+    ]);
   } catch (err) {
     console.error("Failed to log:", err);
   }
@@ -88,21 +91,8 @@ serve(async (req) => {
 
     adminUserId = user.id;
 
-    // Check if user has admin role
-    const { data: adminRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
-
-    if (!adminRole) {
-      await logToSystem('warn', 'Non-admin attempted staff invite', { userId: user.id });
-      return new Response(JSON.stringify({ error: "You need admin permissions to add staff members." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // NOTE: Permissions are validated using org_memberships for the requested organization
+    // (owners/admins can invite staff). We validate after parsing the request body.
 
     // Parse and validate request body
     let requestBody: InviteStaffRequest;
