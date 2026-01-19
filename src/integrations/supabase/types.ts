@@ -1881,6 +1881,7 @@ export type Database = {
           card_fee_fixed: number | null
           card_fee_percent: number | null
           created_at: string
+          default_billable_hours: number | null
           id: string
           organization_id: string
           updated_at: string
@@ -1896,6 +1897,7 @@ export type Database = {
           card_fee_fixed?: number | null
           card_fee_percent?: number | null
           created_at?: string
+          default_billable_hours?: number | null
           id?: string
           organization_id: string
           updated_at?: string
@@ -1911,6 +1913,7 @@ export type Database = {
           card_fee_fixed?: number | null
           card_fee_percent?: number | null
           created_at?: string
+          default_billable_hours?: number | null
           id?: string
           organization_id?: string
           updated_at?: string
