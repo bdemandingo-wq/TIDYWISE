@@ -3201,6 +3201,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_completed: boolean | null
+          last_reset_at: string | null
           organization_id: string | null
           type: string
           updated_at: string
@@ -3212,6 +3213,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean | null
+          last_reset_at?: string | null
           organization_id?: string | null
           type: string
           updated_at?: string
@@ -3223,6 +3225,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean | null
+          last_reset_at?: string | null
           organization_id?: string | null
           type?: string
           updated_at?: string
@@ -3511,6 +3514,7 @@ export type Database = {
       }
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
+      reset_daily_tasks: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
