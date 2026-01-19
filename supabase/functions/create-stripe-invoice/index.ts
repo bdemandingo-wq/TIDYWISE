@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,9 +32,6 @@ const handler = async (req: Request): Promise<Response> => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const openPhoneApiKey = Deno.env.get("OPENPHONE_API_KEY");
-  const openPhoneNumberId = Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
 
   if (!stripeSecretKey) {
     return new Response(
@@ -91,13 +87,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Using Stripe customer:", customerId);
-
-    // Get organization email settings
-    const { data: emailSettings } = await supabase
-      .from("organization_email_settings")
-      .select("*")
-      .eq("organization_id", data.organizationId)
-      .maybeSingle();
 
     // Get business settings for branding
     const { data: businessSettings } = await supabase
@@ -171,44 +160,25 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to update invoice:", updateError);
     }
 
-    // Send email notification
-    if (resendApiKey && data.customerEmail) {
-      try {
-        const resend = new Resend(resendApiKey);
-        const fromEmail = emailSettings?.from_email || "invoices@resend.dev";
-        const fromName = emailSettings?.from_name || companyName;
+    // Get organization SMS settings
+    const { data: smsSettings } = await supabase
+      .from("organization_sms_settings")
+      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+      .eq("organization_id", data.organizationId)
+      .maybeSingle();
 
-        await resend.emails.send({
-          from: `${fromName} <${fromEmail}>`,
-          to: [data.customerEmail],
-          subject: `Invoice from ${companyName}`,
-          html: `
-            <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #1a1a1a;">Invoice from ${companyName}</h1>
-              <p>Hello ${data.customerName},</p>
-              <p>You have received a new invoice for <strong>$${data.totalAmount.toFixed(2)}</strong>.</p>
-              ${data.dueDate ? `<p><strong>Due Date:</strong> ${new Date(data.dueDate).toLocaleDateString()}</p>` : ''}
-              <p style="margin: 24px 0;">
-                <a href="${session.url}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
-                  Pay Invoice
-                </a>
-              </p>
-              ${data.notes ? `<p style="color: #666; margin-top: 24px;"><em>${data.notes}</em></p>` : ''}
-              <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;" />
-              <p style="color: #888; font-size: 14px;">Thank you for your business!</p>
-              ${emailSettings?.email_footer ? `<p style="color: #888; font-size: 12px; margin-top: 16px;">${emailSettings.email_footer}</p>` : ''}
-            </div>
-          `,
-        });
-        console.log("Email sent to:", data.customerEmail);
-      } catch (emailError) {
-        console.error("Failed to send email:", emailError);
-      }
-    }
+    // SMS-ONLY: Send payment link via SMS (OpenPhone)
+    const openPhoneApiKey = smsSettings?.openphone_api_key || Deno.env.get("OPENPHONE_API_KEY");
+    const openPhoneNumberId = smsSettings?.openphone_phone_number_id || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
 
-    // Send SMS via OpenPhone if configured
     if (openPhoneApiKey && openPhoneNumberId && data.customerPhone) {
       try {
+        const dueDateText = data.dueDate 
+          ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
+          : '';
+        
+        const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
+
         const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
           method: "POST",
           headers: {
@@ -216,20 +186,23 @@ const handler = async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            content: `Hi ${data.customerName}, you have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}. Pay here: ${session.url}`,
+            content: smsContent,
             from: openPhoneNumberId,
             to: [data.customerPhone],
           }),
         });
 
         if (smsResponse.ok) {
-          console.log("SMS sent to:", data.customerPhone);
+          console.log("Invoice SMS sent to:", data.customerPhone);
         } else {
-          console.error("SMS failed:", await smsResponse.text());
+          const errorText = await smsResponse.text();
+          console.error("Invoice SMS failed:", errorText);
         }
       } catch (smsError) {
-        console.error("Failed to send SMS:", smsError);
+        console.error("Failed to send invoice SMS:", smsError);
       }
+    } else {
+      console.log("SMS not sent - missing phone settings or customer phone number");
     }
 
     return new Response(

@@ -826,19 +826,7 @@ export function InvoiceFormDialog({
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Additional Options Section */}
-            <Collapsible open={additionalOpen} onOpenChange={setAdditionalOpen}>
-              <SectionHeader title="Additional Options" isOpen={additionalOpen} onToggle={() => setAdditionalOpen(!additionalOpen)} />
-              <CollapsibleContent>
-                <div className="flex items-center justify-between py-3 px-4 border-b">
-                  <p className="text-muted-foreground">Email me a copy of this invoice</p>
-                  <Switch 
-                    checked={formData.email_copy}
-                    onCheckedChange={(checked) => setFormData({ ...formData, email_copy: checked })}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            {/* Additional Options Section - Removed email copy toggle (SMS-only platform) */}
           </div>
 
           {/* Sticky Footer */}

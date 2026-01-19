@@ -8,7 +8,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CreditCard, Building, FileText, DollarSign, Loader2 } from 'lucide-react';
+import { CreditCard, Building, FileText, DollarSign, Loader2, Banknote } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ interface PaymentSettings {
   accept_cards: boolean;
   accept_ach: boolean;
   accept_checks: boolean;
+  accept_cash: boolean;
   accept_paypal: boolean;
   card_fee_percent: number;
   card_fee_fixed: number;
@@ -51,6 +52,7 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
     accept_cards: true,
     accept_ach: true,
     accept_checks: false,
+    accept_cash: false,
     accept_paypal: false,
     card_fee_percent: 2.9,
     card_fee_fixed: 0.30,
@@ -64,6 +66,7 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
         accept_cards: settings.accept_cards ?? true,
         accept_ach: settings.accept_ach ?? true,
         accept_checks: settings.accept_checks ?? false,
+        accept_cash: (settings as any).accept_cash ?? false,
         accept_paypal: settings.accept_paypal ?? false,
         card_fee_percent: settings.card_fee_percent ?? 2.9,
         card_fee_fixed: settings.card_fee_fixed ?? 0.30,
@@ -174,6 +177,14 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
               description="Accept check payments"
               enabled={formData.accept_checks}
               onToggle={(v) => setFormData({ ...formData, accept_checks: v })}
+            />
+
+            <PaymentMethod
+              icon={Banknote}
+              name="Cash"
+              description="Accept cash payments"
+              enabled={formData.accept_cash}
+              onToggle={(v) => setFormData({ ...formData, accept_cash: v })}
             />
 
             <PaymentMethod

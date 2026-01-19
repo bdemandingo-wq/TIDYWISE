@@ -22,7 +22,6 @@ interface PaymentRemindersSheetProps {
 interface Reminder {
   id?: string;
   days_after_due: number;
-  send_email: boolean;
   send_sms: boolean;
   is_active: boolean;
 }
@@ -54,8 +53,8 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
   } else if (existingReminders.length === 0 && !initialized && !isLoading) {
     // Set default reminders if none exist
     setReminders([
-      { days_after_due: 2, send_email: true, send_sms: true, is_active: true },
-      { days_after_due: 7, send_email: true, send_sms: true, is_active: true },
+      { days_after_due: 2, send_sms: true, is_active: true },
+      { days_after_due: 7, send_sms: true, is_active: true },
     ]);
     setInitialized(true);
   }
@@ -72,7 +71,7 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
     const maxDays = Math.max(...reminders.map(r => r.days_after_due), 0);
     setReminders([
       ...reminders,
-      { days_after_due: maxDays + 3, send_email: true, send_sms: true, is_active: true }
+      { days_after_due: maxDays + 3, send_sms: true, is_active: true }
     ]);
   };
 
@@ -99,7 +98,7 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
         const toInsert = reminders.map(r => ({
           organization_id: organizationId,
           days_after_due: r.days_after_due,
-          send_email: r.send_email,
+          send_email: false, // Always false - SMS-only platform
           send_sms: r.send_sms,
           is_active: r.is_active,
         }));
@@ -135,7 +134,7 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
         ) : (
           <div className="py-4 space-y-4 overflow-y-auto max-h-[calc(70vh-160px)]">
             <p className="text-sm text-muted-foreground">
-              Set up automatic reminders to send to customers when invoices remain unpaid.
+              Set up automatic SMS reminders to send to customers when invoices remain unpaid.
             </p>
 
             {reminders.map((reminder, index) => (
@@ -164,17 +163,10 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm">
                     <Switch
-                      checked={reminder.send_email}
-                      onCheckedChange={(v) => updateReminder(index, 'send_email', v)}
-                    />
-                    Email
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Switch
                       checked={reminder.send_sms}
                       onCheckedChange={(v) => updateReminder(index, 'send_sms', v)}
                     />
-                    SMS
+                    SMS Notification
                   </label>
                   <label className="flex items-center gap-2 text-sm ml-auto">
                     <Switch

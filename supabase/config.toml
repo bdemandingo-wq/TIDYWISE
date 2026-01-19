@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.stripe-invoice-webhook]
 verify_jwt = false
+
+[functions.send-invoice-reminder]
+verify_jwt = false
