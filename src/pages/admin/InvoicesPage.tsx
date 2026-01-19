@@ -511,21 +511,19 @@ export default function InvoicesPage() {
                               <X className="w-4 h-4" />
                             </Button>
                           )}
-                          {invoice.status === 'draft' && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => {
-                                if (confirm('Delete this invoice permanently?')) {
-                                  deleteMutation.mutate(invoice.id);
-                                }
-                              }}
-                              title="Delete invoice"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              if (confirm('Delete this invoice permanently?')) {
+                                deleteMutation.mutate(invoice.id);
+                              }
+                            }}
+                            title="Delete invoice"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
