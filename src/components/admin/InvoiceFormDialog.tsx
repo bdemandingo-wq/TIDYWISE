@@ -201,7 +201,7 @@ export function InvoiceFormDialog({
   const totalAmount = subtotalAfterDiscount + taxAmount;
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { service_id: '__custom__', description: '', quantity: 1, unit_price: 0, total: 0 }]);
+    setLineItems([...lineItems, { service_id: '__custom__', description: '', quantity: 5, unit_price: 0, total: 0 }]);
   };
 
   const removeLineItem = (index: number) => {
