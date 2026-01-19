@@ -11,7 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -41,6 +41,7 @@ interface Task {
   content: string;
   is_completed: boolean;
   due_date: string | null;
+  last_reset_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,11 +56,49 @@ export default function TasksPage() {
   const [newDueDate, setNewDueDate] = useState<Date | undefined>();
   const [newType, setNewType] = useState<TaskType>('daily');
 
+  // Reset daily tasks if it's a new day (client-side check)
+  const resetDailyTasksMutation = useMutation({
+    mutationFn: async () => {
+      if (!organizationId) return;
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { error } = await supabase
+        .from('tasks_and_notes')
+        .update({ 
+          is_completed: false, 
+          last_reset_at: today,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('organization_id', organizationId)
+        .eq('type', 'daily')
+        .eq('is_completed', true)
+        .lt('last_reset_at', today);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks-and-notes'] });
+    },
+  });
+
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks-and-notes', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
+      
+      // First reset any daily tasks from previous days
+      const today = format(new Date(), 'yyyy-MM-dd');
+      await supabase
+        .from('tasks_and_notes')
+        .update({ 
+          is_completed: false, 
+          last_reset_at: today,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('organization_id', organizationId)
+        .eq('type', 'daily')
+        .eq('is_completed', true)
+        .lt('last_reset_at', today);
+      
       const { data, error } = await supabase
         .from('tasks_and_notes')
         .select('*')
@@ -336,8 +375,8 @@ export default function TasksPage() {
                       </Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="max-h-[60vh]">
+                  <CardContent className="max-h-[calc(100vh-320px)] overflow-y-auto">
+                    <div>
                       {filteredTasks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                           <Circle className="w-12 h-12 mb-4 opacity-50" />
@@ -417,7 +456,7 @@ export default function TasksPage() {
                           )}
                         </div>
                       )}
-                    </ScrollArea>
+                    </div>
                   </CardContent>
                 </Card>
               )}
