@@ -173,11 +173,26 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (openPhoneApiKey && openPhoneNumberId && data.customerPhone) {
       try {
+        // Format phone number to E.164 format (must start with +)
+        let formattedPhone = data.customerPhone.replace(/\D/g, ''); // Remove non-digits
+        if (!formattedPhone.startsWith('+')) {
+          // Assume US number if no country code
+          if (formattedPhone.length === 10) {
+            formattedPhone = `+1${formattedPhone}`;
+          } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+            formattedPhone = `+${formattedPhone}`;
+          } else {
+            formattedPhone = `+${formattedPhone}`;
+          }
+        }
+
         const dueDateText = data.dueDate 
           ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
           : '';
         
         const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
+
+        console.log("Sending SMS to formatted number:", formattedPhone);
 
         const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
           method: "POST",
@@ -188,12 +203,12 @@ const handler = async (req: Request): Promise<Response> => {
           body: JSON.stringify({
             content: smsContent,
             from: openPhoneNumberId,
-            to: [data.customerPhone],
+            to: [formattedPhone],
           }),
         });
 
         if (smsResponse.ok) {
-          console.log("Invoice SMS sent to:", data.customerPhone);
+          console.log("Invoice SMS sent to:", formattedPhone);
         } else {
           const errorText = await smsResponse.text();
           console.error("Invoice SMS failed:", errorText);

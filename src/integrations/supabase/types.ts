@@ -1873,6 +1873,7 @@ export type Database = {
         Row: {
           accept_ach: boolean | null
           accept_cards: boolean | null
+          accept_cash: boolean | null
           accept_checks: boolean | null
           accept_paypal: boolean | null
           ach_fee_fixed: number | null
@@ -1887,6 +1888,7 @@ export type Database = {
         Insert: {
           accept_ach?: boolean | null
           accept_cards?: boolean | null
+          accept_cash?: boolean | null
           accept_checks?: boolean | null
           accept_paypal?: boolean | null
           ach_fee_fixed?: number | null
@@ -1901,6 +1903,7 @@ export type Database = {
         Update: {
           accept_ach?: boolean | null
           accept_cards?: boolean | null
+          accept_cash?: boolean | null
           accept_checks?: boolean | null
           accept_paypal?: boolean | null
           ach_fee_fixed?: number | null
