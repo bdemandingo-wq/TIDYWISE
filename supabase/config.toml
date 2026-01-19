@@ -113,3 +113,9 @@ verify_jwt = false
 
 [functions.external-booking-webhook]
 verify_jwt = false
+
+[functions.create-stripe-invoice]
+verify_jwt = false
+
+[functions.stripe-invoice-webhook]
+verify_jwt = false

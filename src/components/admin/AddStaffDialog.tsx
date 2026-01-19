@@ -75,12 +75,28 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       });
 
       if (response.error) {
+        // Handle common error scenarios with user-friendly messages
+        const errorMsg = response.error.message?.toLowerCase() || '';
+        if (errorMsg.includes('already registered') || errorMsg.includes('already exists')) {
+          throw new Error('This email is already registered. Please try a different email.');
+        } else if (errorMsg.includes('admin access')) {
+          throw new Error('You need admin permissions to add staff members.');
+        } else if (errorMsg.includes('organization')) {
+          throw new Error('Unable to find your organization. Please refresh and try again.');
+        }
         throw new Error(response.error.message || 'Failed to create staff member');
       }
 
       const data = response.data;
       
       if (data.error) {
+        // Handle common error scenarios with user-friendly messages
+        const errorMsg = data.error.toLowerCase();
+        if (errorMsg.includes('already registered') || errorMsg.includes('already exists')) {
+          throw new Error('This email is already registered. Please try a different email.');
+        } else if (errorMsg.includes('admin')) {
+          throw new Error('You need admin permissions to add staff members.');
+        }
         throw new Error(data.error);
       }
 
@@ -92,11 +108,17 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       setShowCredentials(true);
       
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success('Staff member created successfully');
+      
+      if (data.reactivated) {
+        toast.success('Staff member reactivated successfully!');
+      } else {
+        toast.success('Staff member created successfully!');
+      }
       
     } catch (error) {
       console.error('Error creating staff:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create staff member');
+      const message = error instanceof Error ? error.message : 'Failed to create staff member';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

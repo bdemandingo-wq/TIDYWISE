@@ -242,6 +242,20 @@ serve(async (req) => {
       console.error("Error assigning role:", roleError);
     }
 
+    // Also add to org_memberships so they can access org data
+    // Note: org_memberships uses 'member' role for staff (not 'staff')
+    const { error: membershipError } = await supabaseAdmin
+      .from("org_memberships")
+      .upsert({
+        user_id: userId,
+        organization_id: organizationId,
+        role: "member",
+      }, { onConflict: 'organization_id,user_id' });
+
+    if (membershipError) {
+      console.error("Error creating org membership:", membershipError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
