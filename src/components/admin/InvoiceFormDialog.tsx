@@ -68,7 +68,7 @@ export function InvoiceFormDialog({
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { service_id: '', description: '', quantity: 1, unit_price: 0, total: 0 }
+    { service_id: '__custom__', description: '', quantity: 1, unit_price: 0, total: 0 }
   ]);
 
   // Reset form when dialog opens with new data
@@ -88,14 +88,14 @@ export function InvoiceFormDialog({
         if (invoice.invoice_items?.length > 0) {
           setLineItems(invoice.invoice_items.map((item: any) => ({
             id: item.id,
-            service_id: item.service_id || '',
+            service_id: item.service_id || '__custom__',
             description: item.description,
             quantity: item.quantity,
             unit_price: item.unit_price,
             total: item.total,
           })));
         } else {
-          setLineItems([{ service_id: '', description: '', quantity: 1, unit_price: 0, total: 0 }]);
+          setLineItems([{ service_id: '__custom__', description: '', quantity: 1, unit_price: 0, total: 0 }]);
         }
       } else {
         setFormData({
@@ -108,7 +108,7 @@ export function InvoiceFormDialog({
           notes: '',
           due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
         });
-        setLineItems([{ service_id: '', description: '', quantity: 1, unit_price: 0, total: 0 }]);
+        setLineItems([{ service_id: '__custom__', description: '', quantity: 1, unit_price: 0, total: 0 }]);
       }
     }
   }, [open, invoice, defaultTaxPercent]);
@@ -123,7 +123,7 @@ export function InvoiceFormDialog({
   const totalAmount = subtotalAfterDiscount + taxAmount;
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { service_id: '', description: '', quantity: 1, unit_price: 0, total: 0 }]);
+    setLineItems([...lineItems, { service_id: '__custom__', description: '', quantity: 1, unit_price: 0, total: 0 }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -142,7 +142,7 @@ export function InvoiceFormDialog({
     }
     
     // If service selected, auto-fill description and price
-    if (field === 'service_id' && value) {
+    if (field === 'service_id' && value && value !== '__custom__') {
       const service = services.find(s => s.id === value);
       if (service) {
         updated[index].description = service.name;
@@ -331,7 +331,7 @@ export function InvoiceFormDialog({
                           <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Custom Item</SelectItem>
+                          <SelectItem value="__custom__">Custom Item</SelectItem>
                           {services.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.name} - ${s.price}

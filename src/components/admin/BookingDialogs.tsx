@@ -288,7 +288,7 @@ export function EditBookingDialog({
       status: booking.status,
       date: format(d, "yyyy-MM-dd"),
       time: format(d, "HH:mm"),
-      staffId: booking.staff?.id || "",
+      staffId: booking.staff?.id || "__unassigned__",
       notes: booking.notes || "",
       amount: String(booking.total_amount ?? ""),
       cleanerWage: bookingAny.cleaner_wage ? String(bookingAny.cleaner_wage) : "",
@@ -364,7 +364,7 @@ export function EditBookingDialog({
         id: booking.id,
         status,
         scheduled_at: scheduledAtIso,
-        staff_id: staffId || null,
+        staff_id: staffId && staffId !== '__unassigned__' ? staffId : null,
         notes: notes || null,
         total_amount: Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount,
         cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
@@ -416,7 +416,7 @@ export function EditBookingDialog({
                   <SelectValue placeholder={staffLoading ? "Loading..." : "Unassigned"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="__unassigned__">Unassigned</SelectItem>
                   {staff.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
