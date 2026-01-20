@@ -432,7 +432,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       totalJobs,
       avgJobSize,
       totalFirstTime,
-      totalRepeat,
+      totalRepeat, // Total recurring BOOKINGS count
+      totalRecurringClients: recurringAddresses.size, // Unique recurring CLIENTS count
       totalFirstTimeRevenue,
       totalRecurringRevenue,
       totalLaborCost,
@@ -1072,7 +1073,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Recurring Clients ({currentYear})</p>
-            <p className="text-xl font-bold">{actuals.totalRepeat}</p>
+            <p className="text-xl font-bold">{actuals.totalRecurringClients}</p>
             <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
           </CardContent>
         </Card>
@@ -1216,7 +1217,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Clients</p>
-                  <p className="text-2xl font-bold">{actuals.totalRepeat}</p>
+                  <p className="text-2xl font-bold">{actuals.totalRecurringClients}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Revenue</p>
