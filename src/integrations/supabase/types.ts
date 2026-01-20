@@ -1026,6 +1026,7 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          is_recurring: boolean
           last_name: string
           marketing_status: string
           notes: string | null
@@ -1045,6 +1046,7 @@ export type Database = {
           email: string
           first_name: string
           id?: string
+          is_recurring?: boolean
           last_name: string
           marketing_status?: string
           notes?: string | null
@@ -1064,6 +1066,7 @@ export type Database = {
           email?: string
           first_name?: string
           id?: string
+          is_recurring?: boolean
           last_name?: string
           marketing_status?: string
           notes?: string | null
