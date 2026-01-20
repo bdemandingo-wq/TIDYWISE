@@ -164,6 +164,7 @@ export const frequencyOptions = [
   { id: 'biweekly', label: 'Bi-Weekly (25% off)', discount: 0.25 },
   { id: 'triweekly', label: 'Tri-Weekly (20% off)', discount: 0.20 },
   { id: 'monthly', label: 'Monthly (15% off)', discount: 0.15 },
+  { id: 'anyday', label: 'Any Day (Airbnb)', discount: 0.15 },
 ];
 
 export const bedroomOptions = ['0', '1', '2', '3', '4', '5', '6'];

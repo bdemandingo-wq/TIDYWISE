@@ -160,6 +160,12 @@ export default function RecurringBookingsPage() {
       return;
     }
 
+    // For "anyday" frequency (Airbnb), don't auto-schedule - user books manually
+    if (recurring.frequency === 'anyday') {
+      toast.info('Airbnb/On-Demand bookings are scheduled manually per request');
+      return;
+    }
+
     let nextDate = new Date();
     if (recurring.frequency === 'weekly') {
       nextDate = addWeeks(nextDate, 1);
@@ -526,6 +532,7 @@ function RecurringBookingDialog({
                 <SelectItem value="biweekly">Bi-Weekly</SelectItem>
                 <SelectItem value="triweekly">Tri-Weekly</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="anyday">Any Day (Airbnb/On-Demand)</SelectItem>
               </SelectContent>
             </Select>
           </div>

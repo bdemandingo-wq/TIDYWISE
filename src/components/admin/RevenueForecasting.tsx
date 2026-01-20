@@ -113,7 +113,9 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
         const amount = Number(r.total_amount || 0);
         switch (r.frequency) {
           case 'weekly': return sum + (amount * 4.33);
-          case 'bi-weekly': return sum + (amount * 2.17);
+          case 'biweekly': return sum + (amount * 2.17);
+          case 'triweekly': return sum + (amount * 1.44);
+          case 'anyday': return sum + (amount * 2); // Estimate ~2x/month for Airbnb
           case 'monthly': return sum + amount;
           default: return sum;
         }
