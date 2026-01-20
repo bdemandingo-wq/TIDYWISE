@@ -1,7 +1,7 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
-import { DollarSign, TrendingUp, Users, Calendar, Loader2 } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck } from 'lucide-react';
 import {
   PieChart,
   Pie,
@@ -45,6 +45,11 @@ export default function ReportsPage() {
   const [workingHours, setWorkingHours] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [recurringBookings, setRecurringBookings] = useState<any[]>([]);
+  const [recurringStats, setRecurringStats] = useState<{ recurringClients: number; recurringCleans: number; recurringRevenue: number }>({
+    recurringClients: 0,
+    recurringCleans: 0,
+    recurringRevenue: 0
+  });
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: subMonths(startOfMonth(new Date()), 5),
@@ -55,12 +60,32 @@ export default function ReportsPage() {
     const fetchData = async () => {
       const [workingHoursRes, customersRes, recurringRes] = await Promise.all([
         supabase.from('working_hours').select('*'),
-        supabase.from('customers').select('id, first_name, last_name, email, created_at'),
-        supabase.from('recurring_bookings').select('total_amount, frequency, is_active')
+        supabase.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address'),
+        supabase.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id')
       ]);
       if (workingHoursRes.data) setWorkingHours(workingHoursRes.data);
       if (customersRes.data) setCustomers(customersRes.data);
       if (recurringRes.data) setRecurringBookings(recurringRes.data);
+
+      // Calculate recurring stats
+      // Recurring clients = customers with is_recurring = true OR active recurring booking
+      const recurringClientIds = new Set<string>();
+      
+      // Add customers marked as recurring
+      customersRes.data?.forEach((c: any) => {
+        if (c.is_recurring) recurringClientIds.add(c.id);
+      });
+      
+      // Add customers with active recurring bookings (includes Airbnb)
+      recurringRes.data?.forEach((rb: any) => {
+        if (rb.is_active && rb.customer_id) recurringClientIds.add(rb.customer_id);
+      });
+      
+      setRecurringStats({
+        recurringClients: recurringClientIds.size,
+        recurringCleans: 0, // Will be calculated from bookings in useMemo
+        recurringRevenue: 0
+      });
     };
     fetchData();
   }, []);
@@ -75,9 +100,21 @@ export default function ReportsPage() {
     });
   }, [bookings, dateRange]);
 
-  const { serviceStats, staffStats, monthlyData, totalStats } = useMemo(() => {
+  const { serviceStats, staffStats, monthlyData, totalStats, recurringCleansCount, recurringCleansRevenue } = useMemo(() => {
+    // Build a set of recurring customer IDs for quick lookup
+    const recurringCustomerIds = new Set<string>();
+    customers.forEach((c: any) => {
+      if (c.is_recurring) recurringCustomerIds.add(c.id);
+    });
+    recurringBookings.forEach((rb: any) => {
+      if (rb.is_active && rb.customer_id) recurringCustomerIds.add(rb.customer_id);
+    });
+
     // Service breakdown - include all bookings for revenue tracking
     const serviceMap = new Map<string, { name: string; count: number; revenue: number; color: string }>();
+    let recurringCleansCount = 0;
+    let recurringCleansRevenue = 0;
+
     filteredBookings.forEach((booking, index) => {
       const serviceId = booking.service?.id || 'refund';
       const existing = serviceMap.get(serviceId) || { 
@@ -89,6 +126,13 @@ export default function ReportsPage() {
       existing.count += 1;
       existing.revenue += Number(booking.total_amount || 0);
       serviceMap.set(serviceId, existing);
+
+      // Count recurring cleans - bookings from recurring customers
+      const customerId = booking.customer?.id;
+      if (customerId && recurringCustomerIds.has(customerId)) {
+        recurringCleansCount += 1;
+        recurringCleansRevenue += Number(booking.total_amount || 0);
+      }
     });
     const serviceStats = Array.from(serviceMap.values());
 
@@ -160,8 +204,10 @@ export default function ReportsPage() {
         conversionRate,
         totalBookings,
       },
+      recurringCleansCount,
+      recurringCleansRevenue,
     };
-  }, [filteredBookings, staff]);
+  }, [filteredBookings, staff, customers, recurringBookings]);
 
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -217,7 +263,7 @@ export default function ReportsPage() {
       }
     >
       {/* Summary Stats - Uniform Card Size */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard
           title="Total Revenue"
           value={isTestMode ? '$X,XXX' : `$${totalStats.totalRevenue.toLocaleString()}`}
@@ -233,6 +279,22 @@ export default function ReportsPage() {
           changeLabel="vs last month"
           trend="up"
           icon={<Calendar className="w-6 h-6" />}
+        />
+        <StatCard
+          title={`Recurring Cleans (${new Date().getFullYear()})`}
+          value={isTestMode ? 'XX' : recurringCleansCount}
+          change={0}
+          changeLabel={isTestMode ? '$X,XXX revenue' : `$${recurringCleansRevenue.toLocaleString()} revenue`}
+          trend="up"
+          icon={<Repeat className="w-6 h-6" />}
+        />
+        <StatCard
+          title={`Recurring Clients (${new Date().getFullYear()})`}
+          value={isTestMode ? 'XX' : recurringStats.recurringClients}
+          change={0}
+          changeLabel="active recurring"
+          trend="up"
+          icon={<UserCheck className="w-6 h-6" />}
         />
         <StatCard
           title="Avg Booking Value"
