@@ -1224,7 +1224,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Clients</p>
-                  <p className="text-2xl font-bold">{actuals.totalRecurringClients}</p>
+                  <p className="text-2xl font-bold">{recurringStats?.recurringClients ?? actuals.totalRecurringClients}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Revenue</p>
