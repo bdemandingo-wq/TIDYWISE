@@ -25,9 +25,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+interface RecurringStats {
+  recurringClients: number;
+  recurringCleans: number;
+  recurringRevenue: number;
+}
+
 interface PnLOverviewProps {
   bookings: BookingWithDetails[];
   customers: any[];
+  recurringStats?: RecurringStats;
 }
 
 interface MonthlyOverheadItem {
@@ -165,7 +172,7 @@ const migrateMarketingChannels = (data: any, channelNames: { [key: string]: stri
   }));
 };
 
-export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
+export function PnLOverview({ bookings, customers, recurringStats }: PnLOverviewProps) {
   const orgId = useOrgId();
   const { toast } = useToast();
   const [settings, setSettings] = useState<PnLSettings>(defaultSettings);
@@ -1072,8 +1079,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Recurring Clients ({currentYear})</p>
-            <p className="text-xl font-bold">{actuals.totalRecurringClients}</p>
+            <p className="text-xs text-muted-foreground">Recurring Clients</p>
+            <p className="text-xl font-bold">{recurringStats?.recurringClients ?? actuals.totalRecurringClients}</p>
             <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
           </CardContent>
         </Card>

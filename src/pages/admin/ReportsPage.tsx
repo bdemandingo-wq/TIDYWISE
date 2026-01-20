@@ -445,7 +445,7 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="pnl">
-          <PnLOverview bookings={bookings} customers={customers} />
+          <PnLOverview bookings={bookings} customers={customers} recurringStats={recurringStats} />
         </TabsContent>
 
         <TabsContent value="clv">
