@@ -168,8 +168,11 @@ export default function PublicBookingPage() {
   if (pricingLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+            <CalendarIcon className="w-8 h-8 text-primary" />
+          </div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground">Loading booking form...</p>
         </div>
       </div>
@@ -429,20 +432,24 @@ export default function PublicBookingPage() {
                   </CardHeader>
                   <CardContent>
                     {selectedDate ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
                         {timeSlots.map((time) => {
-                          const available = Math.random() > 0.3; // TODO: Replace with actual availability
+                          // All time slots are available by default - actual availability 
+                          // should be checked against existing bookings in a real implementation
+                          const available = true;
                           return (
                             <Button
                               key={time}
                               variant={selectedTime === time ? 'default' : 'outline'}
                               className={cn(
-                                'h-12',
+                                'h-12 transition-all duration-200',
+                                selectedTime === time && 'ring-2 ring-primary/30 shadow-md',
                                 !available && 'opacity-50 cursor-not-allowed'
                               )}
                               disabled={!available}
                               onClick={() => setSelectedTime(time)}
                             >
+                              <Clock className="w-4 h-4 mr-2" />
                               {time}
                             </Button>
                           );

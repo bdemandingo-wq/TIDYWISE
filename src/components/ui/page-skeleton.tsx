@@ -110,3 +110,64 @@ export function TableRowSkeleton({ columns = 4 }: TableRowSkeletonProps) {
     </div>
   );
 }
+
+export function BookingCardSkeleton() {
+  return (
+    <div className="bg-card rounded-xl p-4 border border-border/50 space-y-3 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="skeleton-shimmer w-10 h-10 rounded-full" />
+          <div className="space-y-2">
+            <div className="skeleton-shimmer h-4 w-28 rounded" />
+            <div className="skeleton-shimmer h-3 w-20 rounded" />
+          </div>
+        </div>
+        <div className="skeleton-shimmer h-6 w-16 rounded-full" />
+      </div>
+      <div className="flex items-center gap-4 pt-2">
+        <div className="skeleton-shimmer h-4 w-24 rounded" />
+        <div className="skeleton-shimmer h-4 w-16 rounded" />
+      </div>
+    </div>
+  );
+}
+
+export function CalendarSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <div className="skeleton-shimmer h-8 w-40 rounded" />
+        <div className="flex gap-2">
+          <div className="skeleton-shimmer h-10 w-10 rounded-lg" />
+          <div className="skeleton-shimmer h-10 w-10 rounded-lg" />
+          <div className="skeleton-shimmer h-10 w-24 rounded-lg" />
+        </div>
+      </div>
+      
+      {/* Calendar Grid */}
+      <div className="bg-card rounded-2xl border border-border/50 p-4">
+        {/* Days Header */}
+        <div className="grid grid-cols-7 gap-2 mb-4">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="skeleton-shimmer h-6 w-full rounded" />
+          ))}
+        </div>
+        
+        {/* Calendar Days */}
+        {Array.from({ length: 5 }).map((_, weekIndex) => (
+          <div key={weekIndex} className="grid grid-cols-7 gap-2 mb-2">
+            {Array.from({ length: 7 }).map((_, dayIndex) => (
+              <div key={dayIndex} className="aspect-square rounded-lg border border-border/30 p-2">
+                <div className="skeleton-shimmer h-4 w-6 rounded mb-2" />
+                {(weekIndex + dayIndex) % 3 === 0 && (
+                  <div className="skeleton-shimmer h-5 w-full rounded" />
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
