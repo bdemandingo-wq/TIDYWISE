@@ -396,12 +396,17 @@ export default function TasksPage() {
                               key={task.id}
                               className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                             >
-                              <Checkbox
-                                checked={task.is_completed}
-                                onCheckedChange={(checked) => 
-                                  toggleMutation.mutate({ id: task.id, is_completed: !!checked })
-                                }
-                              />
+                              {/* Daily tasks only have delete, weekly tasks have checkbox */}
+                              {type === 'weekly' ? (
+                                <Checkbox
+                                  checked={task.is_completed}
+                                  onCheckedChange={(checked) => 
+                                    toggleMutation.mutate({ id: task.id, is_completed: !!checked })
+                                  }
+                                />
+                              ) : (
+                                <Circle className="w-5 h-5 text-muted-foreground shrink-0" />
+                              )}
                               <div className="flex-1 min-w-0">
                                 <p className="truncate">{task.content}</p>
                                 {task.due_date && (
@@ -422,8 +427,8 @@ export default function TasksPage() {
                             </div>
                           ))}
                           
-                          {/* Completed tasks */}
-                          {completedTasks.length > 0 && (
+                          {/* Completed tasks - only show for weekly tasks */}
+                          {type === 'weekly' && completedTasks.length > 0 && (
                             <div className="mt-6">
                               <p className="text-sm font-medium text-muted-foreground mb-2">
                                 Completed ({completedTasks.length})
