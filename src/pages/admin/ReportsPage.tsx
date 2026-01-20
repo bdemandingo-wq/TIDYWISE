@@ -68,23 +68,14 @@ export default function ReportsPage() {
       if (recurringRes.data) setRecurringBookings(recurringRes.data);
 
       // Calculate recurring stats
-      // Recurring clients = customers with is_recurring = true OR active recurring booking
-      const recurringClientIds = new Set<string>();
-      
-      // Add customers marked as recurring
-      customersRes.data?.forEach((c: any) => {
-        if (c.is_recurring) recurringClientIds.add(c.id);
-      });
-      
-      // Add customers with active recurring bookings (includes Airbnb)
-      recurringRes.data?.forEach((rb: any) => {
-        if (rb.is_active && rb.customer_id) recurringClientIds.add(rb.customer_id);
-      });
-      
+      // NOTE: We intentionally align this with the Recurring Bookings page “Total” card,
+      // which represents the number of recurring plans (rows), not unique customers.
+      const totalRecurringPlans = recurringRes.data?.length ?? 0;
+
       setRecurringStats({
-        recurringClients: recurringClientIds.size,
+        recurringClients: totalRecurringPlans,
         recurringCleans: 0, // Will be calculated from bookings in useMemo
-        recurringRevenue: 0
+        recurringRevenue: 0,
       });
     };
     fetchData();
@@ -289,11 +280,8 @@ export default function ReportsPage() {
           icon={<Repeat className="w-6 h-6" />}
         />
         <StatCard
-          title="Recurring Clients"
+          title="Recurring Plans"
           value={isTestMode ? 'XX' : recurringStats.recurringClients}
-          change={0}
-          changeLabel="with active plans"
-          trend="up"
           icon={<UserCheck className="w-6 h-6" />}
         />
         <StatCard
