@@ -32,6 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { useOrgId } from '@/hooks/useOrgId';
 
 // Default service colors
 const defaultColors = [
@@ -39,6 +40,7 @@ const defaultColors = [
 ];
 
 export default function ReportsPage() {
+  const { organizationId } = useOrgId();
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();

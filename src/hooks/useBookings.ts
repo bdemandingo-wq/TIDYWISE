@@ -122,9 +122,15 @@ export interface NewCustomerData {
 }
 
 export function useBookings() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
   return useQuery({
-    queryKey: ['bookings'],
+    queryKey: ['bookings', organizationId],
     queryFn: async () => {
+      if (!organizationId) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -133,6 +139,7 @@ export function useBookings() {
           service:services(id, name, description, price, duration),
           staff:staff(id, name, email, phone)
         `)
+        .eq('organization_id', organizationId)
         .order('scheduled_at', { ascending: false });
 
       if (error) {
@@ -142,13 +149,20 @@ export function useBookings() {
 
       return data as BookingWithDetails[];
     },
+    enabled: !!organizationId,
   });
 }
 
 export function useBookingsByDateRange(startDate: Date, endDate: Date) {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
   return useQuery({
-    queryKey: ['bookings', 'range', startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['bookings', 'range', organizationId, startDate.toISOString(), endDate.toISOString()],
     queryFn: async () => {
+      if (!organizationId) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -157,6 +171,7 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
           service:services(id, name, description, price, duration),
           staff:staff(id, name, email, phone)
         `)
+        .eq('organization_id', organizationId)
         .gte('scheduled_at', startDate.toISOString())
         .lte('scheduled_at', endDate.toISOString())
         .order('scheduled_at', { ascending: true });
@@ -168,6 +183,7 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
 
       return data as BookingWithDetails[];
     },
+    enabled: !!organizationId,
   });
 }
 
@@ -259,12 +275,19 @@ export function useDeleteBooking() {
 }
 
 export function useCustomers() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
   return useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers', organizationId],
     queryFn: async () => {
+      if (!organizationId) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('customers')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -274,6 +297,7 @@ export function useCustomers() {
 
       return data;
     },
+    enabled: !!organizationId,
   });
 }
 
@@ -335,12 +359,19 @@ export function useDeleteCustomer() {
 }
 
 export function useServices() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
   return useQuery({
-    queryKey: ['services'],
+    queryKey: ['services', organizationId],
     queryFn: async () => {
+      if (!organizationId) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('services')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('is_active', true)
         .order('name', { ascending: true });
 
@@ -351,16 +382,24 @@ export function useServices() {
 
       return data;
     },
+    enabled: !!organizationId,
   });
 }
 
 export function useStaff() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
   return useQuery({
-    queryKey: ['staff'],
+    queryKey: ['staff', organizationId],
     queryFn: async () => {
+      if (!organizationId) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('staff')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('is_active', true)
         .order('name', { ascending: true });
 
@@ -371,5 +410,6 @@ export function useStaff() {
 
       return data;
     },
+    enabled: !!organizationId,
   });
 }
