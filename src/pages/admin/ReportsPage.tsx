@@ -289,10 +289,10 @@ export default function ReportsPage() {
           icon={<Repeat className="w-6 h-6" />}
         />
         <StatCard
-          title={`Recurring Clients (${new Date().getFullYear()})`}
+          title="Recurring Clients"
           value={isTestMode ? 'XX' : recurringStats.recurringClients}
           change={0}
-          changeLabel="active recurring"
+          changeLabel="with active plans"
           trend="up"
           icon={<UserCheck className="w-6 h-6" />}
         />
