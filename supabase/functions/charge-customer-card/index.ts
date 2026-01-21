@@ -16,6 +16,7 @@ interface HoldCardRequest {
   amount: number;
   description?: string;
   bookingId?: string;
+  organizationId: string;
 }
 
 // Map Stripe decline codes to user-friendly messages
@@ -64,9 +65,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, amount, description, bookingId }: HoldCardRequest = await req.json();
+    const { email, amount, description, bookingId, organizationId }: HoldCardRequest = await req.json();
 
-    console.log("Placing hold on customer card:", { email, amount, description, bookingId });
+    console.log("Placing hold on customer card:", { email, amount, description, bookingId, organizationId });
 
     if (!email || !amount) {
       return new Response(
@@ -75,22 +76,40 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Find the customer in Stripe
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
-    
-    if (customers.data.length === 0) {
+    // CRITICAL SECURITY: Require organizationId to prevent cross-tenant card access
+    if (!organizationId) {
+      console.error("SECURITY: Missing organizationId in charge-customer-card request");
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: "Customer not found. Please save a card first.",
+          error: "Organization ID is required for security",
+          errorCode: "missing_organization"
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
+    const customers = await stripe.customers.list({ email: email, limit: 100 });
+    
+    // Find customer that belongs to THIS organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+    
+    if (!orgCustomer) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "Customer not found for this organization. Please save a card first.",
           errorCode: "customer_not_found"
         }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const customerId = customers.data[0].id;
-    console.log("Found customer:", customerId);
+    const customerId = orgCustomer.id;
+    console.log("Found org-specific customer:", customerId);
 
     // Get the customer's default payment method
     const customer = await stripe.customers.retrieve(customerId);
@@ -141,6 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
       description: description || "Cleaning service hold",
       metadata: {
         bookingId: bookingId || "",
+        organization_id: organizationId,
       },
     });
 

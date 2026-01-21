@@ -13,6 +13,7 @@ const corsHeaders = {
 
 interface GetCardRequest {
   email: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -21,9 +22,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email }: GetCardRequest = await req.json();
+    const { email, organizationId }: GetCardRequest = await req.json();
 
-    console.log("Getting card info for:", email);
+    console.log("Getting card info for:", { email, organizationId });
 
     if (!email) {
       return new Response(
@@ -32,19 +33,34 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Find the customer in Stripe
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
-    console.log("Stripe customers found:", customers.data.length, customers.data.map((c: { id: string; email: string | null }) => ({ id: c.id, email: c.email })));
-    
-    if (customers.data.length === 0) {
-      console.log("No Stripe customer found for email:", email);
+    // CRITICAL SECURITY: Require organizationId to prevent cross-tenant card access
+    if (!organizationId) {
+      console.error("SECURITY: Missing organizationId in get-customer-card request");
       return new Response(
         JSON.stringify({ hasCard: false }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const customerId = customers.data[0].id;
+    // Find customers by email in Stripe
+    const customers = await stripe.customers.list({ email: email, limit: 100 });
+    console.log("Stripe customers found:", customers.data.length);
+    
+    // Filter to find the customer that belongs to this organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+    
+    if (!orgCustomer) {
+      console.log("No Stripe customer found for email in this organization:", { email, organizationId });
+      return new Response(
+        JSON.stringify({ hasCard: false }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const customerId = orgCustomer.id;
+    console.log("Found organization-specific Stripe customer:", customerId);
 
     // Get the customer's payment methods
     const paymentMethods = await stripe.paymentMethods.list({

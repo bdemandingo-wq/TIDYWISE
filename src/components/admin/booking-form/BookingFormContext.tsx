@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
 import { supabase } from '@/integrations/supabase/client';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
+import { useOrgId } from '@/hooks/useOrgId';
 
 interface CardInfo {
   hasCard: boolean;
@@ -168,6 +169,7 @@ export function BookingFormProvider({
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
+  const { organizationId } = useOrgId();
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
@@ -318,12 +320,16 @@ export function BookingFormProvider({
     );
   };
 
-  const loadCardInfo = async (email: string) => {
-    if (!email) return;
+  const loadCardInfo = useCallback(async (email: string) => {
+    if (!email || !organizationId) {
+      setCardInfo({ hasCard: false });
+      return;
+    }
     setLoadingCard(true);
     try {
+      // SECURITY FIX: Pass organizationId to prevent cross-tenant card access
       const { data, error } = await supabase.functions.invoke('get-customer-card', {
-        body: { email }
+        body: { email, organizationId }
       });
       if (error) throw error;
       setCardInfo(data);
@@ -333,7 +339,7 @@ export function BookingFormProvider({
     } finally {
       setLoadingCard(false);
     }
-  };
+  }, [organizationId]);
 
   const resetForm = () => {
     setCustomerTab('existing');
@@ -420,14 +426,14 @@ export function BookingFormProvider({
     }
   }, [selectedCustomerId, selectedCustomer, customerTab, booking]);
 
-  // Load card info when customer email changes
+  // Load card info when customer email or organization changes
   useEffect(() => {
-    if (customerEmail) {
+    if (customerEmail && organizationId) {
       loadCardInfo(customerEmail);
     } else {
       setCardInfo(null);
     }
-  }, [customerEmail]);
+  }, [customerEmail, organizationId, loadCardInfo]);
 
   // Note: We no longer auto-set totalAmount - user must manually enter if they want to override
   // The calculated price is displayed in ServiceStep but doesn't auto-populate the override field

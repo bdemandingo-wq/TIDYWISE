@@ -54,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
       return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
     }
 
-    console.log("Creating SetupIntent for:", { email, customerName, userId: authResult.userId });
+    console.log("Creating SetupIntent for:", { email, customerName, organizationId, userId: authResult.userId });
 
     if (!email || !customerName) {
       return new Response(
@@ -63,20 +63,29 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if customer exists in Stripe, create if not
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
+    const customers = await stripe.customers.list({ email: email, limit: 100 });
     let customerId: string;
     
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("Found existing Stripe customer:", customerId);
+    // Find customer that belongs to THIS organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+    
+    if (orgCustomer) {
+      customerId = orgCustomer.id;
+      console.log("Found existing org-specific Stripe customer:", customerId);
     } else {
+      // Create new customer WITH organization_id in metadata for isolation
       const newCustomer = await stripe.customers.create({
         email: email,
         name: customerName,
+        metadata: {
+          organization_id: organizationId,
+        },
       });
       customerId = newCustomer.id;
-      console.log("Created new Stripe customer:", customerId);
+      console.log("Created new org-specific Stripe customer:", customerId);
     }
 
     // Create a SetupIntent

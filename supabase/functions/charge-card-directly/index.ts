@@ -65,19 +65,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     const amountInCents = Math.round(amount * 100);
 
-    const customers = await stripe.customers.list({ email, limit: 1 });
+    // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
+    const customers = await stripe.customers.list({ email, limit: 100 });
     
-    if (customers.data.length === 0) {
+    // Find customer that belongs to THIS organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+    
+    if (!orgCustomer) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "No customer found with this email. Please save their card first." 
+          error: "No customer found for this organization. Please save their card first." 
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const customer = customers.data[0];
+    const customer = orgCustomer;
 
     let paymentMethodId: string | undefined;
 

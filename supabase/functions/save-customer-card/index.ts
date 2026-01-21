@@ -14,6 +14,7 @@ const corsHeaders = {
 interface SaveCardRequest {
   email: string;
   customerName: string;
+  organizationId: string;
   cardNumber: string;
   expMonth: number;
   expYear: number;
@@ -26,9 +27,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, customerName, cardNumber, expMonth, expYear, cvc }: SaveCardRequest = await req.json();
+    const { email, customerName, organizationId, cardNumber, expMonth, expYear, cvc }: SaveCardRequest = await req.json();
 
-    console.log("Saving card for customer:", { email, customerName });
+    console.log("Saving card for customer:", { email, customerName, organizationId });
 
     if (!email || !customerName || !cardNumber || !expMonth || !expYear || !cvc) {
       return new Response(
@@ -37,20 +38,38 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if customer exists in Stripe, create if not
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    // CRITICAL SECURITY: Require organizationId to prevent cross-tenant card access
+    if (!organizationId) {
+      console.error("SECURITY: Missing organizationId in save-customer-card request");
+      return new Response(
+        JSON.stringify({ error: "Organization ID is required for security" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
+    const customers = await stripe.customers.list({ email: email, limit: 100 });
     let customerId: string;
     
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("Found existing Stripe customer:", customerId);
+    // Find customer that belongs to THIS organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+    
+    if (orgCustomer) {
+      customerId = orgCustomer.id;
+      console.log("Found existing org-specific Stripe customer:", customerId);
     } else {
+      // Create new customer WITH organization_id in metadata for isolation
       const newCustomer = await stripe.customers.create({
         email: email,
         name: customerName,
+        metadata: {
+          organization_id: organizationId,
+        },
       });
       customerId = newCustomer.id;
-      console.log("Created new Stripe customer:", customerId);
+      console.log("Created new org-specific Stripe customer:", customerId);
     }
 
     // Create a payment method using the card details
@@ -78,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    console.log("Card saved successfully for customer:", customerId);
+    console.log("Card saved successfully for org-specific customer:", customerId);
 
     return new Response(JSON.stringify({ 
       success: true, 
