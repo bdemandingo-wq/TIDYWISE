@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
+import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -23,6 +25,35 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { email, organizationId }: GetCardRequest = await req.json();
+
+    // Enforce authenticated admin + org membership (admin-only flow)
+    const authHeader = req.headers.get("Authorization");
+    const authResult = await verifyAdminAuth(authHeader, {
+      requireAdmin: true,
+      requireOrganizationId: organizationId,
+    });
+
+    if (!authResult.success) {
+      logAudit({
+        action: AuditActions.PAYMENT_FAILED,
+        organizationId: organizationId || "unknown",
+        userId: authResult.userId,
+        resourceType: "stripe",
+        resourceId: "get_customer_card",
+        success: false,
+        error: authResult.error,
+        details: { email },
+      });
+
+      // Differentiate auth vs permission errors for clearer UX
+      const msg = authResult.error || "Unauthorized";
+      const isUnauthorized = msg.toLowerCase().includes("missing authorization") ||
+        msg.toLowerCase().includes("invalid") ||
+        msg.toLowerCase().includes("expired");
+      return isUnauthorized
+        ? createUnauthorizedResponse(msg, corsHeaders)
+        : createForbiddenResponse(msg, corsHeaders);
+    }
 
     console.log("Getting card info for:", { email, organizationId });
 
@@ -52,6 +83,85 @@ const handler = async (req: Request): Promise<Response> => {
     });
     
     if (!orgCustomer) {
+      // Legacy restore path:
+      // If there is exactly ONE Stripe customer for this email and it has no organization_id metadata,
+      // we can safely attach the current organization_id to restore previously-saved cards.
+      const customersWithOrg = customers.data.filter((c: Stripe.Customer) => !!c.metadata?.organization_id);
+      const customersWithoutOrg = customers.data.filter((c: Stripe.Customer) => !c.metadata?.organization_id);
+
+      const safeToAdoptLegacyCustomer = customersWithOrg.length === 0 && customersWithoutOrg.length === 1;
+
+      if (safeToAdoptLegacyCustomer) {
+        const legacyCustomer = customersWithoutOrg[0];
+        console.log("Legacy Stripe customer found with no org metadata; adopting for org:", {
+          legacyCustomerId: legacyCustomer.id,
+          organizationId,
+        });
+
+        try {
+          await stripe.customers.update(legacyCustomer.id, {
+            metadata: {
+              ...(legacyCustomer.metadata || {}),
+              organization_id: organizationId,
+            },
+          });
+
+          logAudit({
+            action: AuditActions.CARD_SAVED,
+            organizationId,
+            userId: authResult.userId,
+            resourceType: "stripe_customer",
+            resourceId: legacyCustomer.id,
+            success: true,
+            details: { migratedLegacyCustomer: true, email },
+          });
+
+          // Continue using the adopted customer
+          const adoptedCustomerId = legacyCustomer.id;
+          const adoptedPaymentMethods = await stripe.paymentMethods.list({
+            customer: adoptedCustomerId,
+            type: "card",
+            limit: 1,
+          });
+
+          if (adoptedPaymentMethods.data.length === 0) {
+            return new Response(
+              JSON.stringify({ hasCard: false, customerId: adoptedCustomerId }),
+              { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            );
+          }
+
+          const adoptedCard = adoptedPaymentMethods.data[0].card;
+          return new Response(
+            JSON.stringify({
+              hasCard: true,
+              customerId: adoptedCustomerId,
+              paymentMethodId: adoptedPaymentMethods.data[0].id,
+              last4: adoptedCard?.last4,
+              brand: adoptedCard?.brand,
+              expMonth: adoptedCard?.exp_month,
+              expYear: adoptedCard?.exp_year,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        } catch (e: any) {
+          console.error("Failed legacy Stripe customer adoption:", e);
+          logAudit({
+            action: AuditActions.PAYMENT_FAILED,
+            organizationId,
+            userId: authResult.userId,
+            resourceType: "stripe_customer",
+            resourceId: customersWithoutOrg[0].id,
+            success: false,
+            error: e?.message || "Failed to adopt legacy customer",
+            details: { email },
+          });
+        }
+      }
+
       console.log("No Stripe customer found for email in this organization:", { email, organizationId });
       return new Response(
         JSON.stringify({ hasCard: false }),
