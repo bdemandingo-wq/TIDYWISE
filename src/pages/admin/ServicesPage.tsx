@@ -1,17 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { 
   Dialog,
   DialogContent,
@@ -20,14 +12,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { 
-  cleaningServices as defaultCleaningServices, 
-  squareFootageRanges, 
-  extras as defaultExtras,
-  bedroomPricing as defaultBedroomPricing,
-  CleaningService 
-} from '@/data/pricingData';
-import { Home, Sparkles, Truck, HardHat, Plus, Pencil, Save, Trash2, Bed, Settings2 } from 'lucide-react';
+import { extras as defaultExtras } from '@/data/pricingData';
+import { Plus, Save, Trash2, Settings2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { ServicePricingEditor } from '@/components/admin/ServicePricingEditor';
 import { CustomServicesManager } from '@/components/admin/CustomServicesManager';
@@ -38,127 +24,6 @@ interface Extra {
   price: number;
   note: string;
   icon?: string;
-}
-
-interface BedroomPricingItem {
-  bedrooms: string;
-  bathrooms: string;
-  basePrice: number;
-}
-
-const serviceIcons: Record<string, React.ReactNode> = {
-  deep_clean: <Sparkles className="w-5 h-5" />,
-  standard_clean: <Home className="w-5 h-5" />,
-  monthly_clean: <Home className="w-5 h-5" />,
-  biweekly_clean: <Home className="w-5 h-5" />,
-  weekly_clean: <Home className="w-5 h-5" />,
-  move_in_out: <Truck className="w-5 h-5" />,
-  construction: <HardHat className="w-5 h-5" />,
-};
-
-function EditablePricingTable({ 
-  services, 
-  onUpdatePrice,
-  onDeleteService
-}: { 
-  services: CleaningService[];
-  onUpdatePrice: (serviceId: string, priceIndex: number, newPrice: number) => void;
-  onDeleteService: (serviceId: string) => void;
-}) {
-  const [editingCell, setEditingCell] = useState<{serviceId: string; priceIndex: number} | null>(null);
-  const [editValue, setEditValue] = useState("");
-
-  const handleStartEdit = (serviceId: string, priceIndex: number, currentPrice: number) => {
-    setEditingCell({ serviceId, priceIndex });
-    setEditValue(currentPrice.toString());
-  };
-
-  const handleSaveEdit = () => {
-    if (editingCell) {
-      const newPrice = parseFloat(editValue);
-      if (!isNaN(newPrice) && newPrice >= 0) {
-        onUpdatePrice(editingCell.serviceId, editingCell.priceIndex, newPrice);
-        toast.success("Price updated");
-      }
-      setEditingCell(null);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSaveEdit();
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
-    }
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 bg-background min-w-[180px]">Service</TableHead>
-            {squareFootageRanges.map((range) => (
-              <TableHead key={range.maxSqFt} className="text-center min-w-[90px]">
-                {range.label}
-              </TableHead>
-            ))}
-            <TableHead className="text-center w-16">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {services.map((service) => (
-            <TableRow key={service.id} className="group">
-              <TableCell className="sticky left-0 bg-background font-medium">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: service.color }}
-                  />
-                  {service.name}
-                </div>
-              </TableCell>
-              {service.prices.map((price, index) => (
-                <TableCell 
-                  key={index} 
-                  className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
-                  onClick={() => handleStartEdit(service.id, index, price)}
-                >
-                  {editingCell?.serviceId === service.id && editingCell.priceIndex === index ? (
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleSaveEdit}
-                      onKeyDown={handleKeyDown}
-                      className="w-20 h-8 text-center mx-auto"
-                      autoFocus
-                      type="number"
-                    />
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      ${price}
-                      <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                    </span>
-                  )}
-                </TableCell>
-              ))}
-              <TableCell className="text-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => onDeleteService(service.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <p className="text-xs text-muted-foreground mt-2">Click any price to edit. Hover over a row to see the delete button. Changes are saved locally and reflected in the booking form.</p>
-    </div>
-  );
 }
 
 function EditableExtrasSection({ 
@@ -301,160 +166,13 @@ function EditableExtrasSection({
   );
 }
 
-function EditableBedroomPricingTable({
-  pricing,
-  onUpdatePrice
-}: {
-  pricing: BedroomPricingItem[];
-  onUpdatePrice: (index: number, newPrice: number) => void;
-}) {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
-
-  const handleStartEdit = (index: number, currentPrice: number) => {
-    setEditingIndex(index);
-    setEditValue(currentPrice.toString());
-  };
-
-  const handleSaveEdit = () => {
-    if (editingIndex !== null) {
-      const newPrice = parseFloat(editValue);
-      if (!isNaN(newPrice) && newPrice >= 0) {
-        onUpdatePrice(editingIndex, newPrice);
-      }
-      setEditingIndex(null);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSaveEdit();
-    } else if (e.key === "Escape") {
-      setEditingIndex(null);
-    }
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Bedrooms</TableHead>
-            <TableHead>Bathrooms</TableHead>
-            <TableHead className="text-center">Base Price</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pricing.map((item, index) => (
-            <TableRow key={`${item.bedrooms}-${item.bathrooms}`}>
-              <TableCell className="font-medium">{item.bedrooms} Bed</TableCell>
-              <TableCell>{item.bathrooms} Bath</TableCell>
-              <TableCell 
-                className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
-                onClick={() => handleStartEdit(index, item.basePrice)}
-              >
-                {editingIndex === index ? (
-                  <Input
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={handleSaveEdit}
-                    onKeyDown={handleKeyDown}
-                    className="w-24 h-8 text-center mx-auto"
-                    autoFocus
-                    type="number"
-                  />
-                ) : (
-                  <span className="inline-flex items-center gap-1">
-                    ${item.basePrice}
-                    <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                  </span>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <p className="text-xs text-muted-foreground mt-2">Click any price to edit. Changes are saved locally.</p>
-    </div>
-  );
-}
-
 export default function ServicesPage() {
-  const [services, setServices] = useState<CleaningService[]>([]);
   const [extras, setExtras] = useState<Extra[]>([]);
-  const [bedroomPricing, setBedroomPricing] = useState<BedroomPricingItem[]>([]);
 
-  // Load from localStorage or use defaults - reset if pricing structure changed
+  // Keep extras local for now (legacy); initialize from defaults.
   useEffect(() => {
-    const PRICING_VERSION = "v4"; // Increment when sq ft ranges change
-    const savedVersion = localStorage.getItem("tidywise_pricing_version");
-    
-    // Reset services if version mismatch (structure changed)
-    if (savedVersion !== PRICING_VERSION) {
-      localStorage.removeItem("tidywise_services");
-      localStorage.setItem("tidywise_pricing_version", PRICING_VERSION);
-    }
-    
-    const savedServices = localStorage.getItem("tidywise_services");
-    const savedExtras = localStorage.getItem("tidywise_extras");
-    const savedBedroomPricing = localStorage.getItem("tidywise_bedroom_pricing");
-    
-    if (savedServices) {
-      const parsed = JSON.parse(savedServices);
-      // Validate that saved services have correct number of prices
-      const expectedPriceCount = squareFootageRanges.length;
-      const isValid = parsed.every((s: CleaningService) => s.prices.length === expectedPriceCount);
-      if (isValid) {
-        setServices(parsed);
-      } else {
-        setServices(defaultCleaningServices);
-      }
-    } else {
-      setServices(defaultCleaningServices);
-    }
-
-    if (savedExtras) {
-      setExtras(JSON.parse(savedExtras));
-    } else {
-      setExtras(defaultExtras);
-    }
-
-    if (savedBedroomPricing) {
-      setBedroomPricing(JSON.parse(savedBedroomPricing));
-    } else {
-      setBedroomPricing(defaultBedroomPricing);
-    }
+    setExtras(defaultExtras);
   }, []);
-
-  // Save to localStorage whenever services change
-  useEffect(() => {
-    if (services.length > 0) {
-      localStorage.setItem("tidywise_services", JSON.stringify(services));
-    }
-  }, [services]);
-
-  useEffect(() => {
-    if (extras.length > 0) {
-      localStorage.setItem("tidywise_extras", JSON.stringify(extras));
-    }
-  }, [extras]);
-
-  useEffect(() => {
-    if (bedroomPricing.length > 0) {
-      localStorage.setItem("tidywise_bedroom_pricing", JSON.stringify(bedroomPricing));
-    }
-  }, [bedroomPricing]);
-
-  const handleUpdatePrice = (serviceId: string, priceIndex: number, newPrice: number) => {
-    setServices(prev => prev.map(service => {
-      if (service.id === serviceId) {
-        const newPrices = [...service.prices];
-        newPrices[priceIndex] = newPrice;
-        return { ...service, prices: newPrices };
-      }
-      return service;
-    }));
-  };
 
   const handleUpdateExtra = (id: string, updates: Partial<Extra>) => {
     setExtras(prev => prev.map(extra => 
@@ -469,18 +187,6 @@ export default function ServicesPage() {
 
   const handleAddExtra = (extra: Extra) => {
     setExtras(prev => [...prev, extra]);
-  };
-
-  const handleDeleteService = (serviceId: string) => {
-    setServices(prev => prev.filter(service => service.id !== serviceId));
-    toast.success("Service deleted - this will be reflected in the booking form");
-  };
-
-  const handleUpdateBedroomPrice = (index: number, newPrice: number) => {
-    setBedroomPricing(prev => prev.map((item, i) => 
-      i === index ? { ...item, basePrice: newPrice } : item
-    ));
-    toast.success("Price updated");
   };
 
   return (
@@ -498,7 +204,6 @@ export default function ServicesPage() {
             <Settings2 className="w-4 h-4" />
             Service Pricing
           </TabsTrigger>
-          <TabsTrigger value="pricing-table">Default Pricing Sheet</TabsTrigger>
           <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
         </TabsList>
 
@@ -508,43 +213,19 @@ export default function ServicesPage() {
         </TabsContent>
 
         <TabsContent value="service-pricing" className="space-y-6">
-          <ServicePricingEditor />
-        </TabsContent>
-
-        <TabsContent value="pricing-table" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Square Footage Pricing (Legacy)</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                This is the default pricing table. Use the "Service Pricing" tab for per-service independent pricing.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <EditablePricingTable 
-                services={services} 
-                onUpdatePrice={handleUpdatePrice}
-                onDeleteService={handleDeleteService}
-              />
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bed className="w-5 h-5" />
-                Bedroom & Bathroom Pricing (Legacy)
+                <AlertTriangle className="w-5 h-5 text-primary" />
+                Important
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Base prices by bedroom and bathroom count. Click any price to edit.
+                To ensure your public booking form always shows the correct prices, update pricing in this tab.
+                Legacy pricing tables were removed because they didn’t reliably sync to the booking form.
               </p>
             </CardHeader>
-            <CardContent>
-              <EditableBedroomPricingTable 
-                pricing={bedroomPricing}
-                onUpdatePrice={handleUpdateBedroomPrice}
-              />
-            </CardContent>
           </Card>
+          <ServicePricingEditor />
         </TabsContent>
 
         <TabsContent value="extras">
