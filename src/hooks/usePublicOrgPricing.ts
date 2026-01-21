@@ -111,13 +111,26 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
               (d) => d.id === svc.id || d.name.toLowerCase() === svc.name?.toLowerCase(),
             );
 
+            // Use sqft_prices if available, otherwise create an array filled with the service's base price
+            const servicePrice = svc.price ?? defaultSvc?.minimumPrice ?? 0;
+            let pricesArray: number[] = [];
+            
+            if (Array.isArray(pricing?.sqft_prices) && pricing.sqft_prices.length > 0) {
+              pricesArray = pricing.sqft_prices;
+            } else if (defaultSvc?.prices && defaultSvc.prices.length > 0) {
+              pricesArray = defaultSvc.prices;
+            } else {
+              // Fill with the service's base price for all 13 sqft ranges
+              pricesArray = Array(13).fill(servicePrice);
+            }
+
             return {
               id: svc.id,
               name: svc.name,
               description: svc.description || defaultSvc?.description || '',
               color: defaultSvc?.color || '#3b82f6',
-              minimumPrice: pricing?.minimum_price ?? svc.price ?? defaultSvc?.minimumPrice ?? 0,
-              prices: (pricing?.sqft_prices as number[]) || defaultSvc?.prices || [],
+              minimumPrice: pricing?.minimum_price ?? servicePrice,
+              prices: pricesArray,
               duration: svc.duration || 60,
             };
           });
