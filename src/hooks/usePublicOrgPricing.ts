@@ -111,17 +111,22 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
               (d) => d.id === svc.id || d.name.toLowerCase() === svc.name?.toLowerCase(),
             );
 
-            // Use sqft_prices if available, otherwise create an array filled with the service's base price
-            const servicePrice = svc.price ?? defaultSvc?.minimumPrice ?? 0;
+            // Prefer org-specific service pricing if present; otherwise prefer the service's base price.
+            // Fallback to default template pricing only if the service doesn't have a base price.
+            const servicePrice = Number(svc.price ?? 0);
+            const fallbackTemplatePrices = defaultSvc?.prices || [];
+
             let pricesArray: number[] = [];
-            
+
             if (Array.isArray(pricing?.sqft_prices) && pricing.sqft_prices.length > 0) {
               pricesArray = pricing.sqft_prices;
-            } else if (defaultSvc?.prices && defaultSvc.prices.length > 0) {
-              pricesArray = defaultSvc.prices;
-            } else {
-              // Fill with the service's base price for all 13 sqft ranges
+            } else if (servicePrice > 0) {
+              // No pricing sheet yet: use base price for all sqft ranges so changes to service price are reflected.
               pricesArray = Array(13).fill(servicePrice);
+            } else if (Array.isArray(fallbackTemplatePrices) && fallbackTemplatePrices.length > 0) {
+              pricesArray = fallbackTemplatePrices;
+            } else {
+              pricesArray = Array(13).fill(0);
             }
 
             return {
@@ -129,7 +134,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
               name: svc.name,
               description: svc.description || defaultSvc?.description || '',
               color: defaultSvc?.color || '#3b82f6',
-              minimumPrice: pricing?.minimum_price ?? servicePrice,
+              minimumPrice: Number(pricing?.minimum_price ?? (servicePrice > 0 ? servicePrice : defaultSvc?.minimumPrice ?? 0)),
               prices: pricesArray,
               duration: svc.duration || 60,
             };
