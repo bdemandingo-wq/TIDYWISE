@@ -221,7 +221,6 @@ export default function ServicesPage() {
               </CardTitle>
               <p className="text-sm text-muted-foreground">
                 To ensure your public booking form always shows the correct prices, update pricing in this tab.
-                Legacy pricing tables were removed because they didn’t reliably sync to the booking form.
               </p>
             </CardHeader>
           </Card>
