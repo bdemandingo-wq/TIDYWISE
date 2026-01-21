@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -19,7 +19,6 @@ import {
   X
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
-import { PrivacyPolicyDialog } from "@/components/legal/PrivacyPolicyDialog";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 import { AIBusinessTools } from "@/components/landing/AIBusinessTools";
 import { CompetitorComparison } from "@/components/landing/CompetitorComparison";
@@ -474,9 +473,9 @@ export default function LandingPage() {
                   </a>
                 </li>
                 <li>
-                  <PrivacyPolicyDialog>
-                    <button className="text-sm text-muted-foreground hover:text-foreground">Privacy</button>
-                  </PrivacyPolicyDialog>
+                  <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground">
+                    Privacy
+                  </Link>
                 </li>
                 <li>
                   <TermsOfServiceDialog>

@@ -57,6 +57,7 @@ import AutomatedDispatching from "./pages/features/AutomatedDispatching";
 import QuoteSoftware from "./pages/features/QuoteSoftware";
 import SMSNotifications from "./pages/features/SMSNotifications";
 import PaymentProcessing from "./pages/features/PaymentProcessing";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
                   <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/review/:token" element={<ReviewPage />} />
                   <Route path="/blog" element={<BlogIndex />} />
