@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,27 @@ import {
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
-import { AIBusinessTools } from "@/components/landing/AIBusinessTools";
-import { CompetitorComparison } from "@/components/landing/CompetitorComparison";
-import { BlogSection } from "@/components/landing/BlogSection";
-import { InteractiveDemo } from "@/components/landing/InteractiveDemo";
+
+// Lazy load below-the-fold heavy components for better LCP
+const AIBusinessTools = lazy(() => import("@/components/landing/AIBusinessTools").then(m => ({ default: m.AIBusinessTools })));
+const CompetitorComparison = lazy(() => import("@/components/landing/CompetitorComparison").then(m => ({ default: m.CompetitorComparison })));
+const BlogSection = lazy(() => import("@/components/landing/BlogSection").then(m => ({ default: m.BlogSection })));
+const InteractiveDemo = lazy(() => import("@/components/landing/InteractiveDemo").then(m => ({ default: m.InteractiveDemo })));
+
+// Lightweight skeleton for lazy sections
+const SectionSkeleton = () => (
+  <div className="py-20 px-4 animate-pulse">
+    <div className="max-w-7xl mx-auto">
+      <div className="h-8 w-64 bg-muted rounded mx-auto mb-4" />
+      <div className="h-4 w-96 bg-muted rounded mx-auto mb-12" />
+      <div className="grid md:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-48 bg-muted rounded-xl" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 const cleaningConfig = {
   jobLabel: "Cleans",
@@ -311,14 +328,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive Demo Section */}
-      <InteractiveDemo />
+      {/* Interactive Demo Section - Lazy loaded */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <InteractiveDemo />
+      </Suspense>
 
-      {/* Competitor Comparison Section - moved up to hook customers */}
-      <CompetitorComparison />
+      {/* Competitor Comparison Section - Lazy loaded */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <CompetitorComparison />
+      </Suspense>
 
-      {/* AI Business Tools Section */}
-      <AIBusinessTools />
+      {/* AI Business Tools Section - Lazy loaded */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <AIBusinessTools />
+      </Suspense>
 
       {/* Security & Trust Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
@@ -411,8 +434,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Blog Section */}
-      <BlogSection />
+      {/* Blog Section - Lazy loaded */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <BlogSection />
+      </Suspense>
 
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary">
