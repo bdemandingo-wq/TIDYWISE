@@ -125,3 +125,9 @@ verify_jwt = false
 
 [functions.lookup-openphone-contact]
 verify_jwt = false
+
+[functions.create-customer-portal-invite]
+verify_jwt = false
+
+[functions.redeem-customer-portal-invite]
+verify_jwt = false
