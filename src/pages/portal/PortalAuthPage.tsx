@@ -24,20 +24,6 @@ export default function PortalAuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
 
-  useEffect(() => {
-    // If user is already signed in, try to redeem (if needed) and go to portal
-    let cancelled = false;
-    async function run() {
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (data.session) navigate(from, { replace: true });
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate, from]);
-
   async function redeemInviteIfPresent() {
     if (!inviteToken) return { success: true as const };
     const res = await safeEdgeFunctionCall<{ success: boolean }>(
@@ -48,6 +34,37 @@ export default function PortalAuthPage() {
     if (!res.success) return res;
     return res;
   }
+
+  useEffect(() => {
+    // If user is already signed in, redeem invite (if present) then go to portal.
+    // Without this, opening an invite link while logged in would redirect immediately
+    // and appear like "nothing happened".
+    let cancelled = false;
+    async function run() {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      if (data.session) {
+        if (inviteToken) {
+          setLoading(true);
+          const redeem = await redeemInviteIfPresent();
+          if (redeem.success) {
+            sessionStorage.removeItem("portal_invite_token");
+            sessionStorage.removeItem("portal_invite_email");
+            navigate(from, { replace: true });
+          }
+          setLoading(false);
+          return;
+        }
+
+        navigate(from, { replace: true });
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
