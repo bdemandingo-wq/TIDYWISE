@@ -53,7 +53,8 @@ export function BulkEditCleanerWages() {
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkWageType, setBulkWageType] = useState<string>('');
   const [bulkWageValue, setBulkWageValue] = useState<string>('');
-  const [localEdits, setLocalEdits] = useState<Record<string, { type: string; value: string }>>({});
+  const [bulkJobTotal, setBulkJobTotal] = useState<string>('');
+  const [localEdits, setLocalEdits] = useState<Record<string, { type: string; value: string; jobTotal?: string }>>({}); 
   const [saving, setSaving] = useState(false);
 
   const queryClient = useQueryClient();
@@ -114,7 +115,7 @@ export function BulkEditCleanerWages() {
     });
   };
 
-  const handleLocalEdit = (bookingId: string, field: 'type' | 'value', val: string) => {
+  const handleLocalEdit = (bookingId: string, field: 'type' | 'value' | 'jobTotal', val: string) => {
     setLocalEdits((prev) => ({
       ...prev,
       [bookingId]: {
@@ -124,12 +125,13 @@ export function BulkEditCleanerWages() {
     }));
   };
 
-  const applyBulkEdit = () => {
+  const applyBulkWageEdit = () => {
     if (!bulkWageType || selectedBookings.size === 0) return;
 
-    const updates: Record<string, { type: string; value: string }> = {};
+    const updates: Record<string, { type: string; value: string; jobTotal?: string }> = {};
     selectedBookings.forEach((id) => {
       updates[id] = {
+        ...localEdits[id],
         type: bulkWageType,
         value: bulkWageValue || '',
       };
@@ -137,7 +139,27 @@ export function BulkEditCleanerWages() {
 
     setLocalEdits((prev) => ({ ...prev, ...updates }));
     toast({
-      title: 'Bulk Edit Applied',
+      title: 'Bulk Wage Edit Applied',
+      description: `Updated ${selectedBookings.size} bookings locally. Click "Save All Changes" to persist.`,
+    });
+  };
+
+  const applyBulkJobTotalEdit = () => {
+    if (!bulkJobTotal || selectedBookings.size === 0) return;
+
+    const updates: Record<string, { type: string; value: string; jobTotal?: string }> = {};
+    selectedBookings.forEach((id) => {
+      updates[id] = {
+        ...localEdits[id],
+        type: localEdits[id]?.type || '',
+        value: localEdits[id]?.value || '',
+        jobTotal: bulkJobTotal,
+      };
+    });
+
+    setLocalEdits((prev) => ({ ...prev, ...updates }));
+    toast({
+      title: 'Bulk Job Total Applied',
       description: `Updated ${selectedBookings.size} bookings locally. Click "Save All Changes" to persist.`,
     });
   };
@@ -163,13 +185,20 @@ export function BulkEditCleanerWages() {
       for (const id of editedIds) {
         const edit = localEdits[id];
         const wageValue = edit.value ? parseFloat(edit.value) : null;
+        const jobTotalValue = edit.jobTotal ? parseFloat(edit.jobTotal) : undefined;
+
+        const updateData: Record<string, unknown> = {
+          cleaner_wage_type: edit.type || null,
+          cleaner_wage: wageValue,
+        };
+        
+        if (jobTotalValue !== undefined) {
+          updateData.total_amount = jobTotalValue;
+        }
 
         const { error } = await supabase
           .from('bookings')
-          .update({
-            cleaner_wage_type: edit.type || null,
-            cleaner_wage: wageValue,
-          })
+          .update(updateData)
           .eq('id', id)
           .eq('organization_id', organizationId);
 
@@ -271,8 +300,31 @@ export function BulkEditCleanerWages() {
       </div>
 
       {/* Bulk Edit Controls */}
-      <div className="bg-secondary/30 rounded-xl p-4 border">
-        <p className="text-sm font-medium mb-3">Bulk Edit Selected ({selectedBookings.size})</p>
+      <div className="bg-secondary/30 rounded-xl p-4 border space-y-4">
+        <p className="text-sm font-medium">Bulk Edit Selected ({selectedBookings.size})</p>
+        
+        {/* Job Total Bulk Edit */}
+        <div className="flex flex-wrap gap-3 items-end pb-4 border-b border-border/50">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Job Total ($)</label>
+            <Input
+              type="number"
+              placeholder="150"
+              value={bulkJobTotal}
+              onChange={(e) => setBulkJobTotal(e.target.value)}
+              className="w-[120px]"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            onClick={applyBulkJobTotalEdit}
+            disabled={!bulkJobTotal || selectedBookings.size === 0}
+          >
+            Apply Job Total
+          </Button>
+        </div>
+
+        {/* Wage Bulk Edit */}
         <div className="flex flex-wrap gap-3 items-end">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Wage Type</label>
@@ -301,10 +353,10 @@ export function BulkEditCleanerWages() {
           </div>
           <Button
             variant="secondary"
-            onClick={applyBulkEdit}
+            onClick={applyBulkWageEdit}
             disabled={!bulkWageType || selectedBookings.size === 0}
           >
-            Apply to Selected
+            Apply Wage
           </Button>
         </div>
       </div>
@@ -382,7 +434,18 @@ export function BulkEditCleanerWages() {
                           <span className="text-muted-foreground italic">Unassigned</span>
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">${booking.total_amount.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">$</span>
+                          <Input
+                            type="number"
+                            value={localEdits[booking.id]?.jobTotal ?? ''}
+                            onChange={(e) => handleLocalEdit(booking.id, 'jobTotal', e.target.value)}
+                            placeholder={booking.total_amount.toFixed(2)}
+                            className="w-[90px] h-8"
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Select
                           value={wage.type || 'none'}
