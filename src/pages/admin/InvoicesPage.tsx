@@ -127,7 +127,6 @@ export default function InvoicesPage() {
         .from('customers')
         .select('*')
         .eq('organization_id', organization.id)
-        .in('customer_status', ['active', 'new'])
         .order('first_name');
       if (error) throw error;
       return data;
