@@ -1,6 +1,7 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
+import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
   Calendar, 
@@ -217,14 +218,27 @@ export default function SchedulingSoftware() {
         </div>
       </section>
 
+      {/* Related Articles for Internal Linking */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-5xl mx-auto">
+          <RelatedArticles 
+            articles={allArticles} 
+            currentSlug="/features/scheduling-software" 
+          />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">© 2026 TidyWise. Smart scheduling for cleaning businesses.</p>
-          <div className="flex justify-center gap-6 mt-4">
-            <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
-            <a href="/features/automated-dispatching" className="text-muted-foreground hover:text-foreground">Dispatching</a>
-            <a href="/features/route-optimization" className="text-muted-foreground hover:text-foreground">Route Optimization</a>
+          <div className="flex flex-wrap justify-center gap-6 mt-4">
+            <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/features/automated-dispatching" className="text-muted-foreground hover:text-foreground">Dispatching</Link>
+            <Link to="/features/route-optimization" className="text-muted-foreground hover:text-foreground">Route Optimization</Link>
+            <Link to="/features/invoicing-software" className="text-muted-foreground hover:text-foreground">Invoicing</Link>
+            <Link to="/compare/jobber" className="text-muted-foreground hover:text-foreground">vs Jobber</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
           </div>
         </div>
       </footer>
