@@ -21,7 +21,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { 
   Plus, Trash2, Loader2, ChevronUp, ChevronLeft, ChevronRight, 
-  Tag, CreditCard, Mail, Eye, Building, Bell, Calendar
+  Tag, CreditCard, MessageSquare, Eye, Building, Bell, Calendar
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -874,7 +874,7 @@ export function InvoiceFormDialog({
                 disabled={saveMutation.isPending || lineItems.length === 0 || !selectedCustomer}
               >
                 {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                <Mail className="w-4 h-4 mr-2" />
+                <MessageSquare className="w-4 h-4 mr-2" />
                 Send
               </Button>
             </div>
