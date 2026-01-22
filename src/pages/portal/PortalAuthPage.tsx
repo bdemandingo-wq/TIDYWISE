@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { validateEmail, validatePassword } from "@/lib/validation";
 import { safeEdgeFunctionCall } from "@/lib/safeAction";
+import { toast } from "sonner";
 
 export default function PortalAuthPage() {
   const navigate = useNavigate();
@@ -52,9 +53,15 @@ export default function PortalAuthPage() {
     e.preventDefault();
 
     const emailErr = validateEmail(email);
-    if (emailErr) return;
+    if (emailErr) {
+      toast.error(emailErr);
+      return;
+    }
     const passErr = validatePassword(password);
-    if (passErr) return;
+    if (passErr) {
+      toast.error(passErr);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -82,9 +89,9 @@ export default function PortalAuthPage() {
 
       navigate(from, { replace: true });
     } catch (err: any) {
-      // safeAction already toasts on redeem; auth errors are thrown here
-      // Keep minimal: rely on supabase error message
-      throw err;
+      // Don't throw (it causes UI to "glitch" / crash). Show a friendly toast.
+      toast.error(err?.message ?? "Authentication failed");
+      return;
     } finally {
       setLoading(false);
     }

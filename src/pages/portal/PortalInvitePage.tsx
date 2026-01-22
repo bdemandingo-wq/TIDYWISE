@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function PortalInvitePage() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get("token") ?? "";
   const email = params.get("email") ?? "";
@@ -38,8 +39,9 @@ export default function PortalInvitePage() {
               </p>
             )}
 
-            <Button asChild className="w-full" disabled={!token}>
-              <Link to="/portal/auth">Continue</Link>
+            {/* Avoid Button `asChild` here to prevent ref warnings with router components */}
+            <Button className="w-full" disabled={!token} onClick={() => navigate("/portal/auth")}>
+              Continue
             </Button>
           </CardContent>
         </Card>
