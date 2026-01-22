@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 
 interface Conversation {
   id: string;
@@ -239,7 +240,7 @@ export default function MessagesPage() {
     setSending(true);
     try {
       // Send via edge function
-      const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+      const response = await supabase.functions.invoke('send-openphone-sms', {
         body: {
           to: selectedConversation.customer_phone,
           message: newMessage.trim(),
@@ -247,7 +248,10 @@ export default function MessagesPage() {
         }
       });
 
-      if (error) throw error;
+      // Handle SMS-specific errors with user-friendly messages
+      if (handleSmsError(response)) {
+        return;
+      }
 
       // Save to database
       const { error: insertError } = await supabase
@@ -258,7 +262,7 @@ export default function MessagesPage() {
           direction: 'outbound',
           content: newMessage.trim(),
           status: 'sent',
-          openphone_message_id: data?.messageId
+          openphone_message_id: response.data?.messageId
         });
 
       if (insertError) throw insertError;

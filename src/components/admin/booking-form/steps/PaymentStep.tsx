@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
@@ -152,7 +153,7 @@ export function PaymentStep() {
 
     setSendingLinkSms(true);
     try {
-      const { error } = await supabase.functions.invoke('send-card-link-sms', {
+      const response = await supabase.functions.invoke('send-card-link-sms', {
         body: { 
           phone: customerPhone, 
           email: customerEmail,
@@ -161,7 +162,10 @@ export function PaymentStep() {
           amount: amountToCharge
         }
       });
-      if (error) throw error;
+      // Handle SMS-specific errors
+      if (handleSmsError(response)) {
+        return;
+      }
       toast.success(`Payment link for $${amountToCharge.toFixed(2)} sent via SMS`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send payment link via SMS');

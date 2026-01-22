@@ -31,6 +31,7 @@ import {
   Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -357,7 +358,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         `💰 Total: $${quoteAmount.toFixed(2)}\n\n` +
         `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
 
-      const { error } = await supabase.functions.invoke('send-openphone-sms', {
+      const response = await supabase.functions.invoke('send-openphone-sms', {
         body: {
           to: customerPhone,
           message,
@@ -365,7 +366,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         },
       });
       
-      if (error) throw error;
+      // Handle SMS-specific errors
+      if (handleSmsError(response)) {
+        return;
+      }
       toast.success('Quote saved and sent via SMS!');
     } catch (error: any) {
       console.error('Quote SMS error:', error);
@@ -746,15 +750,17 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 const scheduledDate = new Date(selectedDate!);
                 scheduledDate.setHours(hours, minutes, 0, 0);
                 
-                const { error } = await supabase.functions.invoke('send-openphone-sms', {
+                const response = await supabase.functions.invoke('send-openphone-sms', {
                   body: {
                     to: customerPhone,
                     message: `Hi ${customerName}! Your ${selectedService?.name || 'cleaning'} appointment is confirmed for ${format(scheduledDate, 'MMMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}. Address: ${address}${city ? `, ${city}` : ''}. Reply to this message with any questions!`,
                     organizationId: organizationId ?? undefined,
                   },
                 });
-                if (error) throw error;
-                toast.success('Confirmation text sent to customer');
+                // Handle SMS-specific errors
+                if (!handleSmsError(response)) {
+                  toast.success('Confirmation text sent to customer');
+                }
               } catch (smsError: any) {
                 console.error('SMS error:', smsError);
                 toast.error('Failed to send confirmation text');

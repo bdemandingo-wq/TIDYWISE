@@ -58,6 +58,7 @@ import {
   Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -562,7 +563,7 @@ export default function BookingsPage() {
         hour12: true,
       });
 
-      const { error } = await supabase.functions.invoke('send-booking-reminder', {
+      const response = await supabase.functions.invoke('send-booking-reminder', {
         body: {
           bookingId: booking.id,
           customerPhone: booking.customer.phone,
@@ -577,7 +578,10 @@ export default function BookingsPage() {
         }
       });
 
-      if (error) throw error;
+      // Handle SMS-specific errors
+      if (handleSmsError(response)) {
+        return;
+      }
       toast({ title: "Reminder Sent", description: `SMS sent to ${booking.customer.phone}` });
     } catch (error: any) {
       console.error('Failed to send reminder:', error);
@@ -630,7 +634,7 @@ export default function BookingsPage() {
 
       for (const staffMember of staffToNotify) {
         try {
-          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
+          const response = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
               cleanerName: staffMember.name,
               cleanerPhone: staffMember.phone,
@@ -645,8 +649,12 @@ export default function BookingsPage() {
             }
           });
 
-          if (error) throw error;
-          if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
+          // Handle SMS-specific errors
+          if (handleSmsError(response)) {
+            failCount++;
+            continue;
+          }
+          if (response.data && !response.data.success) throw new Error(response.data.error || 'SMS delivery failed');
           successCount++;
         } catch (error) {
           console.error(`Failed to notify ${staffMember.name}:`, error);
@@ -916,7 +924,7 @@ export default function BookingsPage() {
             `Any special entry instructions? (Key under mat, gate code, etc.) Just reply to let us know!\n\n` +
             `Looking forward to making your space shine! ✨`;
 
-          const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+          const response = await supabase.functions.invoke('send-openphone-sms', {
             body: {
               to: booking.customer!.phone,
               message,
@@ -924,7 +932,11 @@ export default function BookingsPage() {
             }
           });
 
-          if (error) throw error;
+          // Handle SMS-specific errors
+          if (handleSmsError(response)) {
+            failCount++;
+            continue;
+          }
           
           // Update booking with reminder sent tag
           await supabase.from('bookings').update({
@@ -1013,7 +1025,7 @@ export default function BookingsPage() {
     setSendingReviewRequest(booking.id);
     
     try {
-      const { error } = await supabase.functions.invoke('send-review-request-sms', {
+      const response = await supabase.functions.invoke('send-review-request-sms', {
         body: {
           bookingId: booking.id,
           customerId: (booking as any).customer_id || booking.customer?.id,
@@ -1024,7 +1036,10 @@ export default function BookingsPage() {
         }
       });
 
-      if (error) throw error;
+      // Handle SMS-specific errors
+      if (handleSmsError(response)) {
+        return;
+      }
       toast({ title: "Review Request Sent", description: `SMS sent to ${booking.customer.phone}` });
     } catch (error: any) {
       console.error('Failed to send review request:', error);

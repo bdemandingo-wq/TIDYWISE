@@ -31,6 +31,7 @@ import { Plus, FileText, Send, Check, Trash2, Edit, Loader2, Phone, DollarSign, 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import { format, addDays } from 'date-fns';
 import { useCustomers, useServices } from '@/hooks/useBookings';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -154,7 +155,7 @@ export function QuotesTabContent() {
       const validUntil = quote.valid_until ? format(new Date(quote.valid_until), 'MMM d, yyyy') : 'soon';
       const message = `Hi ${customer.first_name}! Just a reminder - your quote #${quote.quote_number} for $${quote.total_amount.toFixed(2)} expires on ${validUntil}. Reply YES to confirm or call us with any questions!`;
 
-      const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+      const response = await supabase.functions.invoke('send-openphone-sms', {
         body: {
           to: customer.phone,
           message,
@@ -162,9 +163,9 @@ export function QuotesTabContent() {
         },
       });
 
-      if (error) throw error;
-      if (data && !data.success) {
-        throw new Error(data.error || 'Failed to send SMS');
+      // Handle SMS-specific errors
+      if (handleSmsError(response)) {
+        return;
       }
 
       toast.success(`Reminder SMS sent to ${customer.first_name}`);

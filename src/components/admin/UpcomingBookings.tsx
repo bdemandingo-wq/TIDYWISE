@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import {
   Dialog,
   DialogContent,
@@ -113,7 +114,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
 
       for (const staffMember of staffToNotify) {
         try {
-          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
+          const response = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
               cleanerName: staffMember.name,
               cleanerPhone: staffMember.phone,
@@ -128,8 +129,11 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
             },
           });
 
-          if (error) throw error;
-          if (data?.error) throw new Error(data.error);
+          // Handle SMS-specific errors
+          if (handleSmsError(response)) {
+            failCount++;
+            continue;
+          }
           successCount++;
         } catch (err) {
           console.error(`Failed to notify ${staffMember.name}:`, err);
