@@ -69,21 +69,74 @@ const handler = async (req: Request): Promise<Response> => {
     const customers = await stripe.customers.list({ email, limit: 100 });
     
     // Find customer that belongs to THIS organization
-    const orgCustomer = customers.data.find((c: Stripe.Customer) => {
-      return c.metadata?.organization_id === organizationId;
-    });
-    
-    if (!orgCustomer) {
+    let customer = customers.data.find((c: Stripe.Customer) => c.metadata?.organization_id === organizationId);
+
+    // Legacy adoption path: if there is exactly one Stripe customer with this email and it has
+    // NO organization metadata, we can safely attach the organization_id to preserve access.
+    // Fail-safe: if there are multiple customers for this email (or any customer is tagged to a
+    // different organization), we do NOT guess.
+    if (!customer) {
+      const taggedToOtherOrg = customers.data.find((c: Stripe.Customer) => {
+        const org = c.metadata?.organization_id;
+        return !!org && org !== organizationId;
+      });
+
+      if (taggedToOtherOrg) {
+        await logAudit({
+          action: AuditActions.PAYMENT_FAILED,
+          userId: authResult.userId!,
+          organizationId: authResult.organizationId!,
+          success: false,
+          error: "Customer belongs to a different organization",
+          details: {
+            email,
+            taggedCustomerId: taggedToOtherOrg.id,
+            taggedOrg: taggedToOtherOrg.metadata?.organization_id,
+          },
+        });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "No customer found for this organization. Please save their card for this business first.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const legacyCandidates = customers.data.filter((c: Stripe.Customer) => !c.metadata?.organization_id);
+      if (legacyCandidates.length === 1 && customers.data.length === 1) {
+        const legacy = legacyCandidates[0];
+
+        // Attach organization metadata (preserves isolation going forward)
+        customer = await stripe.customers.update(legacy.id, {
+          metadata: {
+            ...(legacy.metadata || {}),
+            organization_id: organizationId,
+          },
+        });
+
+        await logAudit({
+          action: AuditActions.PAYMENT_CHARGE,
+          userId: authResult.userId!,
+          organizationId: authResult.organizationId!,
+          details: {
+            email,
+            adoptedCustomerId: legacy.id,
+            reason: "adopt_legacy_customer_missing_org_metadata",
+          },
+        });
+      }
+    }
+
+    if (!customer) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "No customer found for this organization. Please save their card first." 
+        JSON.stringify({
+          success: false,
+          error: "No customer found for this organization. Please save their card first.",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const customer = orgCustomer;
 
     let paymentMethodId: string | undefined;
 
@@ -119,6 +172,10 @@ const handler = async (req: Request): Promise<Response> => {
       confirm: true,
       off_session: true,
       description: description || 'Booking charge',
+      metadata: {
+        organization_id: organizationId,
+        customer_email: email,
+      },
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: 'never',
