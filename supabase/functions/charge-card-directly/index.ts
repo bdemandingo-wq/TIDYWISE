@@ -17,7 +17,16 @@ interface ChargeRequest {
   amount: number;
   description?: string;
   organizationId: string;
+  bookingId?: string;
+  idempotencyKey?: string;
 }
+
+const buildIdempotencyKey = (input: { organizationId: string; bookingId?: string; email: string; amountInCents: number }) => {
+  // Deterministic per booking to prevent accidental double-charges from retries/double-clicks.
+  // If bookingId is missing, fall back to email+amount (less strict, but still prevents rapid duplicates).
+  const base = input.bookingId ? `booking:${input.bookingId}` : `email:${input.email}`;
+  return `charge-card-directly:org:${input.organizationId}:${base}:amount:${input.amountInCents}`;
+};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -33,7 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
       return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
     }
 
-    const { email, amount, description, organizationId }: ChargeRequest = await req.json();
+    const { email, amount, description, organizationId, bookingId, idempotencyKey: providedIdempotencyKey }: ChargeRequest = await req.json();
 
     // SECURITY: Verify organization context matches authenticated user
     if (!organizationId) {
@@ -64,6 +73,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Charging card directly:", { email, amount, userId: authResult.userId });
 
     const amountInCents = Math.round(amount * 100);
+    const idempotencyKey = providedIdempotencyKey || buildIdempotencyKey({
+      organizationId,
+      bookingId,
+      email,
+      amountInCents,
+    });
 
     // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
     const customers = await stripe.customers.list({ email, limit: 100 });
@@ -164,23 +179,30 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
-      currency: 'usd',
-      customer: customer.id,
-      payment_method: paymentMethodId,
-      confirm: true,
-      off_session: true,
-      description: description || 'Booking charge',
-      metadata: {
-        organization_id: organizationId,
-        customer_email: email,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: amountInCents,
+        currency: 'usd',
+        customer: customer.id,
+        payment_method: paymentMethodId,
+        confirm: true,
+        off_session: true,
+        description: description || 'Booking charge',
+        metadata: {
+          organization_id: organizationId,
+          customer_email: email,
+          booking_id: bookingId || '',
+          idempotency_key: idempotencyKey,
+        },
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never',
+        },
       },
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never',
-      },
-    });
+      {
+        idempotencyKey,
+      }
+    );
 
     if (paymentIntent.status === 'succeeded') {
       // Log successful charge
@@ -191,7 +213,9 @@ const handler = async (req: Request): Promise<Response> => {
         details: { 
           paymentIntentId: paymentIntent.id, 
           amount,
-          customerEmail: email 
+          customerEmail: email,
+          bookingId,
+          idempotencyKey,
         },
       });
 
@@ -212,7 +236,9 @@ const handler = async (req: Request): Promise<Response> => {
         details: { 
           paymentIntentId: paymentIntent.id, 
           status: paymentIntent.status,
-          customerEmail: email 
+          customerEmail: email,
+          bookingId,
+          idempotencyKey,
         },
       });
 

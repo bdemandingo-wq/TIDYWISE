@@ -482,6 +482,14 @@ export default function BookingsPage() {
   };
 
   const handleChargeCard = async (booking: BookingWithDetails) => {
+    // UI-level single-submit guard (prevents double-click / double-tap charges)
+    if (chargingCard === booking.id) return;
+
+    if (booking.payment_status === 'paid') {
+      toast({ title: "Already paid", description: "This booking is already marked as paid." });
+      return;
+    }
+
     if (!booking.customer?.email) {
       toast({ title: "Error", description: "No customer email found", variant: "destructive" });
       return;
@@ -496,6 +504,8 @@ export default function BookingsPage() {
           amount: booking.total_amount,
           description: `Booking #${booking.booking_number} - ${booking.service?.name || 'Service'}`,
           organizationId: organization?.id,
+          bookingId: booking.id,
+          idempotencyKey: `charge:${organization?.id || 'no-org'}:${booking.id}:${Math.round(booking.total_amount * 100)}`,
         }
       });
 
