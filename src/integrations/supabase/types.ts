@@ -3575,6 +3575,10 @@ export type Database = {
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       reset_daily_tasks: { Args: never; Returns: undefined }
+      staff_can_view_customer: {
+        Args: { _customer_id: string; _org_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
