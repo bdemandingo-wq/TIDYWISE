@@ -1,6 +1,7 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
+import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
   FileText, 
@@ -217,14 +218,26 @@ export default function InvoicingSoftware() {
         </div>
       </section>
 
+      {/* Related Articles for Internal Linking */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-5xl mx-auto">
+          <RelatedArticles 
+            articles={allArticles} 
+            currentSlug="/features/invoicing-software" 
+          />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">© 2026 TidyWise. Professional invoicing for cleaning businesses.</p>
-          <div className="flex justify-center gap-6 mt-4">
-            <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
-            <a href="/features/payment-processing" className="text-muted-foreground hover:text-foreground">Payments</a>
-            <a href="/features/quote-software" className="text-muted-foreground hover:text-foreground">Quotes</a>
+          <div className="flex flex-wrap justify-center gap-6 mt-4">
+            <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/features/payment-processing" className="text-muted-foreground hover:text-foreground">Payments</Link>
+            <Link to="/features/quote-software" className="text-muted-foreground hover:text-foreground">Quotes</Link>
+            <Link to="/compare/housecall-pro" className="text-muted-foreground hover:text-foreground">vs Housecall Pro</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
           </div>
         </div>
       </footer>

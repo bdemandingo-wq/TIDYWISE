@@ -1,6 +1,7 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
+import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -287,16 +288,29 @@ export default function CompareHousecallPro() {
         </div>
       </section>
 
+      {/* Related Articles for Internal Linking */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-5xl mx-auto">
+          <RelatedArticles 
+            articles={allArticles} 
+            currentSlug="/compare/housecall-pro" 
+          />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">
             © 2026 TidyWise. The #1 Housecall Pro alternative for cleaning businesses.
           </p>
-          <div className="flex justify-center gap-6 mt-4">
-            <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
-            <a href="/compare/jobber" className="text-muted-foreground hover:text-foreground">vs Jobber</a>
-            <a href="/compare/booking-koala" className="text-muted-foreground hover:text-foreground">vs Booking Koala</a>
+          <div className="flex flex-wrap justify-center gap-6 mt-4">
+            <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/compare/jobber" className="text-muted-foreground hover:text-foreground">vs Jobber</Link>
+            <Link to="/compare/booking-koala" className="text-muted-foreground hover:text-foreground">vs Booking Koala</Link>
+            <Link to="/features/scheduling-software" className="text-muted-foreground hover:text-foreground">Scheduling</Link>
+            <Link to="/features/invoicing-software" className="text-muted-foreground hover:text-foreground">Invoicing</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
           </div>
         </div>
       </footer>

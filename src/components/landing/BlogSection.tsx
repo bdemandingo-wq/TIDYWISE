@@ -11,27 +11,27 @@ const blogPosts = [
     readTime: "15 min read",
     date: "January 2026",
     featured: true,
-    image: "/placeholder.svg"
+    isFeaturePage: false
   },
   {
-    slug: "cleaning-business-scheduling-tips",
-    title: "Master Your Cleaning Schedule: Tips for Maximum Efficiency",
-    excerpt: "Discover how professional cleaning companies use smart scheduling to increase bookings by 40% and reduce travel time.",
-    category: "Operations",
-    readTime: "8 min read",
+    slug: "booking-koala-vs-jobber-vs-tidywise",
+    title: "Booking Koala vs Jobber vs TidyWise: Which Software Wins?",
+    excerpt: "Side-by-side comparison of the top 3 cleaning business software platforms. See pricing, features, and which one is right for your business.",
+    category: "Comparison",
+    readTime: "10 min read",
     date: "January 2026",
     featured: false,
-    image: "/placeholder.svg"
+    isFeaturePage: false
   },
   {
-    slug: "real-time-messenger-cleaning-teams",
-    title: "Why Your Cleaning Team Needs Real-Time Communication",
-    excerpt: "Explore how a real-time messenger for cleaning teams improves coordination, reduces no-shows, and boosts customer satisfaction.",
-    category: "Team Management",
-    readTime: "6 min read",
+    slug: "scheduling-software",
+    title: "Cleaning Scheduling Software That Reduces No-Shows by 40%",
+    excerpt: "Discover how automated scheduling, smart reminders, and drag-and-drop calendars can transform your cleaning business operations.",
+    category: "Features",
+    readTime: "5 min read",
     date: "January 2026",
     featured: false,
-    image: "/placeholder.svg"
+    isFeaturePage: true
   }
 ];
 
@@ -103,7 +103,7 @@ export function BlogSection() {
           {otherPosts.map((post) => (
             <Link 
               key={post.slug}
-              to={`/blog/${post.slug}`}
+              to={post.isFeaturePage ? `/features/${post.slug}` : `/blog/${post.slug}`}
               className="group"
             >
               <article className="bg-card rounded-xl border border-border p-6 h-full hover:shadow-lg hover:border-primary/50 transition-all duration-300">

@@ -17,6 +17,80 @@ const staticPosts = [
     date: "January 2026",
     featured: true,
     isStatic: true
+  },
+  {
+    slug: "booking-koala-vs-jobber-vs-tidywise",
+    title: "Booking Koala vs Jobber vs TidyWise: Which Software Wins in 2026?",
+    excerpt: "Complete side-by-side comparison of pricing, features, and customer support. Find out which cleaning business software is best for your company.",
+    category: "Comparison",
+    readTime: "10 min read",
+    date: "January 2026",
+    featured: false,
+    isStatic: true
+  }
+];
+
+// Feature pages promoted as blog content for SEO
+const featureArticles = [
+  {
+    slug: "/features/scheduling-software",
+    title: "Cleaning Scheduling Software That Reduces No-Shows by 40%",
+    excerpt: "Automated scheduling, smart reminders, and drag-and-drop calendars for cleaning businesses.",
+    category: "Features",
+    readTime: "5 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/features/route-optimization",
+    title: "Route Optimization Software for Cleaning Businesses",
+    excerpt: "Save 2+ hours daily with AI-powered route planning. Reduce fuel costs and maximize jobs per day.",
+    category: "Features",
+    readTime: "5 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/features/invoicing-software",
+    title: "Cleaning Business Invoicing Software: Get Paid Faster",
+    excerpt: "Professional invoices, automatic payment reminders, and seamless Stripe integration.",
+    category: "Features",
+    readTime: "5 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/compare/jobber",
+    title: "TidyWise vs Jobber: Complete 2026 Comparison",
+    excerpt: "See how TidyWise stacks up against Jobber on pricing, features, and ease of use.",
+    category: "Comparison",
+    readTime: "8 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/compare/booking-koala",
+    title: "TidyWise vs Booking Koala: Feature-by-Feature Breakdown",
+    excerpt: "Detailed comparison of two popular cleaning business software platforms.",
+    category: "Comparison",
+    readTime: "8 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/compare/housecall-pro",
+    title: "Best Housecall Pro Alternative for Cleaning Businesses",
+    excerpt: "Looking for a Housecall Pro alternative? See why cleaning companies are switching to TidyWise.",
+    category: "Comparison",
+    readTime: "6 min read",
+    date: "January 2026",
+    featured: false,
+    isFeaturePage: true
   }
 ];
 
@@ -37,9 +111,10 @@ export default function BlogIndex() {
     },
   });
 
-  // Combine static and dynamic posts
+  // Combine static, feature, and dynamic posts
   const allPosts = [
-    ...staticPosts,
+    ...staticPosts.map(post => ({ ...post, isFeaturePage: false as const })),
+    ...featureArticles.map(post => ({ ...post, isStatic: false as const })),
     ...dynamicPosts.map(post => ({
       slug: post.slug,
       title: post.title,
@@ -48,7 +123,8 @@ export default function BlogIndex() {
       readTime: post.read_time,
       date: format(new Date(post.published_at), "MMMM yyyy"),
       featured: post.is_featured,
-      isStatic: false
+      isStatic: false as const,
+      isFeaturePage: false as const
     }))
   ];
 
@@ -109,7 +185,7 @@ export default function BlogIndex() {
             {allPosts.map((post) => (
               <Link 
                 key={post.slug}
-                to={post.isStatic ? `/blog/${post.slug}` : `/blog/post/${post.slug}`}
+                to={post.isFeaturePage ? post.slug : (post.isStatic ? `/blog/${post.slug}` : `/blog/post/${post.slug}`)}
                 className="group"
               >
                 <article className="bg-card rounded-xl border border-border p-6 h-full hover:shadow-lg hover:border-primary/50 transition-all duration-300 flex flex-col">
