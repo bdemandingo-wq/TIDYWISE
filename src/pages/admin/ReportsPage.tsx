@@ -61,27 +61,26 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!organizationId) return;
-      const workingHoursQuery = supabase.from('working_hours').select('*');
-      const customersQuery = supabase.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address');
-      const recurringQuery = supabase.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id');
       
-      const [workingHoursRes, customersRes, recurringRes] = await Promise.all([
-        workingHoursQuery.eq('organization_id', organizationId),
-        customersQuery.eq('organization_id', organizationId),
-        recurringQuery.eq('organization_id', organizationId)
-      ]);
-      if (workingHoursRes.data) setWorkingHours(workingHoursRes.data);
-      if (customersRes.data) setCustomers(customersRes.data);
-      if (recurringRes.data) setRecurringBookings(recurringRes.data);
+      // @ts-ignore - Supabase type depth issue workaround
+      const whQuery = supabase.from('working_hours').select('*').eq('organization_id', organizationId);
+      // @ts-ignore - Supabase type depth issue workaround
+      const custQuery = supabase.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address').eq('organization_id', organizationId);
+      // @ts-ignore - Supabase type depth issue workaround
+      const recQuery = supabase.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id').eq('organization_id', organizationId);
+      
+      const whRes = await whQuery;
+      const custRes = await custQuery;
+      const recRes = await recQuery;
+      
+      if (whRes.data) setWorkingHours(whRes.data);
+      if (custRes.data) setCustomers(custRes.data);
+      if (recRes.data) setRecurringBookings(recRes.data);
 
-      // Calculate recurring stats
-      // NOTE: We intentionally align this with the Recurring Bookings page “Total” card,
-      // which represents the number of recurring plans (rows), not unique customers.
-      const totalRecurringPlans = recurringRes.data?.length ?? 0;
-
+      const totalRecurringPlans = recRes.data?.length ?? 0;
       setRecurringStats({
         recurringClients: totalRecurringPlans,
-        recurringCleans: 0, // Will be calculated from bookings in useMemo
+        recurringCleans: 0,
         recurringRevenue: 0,
       });
     };
