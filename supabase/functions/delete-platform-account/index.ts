@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createErrorResponse, logToSystem } from "../_shared/system-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,41 +21,39 @@ serve(async (req) => {
   );
 
   try {
-    // Verify the user is the platform admin
+    // HARD SAFETY: This function is permanently disabled to prevent accidental data loss.
+    // If you ever want to re-enable deletions in the future, revert this block explicitly.
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    const token = authHeader?.replace("Bearer ", "") ?? null;
+    const { data: userData } = token
+      ? await supabaseClient.auth.getUser(token)
+      : { data: { user: null } };
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    
-    const user = userData.user;
-    if (!user?.email || user.email !== PLATFORM_ADMIN_EMAIL) {
-      throw new Error("Unauthorized: Platform admin access only");
-    }
-
-    const { userId, type } = await req.json();
-    console.log(`[DELETE-ACCOUNT] Deleting ${type} with ID:`, userId);
-
-    if (type === 'user') {
-      // Delete the user from auth (this will cascade to profiles via trigger)
-      const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
-      if (deleteError) throw deleteError;
-      console.log("[DELETE-ACCOUNT] User deleted successfully");
-    } else if (type === 'organization') {
-      // Delete organization and related data
-      const { error: deleteError } = await supabaseClient
-        .from('organizations')
-        .delete()
-        .eq('id', userId);
-      if (deleteError) throw deleteError;
-      console.log("[DELETE-ACCOUNT] Organization deleted successfully");
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+    const requestId = crypto.randomUUID();
+    await logToSystem({
+      level: "warn",
+      source: "delete-platform-account",
+      message: "Blocked account deletion attempt (function disabled)",
+      details: {
+        method: req.method,
+        path: new URL(req.url).pathname,
+      },
+      userId: userData.user?.id,
+      requestId,
     });
+
+    return await createErrorResponse(
+      "Account deletion is disabled.",
+      403,
+      corsHeaders,
+      {
+        source: "delete-platform-account",
+        userId: userData.user?.id,
+        requestId,
+      }
+    );
+
+    // Verify the user is the platform admin
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[DELETE-ACCOUNT] Error:", errorMessage);
