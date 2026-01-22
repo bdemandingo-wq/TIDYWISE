@@ -69,6 +69,10 @@ const AutomatedDispatching = lazy(() => import("./pages/features/AutomatedDispat
 const QuoteSoftware = lazy(() => import("./pages/features/QuoteSoftware"));
 const SMSNotifications = lazy(() => import("./pages/features/SMSNotifications"));
 const PaymentProcessing = lazy(() => import("./pages/features/PaymentProcessing"));
+const RouteOptimization = lazy(() => import("./pages/features/RouteOptimization"));
+const InvoicingSoftware = lazy(() => import("./pages/features/InvoicingSoftware"));
+const SchedulingSoftware = lazy(() => import("./pages/features/SchedulingSoftware"));
+const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 
 // Optimized QueryClient with stale time and caching
@@ -113,12 +117,16 @@ const App = () => (
                     {/* Comparison Pages */}
                     <Route path="/compare/jobber" element={<CompareJobber />} />
                     <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
+                    <Route path="/compare/housecall-pro" element={<CompareHousecallPro />} />
                     
                     {/* Feature Pages */}
                     <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
                     <Route path="/features/quote-software" element={<QuoteSoftware />} />
                     <Route path="/features/sms-notifications" element={<SMSNotifications />} />
                     <Route path="/features/payment-processing" element={<PaymentProcessing />} />
+                    <Route path="/features/route-optimization" element={<RouteOptimization />} />
+                    <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
+                    <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
 
                     {/* Staff Portal */}
                     <Route path="/staff/login" element={<StaffLoginPage />} />
