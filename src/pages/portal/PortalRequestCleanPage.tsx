@@ -59,18 +59,29 @@ export default function PortalRequestCleanPage() {
   const submit = async () => {
     if (!customer) return;
     await safeDatabaseAction(
-      () =>
-        supabase.from("bookings").insert({
-          organization_id: customer.organization_id,
-          customer_id: customer.id,
-          scheduled_at: new Date(scheduledAt).toISOString(),
-          duration: 180,
-          total_amount: 0,
-          status: "pending",
-          payment_status: "pending",
-          is_draft: true,
-          notes: notes || null,
-        }),
+      async () => {
+        const result = await Promise.resolve(
+          supabase
+            .from("bookings")
+            .insert({
+              organization_id: customer.organization_id,
+              customer_id: customer.id,
+              scheduled_at: new Date(scheduledAt).toISOString(),
+              duration: 180,
+              total_amount: 0,
+              status: "pending",
+              payment_status: "pending",
+              is_draft: true,
+              notes: notes || null,
+            })
+            .select()
+        );
+
+        return {
+          data: result.data,
+          error: result.error ? new Error(result.error.message) : null,
+        };
+      },
       {
         tableName: "bookings",
         operation: "insert",

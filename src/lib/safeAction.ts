@@ -128,14 +128,14 @@ export async function safeEdgeFunctionCall<T>(
  * Specialized version for database operations
  */
 export async function safeDatabaseAction<T>(
-  action: () => Promise<{ data: T | null; error: Error | null }>,
+  action: () => PromiseLike<{ data: T | null; error: unknown | null }>,
   options: Omit<SafeActionOptions, 'source'> & { tableName: string; operation: 'insert' | 'update' | 'delete' | 'select' }
 ): Promise<SafeActionResult<T>> {
   return safeAction(
     async () => {
       const result = await action();
       if (result.error) {
-        throw result.error;
+        throw result.error instanceof Error ? result.error : new Error(String((result.error as any)?.message ?? result.error));
       }
       return result.data as T;
     },
