@@ -82,7 +82,8 @@ export function SignedImage({
   }, [src, bucket, expiresIn]);
 
   if (loading) {
-    return <Skeleton className={`${className} min-h-[100px]`} />;
+    // Let callers control sizing via className (important for small avatars/logos).
+    return <Skeleton className={className} />;
   }
 
   if (error || !imageUrl) {

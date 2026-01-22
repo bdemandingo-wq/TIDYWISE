@@ -33,6 +33,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { SignedImage } from '@/components/ui/signed-image';
 import { supabase } from '@/integrations/supabase/client';
 
 import {
@@ -297,7 +298,16 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
         {logoUrl ? (
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-background">
-            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            <SignedImage
+              src={logoUrl}
+              alt="Logo"
+              className="w-full h-full object-contain"
+              fallback={
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <Calendar className="w-5 h-5 text-muted-foreground" />
+                </div>
+              }
+            />
           </div>
         ) : (
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
