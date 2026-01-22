@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Phone, Target, DollarSign, Mail, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays } from 'lucide-react';
+import { Phone, Target, DollarSign, MessageSquare, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -282,8 +282,8 @@ export default function OperationsTrackerPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <Mail className="w-4 h-4 text-orange-500" />
-              <span className="text-xs text-muted-foreground">Cold Emails</span>
+              <MessageSquare className="w-4 h-4 text-orange-500" />
+              <span className="text-xs text-muted-foreground">Cold Outreach</span>
             </div>
             <p className="text-2xl font-bold">{isTestMode ? 'XX' : stats.weeklyTotals.coldEmails}</p>
           </CardContent>

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Bell, Mail, MessageSquare, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Bell, MessageSquare, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -32,14 +32,14 @@ export default function NotificationsPage() {
       title="Notifications"
       subtitle="Manage how you receive notifications"
     >
-      {/* Email Notifications */}
+      {/* SMS Notifications */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-primary" />
-            Email Notifications
+            <MessageSquare className="w-5 h-5 text-primary" />
+            SMS Notifications
           </CardTitle>
-          <CardDescription>Configure which emails you want to receive</CardDescription>
+          <CardDescription>Configure which SMS messages you want to receive</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">

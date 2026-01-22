@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -140,11 +140,11 @@ export function EmailSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Mail className="w-5 h-5" />
-          Email Identity Settings
+          <MessageSquare className="w-5 h-5" />
+          SMS Identity Settings
         </CardTitle>
         <CardDescription>
-          Configure how your organization appears when sending emails to customers
+          Configure how your organization appears when sending SMS to customers
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
