@@ -155,14 +155,16 @@ export function BulkEditCleanerWages() {
     }
 
     setSaving(true);
+    let successCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
     try {
-      // Use type workaround for Supabase deep type inference
-      const client: any = supabase;
       for (const id of editedIds) {
         const edit = localEdits[id];
         const wageValue = edit.value ? parseFloat(edit.value) : null;
 
-        await client
+        const { error } = await supabase
           .from('bookings')
           .update({
             cleaner_wage_type: edit.type || null,
@@ -170,21 +172,38 @@ export function BulkEditCleanerWages() {
           })
           .eq('id', id)
           .eq('organization_id', organizationId);
+
+        if (error) {
+          console.error(`Failed to update booking ${id}:`, error);
+          failedCount++;
+          errors.push(error.message);
+        } else {
+          successCount++;
+        }
       }
 
-      toast({
-        title: 'Changes Saved',
-        description: `Updated ${editedIds.length} bookings successfully`,
-      });
-      setLocalEdits({});
-      setSelectedBookings(new Set());
+      if (failedCount > 0) {
+        toast({
+          title: 'Partial Update',
+          description: `${successCount} saved, ${failedCount} failed: ${errors[0]}`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Changes Saved',
+          description: `Updated ${successCount} bookings successfully`,
+        });
+        setLocalEdits({});
+        setSelectedBookings(new Set());
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['bookings-wages', organizationId] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
     } catch (error) {
       console.error('Failed to save changes:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save some changes',
+        description: 'Failed to save changes. Please try again.',
         variant: 'destructive',
       });
     } finally {
