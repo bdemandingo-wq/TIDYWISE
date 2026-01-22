@@ -78,8 +78,9 @@ export default function RecurringBookingsPage() {
   const { data: staff = [] } = useStaff();
 
   const { data: recurringBookings = [], isLoading } = useQuery({
-    queryKey: ['recurring-bookings'],
+    queryKey: ['recurring-bookings', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('recurring_bookings')
         .select(`
@@ -88,10 +89,12 @@ export default function RecurringBookingsPage() {
           service:services(*),
           staff:staff(*)
         `)
+        .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as RecurringBooking[];
     },
+    enabled: !!organization?.id,
   });
 
   const createMutation = useMutation({

@@ -60,10 +60,15 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!organizationId) return;
+      const workingHoursQuery = supabase.from('working_hours').select('*');
+      const customersQuery = supabase.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address');
+      const recurringQuery = supabase.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id');
+      
       const [workingHoursRes, customersRes, recurringRes] = await Promise.all([
-        supabase.from('working_hours').select('*'),
-        supabase.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address'),
-        supabase.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id')
+        workingHoursQuery.eq('organization_id', organizationId),
+        customersQuery.eq('organization_id', organizationId),
+        recurringQuery.eq('organization_id', organizationId)
       ]);
       if (workingHoursRes.data) setWorkingHours(workingHoursRes.data);
       if (customersRes.data) setCustomers(customersRes.data);
@@ -81,7 +86,7 @@ export default function ReportsPage() {
       });
     };
     fetchData();
-  }, []);
+  }, [organizationId]);
 
   const isLoading = bookingsLoading || servicesLoading || staffLoading;
 

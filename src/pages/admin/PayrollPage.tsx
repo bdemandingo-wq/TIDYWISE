@@ -138,21 +138,25 @@ export default function PayrollPage() {
 
   // Fetch staff
   const { data: staff = [] } = useQuery({
-    queryKey: ['staff-payroll'],
+    queryKey: ['staff-payroll', organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from('staff')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('is_active', true);
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   // Fetch ALL bookings for selected date range (not just completed) to include all staff
   const { data: bookings = [] } = useQuery({
-    queryKey: ['bookings-payroll', dateRange],
+    queryKey: ['bookings-payroll', dateRange, organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -160,22 +164,26 @@ export default function PayrollPage() {
           customer:customers(*),
           staff:staff(*)
         `)
+        .eq('organization_id', organizationId)
         .gte('scheduled_at', dateRange.from.toISOString())
         .lte('scheduled_at', dateRange.to.toISOString())
         .order('scheduled_at', { ascending: false });
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   // Fetch YTD bookings for 1099 threshold
   const { data: ytdBookings = [] } = useQuery({
-    queryKey: ['bookings-ytd'],
+    queryKey: ['bookings-ytd', organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const yearStart = startOfYear(new Date());
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('status', 'completed')
         .gte('scheduled_at', yearStart.toISOString());
       if (error) throw error;

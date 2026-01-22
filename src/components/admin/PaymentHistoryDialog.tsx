@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CreditCard, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface PaymentHistoryDialogProps {
   open: boolean;
@@ -35,14 +36,16 @@ export function PaymentHistoryDialog({
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState({ paid: 0, pending: 0, total: 0 });
+  const { organization } = useOrganization();
 
   useEffect(() => {
-    if (open && customerId) {
+    if (open && customerId && organization?.id) {
       fetchPaymentHistory();
     }
-  }, [open, customerId]);
+  }, [open, customerId, organization?.id]);
 
   const fetchPaymentHistory = async () => {
+    if (!organization?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -56,6 +59,7 @@ export function PaymentHistoryDialog({
           service:services(name)
         `)
         .eq('customer_id', customerId)
+        .eq('organization_id', organization.id)
         .order('scheduled_at', { ascending: false });
 
       if (error) throw error;

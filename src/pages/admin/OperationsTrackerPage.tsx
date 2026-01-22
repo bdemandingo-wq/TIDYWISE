@@ -60,15 +60,18 @@ export default function OperationsTrackerPage() {
   const { organization } = useOrganization();
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['operations-tracker'],
+    queryKey: ['operations-tracker', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('operations_tracker')
         .select('*')
+        .eq('organization_id', organization.id)
         .order('track_date', { ascending: false });
       if (error) throw error;
       return data as OperationsEntry[];
     },
+    enabled: !!organization?.id,
   });
 
   const createMutation = useMutation({

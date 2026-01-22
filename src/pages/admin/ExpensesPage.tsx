@@ -90,15 +90,18 @@ export default function ExpensesPage() {
 
   // Fetch expenses
   const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['expenses', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
+        .eq('organization_id', organization.id)
         .order('expense_date', { ascending: false });
       if (error) throw error;
       return data as Expense[];
     },
+    enabled: !!organization?.id,
   });
 
   // Create expense

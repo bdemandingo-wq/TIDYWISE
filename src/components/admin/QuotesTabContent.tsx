@@ -35,6 +35,7 @@ import { handleSmsError } from '@/lib/smsErrorHandler';
 import { format, addDays } from 'date-fns';
 import { useCustomers, useServices } from '@/hooks/useBookings';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface Quote {
   id: string;
@@ -69,13 +70,15 @@ export function QuotesTabContent() {
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
+  const { organization } = useOrganization();
 
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
 
   const { data: quotes = [], isLoading } = useQuery({
-    queryKey: ['quotes'],
+    queryKey: ['quotes', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -83,15 +86,18 @@ export function QuotesTabContent() {
           customer:customers(*),
           service:services(*)
         `)
+        .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as Quote[];
     },
+    enabled: !!organization?.id,
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<Quote>) => {
-      const { error } = await supabase.from('quotes').insert(data);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('quotes').insert({ ...data, organization_id: organization.id });
       if (error) throw error;
     },
     onSuccess: () => {

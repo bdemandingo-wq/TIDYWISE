@@ -11,6 +11,7 @@ import { Download, Printer, ExternalLink, FileText, CheckCircle2, Clock, AlertCi
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface InvoiceViewDialogProps {
   open: boolean;
@@ -28,19 +29,23 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 
 export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const { organization } = useOrganization();
 
   // Fetch business settings for branding
   const { data: businessSettings } = useQuery({
-    queryKey: ['business-settings'],
+    queryKey: ['business-settings', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return null;
       const { data, error } = await supabase
         .from('business_settings')
         .select('*')
+        .eq('organization_id', organization.id)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+    enabled: !!organization?.id,
   });
 
   if (!invoice) return null;

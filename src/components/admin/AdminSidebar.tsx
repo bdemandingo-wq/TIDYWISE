@@ -241,9 +241,11 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
   useEffect(() => {
     const fetchLogo = async () => {
+      if (!organization?.id) return;
       const { data } = await supabase
         .from('business_settings')
         .select('logo_url')
+        .eq('organization_id', organization.id)
         .limit(1)
         .maybeSingle();
       
@@ -252,7 +254,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       }
     };
     fetchLogo();
-  }, []);
+  }, [organization?.id]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

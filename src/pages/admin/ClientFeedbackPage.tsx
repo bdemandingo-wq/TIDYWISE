@@ -49,15 +49,18 @@ export default function ClientFeedbackPage() {
   const { organization } = useOrganization();
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['client-feedback'],
+    queryKey: ['client-feedback', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('client_feedback')
         .select('*')
+        .eq('organization_id', organization.id)
         .order('feedback_date', { ascending: false });
       if (error) throw error;
       return data as FeedbackEntry[];
     },
+    enabled: !!organization?.id,
   });
 
   const createMutation = useMutation({
