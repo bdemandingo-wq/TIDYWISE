@@ -140,7 +140,8 @@ export function useBookings() {
           staff:staff(id, name, email, phone)
         `)
         .eq('organization_id', organizationId)
-        .order('scheduled_at', { ascending: false });
+        .order('scheduled_at', { ascending: false })
+        .limit(500); // Pagination limit for performance
 
       if (error) {
         console.error('Error fetching bookings:', error);
@@ -150,6 +151,8 @@ export function useBookings() {
       return data as BookingWithDetails[];
     },
     enabled: !!organizationId,
+    staleTime: 1000 * 60 * 2, // 2 minutes - bookings change frequently
+    gcTime: 1000 * 60 * 10, // Keep in cache for 10 minutes
   });
 }
 
@@ -288,7 +291,8 @@ export function useCustomers() {
         .from('customers')
         .select('*')
         .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1000); // Pagination limit
 
       if (error) {
         console.error('Error fetching customers:', error);
@@ -298,6 +302,8 @@ export function useCustomers() {
       return data;
     },
     enabled: !!organizationId,
+    staleTime: 1000 * 60 * 5, // 5 minutes - customers change less frequently
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
   });
 }
 
@@ -383,6 +389,8 @@ export function useServices() {
       return data;
     },
     enabled: !!organizationId,
+    staleTime: 1000 * 60 * 10, // 10 minutes - services rarely change
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   });
 }
 
@@ -411,5 +419,7 @@ export function useStaff() {
       return data;
     },
     enabled: !!organizationId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
   });
 }
