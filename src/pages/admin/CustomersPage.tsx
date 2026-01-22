@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard, Upload, Users, UserX, Link2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard, Upload, Users, UserX } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,28 +78,6 @@ export default function CustomersPage() {
   const { maskName, maskEmail, maskPhone, maskAddress } = useTestMode();
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
-
-  const inviteToPortal = async (customerId: string) => {
-    const res = await safeEdgeFunctionCall<{ inviteUrl: string; expiresAt: string }>(
-      'create-customer-portal-invite',
-      { customerId },
-      {
-        showSuccessToast: false,
-        errorMessagePrefix: 'Could not create invite',
-      }
-    );
-
-    if (!res.success) return;
-
-    const url = res.data.inviteUrl;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success('Invite link copied');
-    } catch {
-      // Fallback for browsers without clipboard access
-      window.prompt('Copy this invite link:', url);
-    }
-  };
 
   const handleImportCustomers = async (records: Record<string, any>[]) => {
     if (!organization?.id) throw new Error('No organization found');
@@ -395,13 +373,6 @@ export default function CustomersPage() {
                           }}
                         >
                           <CreditCard className="w-4 h-4" /> Payment History
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => inviteToPortal(customer.id)}
-                        >
-                          <Link2 className="w-4 h-4" /> Invite to Portal
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 

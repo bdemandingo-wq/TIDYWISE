@@ -117,7 +117,6 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
             {[
               "Unlimited bookings",
               "Team management",
-              "Customer portal",
               "Payment processing",
               "Automated emails",
               "Analytics & reports",

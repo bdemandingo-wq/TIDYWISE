@@ -213,7 +213,6 @@ export default function SubscriptionPage() {
                 {[
                   "Unlimited bookings",
                   "Team management",
-                  "Customer portal",
                   "Payment processing",
                   "Automated emails",
                   "Analytics & reports",

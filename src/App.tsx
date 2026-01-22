@@ -12,7 +12,6 @@ import { ProtectedOrgRoute } from "@/components/ProtectedOrgRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 
 // Critical path - load immediately
 import LandingPage from "./pages/LandingPage";
@@ -76,13 +75,6 @@ const SchedulingSoftware = lazy(() => import("./pages/features/SchedulingSoftwar
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 
-// Customer Portal (invite-only)
-const PortalInvitePage = lazy(() => import("./pages/portal/PortalInvitePage"));
-const PortalAuthPage = lazy(() => import("./pages/portal/PortalAuthPage"));
-const PortalRequestCleanPage = lazy(() => import("./pages/portal/PortalRequestCleanPage"));
-const PortalSpendingHistoryPage = lazy(() => import("./pages/portal/PortalSpendingHistoryPage"));
-const PortalLoyaltyPage = lazy(() => import("./pages/portal/PortalLoyaltyPage"));
-const PortalAccountPage = lazy(() => import("./pages/portal/PortalAccountPage"));
 
 // Optimized QueryClient with stale time and caching
 const queryClient = new QueryClient({
@@ -113,15 +105,6 @@ const App = () => (
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/auth" element={<AuthPage />} />
 
-                    {/* Customer Portal (Invite-only) */}
-                    <Route path="/portal/invite" element={<PortalInvitePage />} />
-                    <Route path="/portal/auth" element={<PortalAuthPage />} />
-                    <Route path="/portal" element={<ProtectedPortalRoute><ErrorBoundary featureName="Customer Portal"><PortalRequestCleanPage /></ErrorBoundary></ProtectedPortalRoute>} />
-                    <Route path="/portal/request" element={<ProtectedPortalRoute><ErrorBoundary featureName="Customer Portal"><PortalRequestCleanPage /></ErrorBoundary></ProtectedPortalRoute>} />
-                    <Route path="/portal/spending" element={<ProtectedPortalRoute><ErrorBoundary featureName="Customer Portal"><PortalSpendingHistoryPage /></ErrorBoundary></ProtectedPortalRoute>} />
-                    <Route path="/portal/loyalty" element={<ProtectedPortalRoute><ErrorBoundary featureName="Customer Portal"><PortalLoyaltyPage /></ErrorBoundary></ProtectedPortalRoute>} />
-                    <Route path="/portal/account" element={<ProtectedPortalRoute><ErrorBoundary featureName="Customer Portal"><PortalAccountPage /></ErrorBoundary></ProtectedPortalRoute>} />
-                    
                     {/* Public Routes - Lazy Loaded */}
                     <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
