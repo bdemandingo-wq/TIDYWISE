@@ -2011,6 +2011,41 @@ export type Database = {
           },
         ]
       }
+      organization_mobile_nav_settings: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          organization_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          organization_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          organization_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_mobile_nav_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_pricing_settings: {
         Row: {
           created_at: string
