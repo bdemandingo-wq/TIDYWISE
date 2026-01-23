@@ -1,12 +1,16 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, Suspense, lazy, useState } from 'react';
 import { Search, Plus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { Badge } from '@/components/ui/badge';
 import { AdminNotificationBell } from '@/components/admin/AdminNotificationBell';
+
+// Performance: the booking dialog is a heavy multi-step flow; only load it when opened.
+const AddBookingDialog = lazy(() =>
+  import('@/components/admin/AddBookingDialog').then((m) => ({ default: m.AddBookingDialog }))
+);
 
 interface AdminHeaderProps {
   title: string;
@@ -80,10 +84,14 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
         </div>
       </header>
 
-      <AddBookingDialog 
-        open={bookingDialogOpen} 
-        onOpenChange={setBookingDialogOpen} 
-      />
+      <Suspense fallback={null}>
+        {bookingDialogOpen ? (
+          <AddBookingDialog
+            open={bookingDialogOpen}
+            onOpenChange={setBookingDialogOpen}
+          />
+        ) : null}
+      </Suspense>
     </>
   );
 }

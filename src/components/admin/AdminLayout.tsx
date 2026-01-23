@@ -1,10 +1,14 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, Suspense, lazy, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
-import { SubscriptionDialog } from './SubscriptionDialog';
 import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+
+// Performance: only load subscription UI when it's actually needed (opened).
+const SubscriptionDialog = lazy(() =>
+  import('./SubscriptionDialog').then((m) => ({ default: m.SubscriptionDialog }))
+);
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -35,11 +39,15 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         </main>
       </div>
       
-      <SubscriptionDialog 
-        open={showSubscriptionDialog}
-        onOpenChange={setShowSubscriptionDialog}
-        onSubscriptionActive={checkSubscription}
-      />
+      <Suspense fallback={null}>
+        {showSubscriptionDialog ? (
+          <SubscriptionDialog
+            open={showSubscriptionDialog}
+            onOpenChange={setShowSubscriptionDialog}
+            onSubscriptionActive={checkSubscription}
+          />
+        ) : null}
+      </Suspense>
       
       <OfflineIndicator />
     </div>
