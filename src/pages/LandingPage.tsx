@@ -161,6 +161,8 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   // Scroll reveal refs
   const featuresReveal = useScrollReveal();
   const statsReveal = useScrollReveal();
@@ -198,7 +200,7 @@ export default function LandingPage() {
           ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' 
           : 'bg-transparent'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 md:h-20">
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl md:text-2xl text-foreground tracking-tight">TIDYWISE</span>
@@ -222,25 +224,75 @@ export default function LandingPage() {
               className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
-          {/* Mobile Navigation - Slide down animation */}
-          <div className={`md:hidden overflow-hidden transition-all duration-300 ${
-            mobileMenuOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0'
-          }`}>
-            <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-              <a href="#features" className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all">Features</a>
-              <a href="#blog" className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all">Blog</a>
-              <a href="#testimonials" className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all">Testimonials</a>
-              <Button variant="ghost" className="justify-start" onClick={() => navigate("/staff/login")}>Staff Portal</Button>
-              <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button variant="premium" className="mt-2" onClick={() => navigate("/auth")}>
-                Start Free Trial
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
+          {/* Mobile Navigation (overlay panel so it doesn't cover hero content) */}
+          <div
+            className={`md:hidden absolute left-0 right-0 top-full transition-all duration-200 ${
+              mobileMenuOpen
+                ? "opacity-100 translate-y-0 pointer-events-auto"
+                : "opacity-0 -translate-y-2 pointer-events-none"
+            }`}
+          >
+            <div className="mt-2 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-lg overflow-hidden">
+              <div className="flex flex-col gap-1 p-2">
+                <a
+                  href="#features"
+                  onClick={closeMobileMenu}
+                  className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                >
+                  Features
+                </a>
+                <a
+                  href="#blog"
+                  onClick={closeMobileMenu}
+                  className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                >
+                  Blog
+                </a>
+                <a
+                  href="#testimonials"
+                  onClick={closeMobileMenu}
+                  className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                >
+                  Testimonials
+                </a>
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => {
+                    closeMobileMenu();
+                    navigate("/staff/login");
+                  }}
+                >
+                  Staff Portal
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => {
+                    closeMobileMenu();
+                    navigate("/auth");
+                  }}
+                >
+                  Log In
+                </Button>
+                <Button
+                  variant="premium"
+                  className="mt-1"
+                  onClick={() => {
+                    closeMobileMenu();
+                    navigate("/auth");
+                  }}
+                >
+                  Start Free Trial
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
