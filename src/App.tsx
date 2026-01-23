@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
@@ -12,6 +12,7 @@ import { ProtectedOrgRoute } from "@/components/ProtectedOrgRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Capacitor } from "@capacitor/core";
 
 // Critical path - load immediately
 import LandingPage from "./pages/LandingPage";
@@ -98,7 +99,87 @@ const App = () => (
               <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
+              {/*
+                Native (Capacitor) builds should use HashRouter to avoid blank screens on launch
+                due to history-based routing not being handled by the embedded webview.
+              */}
+              {Capacitor.isNativePlatform() ? (
+                <HashRouter>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                    {/* Public Routes - Critical Path */}
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/auth" element={<AuthPage />} />
+
+                      {/* Public Routes - Lazy Loaded */}
+                      <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/onboarding" element={<OnboardingPage />} />
+                      <Route path="/review/:token" element={<ReviewPage />} />
+                      <Route path="/blog" element={<BlogIndex />} />
+                      <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
+                      <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
+                      <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
+                      
+                      {/* Comparison Pages */}
+                      <Route path="/compare/jobber" element={<CompareJobber />} />
+                      <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
+                      <Route path="/compare/housecall-pro" element={<CompareHousecallPro />} />
+                      
+                      {/* Feature Pages */}
+                      <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
+                      <Route path="/features/quote-software" element={<QuoteSoftware />} />
+                      <Route path="/features/sms-notifications" element={<SMSNotifications />} />
+                      <Route path="/features/payment-processing" element={<PaymentProcessing />} />
+                      <Route path="/features/route-optimization" element={<RouteOptimization />} />
+                      <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
+                      <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
+
+                      {/* Staff Portal */}
+                      <Route path="/staff/login" element={<StaffLoginPage />} />
+                      <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
+                      <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
+
+                      {/* Dashboard Routes - All Lazy Loaded */}
+                      <Route path="/dashboard" element={<ProtectedOrgRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/scheduler" element={<ProtectedOrgRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/bookings" element={<ProtectedOrgRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/customers" element={<ProtectedOrgRoute><ErrorBoundary featureName="Customers"><CustomersPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/services" element={<ProtectedOrgRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/staff" element={<ProtectedOrgRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/payroll" element={<ProtectedOrgRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/finance" element={<ProtectedOrgRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/expenses" element={<ProtectedOrgRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/reports" element={<ProtectedOrgRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/settings" element={<ProtectedOrgRoute><ErrorBoundary featureName="Settings"><SettingsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/notifications" element={<ProtectedOrgRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/recurring" element={<ProtectedOrgRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/leads" element={<ProtectedOrgRoute><ErrorBoundary featureName="Leads"><LeadsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/inventory" element={<ProtectedOrgRoute><ErrorBoundary featureName="Inventory"><InventoryPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/invoices" element={<ProtectedOrgRoute><ErrorBoundary featureName="Invoices"><InvoicesPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/operations" element={<ProtectedOrgRoute><ErrorBoundary featureName="Operations Tracker"><OperationsTrackerPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/feedback" element={<ProtectedOrgRoute><ErrorBoundary featureName="Client Feedback"><ClientFeedbackPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/campaigns" element={<ProtectedOrgRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/checklists" element={<ProtectedOrgRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/payment-integration" element={<ProtectedOrgRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/subscription" element={<ProtectedOrgRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/help" element={<ProtectedOrgRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/discounts" element={<ProtectedOrgRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/messages" element={<ProtectedOrgRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/tasks" element={<ProtectedOrgRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/dashboard/platform-analytics" element={<ProtectedOrgRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></ProtectedOrgRoute>} />
+
+                      {/* Legacy admin routes */}
+                      <Route path="/admin" element={<ProtectedOrgRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></ProtectedOrgRoute>} />
+                      <Route path="/admin/*" element={<ProtectedOrgRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></ProtectedOrgRoute>} />
+
+                      {/* Catch-all */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </HashRouter>
+              ) : (
+                <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                   {/* Public Routes - Critical Path */}
@@ -171,7 +252,8 @@ const App = () => (
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-              </BrowserRouter>
+                </BrowserRouter>
+              )}
               </TooltipProvider>
             </TestModeProvider>
           </OrganizationProvider>
