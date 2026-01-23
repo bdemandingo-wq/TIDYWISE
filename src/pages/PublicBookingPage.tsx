@@ -184,7 +184,7 @@ export default function PublicBookingPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-sidebar text-sidebar-foreground">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {logoUrl ? (
@@ -217,7 +217,7 @@ export default function PublicBookingPage() {
 
       {/* Progress Steps */}
       <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-center gap-8">
             {[
               { num: 1, label: 'Select Service' },
@@ -256,17 +256,17 @@ export default function PublicBookingPage() {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
           {/* Step 1: Select Service & Square Footage */}
           {step === 1 && (
-            <div className="animate-fade-in space-y-8">
+            <div className="animate-fade-in space-y-6">
               {/* Square Footage Selection */}
               <div>
                 <h2 className="text-2xl font-bold mb-2">Home Size</h2>
                 <p className="text-muted-foreground mb-4">Select your home's square footage</p>
                 <Card>
-                  <CardContent className="p-6">
+                  <CardContent className="p-5">
                     <div className="flex items-center gap-3 mb-4">
                       <Ruler className="w-5 h-5 text-primary" />
                       <Label className="text-base">Square Footage</Label>
@@ -309,7 +309,7 @@ export default function PublicBookingPage() {
                         )}
                         onClick={() => setSelectedService(svc.id)}
                       >
-                        <CardContent className="p-6">
+                        <CardContent className="p-5">
                           <div className="flex items-start gap-4">
                             <div
                               className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
@@ -349,7 +349,7 @@ export default function PublicBookingPage() {
                   <h2 className="text-2xl font-bold mb-2">Add Extras</h2>
                   <p className="text-muted-foreground mb-4">Optional add-on services</p>
                   <Card>
-                    <CardContent className="p-6">
+                    <CardContent className="p-5">
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {extras.map((extra) => (
                           <div 
@@ -383,7 +383,7 @@ export default function PublicBookingPage() {
               {/* Price Summary */}
               {selectedService && selectedSqFtIndex !== null && (
                 <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="p-6">
+                  <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Estimated Total</p>

@@ -32,7 +32,7 @@ const InteractiveDemo = lazy(() => import("@/components/landing/InteractiveDemo"
 
 // Lightweight skeleton for lazy sections
 const SectionSkeleton = () => (
-  <div className="py-20 px-4 animate-pulse">
+  <div className="py-16 px-4 animate-pulse">
     <div className="max-w-7xl mx-auto">
       <div className="h-8 w-64 bg-muted rounded-lg mx-auto mb-4" />
       <div className="h-4 w-96 bg-muted rounded mx-auto mb-12" />
@@ -201,7 +201,7 @@ export default function LandingPage() {
           : 'bg-transparent'
       }`}>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 md:h-20">
+            <div className="flex justify-between items-center h-14 md:h-18">
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl md:text-2xl text-foreground tracking-tight">TIDYWISE</span>
             </div>
@@ -299,7 +299,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section - Premium redesign */}
-      <section className="relative pt-[calc(7rem+env(safe-area-inset-top))] md:pt-[calc(9rem+env(safe-area-inset-top))] pb-20 md:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative pt-[calc(6.5rem+env(safe-area-inset-top))] md:pt-[calc(8.5rem+env(safe-area-inset-top))] pb-16 md:pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Animated gradient background */}
         <div className="hero-gradient-bg" />
         
@@ -312,7 +312,7 @@ export default function LandingPage() {
             {/* Left side - Text content */}
             <div className="text-center lg:text-left animate-fade-up">
               {/* Trust badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 backdrop-blur-sm rounded-full text-primary text-sm font-medium mb-6 border border-primary/20 animate-pulse-glow">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 backdrop-blur-sm rounded-full text-primary text-sm font-medium mb-5 border border-primary/20 animate-pulse-glow">
                 <Sparkles className="h-4 w-4" />
                 <span>#1 Rated Cleaning Business Software</span>
                 <ChevronRight className="h-4 w-4" />
@@ -356,7 +356,7 @@ export default function LandingPage() {
               </p>
 
               {/* Social proof mini */}
-              <div className="flex items-center gap-4 mt-8 justify-center lg:justify-start">
+               <div className="flex items-center gap-4 mt-7 justify-center lg:justify-start">
                 <div className="flex -space-x-2">
                   {['bg-primary', 'bg-accent', 'bg-warning', 'bg-success'].map((bg, i) => (
                     <div key={i} className={`w-10 h-10 rounded-full ${bg} border-2 border-background flex items-center justify-center text-white text-xs font-medium`}>
@@ -459,7 +459,7 @@ export default function LandingPage() {
       <section 
         id="features" 
         ref={featuresReveal.ref}
-        className={`py-20 md:py-28 px-4 sm:px-6 lg:px-8 bg-secondary/30 transition-all duration-700 ${
+        className={`py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30 transition-all duration-700 ${
           featuresReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -693,7 +693,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer - Clean and minimal */}
-      <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border bg-background">
+      <footer className="py-10 px-4 sm:px-6 lg:px-8 border-t border-border bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="md:col-span-1">

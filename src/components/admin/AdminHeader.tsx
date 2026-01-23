@@ -30,7 +30,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
         We respect the safe-area inset here and keep the visual height consistent.
       */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center justify-between h-12 md:h-16 px-3 md:px-6">
+        <div className="flex items-center justify-between h-11 md:h-14 px-2 md:px-4">
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-base md:text-xl font-semibold text-foreground leading-tight">{title}</h1>
@@ -49,8 +49,8 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
             Mobile: header actions can overflow on smaller screens.
             Make this horizontally scrollable so users can swipe to reach actions like “New Booking”.
           */}
-          <div
-            className="flex-1 min-w-0 overflow-x-auto pl-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            <div
+              className="flex-1 min-w-0 overflow-x-auto pl-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             aria-label="Header actions"
           >
             <div className="flex w-max min-w-full items-center justify-end gap-1.5 md:gap-4 whitespace-nowrap">
@@ -59,7 +59,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search..."
-                  className="w-64 pl-9 bg-secondary/50 border-0 focus-visible:ring-1"
+                  className="w-60 pl-9 bg-secondary/50 border-0 focus-visible:ring-1"
                 />
               </div>
 

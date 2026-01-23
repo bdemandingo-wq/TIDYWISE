@@ -40,9 +40,9 @@ export function BlogSection() {
   const otherPosts = blogPosts.filter(post => !post.featured);
 
   return (
-    <section id="blog" className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+    <section id="blog" className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
             <BookOpen className="h-4 w-4" />
             Resources & Guides
@@ -69,7 +69,7 @@ export function BlogSection() {
                     <span className="text-sm text-muted-foreground">Featured Guide</span>
                   </div>
                 </div>
-                <div className="p-8 lg:p-12 flex flex-col justify-center">
+                <div className="p-6 lg:p-10 flex flex-col justify-center">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                     <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium">
                       {featuredPost.category}
@@ -99,14 +99,14 @@ export function BlogSection() {
         )}
 
         {/* Other Articles */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="grid md:grid-cols-2 gap-6 mb-10">
           {otherPosts.map((post) => (
             <Link 
               key={post.slug}
               to={post.isFeaturePage ? `/features/${post.slug}` : `/blog/${post.slug}`}
               className="group"
             >
-              <article className="bg-card rounded-xl border border-border p-6 h-full hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <article className="bg-card rounded-xl border border-border p-5 h-full hover:shadow-lg hover:border-primary/50 transition-all duration-300">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                   <span className="px-3 py-1 bg-secondary text-foreground rounded-full font-medium">
                     {post.category}

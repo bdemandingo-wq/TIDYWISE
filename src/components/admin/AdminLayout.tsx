@@ -83,7 +83,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
           Keeping this compact avoids the “huge header” feel on mobile across all admin pages.
         */}
         <main
-          className="p-3 md:p-6 pt-3 md:pt-6 pb-24 md:pb-6 animate-page-enter overflow-y-auto"
+          className="p-2 md:p-4 pt-2 md:pt-4 pb-24 md:pb-4 animate-page-enter overflow-y-auto"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
         >

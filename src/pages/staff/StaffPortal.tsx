@@ -395,7 +395,7 @@ export default function StaffPortal() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Cleaner Portal</h1>
             <p className="text-sm text-muted-foreground">Welcome, {staffInfo?.name || 'Loading...'}</p>
@@ -425,8 +425,8 @@ export default function StaffPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="my-jobs" className="space-y-6">
+      <main className="container mx-auto px-4 py-4">
+        <Tabs defaultValue="my-jobs" className="space-y-4">
           <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
             <TabsTrigger value="my-jobs" className="gap-2">
               <Briefcase className="w-4 h-4 hidden sm:inline" />
