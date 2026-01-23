@@ -79,44 +79,19 @@ export default function PlatformAnalyticsPage() {
   const { data: sessionStats, refetch: refetchSessions } = useQuery({
     queryKey: ['platform-session-stats'],
     queryFn: async () => {
-      // Get all sessions from the last 30 days
-      const { data: sessions, error } = await supabase
-        .from('user_sessions')
-        .select('user_id, user_email, duration_seconds')
-        .gte('session_start', thirtyDaysAgo);
-      
-      if (error) throw error;
-      
-      // Aggregate by user
-      const userStats: Record<string, UserSessionStats> = {};
-      let totalDuration = 0;
-      let totalSessions = 0;
-      
-      sessions?.forEach((session: any) => {
-        const userId = session.user_id;
-        const duration = session.duration_seconds || 0;
-        totalDuration += duration;
-        totalSessions++;
-        
-        if (!userStats[userId]) {
-          userStats[userId] = {
-            user_id: userId,
-            user_email: session.user_email || 'Unknown',
-            total_duration_seconds: 0,
-            session_count: 0,
-          };
-        }
-        userStats[userId].total_duration_seconds += duration;
-        userStats[userId].session_count++;
+      // IMPORTANT:
+      // Client-side querying can silently truncate at 1000 rows.
+      // Use a backend function that paginates & aggregates server-side.
+      const { data, error } = await supabase.functions.invoke('platform-session-stats', {
+        body: { days: 30 },
       });
-      
-      const avgDuration = totalSessions > 0 ? Math.floor(totalDuration / totalSessions) : 0;
-      const userList = Object.values(userStats).sort((a, b) => b.total_duration_seconds - a.total_duration_seconds);
-      
+
+      if (error) throw error;
+
       return {
-        avgSessionDuration: avgDuration,
-        totalSessions,
-        userList,
+        avgSessionDuration: data?.avgSessionDuration ?? 0,
+        totalSessions: data?.totalSessions ?? 0,
+        userList: (data?.userList ?? []) as UserSessionStats[],
       };
     },
     enabled: user?.email === 'support@tidywisecleaning.com',
