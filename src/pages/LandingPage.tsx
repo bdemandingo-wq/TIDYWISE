@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
+import { useFooterHiddenItems } from "@/hooks/useFooterVisibility";
 
 // Lazy load below-the-fold heavy components for better LCP
 const AIBusinessTools = lazy(() => import("@/components/landing/AIBusinessTools").then(m => ({ default: m.AIBusinessTools })));
@@ -156,6 +157,7 @@ const baseFeatures = [
 ];
 
 export default function LandingPage() {
+  const footerHidden = useFooterHiddenItems();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -727,36 +729,52 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold text-foreground mb-4">Product</h4>
               <ul className="space-y-3">
-                <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a></li>
+                {!footerHidden.includes("product:features") && (
+                  <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
+                )}
+                {!footerHidden.includes("product:blog") && (
+                  <li><a href="#blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</a></li>
+                )}
+                {!footerHidden.includes("product:testimonials") && (
+                  <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a></li>
+                )}
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-4">Company</h4>
               <ul className="space-y-3">
-                <li>
-                  <a href="mailto:support@tidywisecleaning.com" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Contact
-                  </a>
-                </li>
-                <li>
-                  <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <TermsOfServiceDialog>
-                    <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</button>
-                  </TermsOfServiceDialog>
-                </li>
+                {!footerHidden.includes("company:contact") && (
+                  <li>
+                    <a href="mailto:support@tidywisecleaning.com" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      Contact
+                    </a>
+                  </li>
+                )}
+                {!footerHidden.includes("company:privacy") && (
+                  <li>
+                    <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      Privacy
+                    </Link>
+                  </li>
+                )}
+                {!footerHidden.includes("company:terms") && (
+                  <li>
+                    <TermsOfServiceDialog>
+                      <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</button>
+                    </TermsOfServiceDialog>
+                  </li>
+                )}
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-4">Compare</h4>
               <ul className="space-y-3">
-                <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
-                <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>
+                {!footerHidden.includes("compare:jobber") && (
+                  <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
+                )}
+                {!footerHidden.includes("compare:booking-koala") && (
+                  <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>
+                )}
               </ul>
             </div>
           </div>
