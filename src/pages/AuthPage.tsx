@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 
@@ -214,6 +215,19 @@ export default function AuthPage() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="mt-6 text-center text-xs text-muted-foreground">
+            <TermsOfServiceDialog>
+              <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+            </TermsOfServiceDialog>
+            {' '}•{' '}
+            <Link
+              to="/privacy-policy"
+              className="underline underline-offset-4 hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -378,6 +392,21 @@ export default function AuthPage() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="mt-6 text-center text-xs text-muted-foreground">
+          By continuing you agree to our{' '}
+          <TermsOfServiceDialog>
+            <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+          </TermsOfServiceDialog>
+          {' '}and acknowledge our{' '}
+          <Link
+            to="/privacy-policy"
+            className="underline underline-offset-4 hover:text-foreground transition-colors"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </div>
       </div>
     </div>
   );

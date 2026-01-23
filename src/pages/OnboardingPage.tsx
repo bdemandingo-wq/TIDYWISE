@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { toast } from 'sonner';
 import { 
   Loader2, 
@@ -519,6 +520,21 @@ export default function OnboardingPage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-6 text-center text-xs text-muted-foreground max-w-2xl">
+        By creating an account you agree to our{' '}
+        <TermsOfServiceDialog>
+          <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+        </TermsOfServiceDialog>
+        {' '}and acknowledge our{' '}
+        <Link
+          to="/privacy-policy"
+          className="underline underline-offset-4 hover:text-foreground transition-colors"
+        >
+          Privacy Policy
+        </Link>
+        .
+      </div>
     </div>
   );
 }

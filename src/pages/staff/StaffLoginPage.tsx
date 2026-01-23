@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -24,6 +24,7 @@ import { Eye, EyeOff, HardHat, Loader2, Fingerprint } from "lucide-react";
 
 import { Seo } from "@/components/Seo";
 import { hasStaffOrAdminRole, requestStaffPasswordReset, signInStaff } from "@/features/staff-auth/staffAuth";
+import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
@@ -250,6 +251,21 @@ export default function StaffLoginPage() {
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Need access? Contact your administrator to get invited.
+            </p>
+
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              By continuing you agree to our{" "}
+              <TermsOfServiceDialog>
+                <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+              </TermsOfServiceDialog>
+              {" "}and acknowledge our{" "}
+              <Link
+                to="/privacy-policy"
+                className="underline underline-offset-4 hover:text-foreground transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              .
             </p>
           </CardContent>
         </Card>

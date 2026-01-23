@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
+import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -742,6 +743,23 @@ export default function PublicBookingPage() {
           </div>
         </div>
       </main>
+
+      <footer className="border-t border-border py-6">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          <span>By booking you agree to our </span>
+          <TermsOfServiceDialog>
+            <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+          </TermsOfServiceDialog>
+          <span> and acknowledge our </span>
+          <Link
+            to="/privacy-policy"
+            className="underline underline-offset-4 hover:text-foreground transition-colors"
+          >
+            Privacy Policy
+          </Link>
+          <span>.</span>
+        </div>
+      </footer>
     </div>
   );
 }
