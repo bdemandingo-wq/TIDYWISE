@@ -41,6 +41,7 @@ export function useSessionTracker() {
     if (!user) return;
     
     try {
+      console.log('[SESSION_TRACKER] createSession start', { userId: user.id, email: user.email });
       const { data, error } = await supabase
         .from('user_sessions')
         .insert({
@@ -55,11 +56,12 @@ export function useSessionTracker() {
 
       if (error) throw error;
       sessionIdRef.current = data.id;
+      console.log('[SESSION_TRACKER] createSession success', { sessionId: data.id, userId: user.id, email: user.email });
       sessionStartRef.current = Date.now();
       activeTimeRef.current = 0;
       lastActivityRef.current = Date.now();
     } catch (err) {
-      console.error('Failed to create session:', err);
+      console.error('[SESSION_TRACKER] createSession failed', { userId: user.id, email: user.email, err });
     }
   }, [user]);
 
@@ -80,15 +82,23 @@ export function useSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      await supabase
+      const { error } = await supabase
         .from('user_sessions')
         .update({
           duration_seconds: durationSeconds,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionIdRef.current);
+
+      if (error) throw error;
     } catch (err) {
-      console.error('Failed to update session:', err);
+      console.error('[SESSION_TRACKER] updateSession failed', {
+        sessionId: sessionIdRef.current,
+        userId: user.id,
+        email: user.email,
+        durationSeconds,
+        err,
+      });
     }
   }, [user, checkIdle]);
 
@@ -105,7 +115,7 @@ export function useSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      await supabase
+      const { error } = await supabase
         .from('user_sessions')
         .update({
           session_end: new Date().toISOString(),
@@ -113,8 +123,14 @@ export function useSessionTracker() {
           is_active: false,
         })
         .eq('id', sessionIdRef.current);
+
+      if (error) throw error;
     } catch (err) {
-      console.error('Failed to end session:', err);
+      console.error('[SESSION_TRACKER] endSession failed', {
+        sessionId: sessionIdRef.current,
+        durationSeconds,
+        err,
+      });
     }
     
     sessionIdRef.current = null;
@@ -122,6 +138,7 @@ export function useSessionTracker() {
 
   useEffect(() => {
     if (!user) return;
+    console.log('[SESSION_TRACKER] init', { userId: user.id, email: user.email });
 
     // Start session
     createSession();
