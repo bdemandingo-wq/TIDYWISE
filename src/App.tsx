@@ -105,8 +105,9 @@ const App = () => (
               */}
               {Capacitor.isNativePlatform() ? (
                 <HashRouter>
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
+                   <ErrorBoundary featureName="App">
+                     <Suspense fallback={<PageLoader />}>
+                       <Routes>
                     {/* Public Routes - Critical Path */}
                       <Route path="/" element={<LandingPage />} />
                       <Route path="/auth" element={<AuthPage />} />
@@ -175,13 +176,15 @@ const App = () => (
 
                       {/* Catch-all */}
                       <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
+                       </Routes>
+                     </Suspense>
+                   </ErrorBoundary>
                 </HashRouter>
               ) : (
                 <BrowserRouter>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
+                 <ErrorBoundary featureName="App">
+                   <Suspense fallback={<PageLoader />}>
+                     <Routes>
                   {/* Public Routes - Critical Path */}
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/auth" element={<AuthPage />} />
@@ -250,8 +253,9 @@ const App = () => (
 
                     {/* Catch-all */}
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
+                     </Routes>
+                   </Suspense>
+                 </ErrorBoundary>
                 </BrowserRouter>
               )}
               </TooltipProvider>
