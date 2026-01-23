@@ -1,9 +1,5 @@
 {
   "appId": "app.lovable.b5fbe592e63a4ccf8d0f0393049d0881",
   "appName": "TidyWise",
-  "webDir": "dist",
-  "server": {
-    "url": "https://b5fbe592-e63a-4ccf-8d0f-0393049d0881.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }
