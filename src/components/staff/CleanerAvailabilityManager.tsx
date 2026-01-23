@@ -42,23 +42,23 @@ export function CleanerAvailabilityManager({ staffId }: Props) {
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Fetch existing working hours - scoped to organization for defense-in-depth
+  // Fetch existing working hours
+  // NOTE: The `working_hours` table does not have `organization_id`.
+  // Org isolation is enforced via RLS (through staff/org_memberships).
   const { data: existingHours, isLoading } = useQuery({
     queryKey: ['working-hours', staffId, organizationId],
     queryFn: async () => {
-      if (!organizationId) return [];
       // Use type workaround for Supabase deep type inference
       const client: any = supabase;
       const { data, error } = await client
         .from('working_hours')
         .select('*')
-        .eq('staff_id', staffId)
-        .eq('organization_id', organizationId);
+        .eq('staff_id', staffId);
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!staffId && !!organizationId,
+    enabled: !!staffId,
   });
 
   // Initialize working hours
@@ -81,24 +81,22 @@ export function CleanerAvailabilityManager({ staffId }: Props) {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!organizationId) throw new Error('No organization context');
-      
       // Use type workaround for Supabase deep type inference
       const client: any = supabase;
-      
-      // Delete existing and insert new - scoped to organization
-      await client
+
+      // Delete existing and insert new
+      const { error: deleteError } = await client
         .from('working_hours')
         .delete()
-        .eq('staff_id', staffId)
-        .eq('organization_id', organizationId);
+        .eq('staff_id', staffId);
+
+      if (deleteError) throw deleteError;
 
       const { error } = await client
         .from('working_hours')
         .insert(
           workingHours.map((h) => ({
             staff_id: staffId,
-            organization_id: organizationId,
             day_of_week: h.day_of_week,
             start_time: h.start_time,
             end_time: h.end_time,

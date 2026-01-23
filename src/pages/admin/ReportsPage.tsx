@@ -39,7 +39,8 @@ import { useOrgId } from '@/hooks/useOrgId';
 async function fetchOrgData(orgId: string): Promise<{ whData: any[]; custData: any[]; recData: any[] }> {
   const client: any = supabase;
   // Working hours are limited per staff, so 500 is plenty
-  const whRes = await client.from('working_hours').select('*').eq('organization_id', orgId).limit(500);
+  // NOTE: `working_hours` has no `organization_id` column; org isolation is enforced via RLS.
+  const whRes = await client.from('working_hours').select('*').limit(500);
   // Customers: fetch most recent 1000 for reports (order by created_at desc)
   const custRes = await client.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1000);
   // Recurring bookings: fetch all active + limit to 500
