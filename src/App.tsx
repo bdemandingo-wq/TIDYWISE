@@ -14,9 +14,9 @@ import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Capacitor } from "@capacitor/core";
 
-// Critical path - load immediately
-import LandingPage from "./pages/LandingPage";
-import AuthPage from "./pages/AuthPage";
+// Critical path: keep the shell light; lazy-load even the public entry pages
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
 
 // Lazy-loaded page skeleton for loading states
 const PageLoader = () => (
@@ -25,7 +25,7 @@ const PageLoader = () => (
   </div>
 );
 
-// Lazy load all non-critical routes for code splitting
+// Lazy load all routes for code splitting
 const PublicBookingPage = lazy(() => import("./pages/PublicBookingPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));

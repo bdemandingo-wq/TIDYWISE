@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useEffect, useMemo, useState } from 'react';
 import { getStripePromise } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, Lock } from 'lucide-react';
@@ -8,6 +7,8 @@ import { toast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+
+type StripeReact = typeof import('@stripe/react-stripe-js');
 
 interface CardFormProps {
   email: string;
@@ -38,18 +39,23 @@ const CARD_ELEMENT_OPTIONS = {
   hidePostalCode: true,
 };
 
-function CardFormInner({ 
-  email, 
-  customerName, 
-  organizationId, 
-  onCardSaved, 
-  onError,
-  onHoldPlaced,
-  showHoldOption = true,
-  defaultHoldAmount = 50
-}: CardFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
+function CardFormInnerDynamic({
+  stripeReact,
+  ...props
+}: CardFormProps & { stripeReact: StripeReact }) {
+  const {
+    email,
+    customerName,
+    organizationId,
+    onCardSaved,
+    onError,
+    onHoldPlaced,
+    showHoldOption = true,
+    defaultHoldAmount = 50,
+  } = props;
+
+  const stripe = stripeReact.useStripe();
+  const elements = stripeReact.useElements();
   const [loading, setLoading] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
   const [placeHold, setPlaceHold] = useState(false);
@@ -60,7 +66,7 @@ function CardFormInner({
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
+    const cardElement = elements.getElement(stripeReact.CardElement);
     if (!cardElement) {
       return;
     }
@@ -164,7 +170,7 @@ function CardFormInner({
   return (
     <div className="space-y-4">
       <div className="p-3 border rounded-md bg-background">
-        <CardElement options={CARD_ELEMENT_OPTIONS} onChange={(e) => setCardComplete(e.complete)} />
+        <stripeReact.CardElement options={CARD_ELEMENT_OPTIONS} onChange={(e) => setCardComplete(e.complete)} />
       </div>
       
       {showHoldOption && (
@@ -230,10 +236,36 @@ function CardFormInner({
 export function StripeCardForm(props: CardFormProps) {
   // Lazily load Stripe.js only when this component is actually rendered.
   const stripePromise = useMemo(() => getStripePromise(), []);
+  const [stripeReact, setStripeReact] = useState<StripeReact | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@stripe/react-stripe-js')
+      .then((m) => {
+        if (!cancelled) setStripeReact(m);
+      })
+      .catch((err) => {
+        console.error('Failed to load Stripe React:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!stripeReact) {
+    return (
+      <div className="p-4 border rounded-lg bg-card">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading secure payment form…
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Elements stripe={stripePromise}>
-      <CardFormInner {...props} />
-    </Elements>
+    <stripeReact.Elements stripe={stripePromise}>
+      <CardFormInnerDynamic stripeReact={stripeReact} {...props} />
+    </stripeReact.Elements>
   );
 }
