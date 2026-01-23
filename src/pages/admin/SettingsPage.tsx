@@ -21,6 +21,7 @@ import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
+import { FooterVisibilitySettings } from '@/components/admin/FooterVisibilitySettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -351,7 +352,7 @@ export default function SettingsPage() {
       subtitle="Manage your business preferences"
     >
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-5xl grid-cols-9">
+        <TabsList className="w-full max-w-5xl overflow-x-auto flex flex-nowrap justify-start gap-1">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="booking-form">Booking Form</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
@@ -360,6 +361,7 @@ export default function SettingsPage() {
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="sidebar">Sidebar</TabsTrigger>
+          <TabsTrigger value="footer">Footer</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -781,6 +783,11 @@ export default function SettingsPage() {
         {/* Sidebar Settings */}
         <TabsContent value="sidebar" className="space-y-6">
           <SidebarVisibilitySettings />
+        </TabsContent>
+
+        {/* Footer Settings */}
+        <TabsContent value="footer" className="space-y-6">
+          <FooterVisibilitySettings />
         </TabsContent>
 
         {/* Security */}
