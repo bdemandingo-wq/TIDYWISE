@@ -118,10 +118,19 @@ export default function PlatformAnalyticsPage() {
     
     setDeleting(true);
     try {
-      const { error } = await supabase.functions.invoke('delete-platform-account', {
+      const { data, error } = await supabase.functions.invoke('delete-platform-account', {
         body: { userId: itemToDelete.id, type: itemToDelete.type }
       });
-      if (error) throw error;
+      
+      // Check for error in response body (backend returns 403 with disabled message)
+      if (error || data?.error) {
+        const errorMessage = data?.error || error?.message || 'Failed to delete';
+        toast.error(errorMessage);
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+      
       toast.success(`${itemToDelete.type === 'user' ? 'User' : 'Organization'} deleted successfully`);
       setDeleteDialogOpen(false);
       setItemToDelete(null);
@@ -129,6 +138,8 @@ export default function PlatformAnalyticsPage() {
     } catch (err: any) {
       console.error('Error deleting:', err);
       toast.error(err.message || 'Failed to delete');
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
     } finally {
       setDeleting(false);
     }
