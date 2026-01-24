@@ -352,18 +352,24 @@ export default function SettingsPage() {
       subtitle="Manage your business preferences"
     >
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="w-full max-w-5xl overflow-x-auto flex flex-nowrap justify-start gap-1">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="booking-form">Booking Form</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="sms">SMS</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="sidebar">Sidebar</TabsTrigger>
-          <TabsTrigger value="mobile-nav">Mobile Nav</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+        {/*
+          Mobile Safari can aggressively shrink inline-flex children, which can cause tab labels to visually overlap.
+          Use an explicit scroll container + non-shrinking triggers so labels stay readable.
+        */}
+        <div className="w-full max-w-5xl overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
+            <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="pricing">Pricing</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="sms">SMS</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-6">
