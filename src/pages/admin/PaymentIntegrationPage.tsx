@@ -20,6 +20,43 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
+function normalizeKeyInput(value: string): string {
+  return value.trim().replace(/\s+/g, "");
+}
+
+function looksMaskedStripeKey(value: string): boolean {
+  // Common patterns when someone copies the masked UI value instead of the real key
+  return (
+    value.includes("...") ||
+    value.includes("…") ||
+    value.includes("••") ||
+    value.length < 30
+  );
+}
+
+function validateStripeKeys(publishableKeyRaw: string, secretKeyRaw: string):
+  | { ok: true; publishableKey: string; secretKey: string }
+  | { ok: false; message: string } {
+  const publishableKey = normalizeKeyInput(publishableKeyRaw);
+  const secretKey = normalizeKeyInput(secretKeyRaw);
+
+  if (!publishableKey.startsWith("pk_")) {
+    return { ok: false, message: "Publishable key should start with 'pk_'" };
+  }
+  if (!secretKey.startsWith("sk_")) {
+    return { ok: false, message: "Secret key should start with 'sk_'" };
+  }
+  if (looksMaskedStripeKey(secretKey)) {
+    return {
+      ok: false,
+      message:
+        "That secret key looks masked/truncated. In Stripe, create/rotate a secret key and copy the FULL value (Stripe only shows it once).",
+    };
+  }
+
+  return { ok: true, publishableKey, secretKey };
+}
+
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
   const [publishableKey, setPublishableKey] = useState("");
@@ -64,12 +101,9 @@ export default function PaymentIntegrationPage() {
   }, [organization?.id]);
 
   const handleTestConnection = async () => {
-    if (!publishableKey.startsWith("pk_")) {
-      toast.error("Publishable key should start with 'pk_'");
-      return;
-    }
-    if (!secretKey.startsWith("sk_")) {
-      toast.error("Secret key should start with 'sk_'");
+    const validated = validateStripeKeys(publishableKey, secretKey);
+    if (validated.ok === false) {
+      toast.error(validated.message);
       return;
     }
 
@@ -77,7 +111,7 @@ export default function PaymentIntegrationPage() {
     try {
       // Test the publishable key by loading Stripe
       const { loadStripe } = await import("@stripe/stripe-js");
-      const stripe = await loadStripe(publishableKey);
+      const stripe = await loadStripe(validated.publishableKey);
       
       if (stripe) {
         setIsConnected(true);
@@ -99,6 +133,12 @@ export default function PaymentIntegrationPage() {
       return;
     }
 
+    const validated = validateStripeKeys(publishableKey, secretKey);
+    if (validated.ok === false) {
+      toast.error(validated.message);
+      return;
+    }
+
     if (!organization?.id) {
       toast.error("Organization not found");
       return;
@@ -111,8 +151,8 @@ export default function PaymentIntegrationPage() {
         .from("org_stripe_settings")
         .upsert({
           organization_id: organization.id,
-          stripe_secret_key: secretKey,
-          stripe_publishable_key: publishableKey,
+          stripe_secret_key: validated.secretKey,
+          stripe_publishable_key: validated.publishableKey,
           is_connected: true,
           connected_at: new Date().toISOString(),
         }, {
@@ -122,7 +162,7 @@ export default function PaymentIntegrationPage() {
       if (error) throw error;
 
       // Also store publishable key in localStorage for frontend use
-      localStorage.setItem("stripe_publishable_key", publishableKey);
+      localStorage.setItem("stripe_publishable_key", validated.publishableKey);
       
       toast.success("Stripe connected successfully! You can now accept payments.");
       
@@ -132,7 +172,7 @@ export default function PaymentIntegrationPage() {
       setExistingConnection({
         is_connected: true,
         connected_at: new Date().toISOString(),
-        stripe_publishable_key: publishableKey,
+        stripe_publishable_key: validated.publishableKey,
       });
     } catch (error: any) {
       console.error("Error saving Stripe keys:", error);
@@ -344,6 +384,9 @@ export default function PaymentIntegrationPage() {
               <p className="text-xs text-muted-foreground">
                 This key is kept secret and used only on the server
               </p>
+                <p className="text-xs text-muted-foreground">
+                  Tip: Stripe won’t let you re-view a secret key later — you must create/rotate one and copy the full value immediately.
+                </p>
             </div>
 
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex gap-3">
