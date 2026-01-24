@@ -25,14 +25,25 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    const { data: claimsData, error: claimsError } = await supabaseAdmin.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Authentication error: Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    const user = userData.user;
-    if (!user?.email || user.email !== PLATFORM_ADMIN_EMAIL) {
+    const userEmail = claimsData.claims.email as string | undefined;
+
+    if (!userEmail || userEmail !== PLATFORM_ADMIN_EMAIL) {
       return new Response(JSON.stringify({ error: "Unauthorized: Platform admin access only" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
