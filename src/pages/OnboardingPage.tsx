@@ -269,6 +269,15 @@ export default function OnboardingPage() {
 
   const totalSteps = 2;
 
+  // Show loading spinner while checking organization status
+  if (orgLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       {/* Logout button in top right */}

@@ -35,8 +35,10 @@ import {
   Check,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Conversation {
   id: string;
@@ -86,7 +88,9 @@ export default function MessagesPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactSearch, setContactSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [showConversationList, setShowConversationList] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   // Fetch contacts (customers and staff) for the contact picker
   const fetchContacts = async () => {
@@ -467,6 +471,181 @@ export default function MessagesPage() {
     return phone.slice(-2);
   };
 
+  const handleSelectConversation = (conv: Conversation) => {
+    setSelectedConversation(conv);
+    setShowConversationList(false);
+  };
+
+  const renderConversationList = () => (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b space-y-3">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ConversationTab)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="clients" className="gap-1">
+              <Users className="h-3 w-3" />
+              Clients
+            </TabsTrigger>
+            <TabsTrigger value="cleaners" className="gap-1">
+              <HardHat className="h-3 w-3" />
+              Cleaners
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+      
+      {/* Bulk Delete Bar */}
+      {selectedIds.size > 0 && (
+        <div className="p-2 border-b bg-muted/50 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={selectedIds.size === filteredConversations.length}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedIds(new Set())}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      <ScrollArea className="flex-1">
+        {loading ? (
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-sm text-muted-foreground">No conversations yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Start a new message to begin</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {filteredConversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={cn(
+                  "w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-2",
+                  selectedConversation?.id === conv.id && "bg-muted"
+                )}
+              >
+                <div 
+                  className="pt-1"
+                  onClick={(e) => toggleSelectConversation(conv.id, e)}
+                >
+                  <Checkbox 
+                    checked={selectedIds.has(conv.id)}
+                    onCheckedChange={() => {}}
+                  />
+                </div>
+                <button
+                  onClick={() => handleSelectConversation(conv)}
+                  className="flex-1 text-left"
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className={cn(
+                        "text-sm",
+                        conv.conversation_type === 'cleaner' 
+                          ? "bg-amber-100 text-amber-700" 
+                          : "bg-primary/10 text-primary"
+                      )}>
+                        {conv.conversation_type === 'cleaner' 
+                          ? <HardHat className="h-4 w-4" />
+                          : getInitials(conv.customer_name, conv.customer_phone)
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {conv.customer_name ? (
+                            <p className="font-medium truncate">
+                              {conv.customer_name}
+                            </p>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="text-muted-foreground truncate">
+                                {conv.customer_phone}
+                              </p>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-5 px-2 text-[10px] border-primary/50 text-primary hover:bg-primary/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedConversation(conv);
+                                  setEditingName('');
+                                  setEditNameOpen(true);
+                                }}
+                              >
+                                Set Name
+                              </Button>
+                            </div>
+                          )}
+                          {conv.conversation_type === 'cleaner' && (
+                            <Badge variant="outline" className="text-[10px] h-4 px-1">
+                              Cleaner
+                            </Badge>
+                          )}
+                        </div>
+                        {conv.unread_count > 0 && (
+                          <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                            {conv.unread_count}
+                          </Badge>
+                        )}
+                      </div>
+                      {conv.customer_name && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {conv.customer_phone}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+
   return (
     <AdminLayout 
       title="Messages" 
@@ -603,174 +782,28 @@ export default function MessagesPage() {
       }
     >
       <div className="flex h-[calc(100vh-12rem)] border rounded-lg overflow-hidden bg-card">
-        {/* Conversation List */}
-        <div className="w-80 border-r flex flex-col">
-          <div className="p-3 border-b space-y-3">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ConversationTab)}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="clients" className="gap-1">
-                  <Users className="h-3 w-3" />
-                  Clients
-                </TabsTrigger>
-                <TabsTrigger value="cleaners" className="gap-1">
-                  <HardHat className="h-3 w-3" />
-                  Cleaners
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+        {/* Conversation List - Hidden on mobile, shown in sheet */}
+        {isMobile ? (
+          <Sheet open={showConversationList} onOpenChange={setShowConversationList}>
+            <SheetTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="absolute top-4 left-4 z-10 md:hidden"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Conversations
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[320px] p-0">
+              {renderConversationList()}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <div className="w-80 border-r flex flex-col">
+            {renderConversationList()}
           </div>
-          
-          {/* Bulk Delete Bar */}
-          {selectedIds.size > 0 && (
-            <div className="p-2 border-b bg-muted/50 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  checked={selectedIds.size === filteredConversations.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.size} selected
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleting}
-                >
-                  {bulkDeleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-1" />
-                  )}
-                  Delete
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          <ScrollArea className="flex-1">
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center">
-                <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="text-sm text-muted-foreground">No conversations yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Start a new message to begin</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {filteredConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    className={cn(
-                      "w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-2",
-                      selectedConversation?.id === conv.id && "bg-muted"
-                    )}
-                  >
-                    <div 
-                      className="pt-1"
-                      onClick={(e) => toggleSelectConversation(conv.id, e)}
-                    >
-                      <Checkbox 
-                        checked={selectedIds.has(conv.id)}
-                        onCheckedChange={() => {}}
-                      />
-                    </div>
-                    <button
-                      onClick={() => setSelectedConversation(conv)}
-                      className="flex-1 text-left"
-                    >
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className={cn(
-                            "text-sm",
-                            conv.conversation_type === 'cleaner' 
-                              ? "bg-amber-100 text-amber-700" 
-                              : "bg-primary/10 text-primary"
-                          )}>
-                            {conv.conversation_type === 'cleaner' 
-                              ? <HardHat className="h-4 w-4" />
-                              : getInitials(conv.customer_name, conv.customer_phone)
-                            }
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {conv.customer_name ? (
-                                <p className="font-medium truncate">
-                                  {conv.customer_name}
-                                </p>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <p className="text-muted-foreground truncate">
-                                    {conv.customer_phone}
-                                  </p>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-5 px-2 text-[10px] border-amber-400 text-amber-600 hover:bg-amber-50"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedConversation(conv);
-                                      setEditingName('');
-                                      setEditNameOpen(true);
-                                    }}
-                                  >
-                                    Set Name
-                                  </Button>
-                                </div>
-                              )}
-                              {conv.conversation_type === 'cleaner' && (
-                                <Badge variant="outline" className="text-[10px] h-4 px-1 border-amber-300 text-amber-600">
-                                  Cleaner
-                                </Badge>
-                              )}
-                            </div>
-                            {conv.unread_count > 0 && (
-                              <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                                {conv.unread_count}
-                              </Badge>
-                            )}
-                          </div>
-                          {conv.customer_name && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {conv.customer_phone}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+        )}
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
