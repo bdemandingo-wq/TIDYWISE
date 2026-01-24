@@ -1911,6 +1911,50 @@ export type Database = {
           },
         ]
       }
+      org_stripe_settings: {
+        Row: {
+          connected_at: string | null
+          created_at: string
+          id: string
+          is_connected: boolean | null
+          organization_id: string
+          stripe_account_id: string | null
+          stripe_publishable_key: string | null
+          stripe_secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          is_connected?: boolean | null
+          organization_id: string
+          stripe_account_id?: string | null
+          stripe_publishable_key?: string | null
+          stripe_secret_key: string
+          updated_at?: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          is_connected?: boolean | null
+          organization_id?: string
+          stripe_account_id?: string | null
+          stripe_publishable_key?: string | null
+          stripe_secret_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_stripe_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_email_settings: {
         Row: {
           created_at: string

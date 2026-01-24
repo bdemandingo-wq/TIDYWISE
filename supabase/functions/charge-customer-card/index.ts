@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
+import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +85,21 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // Get org-specific Stripe client
+    const stripeResult = await getOrgStripeClient(organizationId);
+    if (!stripeResult.success || !stripeResult.stripe) {
+      console.error("Failed to get Stripe client:", stripeResult.error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: stripeResult.error || "Stripe not configured for this organization",
+          errorCode: "stripe_not_configured"
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const stripe = stripeResult.stripe;
 
     // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
     const customers = await stripe.customers.list({ email: email, limit: 100 });

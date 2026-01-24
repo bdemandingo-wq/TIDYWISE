@@ -2,10 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
+import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +59,17 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // Get org-specific Stripe client
+    const stripeResult = await getOrgStripeClient(organizationId);
+    if (!stripeResult.success || !stripeResult.stripe) {
+      console.error("Failed to get Stripe client:", stripeResult.error);
+      return new Response(
+        JSON.stringify({ error: stripeResult.error || "Stripe not configured for this organization" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const stripe = stripeResult.stripe;
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   CreditCard, 
-  ExternalLink, 
   CheckCircle2, 
   Key,
   Eye,
@@ -14,17 +13,55 @@ import {
   Save,
   AlertCircle,
   Loader2,
-  TestTube
+  TestTube,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 export default function PaymentIntegrationPage() {
+  const { organization } = useOrganization();
   const [publishableKey, setPublishableKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [existingConnection, setExistingConnection] = useState<{
+    is_connected: boolean;
+    connected_at: string | null;
+    stripe_publishable_key: string | null;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  // Check for existing Stripe connection on load
+  useEffect(() => {
+    const checkExistingConnection = async () => {
+      if (!organization?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("org_stripe_settings")
+          .select("is_connected, connected_at, stripe_publishable_key")
+          .eq("organization_id", organization.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error checking Stripe connection:", error);
+        } else if (data) {
+          setExistingConnection(data);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkExistingConnection();
+  }, [organization?.id]);
 
   const handleTestConnection = async () => {
     if (!publishableKey.startsWith("pk_")) {
@@ -62,28 +99,124 @@ export default function PaymentIntegrationPage() {
       return;
     }
 
+    if (!organization?.id) {
+      toast.error("Organization not found");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // Store publishable key in localStorage for frontend use
+      // Save both keys to the database
+      const { error } = await supabase
+        .from("org_stripe_settings")
+        .upsert({
+          organization_id: organization.id,
+          stripe_secret_key: secretKey,
+          stripe_publishable_key: publishableKey,
+          is_connected: true,
+          connected_at: new Date().toISOString(),
+        }, {
+          onConflict: "organization_id"
+        });
+
+      if (error) throw error;
+
+      // Also store publishable key in localStorage for frontend use
       localStorage.setItem("stripe_publishable_key", publishableKey);
       
-      // Note: Secret key should be stored securely on the backend
-      toast.success("Publishable key saved! For security, please contact support to configure your secret key on the server.");
+      toast.success("Stripe connected successfully! You can now accept payments.");
       
       setPublishableKey("");
       setSecretKey("");
       setIsConnected(false);
-    } catch (error) {
+      setExistingConnection({
+        is_connected: true,
+        connected_at: new Date().toISOString(),
+        stripe_publishable_key: publishableKey,
+      });
+    } catch (error: any) {
+      console.error("Error saving Stripe keys:", error);
       toast.error("Failed to save keys. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!organization?.id) return;
+
+    setIsDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from("org_stripe_settings")
+        .delete()
+        .eq("organization_id", organization.id);
+
+      if (error) throw error;
+
+      localStorage.removeItem("stripe_publishable_key");
+      setExistingConnection(null);
+      toast.success("Stripe disconnected successfully");
+    } catch (error) {
+      console.error("Error disconnecting Stripe:", error);
+      toast.error("Failed to disconnect Stripe");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
       <div className="space-y-6 max-w-3xl">
         
+        {/* Existing Connection Status */}
+        {existingConnection?.is_connected && (
+          <Card className="border-green-500/30 bg-green-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">Stripe Connected</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your Stripe account is connected and ready to accept payments.
+                    </p>
+                    {existingConnection.connected_at && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Connected on {new Date(existingConnection.connected_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  className="text-destructive hover:text-destructive"
+                >
+                  {isDisconnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span className="ml-2 hidden sm:inline">Disconnect</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Step-by-Step Instructions */}
         <Card>
           <CardHeader>
@@ -162,7 +295,7 @@ export default function PaymentIntegrationPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Key className="h-5 w-5" />
-              Enter Your Stripe API Keys
+              {existingConnection?.is_connected ? "Update Your Stripe API Keys" : "Enter Your Stripe API Keys"}
             </CardTitle>
             <CardDescription>
               Your keys are encrypted and stored securely
