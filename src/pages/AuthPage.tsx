@@ -429,7 +429,7 @@ export default function AuthPage() {
                   fill="#EA4335"
                 />
               </svg>
-              Continue with Google
+              {isLogin ? 'Continue with Google' : 'Sign up with Google'}
             </Button>
             <div className="mt-4 text-center text-sm">
               <span className="text-muted-foreground">
