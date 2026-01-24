@@ -31,18 +31,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-
-  if (!stripeSecretKey) {
-    return new Response(
-      JSON.stringify({ error: "Stripe secret key not configured" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     // Verify authentication
     const authHeader = req.headers.get("Authorization");
@@ -70,6 +61,24 @@ const handler = async (req: Request): Promise<Response> => {
     if (membershipError || !membership) {
       throw new Error("User not authorized for this organization");
     }
+
+    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    const { data: orgStripeSettings } = await supabase
+      .from("org_stripe_settings")
+      .select("stripe_secret_key")
+      .eq("organization_id", data.organizationId)
+      .maybeSingle();
+
+    const stripeSecretKey = orgStripeSettings?.stripe_secret_key || Deno.env.get("STRIPE_SECRET_KEY");
+    
+    if (!stripeSecretKey) {
+      return new Response(
+        JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     // Get or create Stripe customer
     const customers = await stripe.customers.list({ email: data.customerEmail, limit: 1 });
@@ -190,11 +199,11 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
-    // SMS-ONLY: Send payment link via SMS (OpenPhone)
-    const openPhoneApiKey = smsSettings?.openphone_api_key || Deno.env.get("OPENPHONE_API_KEY");
-    const openPhoneNumberId = smsSettings?.openphone_phone_number_id || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+    // STRICT ISOLATION: Only use organization-specific OpenPhone credentials
+    const openPhoneApiKey = smsSettings?.openphone_api_key;
+    const openPhoneNumberId = smsSettings?.openphone_phone_number_id;
 
-    if (openPhoneApiKey && openPhoneNumberId && data.customerPhone) {
+    if (openPhoneApiKey && openPhoneNumberId && data.customerPhone && smsSettings?.sms_enabled) {
       try {
         // Format phone number to E.164 format (must start with +)
         let formattedPhone = data.customerPhone.replace(/\D/g, ''); // Remove non-digits

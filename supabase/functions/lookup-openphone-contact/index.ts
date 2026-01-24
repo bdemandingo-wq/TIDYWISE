@@ -46,15 +46,16 @@ serve(async (req) => {
       .eq("organization_id", organizationId)
       .maybeSingle();
 
-    const apiKey = smsSettings?.openphone_api_key || Deno.env.get("OPENPHONE_API_KEY");
-
-    if (!apiKey) {
-      console.log("No OpenPhone API key configured");
+    // STRICT ISOLATION: Only use organization-specific credentials, never fallback to platform keys
+    if (!smsSettings?.openphone_api_key) {
+      console.log("[lookup-openphone-contact] No OpenPhone API key configured for organization:", organizationId);
       return new Response(
         JSON.stringify({ name: null, source: "no_api_key" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const apiKey = smsSettings.openphone_api_key;
 
     // Normalize phone number for OpenPhone API
     const normalizedPhone = phone.replace(/\D/g, "");

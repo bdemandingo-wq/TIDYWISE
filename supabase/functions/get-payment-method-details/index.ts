@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +10,7 @@ const corsHeaders = {
 
 interface GetPaymentMethodRequest {
   paymentMethodId: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -21,9 +19,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { paymentMethodId }: GetPaymentMethodRequest = await req.json();
+    const { paymentMethodId, organizationId }: GetPaymentMethodRequest = await req.json();
 
-    console.log("Getting payment method details for:", paymentMethodId);
+    console.log("Getting payment method details for:", paymentMethodId, "org:", organizationId);
 
     if (!paymentMethodId) {
       return new Response(
@@ -31,6 +29,37 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    if (!organizationId) {
+      return new Response(
+        JSON.stringify({ error: "Organization ID is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: orgStripeSettings } = await supabase
+      .from("org_stripe_settings")
+      .select("stripe_secret_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
+    
+    if (!stripeSecretKey) {
+      return new Response(
+        JSON.stringify({ error: "Stripe not configured for this organization" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 

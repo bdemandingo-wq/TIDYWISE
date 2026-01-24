@@ -2,10 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
-
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -124,6 +120,24 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     const companyName = settings?.company_name || "Your cleaning service";
+
+    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    const { data: orgStripeSettings } = await supabase
+      .from("org_stripe_settings")
+      .select("stripe_secret_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
+    
+    if (!stripeSecretKey) {
+      return new Response(
+        JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     // Check if customer exists in Stripe, create if not
     let customerId: string;

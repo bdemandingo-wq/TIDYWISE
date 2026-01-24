@@ -83,13 +83,14 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("organization_id", organizationId)
         .maybeSingle();
 
-      const openPhoneApiKey = smsSettings?.openphone_api_key || Deno.env.get("OPENPHONE_API_KEY");
-      const openPhoneNumberId = smsSettings?.openphone_phone_number_id || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
-
-      if (!openPhoneApiKey || !openPhoneNumberId) {
-        console.log(`[send-invoice-reminder] Skipping org ${organizationId} - no SMS settings`);
+      // STRICT ISOLATION: Only use organization-specific credentials, never fallback to platform keys
+      if (!smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
+        console.log(`[send-invoice-reminder] Skipping org ${organizationId} - no OpenPhone credentials configured`);
         continue;
       }
+
+      const openPhoneApiKey = smsSettings.openphone_api_key;
+      const openPhoneNumberId = smsSettings.openphone_phone_number_id;
 
       // Get business settings for company name
       const { data: businessSettings } = await supabase

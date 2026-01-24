@@ -17,7 +17,7 @@ interface GetOrgStripeResult {
 
 /**
  * Retrieves the organization's Stripe secret key and initializes a Stripe client.
- * Falls back to the global STRIPE_SECRET_KEY if no org-specific key is found.
+ * STRICT ISOLATION: Only uses organization-specific credentials - NO fallback to global keys.
  * 
  * @param organizationId - The organization's UUID
  * @returns An object with the initialized Stripe client or an error
@@ -38,7 +38,7 @@ export async function getOrgStripeClient(organizationId: string): Promise<GetOrg
     auth: { persistSession: false },
   });
 
-  // Try to get org-specific Stripe settings
+  // Get org-specific Stripe settings - STRICT ISOLATION: No fallback
   const { data: orgSettings, error: settingsError } = await supabase
     .from("org_stripe_settings")
     .select("stripe_secret_key, stripe_publishable_key, stripe_account_id, is_connected")
@@ -47,29 +47,20 @@ export async function getOrgStripeClient(organizationId: string): Promise<GetOrg
 
   if (settingsError) {
     console.error("[get-org-stripe-settings] Error fetching org settings:", settingsError);
-    // Don't fail - try fallback
+    return { success: false, error: "Failed to fetch Stripe settings" };
   }
 
-  let stripeSecretKey: string | null = null;
-
-  if (orgSettings?.stripe_secret_key) {
-    // Use org-specific key
-    stripeSecretKey = orgSettings.stripe_secret_key;
-    console.log("[get-org-stripe-settings] Using organization-specific Stripe key for org:", organizationId);
-  } else {
-    // Fallback to global key (for backwards compatibility during migration)
-    stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || null;
-    if (stripeSecretKey) {
-      console.log("[get-org-stripe-settings] Falling back to global STRIPE_SECRET_KEY for org:", organizationId);
-    }
-  }
-
-  if (!stripeSecretKey) {
+  // STRICT ISOLATION: Only use organization-specific key, never fallback to global keys
+  if (!orgSettings?.stripe_secret_key) {
+    console.log("[get-org-stripe-settings] No Stripe key configured for organization:", organizationId);
     return { 
       success: false, 
-      error: "No Stripe key configured. Please connect your Stripe account in Settings → Payments." 
+      error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." 
     };
   }
+
+  const stripeSecretKey = orgSettings.stripe_secret_key;
+  console.log("[get-org-stripe-settings] Using organization-specific Stripe key for org:", organizationId);
 
   try {
     const stripe = new Stripe(stripeSecretKey, {

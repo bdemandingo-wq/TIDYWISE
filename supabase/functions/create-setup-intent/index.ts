@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2025-08-27.basil",
-});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +59,30 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: orgStripeSettings } = await supabase
+      .from("org_stripe_settings")
+      .select("stripe_secret_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
+    
+    if (!stripeSecretKey) {
+      return new Response(
+        JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
     // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
     const customers = await stripe.customers.list({ email: email, limit: 100 });
