@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, Package, AlertTriangle, Trash2, Edit, RefreshCw, Settings, MoreVertical } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 

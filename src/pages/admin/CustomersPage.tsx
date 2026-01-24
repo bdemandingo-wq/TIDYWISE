@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { safeEdgeFunctionCall } from '@/lib/safeAction';

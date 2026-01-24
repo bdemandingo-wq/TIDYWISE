@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, FileText, Send, Check, Trash2, Edit, Loader2, Phone, DollarSign, Star } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import { format, addDays } from 'date-fns';

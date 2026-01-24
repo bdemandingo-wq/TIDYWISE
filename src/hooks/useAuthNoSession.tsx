@@ -9,26 +9,11 @@
  */
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
-import { User, Session, createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-/**
- * CRITICAL: Supabase client with NO session persistence
- * - persistSession: false - Sessions are NOT stored in localStorage
- * - autoRefreshToken: false - Tokens are NOT auto-refreshed
- * - storage: undefined - No storage mechanism for sessions
- */
-const supabaseNoSession = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: false,  // DO NOT persist sessions
-    autoRefreshToken: false, // DO NOT auto-refresh tokens
-    storage: undefined,      // NO storage
-    detectSessionInUrl: true, // Still detect OAuth callbacks
-  }
-});
+// Re-export for backward compatibility
+export const supabaseNoSession = supabase;
 
 interface AuthContextType {
   user: User | null;
@@ -232,6 +217,4 @@ export function useAuthNoSession() {
   }
   return context;
 }
-
-// Export the no-session supabase client for use in components
-export { supabaseNoSession };
+// supabaseNoSession is already exported above via re-export from @/lib/supabase

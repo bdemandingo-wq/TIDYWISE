@@ -5,7 +5,7 @@ import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2, Calendar, DollarSign, Users } from 'lucide-react';
 import { isToday } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageSkeleton, BookingCardSkeleton } from '@/components/ui/page-skeleton';
 

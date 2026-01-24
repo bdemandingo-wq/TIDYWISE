@@ -7,7 +7,7 @@ import {
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';

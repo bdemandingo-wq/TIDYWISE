@@ -80,14 +80,17 @@ export default function LoginPage() {
         } else {
           toast.error(error.message);
         }
+        setLoading(false);
         return;
       }
       
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      // Small delay to allow auth state to propagate before navigation
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100);
     } catch (error: any) {
       toast.error(error.message || 'An error occurred. Please try again.');
-    } finally {
       setLoading(false);
     }
   };

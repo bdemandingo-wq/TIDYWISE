@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // Generate 30-minute time slots from 8:00 AM to 5:00 PM in 12-hour format

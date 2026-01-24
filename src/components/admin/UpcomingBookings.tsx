@@ -5,7 +5,7 @@ import { Clock, User, ChevronRight, Phone, Loader2, Edit, MapPin } from 'lucide-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import {

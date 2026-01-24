@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails, useBookings } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';

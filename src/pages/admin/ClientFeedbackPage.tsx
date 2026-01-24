@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Download, MessageSquare, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';

@@ -72,7 +72,7 @@ import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
 import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
 import { BulkEditCleanerWages } from '@/components/admin/BulkEditCleanerWages';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { QuotesTabContent } from '@/components/admin/QuotesTabContent';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';

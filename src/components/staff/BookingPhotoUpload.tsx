@@ -3,7 +3,7 @@ import { Camera, Upload, X, CheckCircle, Loader2, ImageIcon } from 'lucide-react
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useNativeCamera } from '@/hooks/useNativeCamera';
 

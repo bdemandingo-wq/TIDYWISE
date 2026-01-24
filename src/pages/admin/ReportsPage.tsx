@@ -25,7 +25,7 @@ import { CustomerLifetimeValue } from '@/components/admin/CustomerLifetimeValue'
 import { StaffProductivityMetrics } from '@/components/admin/StaffProductivityMetrics';
 import { RevenueForecasting } from '@/components/admin/RevenueForecasting';
 import { PnLOverview } from '@/components/admin/PnLOverview';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

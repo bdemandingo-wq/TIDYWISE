@@ -21,7 +21,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { invokeSmsFunction } from '@/lib/smsErrorHandler';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';

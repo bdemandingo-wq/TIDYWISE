@@ -100,9 +100,9 @@ const queryClient = new QueryClient({
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
-      {/* Wrap with BOTH auth providers for backwards compatibility */}
-      <AuthProvider>
-        <AuthProviderNoSession>
+      {/* AuthProviderNoSession MUST wrap AuthProvider since AuthProvider uses useAuthNoSession */}
+      <AuthProviderNoSession>
+        <AuthProvider>
           <SessionTrackerProvider>
             <OrganizationProvider>
               <TestModeProvider>
@@ -282,8 +282,8 @@ const App = () => (
               </TestModeProvider>
             </OrganizationProvider>
           </SessionTrackerProvider>
-        </AuthProviderNoSession>
-      </AuthProvider>
+        </AuthProvider>
+      </AuthProviderNoSession>
     </QueryClientProvider>
   </ThemeProvider>
 );

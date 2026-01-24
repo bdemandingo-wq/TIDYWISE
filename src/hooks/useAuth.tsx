@@ -1,6 +1,13 @@
+/**
+ * AUTH HOOK - Unified with No-Session System
+ * 
+ * This hook now uses the no-session auth context as its source of truth.
+ * Session persistence is disabled - users must login every visit.
+ */
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuthNoSession, supabaseNoSession } from './useAuthNoSession';
 
 interface SubscriptionStatus {
   subscribed: boolean;
@@ -25,16 +32,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Use the no-session auth as the source of truth
+  const noSessionAuth = useAuthNoSession();
+  
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
+    await noSessionAuth.signOut();
     setSubscription(null);
     setShowSubscriptionDialog(false);
   };
@@ -42,12 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkSubscription = async (accessToken?: string) => {
     try {
       const token =
-        accessToken ??
-        (await supabase.auth.getSession()).data.session?.access_token;
+        accessToken ?? noSessionAuth.session?.access_token;
 
       if (!token) return;
 
-      const { data, error } = await supabase.functions.invoke("check-subscription", {
+      const { data, error } = await supabaseNoSession.functions.invoke("check-subscription", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -76,57 +80,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Listen for auth changes (sync only)
-    const {
-      data: { subscription: authSub },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Get initial session AFTER listener is set
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      authSub.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!session?.access_token) {
+    if (!noSessionAuth.session?.access_token) {
       setSubscription(null);
       setShowSubscriptionDialog(false);
       return;
     }
 
     const t = window.setTimeout(async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await supabaseNoSession.auth.getUser();
       if (error || !data?.user) {
         await signOut();
         return;
       }
 
-      await checkSubscription(session.access_token);
+      await checkSubscription(noSessionAuth.session?.access_token);
     }, 0);
 
     return () => window.clearTimeout(t);
-  }, [session?.access_token]);
+  }, [noSessionAuth.session?.access_token]);
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
+      user: noSessionAuth.user, 
+      session: noSessionAuth.session, 
+      loading: noSessionAuth.loading || !noSessionAuth.initialCleanupDone, 
       signOut, 
       subscription, 
       checkSubscription,

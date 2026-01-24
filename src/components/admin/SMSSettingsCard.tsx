@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { MessageSquare, ExternalLink, CheckCircle2, Save, Loader2, Eye, EyeOff, Send } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface SMSSettings {
