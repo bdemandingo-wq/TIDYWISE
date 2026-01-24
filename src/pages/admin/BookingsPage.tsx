@@ -530,9 +530,27 @@ export default function BookingsPage() {
       }
     } catch (error: any) {
       console.error('Failed to charge card:', error);
+      
+      // Extract error message from edge function response body if available
+      let errorMessage = "Failed to charge card";
+      try {
+        const body = error?.context?.body;
+        if (typeof body === "string" && body.trim()) {
+          const parsed = JSON.parse(body);
+          if (parsed?.error) {
+            errorMessage = parsed.error;
+          }
+        }
+      } catch {
+        // Fallback to generic error message
+        if (error?.message) {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to charge card", 
+        title: "Charge Failed", 
+        description: errorMessage, 
         variant: "destructive" 
       });
     } finally {

@@ -258,14 +258,33 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error charging card:", error);
     
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Extract user-friendly message from Stripe errors
+    let errorMessage = "Unknown error occurred";
+    let isCardDecline = false;
+    
+    // Stripe errors have a 'type' property to identify card declines
+    const stripeError = error as { type?: string; message?: string };
+    if (stripeError?.type === "StripeCardError" || stripeError?.type === "card_error") {
+      // Card was declined - user-friendly message from Stripe
+      errorMessage = stripeError.message || "Your card was declined";
+      isCardDecline = true;
+    } else if (stripeError?.message) {
+      // Other Stripe or standard errors
+      errorMessage = stripeError.message;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    // Return 200 with success:false for card declines so the client parses it properly
+    // (Supabase client throws on non-2xx, losing the body)
+    const status = isCardDecline ? 200 : 500;
     
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 };
