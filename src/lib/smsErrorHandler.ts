@@ -18,8 +18,8 @@ export function handleSmsError(response: { data?: any; error?: any }): boolean {
   
   // Check for edge function error
   if (error) {
-    const errorMessage = error?.message || String(error);
-    return showSmsErrorToast(errorMessage);
+    const { message, code } = extractEdgeFunctionError(error, data);
+    return showSmsErrorToast(message, code);
   }
   
   // Check for error in response data (edge functions return 200 with error in body)
@@ -32,10 +32,60 @@ export function handleSmsError(response: { data?: any; error?: any }): boolean {
   return false;
 }
 
+function extractEdgeFunctionError(error: any, data?: any): { message: string; code?: string } {
+  // Prefer explicit error payloads if they were parsed.
+  if (data?.error) {
+    return {
+      message: String(data.error),
+      code: data?.errorCode ? String(data.errorCode) : undefined,
+    };
+  }
+
+  // Supabase FunctionsHttpError usually includes a context.body string.
+  const body = error?.context?.body;
+  if (typeof body === "string" && body.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed?.error) {
+        return {
+          message: String(parsed.error),
+          code: parsed?.errorCode ? String(parsed.errorCode) : undefined,
+        };
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  // Fallback to the generic error message.
+  return {
+    message: error?.message || String(error),
+    code: error?.errorCode ? String(error.errorCode) : undefined,
+  };
+}
+
 /**
  * Shows appropriate toast based on error type
  */
 function showSmsErrorToast(errorMessage: string, errorCode?: string): boolean {
+  // Payments not configured (common root cause for payment link SMS)
+  if (
+    errorMessage.includes('Stripe not configured') ||
+    errorMessage.includes('connect your Stripe')
+  ) {
+    toast.error('Payments Not Configured', {
+      description: 'Connect your payment processor in Payments before sending payment links.',
+      action: {
+        label: 'Go to Payments',
+        onClick: () => {
+          window.location.href = '/dashboard/payment-integration';
+        },
+      },
+      duration: 8000,
+    });
+    return true;
+  }
+
   // Not configured error
   if (
     errorMessage.includes('SMS not configured') || 
