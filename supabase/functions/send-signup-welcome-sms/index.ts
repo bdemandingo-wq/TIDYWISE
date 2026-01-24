@@ -56,9 +56,19 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Construct welcome message
+    // Construct welcome message with features
     const greeting = fullName ? `Hi ${fullName}! ` : "Hi! ";
-    const message = `${greeting}Welcome to TidyWise! 🎉 Your account has been created. Complete your setup to start managing your cleaning business like a pro. Questions? Reply to this text!`;
+    const message = `${greeting}Welcome to TidyWise! 🎉
+
+Your account is ready! Here's what you can do:
+
+📅 Easy online booking & scheduling
+💳 Accept payments & invoicing
+👥 Manage staff & payroll
+📊 Track customers & revenue
+📱 Send automated reminders
+
+Complete your setup to start managing your cleaning business like a pro. Questions? Reply to this text!`;
 
     console.log(`[send-signup-welcome-sms] Sending welcome SMS to ${formattedPhone}`);
 

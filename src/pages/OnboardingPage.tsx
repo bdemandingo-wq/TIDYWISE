@@ -47,6 +47,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [businessName, setBusinessName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [needsPhoneCollection, setNeedsPhoneCollection] = useState(false);
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [customServices, setCustomServices] = useState<{ name: string; description: string }[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -58,10 +60,28 @@ export default function OnboardingPage() {
     navigate('/auth', { replace: true });
   };
 
-  // Pre-select all cleaning services on mount
+  // Pre-select all cleaning services and check if user needs phone collection
   useEffect(() => {
     setSelectedServices(new Set(cleaningTemplate.services.map(s => s.name)));
-  }, []);
+    
+    // Check if user signed up via Google OAuth and needs phone collection
+    const checkPhoneNeeded = async () => {
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      // If no phone number, user likely signed up with Google OAuth
+      if (!profile?.phone) {
+        setNeedsPhoneCollection(true);
+      }
+    };
+    
+    checkPhoneNeeded();
+  }, [user]);
 
   // If the user already has a business, never let them re-onboard.
   useEffect(() => {
@@ -133,6 +153,22 @@ export default function OnboardingPage() {
     try {
       const name = businessName.trim();
       const initialSlug = slugify(name);
+      
+      // If user provided phone during onboarding (Google OAuth users), save it and send welcome SMS
+      if (needsPhoneCollection && phoneNumber.trim()) {
+        await supabase
+          .from('profiles')
+          .update({ phone: phoneNumber.trim() })
+          .eq('id', user.id);
+        
+        // Send welcome SMS for Google OAuth users
+        supabase.functions.invoke('send-signup-welcome-sms', {
+          body: {
+            to: phoneNumber.trim(),
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          },
+        }).catch(err => console.log('Welcome SMS failed (non-critical):', err));
+      }
 
       // Try a few times in case the slug is taken.
       let orgData: any = null;
@@ -264,7 +300,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const canProceedStep1 = businessName.trim().length >= 2;
+  const canProceedStep1 = businessName.trim().length >= 2 && (!needsPhoneCollection || phoneNumber.trim().length >= 10);
   const canProceedStep2 = selectedServices.size > 0;
 
   const totalSteps = 2;
@@ -320,7 +356,7 @@ export default function OnboardingPage() {
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Step 1: Business Name */}
+          {/* Step 1: Business Name & Phone */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -340,6 +376,21 @@ export default function OnboardingPage() {
                   </p>
                 )}
               </div>
+              
+              {/* Phone number collection for Google OAuth users */}
+              {needsPhoneCollection && (
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">We'll send you a welcome text with tips to get started!</p>
+                </div>
+              )}
               
               <Button 
                 className="w-full" 
