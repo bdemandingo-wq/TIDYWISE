@@ -32,6 +32,8 @@ import {
   CheckSquare,
   Square,
   X,
+  PanelLeftClose,
+  PanelLeft,
   Check,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -89,6 +91,7 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
+  const [isListCollapsed, setIsListCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -800,9 +803,32 @@ export default function MessagesPage() {
             </SheetContent>
           </Sheet>
         ) : (
-          <div className="w-80 border-r flex flex-col">
+          <div className={cn(
+            "border-r flex flex-col transition-all duration-300 relative",
+            isListCollapsed ? "w-0 overflow-hidden" : "w-80"
+          )}>
             {renderConversationList()}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border bg-background shadow-sm z-10"
+              onClick={() => setIsListCollapsed(true)}
+            >
+              <PanelLeftClose className="h-3 w-3" />
+            </Button>
           </div>
+        )}
+
+        {/* Expand button when collapsed */}
+        {!isMobile && isListCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full border bg-background shadow-sm z-10"
+            onClick={() => setIsListCollapsed(false)}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
         )}
 
         {/* Chat Area */}
