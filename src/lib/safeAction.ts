@@ -102,7 +102,7 @@ export async function safeEdgeFunctionCall<T>(
   body: Record<string, unknown>,
   options?: Partial<SafeActionOptions>
 ): Promise<SafeActionResult<T>> {
-  const { supabase } = await import('@/integrations/supabase/client');
+  const { supabase } = await import('@/lib/supabase');
   
   return safeAction(
     async () => {

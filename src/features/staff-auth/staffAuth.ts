@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export async function hasStaffOrAdminRole(userId: string): Promise<boolean> {
   const { data, error } = await supabase

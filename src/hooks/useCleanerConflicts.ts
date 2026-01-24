@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { differenceInMinutes, parseISO, format, isSameDay } from 'date-fns';
 
 export interface ConflictInfo {
