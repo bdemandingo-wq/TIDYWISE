@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useOrgId } from '@/hooks/useOrgId';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,7 @@ interface EditStaffDialogProps {
 
 export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogProps) {
   const queryClient = useQueryClient();
+  const { organizationId } = useOrgId();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -241,7 +243,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
 
     try {
       const { data, error } = await supabase.functions.invoke('reset-staff-password', {
-        body: { userId: staff.user_id, newPassword }
+        body: { userId: staff.user_id, newPassword, organizationId }
       });
 
       if (error) throw error;

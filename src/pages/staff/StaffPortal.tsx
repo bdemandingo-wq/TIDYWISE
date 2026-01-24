@@ -341,14 +341,15 @@ export default function StaffPortal() {
           const { data: bookingData } = await supabase
             .from('bookings')
             .select(`
-              id, 
+              id,
+              organization_id,
               customer:customers(id, email, first_name, last_name),
               service:services(name)
             `)
             .eq('id', bookingId)
             .single();
 
-          if (bookingData?.customer?.email) {
+          if (bookingData?.customer?.email && bookingData?.organization_id) {
             await supabase.functions.invoke('send-review-request', {
               body: {
                 bookingId: bookingData.id,
@@ -356,6 +357,7 @@ export default function StaffPortal() {
                 customerEmail: bookingData.customer.email,
                 customerName: `${bookingData.customer.first_name} ${bookingData.customer.last_name}`,
                 serviceName: bookingData.service?.name || 'Cleaning',
+                organizationId: bookingData.organization_id,
               },
             });
           }

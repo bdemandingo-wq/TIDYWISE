@@ -39,6 +39,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
+import { useOrgId } from '@/hooks/useOrgId';
 
 interface StaffMember {
   id: string;
@@ -71,6 +72,7 @@ export default function StaffPage() {
   const { data: staff = [], isLoading } = useStaff();
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
+  const { organizationId } = useOrgId();
 
   const filteredStaff = staff.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -158,6 +160,7 @@ export default function StaffPage() {
         body: {
           staffId: member.id,
           redirectUrl: `${window.location.origin}/staff/reset-password`,
+          organizationId,
         },
       });
 
