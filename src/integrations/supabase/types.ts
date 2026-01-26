@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_calculation_log: {
+        Row: {
+          calculation_type: string
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          organization_id: string
+          records_processed: number | null
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          calculation_type: string
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          organization_id: string
+          records_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          calculation_type?: string
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          organization_id?: string
+          records_processed?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_calculation_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automated_campaigns: {
         Row: {
           body: string
@@ -545,6 +586,83 @@ export type Database = {
           },
         ]
       }
+      business_intelligence: {
+        Row: {
+          avg_lead_conversion_rate: number | null
+          best_converting_day: string | null
+          best_converting_source: string | null
+          best_converting_time: string | null
+          bookings_needed_for_goal: number | null
+          created_at: string | null
+          id: string
+          last_calculated_at: string | null
+          optimal_price_range_high: number | null
+          optimal_price_range_low: number | null
+          optimal_response_window_minutes: number | null
+          organization_id: string
+          peak_demand_periods: Json | null
+          predicted_monthly_revenue: number | null
+          price_win_rate: number | null
+          recommendations: Json | null
+          revenue_goal_probability: number | null
+          seasonal_factors: Json | null
+          top_insights: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_lead_conversion_rate?: number | null
+          best_converting_day?: string | null
+          best_converting_source?: string | null
+          best_converting_time?: string | null
+          bookings_needed_for_goal?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated_at?: string | null
+          optimal_price_range_high?: number | null
+          optimal_price_range_low?: number | null
+          optimal_response_window_minutes?: number | null
+          organization_id: string
+          peak_demand_periods?: Json | null
+          predicted_monthly_revenue?: number | null
+          price_win_rate?: number | null
+          recommendations?: Json | null
+          revenue_goal_probability?: number | null
+          seasonal_factors?: Json | null
+          top_insights?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_lead_conversion_rate?: number | null
+          best_converting_day?: string | null
+          best_converting_source?: string | null
+          best_converting_time?: string | null
+          bookings_needed_for_goal?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated_at?: string | null
+          optimal_price_range_high?: number | null
+          optimal_price_range_low?: number | null
+          optimal_response_window_minutes?: number | null
+          organization_id?: string
+          peak_demand_periods?: Json | null
+          predicted_monthly_revenue?: number | null
+          price_win_rate?: number | null
+          recommendations?: Json | null
+          revenue_goal_probability?: number | null
+          seasonal_factors?: Json | null
+          top_insights?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_intelligence_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_settings: {
         Row: {
           accent_color: string | null
@@ -971,6 +1089,93 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_intelligence: {
+        Row: {
+          ai_insights: Json | null
+          behavior_patterns: Json | null
+          churn_risk_level: string | null
+          churn_risk_score: number | null
+          created_at: string | null
+          customer_id: string
+          days_since_last_contact: number | null
+          id: string
+          is_vip: boolean | null
+          last_calculated_at: string | null
+          next_booking_probability: number | null
+          organization_id: string
+          predicted_lifetime_value: number | null
+          predicted_next_booking_date: string | null
+          predicted_review_score: number | null
+          recommended_services: Json | null
+          sentiment_score: number | null
+          sentiment_trend: string | null
+          updated_at: string | null
+          upsell_potential_score: number | null
+          vip_reason: string | null
+        }
+        Insert: {
+          ai_insights?: Json | null
+          behavior_patterns?: Json | null
+          churn_risk_level?: string | null
+          churn_risk_score?: number | null
+          created_at?: string | null
+          customer_id: string
+          days_since_last_contact?: number | null
+          id?: string
+          is_vip?: boolean | null
+          last_calculated_at?: string | null
+          next_booking_probability?: number | null
+          organization_id: string
+          predicted_lifetime_value?: number | null
+          predicted_next_booking_date?: string | null
+          predicted_review_score?: number | null
+          recommended_services?: Json | null
+          sentiment_score?: number | null
+          sentiment_trend?: string | null
+          updated_at?: string | null
+          upsell_potential_score?: number | null
+          vip_reason?: string | null
+        }
+        Update: {
+          ai_insights?: Json | null
+          behavior_patterns?: Json | null
+          churn_risk_level?: string | null
+          churn_risk_score?: number | null
+          created_at?: string | null
+          customer_id?: string
+          days_since_last_contact?: number | null
+          id?: string
+          is_vip?: boolean | null
+          last_calculated_at?: string | null
+          next_booking_probability?: number | null
+          organization_id?: string
+          predicted_lifetime_value?: number | null
+          predicted_next_booking_date?: string | null
+          predicted_review_score?: number | null
+          recommended_services?: Json | null
+          sentiment_score?: number | null
+          sentiment_trend?: string | null
+          updated_at?: string | null
+          upsell_potential_score?: number | null
+          vip_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_intelligence_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_intelligence_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1583,6 +1788,75 @@ export type Database = {
           },
         ]
       }
+      lead_intelligence: {
+        Row: {
+          ai_insights: Json | null
+          behavior_patterns: Json | null
+          conversion_score: number | null
+          created_at: string | null
+          engagement_score: number | null
+          id: string
+          is_hot_lead: boolean | null
+          last_calculated_at: string | null
+          lead_id: string
+          organization_id: string
+          predicted_conversion_rate: number | null
+          preferred_contact_method: string | null
+          recommended_followup_time: string | null
+          updated_at: string | null
+          urgency_score: number | null
+        }
+        Insert: {
+          ai_insights?: Json | null
+          behavior_patterns?: Json | null
+          conversion_score?: number | null
+          created_at?: string | null
+          engagement_score?: number | null
+          id?: string
+          is_hot_lead?: boolean | null
+          last_calculated_at?: string | null
+          lead_id: string
+          organization_id: string
+          predicted_conversion_rate?: number | null
+          preferred_contact_method?: string | null
+          recommended_followup_time?: string | null
+          updated_at?: string | null
+          urgency_score?: number | null
+        }
+        Update: {
+          ai_insights?: Json | null
+          behavior_patterns?: Json | null
+          conversion_score?: number | null
+          created_at?: string | null
+          engagement_score?: number | null
+          id?: string
+          is_hot_lead?: boolean | null
+          last_calculated_at?: string | null
+          lead_id?: string
+          organization_id?: string
+          predicted_conversion_rate?: number | null
+          preferred_contact_method?: string | null
+          recommended_followup_time?: string | null
+          updated_at?: string | null
+          urgency_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_intelligence_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_intelligence_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           address: string | null
@@ -1772,6 +2046,76 @@ export type Database = {
           },
           {
             foreignKeyName: "loyalty_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_sentiment_log: {
+        Row: {
+          analyzed_at: string | null
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          key_topics: Json | null
+          lead_id: string | null
+          message_direction: string
+          message_preview: string | null
+          message_source: string
+          organization_id: string
+          sentiment_label: string | null
+          sentiment_score: number | null
+          urgency_detected: boolean | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          key_topics?: Json | null
+          lead_id?: string | null
+          message_direction: string
+          message_preview?: string | null
+          message_source: string
+          organization_id: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          urgency_detected?: boolean | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          key_topics?: Json | null
+          lead_id?: string | null
+          message_direction?: string
+          message_preview?: string | null
+          message_source?: string
+          organization_id?: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          urgency_detected?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_sentiment_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_sentiment_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_sentiment_log_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

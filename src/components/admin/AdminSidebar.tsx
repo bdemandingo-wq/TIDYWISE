@@ -26,6 +26,7 @@ import {
   Tag,
   Activity,
   Zap,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -56,6 +57,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 const defaultNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Brain },
   { name: 'Scheduler', href: '/dashboard/scheduler', icon: Calendar },
   { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
   { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
@@ -84,7 +86,7 @@ const defaultNavigation = [
 const iconMap: Record<string, typeof Home> = {
   Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
   Briefcase, UserCircle, CheckSquare, Package, DollarSign, Receipt, BarChart3,
-  Sparkles, CreditCard, HelpCircle, Tag, Activity,
+  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain,
 };
 
 interface NavItem {

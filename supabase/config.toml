@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.notify-platform-admin-subscription]
 verify_jwt = false
+
+[functions.calculate-ai-intelligence]
+verify_jwt = false

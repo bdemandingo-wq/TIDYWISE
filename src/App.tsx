@@ -63,6 +63,7 @@ const DiscountsPage = lazy(() => import("./pages/admin/DiscountsPage"));
 const PlatformAnalyticsPage = lazy(() => import("./pages/admin/PlatformAnalyticsPage"));
 const MessagesPage = lazy(() => import("./pages/admin/MessagesPage"));
 const TasksPage = lazy(() => import("./pages/admin/TasksPage"));
+const AIIntelligencePage = lazy(() => import("./pages/admin/AIIntelligencePage"));
 const StaffPortal = lazy(() => import("./pages/staff/StaffPortal"));
 const StaffLoginPage = lazy(() => import("./pages/staff/StaffLoginPage"));
 const StaffResetPasswordPage = lazy(() => import("./pages/staff/StaffResetPasswordPage"));
@@ -184,6 +185,7 @@ const App = () => (
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/platform-analytics" element={<AdminRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
 
                       {/* Legacy admin routes */}
                       <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
@@ -266,6 +268,7 @@ const App = () => (
                     <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/platform-analytics" element={<AdminRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
 
                     {/* Legacy admin routes */}
                     <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
