@@ -372,9 +372,31 @@ export default function LandingPage() {
                 </Button>
               </div>
               
-              <p className="text-sm text-muted-foreground mt-4 flex items-center gap-2 justify-center lg:justify-start">
+              {/* First 60 days free badge + Watch Demo */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 justify-center lg:justify-start">
+                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full border border-success/20">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm font-medium text-success">First 60 days free</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    const demoSection = document.getElementById('demo');
+                    if (demoSection) {
+                      demoSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  Watch Demo
+                </Button>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mt-3 flex items-center gap-2 justify-center lg:justify-start">
                 <CheckCircle2 className="h-4 w-4 text-success" />
-                Start free. No credit card required.
+                No credit card required.
               </p>
 
               {/* Social proof mini */}
