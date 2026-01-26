@@ -508,7 +508,7 @@ export default function PlatformAnalyticsPage() {
                     </div>
                     <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                       <p className="text-2xl font-bold text-blue-600">
-                        {Math.round(((analytics?.subscriptions.active || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)}%
+                        {Math.round(((sessionStats?.userList?.length || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)}%
                       </p>
                       <p className="text-xs text-muted-foreground">Engagement Rate</p>
                     </div>
