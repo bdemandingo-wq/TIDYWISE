@@ -386,17 +386,11 @@ export default function LandingPage() {
                 </Button>
               </div>
               
-              {/* First 60 days free badge */}
-              <div className="flex flex-wrap items-center gap-4 mt-4 justify-center lg:justify-start">
-                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full border border-success/20">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium text-success">First 60 days free</span>
-                </div>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                  Cancel anytime
-                </p>
-              </div>
+              {/* Cancel anytime */}
+              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-4 justify-center lg:justify-start">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                Cancel anytime
+              </p>
 
               {/* Social proof mini */}
                <div className="flex items-center gap-4 mt-7 justify-center lg:justify-start">
