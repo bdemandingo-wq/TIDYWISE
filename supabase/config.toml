@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.redeem-customer-portal-invite]
 verify_jwt = false
+
+[functions.notify-platform-admin-subscription]
+verify_jwt = false

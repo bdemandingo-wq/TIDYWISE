@@ -29,6 +29,7 @@ interface Booking {
   address: string | null;
   city: string | null;
   state: string | null;
+  zip_code: string | null;
   total_amount: number;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
@@ -161,7 +162,7 @@ export default function StaffPortal() {
       const { data: directBookings, error: directError } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, address, city, state,
+          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
           customer:customers(first_name, last_name, phone),
           service:services(name)
@@ -180,7 +181,7 @@ export default function StaffPortal() {
           pay_share,
           is_primary,
           booking:bookings(
-            id, booking_number, scheduled_at, duration, status, address, city, state,
+            id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
             total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
             customer:customers(first_name, last_name, phone),
             service:services(name)
@@ -229,7 +230,7 @@ export default function StaffPortal() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, address, city, state,
+          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
           square_footage, bedrooms, bathrooms,
           customer:customers(first_name, last_name, phone),
@@ -256,7 +257,7 @@ export default function StaffPortal() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, address, city, state,
+          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_actual_payment,
           customer:customers(first_name, last_name),
           service:services(name)
@@ -324,12 +325,74 @@ export default function StaffPortal() {
     },
   });
 
-  // Update booking status mutation
+  // Update booking status mutation with timesheet tracking
   const updateStatus = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' }) => {
+      const now = new Date().toISOString();
+      
+      // Build the update object based on status
+      let updateData: Record<string, unknown> = { status };
+      
+      // TIMESHEET: When starting a job, record check-in time
+      if (status === 'in_progress') {
+        updateData.cleaner_checkin_at = now;
+      }
+      
+      // TIMESHEET: When completing a job, record check-out time and calculate pay
+      if (status === 'completed') {
+        updateData.cleaner_checkout_at = now;
+        
+        // Get booking details to calculate actual payment
+        const { data: bookingData } = await supabase
+          .from('bookings')
+          .select(`
+            id, organization_id, cleaner_checkin_at, cleaner_wage, cleaner_wage_type, 
+            total_amount, duration, staff_id,
+            customer:customers(id, email, first_name, last_name),
+            service:services(name),
+            staff:staff(hourly_rate, percentage_rate, base_wage)
+          `)
+          .eq('id', bookingId)
+          .single();
+          
+        if (bookingData) {
+          // Calculate actual hours worked
+          let actualHours = bookingData.duration / 60; // Default to scheduled duration
+          if (bookingData.cleaner_checkin_at) {
+            const checkinTime = new Date(bookingData.cleaner_checkin_at).getTime();
+            const checkoutTime = new Date(now).getTime();
+            actualHours = (checkoutTime - checkinTime) / (1000 * 60 * 60); // Convert ms to hours
+          }
+          
+          // Calculate payment based on wage type
+          let calculatedPayment = 0;
+          const staff = bookingData.staff as { hourly_rate: number | null; percentage_rate: number | null; base_wage: number | null } | null;
+          
+          if (bookingData.cleaner_wage && bookingData.cleaner_wage_type) {
+            if (bookingData.cleaner_wage_type === 'percentage') {
+              calculatedPayment = (bookingData.total_amount * bookingData.cleaner_wage) / 100;
+            } else if (bookingData.cleaner_wage_type === 'flat') {
+              calculatedPayment = bookingData.cleaner_wage;
+            } else {
+              // Hourly - use actual hours worked
+              calculatedPayment = bookingData.cleaner_wage * actualHours;
+            }
+          } else if (staff?.percentage_rate && staff.percentage_rate > 0) {
+            calculatedPayment = (bookingData.total_amount * staff.percentage_rate) / 100;
+          } else if (staff?.hourly_rate && staff.hourly_rate > 0) {
+            calculatedPayment = staff.hourly_rate * actualHours;
+          }
+          
+          // Only set if payment wasn't already manually set
+          if (calculatedPayment > 0) {
+            updateData.cleaner_actual_payment = Math.round(calculatedPayment * 100) / 100;
+          }
+        }
+      }
+      
       const { error } = await supabase
         .from('bookings')
-        .update({ status })
+        .update(updateData)
         .eq('id', bookingId);
 
       if (error) throw error;
@@ -350,7 +413,7 @@ export default function StaffPortal() {
             .single();
 
           if (bookingData?.customer?.email && bookingData?.organization_id) {
-            await supabase.functions.invoke('send-review-request', {
+            const reviewResult = await supabase.functions.invoke('send-review-request', {
               body: {
                 bookingId: bookingData.id,
                 customerId: bookingData.customer.id,
@@ -360,20 +423,31 @@ export default function StaffPortal() {
                 organizationId: bookingData.organization_id,
               },
             });
+            
+            if (reviewResult.error) {
+              console.error('Review request failed:', reviewResult.error);
+              toast.error('Job completed, but review request failed to send');
+              return { status, reviewSent: false };
+            }
+          } else {
+            console.warn('Missing customer email or organization ID for review request');
           }
         } catch (reviewError) {
           console.error('Failed to send review request:', reviewError);
-          // Don't fail the status update if review request fails
+          toast.error('Job completed, but review request failed');
+          return { status, reviewSent: false };
         }
       }
 
-      return { status };
+      return { status, reviewSent: status === 'completed' };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['staff-bookings'] });
       const statusMessages: Record<string, string> = {
-        in_progress: 'Job started!',
-        completed: 'Job completed! Review request sent to customer.',
+        in_progress: 'Job started! Clock-in time recorded.',
+        completed: result.reviewSent !== false 
+          ? 'Job completed! Review request sent to customer.' 
+          : 'Job completed!',
       };
       toast.success(statusMessages[variables.status] || 'Status updated');
     },

@@ -51,10 +51,13 @@ serve(async (req) => {
     }
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const days = Number(body?.days ?? 30);
-    const safeDays = Number.isFinite(days) && days > 0 && days <= 365 ? days : 30;
-
-    const startIso = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+    // If days is 0, null, or not provided, fetch ALL TIME
+    const days = body?.days;
+    const isAllTime = !days || days === 0;
+    
+    const startIso = isAllTime 
+      ? new Date('2020-01-01').toISOString() // Far back date for "all time"
+      : new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000).toISOString();
 
     // IMPORTANT:
     // PostgREST has a default max of 1000 rows per request.
