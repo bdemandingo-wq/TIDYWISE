@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 export interface AuthResult {
   success: boolean;
@@ -30,10 +31,17 @@ export async function verifyAdminAuth(
     return { success: false, error: "Invalid authorization token" };
   }
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  // Create a client with the user's token to verify their identity
+  const supabaseWithAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  });
 
-  // Verify the user's JWT
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  // Verify the user's JWT using getUser() which validates the token
+  const { data: userData, error: userError } = await supabaseWithAuth.auth.getUser();
   
   if (userError || !userData.user) {
     console.error("Auth verification failed:", userError);
@@ -41,6 +49,9 @@ export async function verifyAdminAuth(
   }
 
   const userId = userData.user.id;
+
+  // Use service role client to query org memberships (bypasses RLS)
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // Get user's organization membership
   const { data: membership, error: membershipError } = await supabaseAdmin
