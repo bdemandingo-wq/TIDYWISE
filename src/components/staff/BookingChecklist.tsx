@@ -73,26 +73,42 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
       // Get the booking's service to find a matching template
       const { data: booking } = await supabase
         .from('bookings')
-        .select('service_id')
+        .select('service_id, service:services(name)')
         .eq('id', bookingId)
         .single();
 
       // Find a matching template - prioritize service-specific templates
-      let templateQuery = supabase
+      const baseTemplateQuery = () => supabase
         .from('checklist_templates')
         .select(`
           id,
           service_id,
+          service:services(name),
           checklist_items(id, title, requires_photo, sort_order)
         `)
         .eq('is_active', true);
 
-      // First try to find a service-specific template
+      // First try to find a service-specific template by exact service_id
+      let serviceTemplate = null;
       if (booking?.service_id) {
-        const { data: serviceTemplate } = await templateQuery
+        const { data: exactMatch } = await baseTemplateQuery()
           .eq('service_id', booking.service_id)
           .limit(1)
           .maybeSingle();
+        
+        serviceTemplate = exactMatch;
+        
+        // If no exact match, try to match by service NAME
+        // This handles cases where there are duplicate services with same name but different IDs
+        if (!serviceTemplate && booking?.service?.name) {
+          const { data: allTemplates } = await baseTemplateQuery()
+            .not('service_id', 'is', null);
+          
+          // Find a template whose linked service has the same name
+          serviceTemplate = allTemplates?.find(
+            (t: any) => t.service?.name?.toLowerCase() === booking.service.name.toLowerCase()
+          ) || null;
+        }
 
         if (serviceTemplate) {
           // Use service-specific template
