@@ -73,25 +73,21 @@ export default function PlatformAnalyticsPage() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch session data for the last 30 days
-  const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-  
+  // Fetch session data - ALL TIME for total sessions, 30d for avg duration
   const { data: sessionStats, refetch: refetchSessions } = useQuery({
     queryKey: ['platform-session-stats'],
     queryFn: async () => {
-      // IMPORTANT:
-      // Client-side querying can silently truncate at 1000 rows.
-      // Use a backend function that paginates & aggregates server-side.
-      const { data, error } = await supabase.functions.invoke('platform-session-stats', {
-        body: { days: 30 },
+      // Fetch ALL TIME sessions for total count
+      const { data: allTimeData, error: allTimeError } = await supabase.functions.invoke('platform-session-stats', {
+        body: { days: 0 }, // 0 = all time
       });
 
-      if (error) throw error;
+      if (allTimeError) throw allTimeError;
 
       return {
-        avgSessionDuration: data?.avgSessionDuration ?? 0,
-        totalSessions: data?.totalSessions ?? 0,
-        userList: (data?.userList ?? []) as UserSessionStats[],
+        avgSessionDuration: allTimeData?.avgSessionDuration ?? 0,
+        totalSessions: allTimeData?.totalSessions ?? 0,
+        userList: (allTimeData?.userList ?? []) as UserSessionStats[],
       };
     },
     enabled: user?.email === 'support@tidywisecleaning.com',
@@ -529,7 +525,7 @@ export default function PlatformAnalyticsPage() {
                       <p className="text-2xl font-bold text-amber-600">
                         {sessionStats?.totalSessions || 0}
                       </p>
-                      <p className="text-xs text-muted-foreground">Total Sessions (30d)</p>
+                      <p className="text-xs text-muted-foreground">Total Sessions (All Time)</p>
                     </div>
                   </div>
 
@@ -538,7 +534,7 @@ export default function PlatformAnalyticsPage() {
                     <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-primary" />
                       Most Active Users
-                      <span className="text-xs text-muted-foreground ml-auto">By time spent (30 days)</span>
+                      <span className="text-xs text-muted-foreground ml-auto">By time spent (all time)</span>
                     </h4>
                     <ScrollArea className="h-[280px] pr-4">
                       {sessionStats?.userList && sessionStats.userList.length > 0 ? (

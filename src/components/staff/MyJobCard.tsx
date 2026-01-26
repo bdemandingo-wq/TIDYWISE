@@ -23,6 +23,7 @@ interface Booking {
   address: string | null;
   city: string | null;
   state: string | null;
+  zip_code: string | null;
   total_amount: number;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
@@ -214,16 +215,20 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
             </a>
           </div>
         )}
-        {booking.address && (
-          <div className="flex items-start gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+        {/* Always show address section - show message if missing */}
+        <div className="flex items-start gap-2 text-sm">
+          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+          {booking.address ? (
             <span>
               {booking.address}
               {booking.city ? `, ${booking.city}` : ''}
-              {booking.state ? `, ${booking.state}` : ''}
+              {booking.state ? ` ${booking.state}` : ''}
+              {booking.zip_code ? ` ${booking.zip_code}` : ''}
             </span>
-          </div>
-        )}
+          ) : (
+            <span className="text-muted-foreground italic">No address provided</span>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-2 pt-2">
           {hasAddress && (

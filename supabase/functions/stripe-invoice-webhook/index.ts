@@ -7,14 +7,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+// Platform admin phone number for notifications
+const PLATFORM_ADMIN_PHONE = "+18137356859";
+
 /**
  * STRIPE INVOICE WEBHOOK
  * 
- * This webhook handles Stripe events for invoice payments. It uses organization-specific
- * Stripe credentials extracted from the event metadata to verify and process payments.
- * 
- * SECURITY: The webhook signature is verified using the platform-level webhook secret,
- * but the actual Stripe client operations use org-specific keys when available.
+ * This webhook handles Stripe events for invoice payments and new subscriptions.
+ * When a new subscription is created, it notifies the platform admin via SMS.
  */
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -34,8 +34,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Parse event - verify signature if webhook secret is configured
     if (stripeWebhookSecret && signature) {
-      // We need a Stripe instance just for webhook verification
-      // This uses a minimal/temporary instance since we're only verifying the signature
       const tempStripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_placeholder", { 
         apiVersion: "2025-08-27.basil" 
       });
@@ -60,6 +58,57 @@ const handler = async (req: Request): Promise<Response> => {
     // Extract organization_id from event metadata if available
     let organizationId: string | null = null;
 
+    // Handle new subscription created - notify platform admin
+    if (event.type === "customer.subscription.created") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerEmail = subscription.customer as string;
+      
+      console.log("[stripe-invoice-webhook] New subscription created:", subscription.id);
+      
+      // Get customer details from Stripe
+      try {
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
+          apiVersion: "2025-08-27.basil" 
+        });
+        const customer = await stripe.customers.retrieve(customerEmail);
+        const email = (customer as Stripe.Customer).email || "Unknown";
+        
+        // Find the organization for this user
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+          
+        let orgName = "New Business";
+        if (profile?.id) {
+          const { data: membership } = await supabase
+            .from('org_memberships')
+            .select('organization:organizations(name)')
+            .eq('user_id', profile.id)
+            .maybeSingle();
+            
+          if (membership?.organization) {
+            const org = membership.organization as unknown as { name: string };
+            if (org?.name) {
+              orgName = org.name;
+            }
+          }
+        }
+        
+        // Send SMS notification to platform admin
+        await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+          organizationName: orgName,
+          ownerEmail: email,
+          subscriptionType: subscription.status === 'trialing' ? 'Trial Started' : 'Active',
+        });
+        
+      } catch (notifyError) {
+        console.error("[stripe-invoice-webhook] Failed to notify admin:", notifyError);
+        // Don't fail the webhook - notification is non-critical
+      }
+    }
+
     // Handle checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -69,6 +118,46 @@ const handler = async (req: Request): Promise<Response> => {
 
       organizationId = session.metadata?.organization_id || null;
       const invoiceId = session.metadata?.invoice_id;
+      
+      // If this is a subscription checkout (not invoice payment), notify admin
+      if (session.mode === 'subscription' && session.subscription) {
+        try {
+          const customerEmail = session.customer_email || "Unknown";
+          
+          // Find the organization for this user
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', customerEmail)
+            .maybeSingle();
+            
+          let orgName = "New Business";
+          if (profile?.id) {
+            const { data: membership } = await supabase
+              .from('org_memberships')
+              .select('organization:organizations(name)')
+              .eq('user_id', profile.id)
+              .maybeSingle();
+              
+            if (membership?.organization) {
+              const org = membership.organization as unknown as { name: string };
+              if (org?.name) {
+                orgName = org.name;
+              }
+            }
+          }
+          
+          // Send SMS notification to platform admin
+          await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+            organizationName: orgName,
+            ownerEmail: customerEmail,
+            subscriptionType: 'New Subscription',
+          });
+          
+        } catch (notifyError) {
+          console.error("[stripe-invoice-webhook] Failed to notify admin on checkout:", notifyError);
+        }
+      }
       
       if (invoiceId) {
         // Update invoice status to paid
@@ -162,5 +251,57 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+// Helper function to send admin notification
+async function sendAdminNotification(
+  supabaseUrl: string, 
+  supabaseServiceKey: string,
+  data: { organizationName: string; ownerEmail: string; subscriptionType: string }
+): Promise<void> {
+  const openphoneApiKey = Deno.env.get("OPENPHONE_API_KEY");
+  const openphonePhoneNumberId = Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+
+  if (!openphoneApiKey || !openphonePhoneNumberId) {
+    console.log("[stripe-invoice-webhook] OpenPhone not configured - skipping admin notification");
+    return;
+  }
+
+  const timestamp = new Date().toLocaleString('en-US', { 
+    timeZone: 'America/New_York',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true 
+  });
+
+  const message = `🎉 NEW SUBSCRIPTION!\n\n` +
+    `Business: ${data.organizationName}\n` +
+    `Email: ${data.ownerEmail}\n` +
+    `Status: ${data.subscriptionType}\n` +
+    `Time: ${timestamp}`;
+
+  console.log(`[stripe-invoice-webhook] Sending admin notification to ${PLATFORM_ADMIN_PHONE}`);
+
+  const response = await fetch("https://api.openphone.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Authorization": openphoneApiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: openphonePhoneNumberId,
+      to: [PLATFORM_ADMIN_PHONE],
+      content: message,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[stripe-invoice-webhook] Failed to send admin notification: ${response.status} - ${errorText}`);
+  } else {
+    console.log("[stripe-invoice-webhook] Admin notification sent successfully");
+  }
+}
 
 serve(handler);
