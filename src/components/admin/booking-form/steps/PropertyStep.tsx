@@ -3,7 +3,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin } from 'lucide-react';
 import { useBookingForm } from '../BookingFormContext';
-import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 
 export function PropertyStep() {
   const {
@@ -18,13 +17,6 @@ export function PropertyStep() {
     zipCode,
     setZipCode,
   } = useBookingForm();
-
-  const handleAddressSelect = (components: { address: string; city: string; state: string; zipCode: string }) => {
-    setAddress(components.address);
-    setCity(components.city);
-    setState(components.state);
-    setZipCode(components.zipCode);
-  };
 
   return (
     <div className="space-y-6">
@@ -42,15 +34,12 @@ export function PropertyStep() {
         <CardContent className="pt-6 space-y-5">
           <div>
             <Label htmlFor="address" className="text-sm font-medium">Street Address</Label>
-            <AddressAutocomplete
+            <Input
               id="address"
               value={address}
-              onChange={setAddress}
-              onAddressSelect={handleAddressSelect}
-              placeholder="Start typing an address..."
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 Main St"
               className="mt-2 h-11 bg-secondary/30 border-border/50"
-              showMapLink={true}
-              fullAddress={[address, city, state, zipCode].filter(Boolean).join(', ')}
             />
           </div>
           
@@ -72,6 +61,7 @@ export function PropertyStep() {
                 id="city"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
+                placeholder="City"
                 className="mt-2 h-11 bg-secondary/30 border-border/50"
               />
             </div>
@@ -81,6 +71,7 @@ export function PropertyStep() {
                 id="state"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
+                placeholder="State"
                 className="mt-2 h-11 bg-secondary/30 border-border/50"
               />
             </div>
@@ -90,6 +81,7 @@ export function PropertyStep() {
                 id="zipCode"
                 value={zipCode}
                 onChange={(e) => setZipCode(e.target.value)}
+                placeholder="12345"
                 className="mt-2 h-11 bg-secondary/30 border-border/50"
               />
             </div>

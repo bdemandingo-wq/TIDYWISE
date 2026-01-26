@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, CreditCard, Upload, Users, UserX, RefreshCw } from 'lucide-react';
-import { ClickableAddress } from '@/components/ui/address-autocomplete';
+import { MapPin } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -465,13 +465,11 @@ export default function CustomersPage() {
                               {isExpanded ? (
                                 <div className="mt-3 space-y-2 animate-fade-in">
                                   {customer.address ? (
-                                    <div className="text-sm">
-                                      <ClickableAddress
-                                        address={customer.address}
-                                        city={customer.city}
-                                        state={customer.state}
-                                        zipCode={customer.zip_code}
-                                      />
+                                    <div className="text-sm flex items-center gap-1 text-muted-foreground">
+                                      <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                                      <span className="truncate">
+                                        {[customer.address, customer.city, customer.state, customer.zip_code].filter(Boolean).join(', ')}
+                                      </span>
                                     </div>
                                   ) : null}
 
@@ -637,13 +635,11 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell>
                     {customer.address ? (
-                      <div className="max-w-[200px]">
-                        <ClickableAddress
-                          address={customer.address}
-                          city={customer.city}
-                          state={customer.state}
-                          zipCode={customer.zip_code}
-                        />
+                      <div className="max-w-[200px] flex items-center gap-1 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {[customer.address, customer.city, customer.state, customer.zip_code].filter(Boolean).join(', ')}
+                        </span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
