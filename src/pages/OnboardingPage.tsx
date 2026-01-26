@@ -168,6 +168,25 @@ export default function OnboardingPage() {
             fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
           },
         }).catch(err => console.log('Welcome SMS failed (non-critical):', err));
+        
+        // Notify platform admin of new signup
+        supabase.functions.invoke('notify-platform-admin-signup', {
+          body: {
+            email: user.email || '',
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+            phone: phoneNumber.trim(),
+            signupMethod: 'google',
+          },
+        }).catch(err => console.log('Admin notification failed (non-critical):', err));
+      } else {
+        // Still notify admin even if no phone collected
+        supabase.functions.invoke('notify-platform-admin-signup', {
+          body: {
+            email: user.email || '',
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+            signupMethod: 'google',
+          },
+        }).catch(err => console.log('Admin notification failed (non-critical):', err));
       }
 
       // Try a few times in case the slug is taken.

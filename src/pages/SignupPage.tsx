@@ -181,6 +181,16 @@ export default function SignupPage() {
           }).catch(err => console.log('Welcome SMS failed (non-critical):', err));
         }
         
+        // Notify platform admin of new signup
+        supabaseNoSession.functions.invoke('notify-platform-admin-signup', {
+          body: {
+            email: formData.email,
+            fullName: formData.fullName,
+            phone: formData.phone || undefined,
+            signupMethod: 'email',
+          },
+        }).catch(err => console.log('Admin notification failed (non-critical):', err));
+        
         toast.success('Account created! Welcome aboard.');
         setLoading(false);
         setShowSplash(true);
