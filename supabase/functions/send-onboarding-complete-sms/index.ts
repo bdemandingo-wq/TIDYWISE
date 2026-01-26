@@ -105,7 +105,7 @@ const handler = async (req: Request): Promise<Response> => {
     const response = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
-        "Authorization": apiKey,
+        "Authorization": apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

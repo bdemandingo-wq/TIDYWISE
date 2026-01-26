@@ -76,7 +76,7 @@ Complete your setup to start managing your cleaning business like a pro. Questio
     const response = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
-        "Authorization": apiKey,
+        "Authorization": apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
