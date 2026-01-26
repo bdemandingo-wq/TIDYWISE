@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
 import { useOrgId } from '@/hooks/useOrgId';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CardInfo {
   hasCard: boolean;
@@ -170,6 +171,7 @@ export function BookingFormProvider({
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
   const { organizationId } = useOrgId();
+  const { session } = useAuth();
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
@@ -325,11 +327,22 @@ export function BookingFormProvider({
       setCardInfo({ hasCard: false });
       return;
     }
+    
+    // Check for valid session before making authenticated request
+    if (!session?.access_token) {
+      console.warn('No active session for loadCardInfo - skipping card lookup');
+      setCardInfo({ hasCard: false });
+      return;
+    }
+    
     setLoadingCard(true);
     try {
-      // SECURITY FIX: Pass organizationId to prevent cross-tenant card access
+      // SECURITY FIX: Pass organizationId and auth token to prevent cross-tenant card access
       const { data, error } = await supabase.functions.invoke('get-customer-card', {
-        body: { email, organizationId }
+        body: { email, organizationId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
       if (error) throw error;
       setCardInfo(data);
@@ -339,7 +352,7 @@ export function BookingFormProvider({
     } finally {
       setLoadingCard(false);
     }
-  }, [organizationId]);
+  }, [organizationId, session?.access_token]);
 
   const resetForm = () => {
     setCustomerTab('existing');
