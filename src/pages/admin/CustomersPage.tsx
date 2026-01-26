@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Mail, Phone, MapPin, Edit, Trash2, CreditCard, Upload, Users, UserX, RefreshCw } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, CreditCard, Upload, Users, UserX, RefreshCw } from 'lucide-react';
+import { ClickableAddress } from '@/components/ui/address-autocomplete';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -464,13 +465,13 @@ export default function CustomersPage() {
                               {isExpanded ? (
                                 <div className="mt-3 space-y-2 animate-fade-in">
                                   {customer.address ? (
-                                    <div className="flex items-start gap-2 text-sm">
-                                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" aria-hidden="true" />
-                                      <span className="text-muted-foreground">
-                                        {maskAddress(
-                                          `${customer.address}${customer.city ? `, ${customer.city}` : ''}${customer.state ? `, ${customer.state}` : ''}`
-                                        )}
-                                      </span>
+                                    <div className="text-sm">
+                                      <ClickableAddress
+                                        address={customer.address}
+                                        city={customer.city}
+                                        state={customer.state}
+                                        zipCode={customer.zip_code}
+                                      />
                                     </div>
                                   ) : null}
 
@@ -636,11 +637,13 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell>
                     {customer.address ? (
-                      <div className="flex items-center gap-2 text-sm max-w-[200px]">
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate">
-                          {maskAddress(`${customer.address}${customer.city ? `, ${customer.city}` : ''}${customer.state ? `, ${customer.state}` : ''}`)}
-                        </span>
+                      <div className="max-w-[200px]">
+                        <ClickableAddress
+                          address={customer.address}
+                          city={customer.city}
+                          state={customer.state}
+                          zipCode={customer.zip_code}
+                        />
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>

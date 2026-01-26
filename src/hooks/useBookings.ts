@@ -317,6 +317,7 @@ export function useCreateCustomer() {
         throw new Error('No organization found');
       }
 
+      // Create the customer
       const { data: customer, error } = await supabase
         .from('customers')
         .insert({ ...data, organization_id: organization.id })
@@ -328,10 +329,35 @@ export function useCreateCustomer() {
         throw error;
       }
 
+      // Auto-create a corresponding lead entry
+      const leadData = {
+        name: `${data.first_name} ${data.last_name}`.trim(),
+        email: data.email,
+        phone: data.phone || null,
+        address: data.address || null,
+        city: data.city || null,
+        state: data.state || null,
+        zip_code: data.zip_code || null,
+        source: 'customer_import',
+        status: 'new',
+        organization_id: organization.id,
+      };
+
+      const { error: leadError } = await supabase
+        .from('leads')
+        .insert(leadData);
+
+      if (leadError) {
+        console.warn('Lead auto-creation failed:', leadError.message);
+        // Don't throw - customer was created successfully
+      }
+
       return customer;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Customer added and new lead created');
     },
     onError: (error: Error) => {
       toast.error(`Failed to create customer: ${error.message}`);

@@ -144,8 +144,7 @@ export default function OperationsTrackerPage() {
       coldEmails: acc.coldEmails + e.cold_emails_sent,
       coldCalls: acc.coldCalls + e.cold_calls_made,
       followups: acc.followups + e.leads_followed_up,
-      jobs: acc.jobs + e.jobs_completed,
-    }), { calls: 0, deals: 0, revenue: 0, coldEmails: 0, coldCalls: 0, followups: 0, jobs: 0 });
+    }), { calls: 0, deals: 0, revenue: 0, coldEmails: 0, coldCalls: 0, followups: 0 });
 
     const monthlyTotals = monthlyEntries.reduce((acc, e) => ({
       calls: acc.calls + e.incoming_calls,
@@ -164,7 +163,7 @@ export default function OperationsTrackerPage() {
   }, [entries]);
 
   const exportToExcel = () => {
-    const headers = ['Date', 'Incoming Calls', 'Closed Deals', 'Revenue Booked', 'Cold Emails', 'Cold Calls', 'Leads Followed Up', 'Jobs Completed', 'Notes'];
+    const headers = ['Date', 'Incoming Calls', 'Closed Deals', 'Revenue Booked', 'Cold Emails', 'Cold Calls', 'Leads Followed Up', 'Notes'];
     const rows = entries.map(e => [
       e.track_date,
       e.incoming_calls,
@@ -173,7 +172,6 @@ export default function OperationsTrackerPage() {
       e.cold_emails_sent,
       e.cold_calls_made,
       e.leads_followed_up,
-      e.jobs_completed,
       e.notes || '',
     ]);
 
@@ -300,15 +298,6 @@ export default function OperationsTrackerPage() {
             <p className="text-2xl font-bold">{isTestMode ? 'XX' : stats.weeklyTotals.followups}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="w-4 h-4 text-teal-500" />
-              <span className="text-xs text-muted-foreground">Jobs Done</span>
-            </div>
-            <p className="text-2xl font-bold">{isTestMode ? 'XX' : stats.weeklyTotals.jobs}</p>
-          </CardContent>
-        </Card>
         </div>
       </div>
 
@@ -382,7 +371,7 @@ export default function OperationsTrackerPage() {
                   const dayEntry = entries.find(e => isSameDay(parseISO(e.track_date), selectedDate));
                   if (dayEntry) {
                     return (
-                      <div className="grid grid-cols-4 gap-2 text-sm">
+                      <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="text-center p-2 bg-blue-50 dark:bg-blue-950 rounded">
                           <p className="font-bold">{isTestMode ? 'X' : dayEntry.incoming_calls}</p>
                           <p className="text-xs text-muted-foreground">Calls</p>
@@ -394,10 +383,6 @@ export default function OperationsTrackerPage() {
                         <div className="text-center p-2 bg-emerald-50 dark:bg-emerald-950 rounded">
                           <p className="font-bold">{maskAmount(Number(dayEntry.revenue_booked))}</p>
                           <p className="text-xs text-muted-foreground">Revenue</p>
-                        </div>
-                        <div className="text-center p-2 bg-teal-50 dark:bg-teal-950 rounded">
-                          <p className="font-bold">{isTestMode ? 'X' : dayEntry.jobs_completed}</p>
-                          <p className="text-xs text-muted-foreground">Jobs</p>
                         </div>
                       </div>
                     );
@@ -423,18 +408,17 @@ export default function OperationsTrackerPage() {
                 <TableHead className="text-center">Cold Emails</TableHead>
                 <TableHead className="text-center">Cold Calls</TableHead>
                 <TableHead className="text-center">Follow-ups</TableHead>
-                <TableHead className="text-center">Jobs</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
               ) : filteredEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No entries for this date range. Try adjusting the dates or add a new entry.
                   </TableCell>
                 </TableRow>
@@ -450,7 +434,6 @@ export default function OperationsTrackerPage() {
                     <TableCell className="text-center">{isTestMode ? 'X' : entry.cold_emails_sent}</TableCell>
                     <TableCell className="text-center">{isTestMode ? 'X' : entry.cold_calls_made}</TableCell>
                     <TableCell className="text-center">{isTestMode ? 'X' : entry.leads_followed_up}</TableCell>
-                    <TableCell className="text-center">{isTestMode ? 'X' : entry.jobs_completed}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button
@@ -528,7 +511,6 @@ function OperationsDialog({
     cold_emails_sent: '0',
     cold_calls_made: '0',
     leads_followed_up: '0',
-    jobs_completed: '0',
     notes: '',
   });
 
@@ -543,7 +525,6 @@ function OperationsDialog({
         cold_emails_sent: entry.cold_emails_sent.toString(),
         cold_calls_made: entry.cold_calls_made.toString(),
         leads_followed_up: entry.leads_followed_up.toString(),
-        jobs_completed: entry.jobs_completed.toString(),
         notes: entry.notes || '',
       });
     } else {
@@ -555,7 +536,6 @@ function OperationsDialog({
         cold_emails_sent: '0',
         cold_calls_made: '0',
         leads_followed_up: '0',
-        jobs_completed: '0',
         notes: '',
       });
     }
@@ -570,7 +550,6 @@ function OperationsDialog({
       cold_emails_sent: parseInt(formData.cold_emails_sent) || 0,
       cold_calls_made: parseInt(formData.cold_calls_made) || 0,
       leads_followed_up: parseInt(formData.leads_followed_up) || 0,
-      jobs_completed: parseInt(formData.jobs_completed) || 0,
       notes: formData.notes || null,
     });
   };
@@ -635,23 +614,13 @@ function OperationsDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Leads Followed Up</Label>
-              <Input
-                type="number"
-                value={formData.leads_followed_up}
-                onChange={(e) => setFormData({ ...formData, leads_followed_up: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Jobs Completed</Label>
-              <Input
-                type="number"
-                value={formData.jobs_completed}
-                onChange={(e) => setFormData({ ...formData, jobs_completed: e.target.value })}
-              />
-            </div>
+          <div>
+            <Label>Leads Followed Up</Label>
+            <Input
+              type="number"
+              value={formData.leads_followed_up}
+              onChange={(e) => setFormData({ ...formData, leads_followed_up: e.target.value })}
+            />
           </div>
           <div>
             <Label>Notes</Label>

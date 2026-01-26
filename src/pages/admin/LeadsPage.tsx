@@ -28,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin } from 'lucide-react';
+import { AddressAutocomplete, ClickableAddress } from '@/components/ui/address-autocomplete';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -682,9 +683,21 @@ function LeadDialog({
           </div>
           <div className="col-span-2">
             <Label>Address</Label>
-            <Input
+            <AddressAutocomplete
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, address: value })}
+              onAddressSelect={(components) => {
+                setFormData({
+                  ...formData,
+                  address: components.address,
+                  city: components.city,
+                  state: components.state,
+                  zip_code: components.zipCode,
+                });
+              }}
+              placeholder="Start typing an address..."
+              showMapLink={true}
+              fullAddress={[formData.address, formData.city, formData.state, formData.zip_code].filter(Boolean).join(', ')}
             />
           </div>
           <div>

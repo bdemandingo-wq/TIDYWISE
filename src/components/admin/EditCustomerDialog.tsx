@@ -12,9 +12,10 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, MapPin, ShieldAlert, UserCheck } from 'lucide-react';
+import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 
 interface Customer {
   id: string;
@@ -115,6 +116,16 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
     }
   };
 
+  const handleAddressSelect = (components: { address: string; city: string; state: string; zipCode: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      address: components.address,
+      city: components.city,
+      state: components.state,
+      zip_code: components.zipCode,
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -176,16 +187,17 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             </div>
           </div>
 
-          {/* Address */}
+          {/* Address with Autocomplete */}
           <div className="space-y-2">
-            <Label htmlFor="address" className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" /> Address
-            </Label>
-            <Input
+            <Label htmlFor="address">Street Address</Label>
+            <AddressAutocomplete
               id="address"
               value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="123 Main Street"
+              onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+              onAddressSelect={handleAddressSelect}
+              placeholder="Start typing an address..."
+              showMapLink={true}
+              fullAddress={[formData.address, formData.city, formData.state, formData.zip_code].filter(Boolean).join(', ')}
             />
           </div>
 

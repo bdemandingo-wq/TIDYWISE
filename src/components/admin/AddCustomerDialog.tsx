@@ -8,10 +8,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Loader2, User, Mail, Phone } from 'lucide-react';
 import { useCreateCustomer } from '@/hooks/useBookings';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 
 interface AddCustomerDialogProps {
   open: boolean;
@@ -72,7 +72,6 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
         zip_code: formData.zip_code || undefined,
       });
 
-      toast.success('Customer created successfully');
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
@@ -81,6 +80,16 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleAddressSelect = (components: { address: string; city: string; state: string; zipCode: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      address: components.address,
+      city: components.city,
+      state: components.state,
+      zip_code: components.zipCode,
+    }));
   };
 
   return (
@@ -144,16 +153,17 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
             </div>
           </div>
 
-          {/* Address */}
+          {/* Address with Autocomplete */}
           <div className="space-y-2">
-            <Label htmlFor="address" className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" /> Address
-            </Label>
-            <Input
+            <Label htmlFor="address">Street Address</Label>
+            <AddressAutocomplete
               id="address"
               value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="123 Main Street"
+              onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+              onAddressSelect={handleAddressSelect}
+              placeholder="Start typing an address..."
+              showMapLink={true}
+              fullAddress={[formData.address, formData.city, formData.state, formData.zip_code].filter(Boolean).join(', ')}
             />
           </div>
 
