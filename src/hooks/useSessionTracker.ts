@@ -178,20 +178,35 @@ export function useSessionTracker() {
     };
   }, [user, createSession, handleActivity, updateSession, endSession, checkIdle]);
 
-  // Handle page unload
+  // Handle page unload - use fetch with keepalive for proper auth headers
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = async () => {
       if (sessionIdRef.current) {
-        // Use sendBeacon for reliable session end on page close
         const durationSeconds = Math.floor(activeTimeRef.current / 1000);
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`;
-        const body = JSON.stringify({
-          session_end: new Date().toISOString(),
-          duration_seconds: durationSeconds,
-          is_active: false,
-        });
         
-        navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+        // Use fetch with keepalive - sendBeacon doesn't support auth headers
+        try {
+          await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                'Prefer': 'return=minimal',
+              },
+              body: JSON.stringify({
+                session_end: new Date().toISOString(),
+                duration_seconds: durationSeconds,
+                is_active: false,
+              }),
+              keepalive: true, // Ensures request completes even after page closes
+            }
+          );
+        } catch {
+          // Silently fail on unload - can't do much here
+        }
       }
     };
 
