@@ -428,19 +428,63 @@ function calculateLeadScore(
   // Predicted conversion rate
   const predictedRate = Math.round(conversionScore * 0.8);
 
-  // Recommended follow-up time - extend if negative signals
+  // Recommended follow-up time - check for explicit timeframes in notes first
   let recommendedFollowup = new Date();
-  if (detectedNegatives.includes('dnc') || detectedNegatives.includes('wrong_number')) {
-    // Don't follow up
-    recommendedFollowup.setMonth(recommendedFollowup.getMonth() + 6);
-  } else if (detectedNegatives.length >= 2) {
-    recommendedFollowup.setDate(recommendedFollowup.getDate() + 30);
-  } else if (urgencyScore >= 70) {
-    recommendedFollowup.setHours(recommendedFollowup.getHours() + 1);
-  } else if (conversionScore >= 60) {
-    recommendedFollowup.setHours(recommendedFollowup.getHours() + 4);
-  } else {
-    recommendedFollowup.setDate(recommendedFollowup.getDate() + 1);
+  let explicitFollowupDetected = false;
+  
+  // Parse explicit follow-up timeframes from notes
+  const timeframePatterns = [
+    // Months
+    { pattern: /(?:call|follow[- ]?up|contact|reach out|try again).*?(\d+)\s*months?/i, unit: 'months' },
+    { pattern: /(\d+)\s*months?\s*(?:later|from now|out)/i, unit: 'months' },
+    { pattern: /in\s*(\d+)\s*months?/i, unit: 'months' },
+    // Weeks
+    { pattern: /(?:call|follow[- ]?up|contact|reach out|try again).*?(\d+)\s*weeks?/i, unit: 'weeks' },
+    { pattern: /(\d+)\s*weeks?\s*(?:later|from now|out)/i, unit: 'weeks' },
+    { pattern: /in\s*(\d+)\s*weeks?/i, unit: 'weeks' },
+    // Days
+    { pattern: /(?:call|follow[- ]?up|contact|reach out|try again).*?(\d+)\s*days?/i, unit: 'days' },
+    { pattern: /(\d+)\s*days?\s*(?:later|from now|out)/i, unit: 'days' },
+    { pattern: /in\s*(\d+)\s*days?/i, unit: 'days' },
+    // Special phrases
+    { pattern: /next (year|spring|summer|fall|winter)/i, unit: 'special' },
+    { pattern: /after (the holidays|new year|summer)/i, unit: 'special' },
+  ];
+
+  for (const tfPattern of timeframePatterns) {
+    const match = messageText.match(tfPattern.pattern);
+    if (match) {
+      explicitFollowupDetected = true;
+      const value = parseInt(match[1]) || 1;
+      
+      if (tfPattern.unit === 'months') {
+        recommendedFollowup.setMonth(recommendedFollowup.getMonth() + value);
+      } else if (tfPattern.unit === 'weeks') {
+        recommendedFollowup.setDate(recommendedFollowup.getDate() + (value * 7));
+      } else if (tfPattern.unit === 'days') {
+        recommendedFollowup.setDate(recommendedFollowup.getDate() + value);
+      } else if (tfPattern.unit === 'special') {
+        // Handle special phrases - default to 3-6 months
+        recommendedFollowup.setMonth(recommendedFollowup.getMonth() + 4);
+      }
+      break; // Use first match found
+    }
+  }
+
+  // If no explicit timeframe, use calculated follow-up
+  if (!explicitFollowupDetected) {
+    if (detectedNegatives.includes('dnc') || detectedNegatives.includes('wrong_number')) {
+      // Don't follow up
+      recommendedFollowup.setMonth(recommendedFollowup.getMonth() + 12);
+    } else if (detectedNegatives.length >= 2) {
+      recommendedFollowup.setDate(recommendedFollowup.getDate() + 30);
+    } else if (urgencyScore >= 70) {
+      recommendedFollowup.setHours(recommendedFollowup.getHours() + 1);
+    } else if (conversionScore >= 60) {
+      recommendedFollowup.setHours(recommendedFollowup.getHours() + 4);
+    } else {
+      recommendedFollowup.setDate(recommendedFollowup.getDate() + 1);
+    }
   }
 
   // Preferred contact method
