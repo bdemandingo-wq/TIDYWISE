@@ -49,7 +49,7 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [splashComplete, setSplashComplete] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -97,16 +97,16 @@ export default function SignupPage() {
         }
         
         toast.success('Account created successfully!');
-        navigate('/dashboard');
+        setGoogleLoading(false);
+        setShowSplash(true);
       } catch (err) {
         console.error('OAuth callback error:', err);
         toast.error('An error occurred. Please try again.');
-      } finally {
         setGoogleLoading(false);
       }
     } else if (user) {
-      // Regular auth - redirect to dashboard
-      navigate('/dashboard');
+      // Already logged in - show splash and redirect
+      setShowSplash(true);
     }
   }, [user, initialCleanupDone, searchParams, checkExistingProfile, signOut, navigate]);
 
@@ -152,6 +152,7 @@ export default function SignupPage() {
         } else {
           toast.error(error.message);
         }
+        setLoading(false);
         return;
       }
       
@@ -181,11 +182,11 @@ export default function SignupPage() {
         }
         
         toast.success('Account created! Welcome aboard.');
-        navigate('/dashboard');
+        setLoading(false);
+        setShowSplash(true);
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -205,13 +206,27 @@ export default function SignupPage() {
     }
   };
 
-  // Show splash screen while auth loads
-  if (authLoading || !initialCleanupDone || googleLoading || !splashComplete) {
+  // Handle splash screen completion - navigate to dashboard
+  const handleSplashComplete = () => {
+    navigate('/dashboard');
+  };
+
+  // Show splash screen after successful signup
+  if (showSplash) {
     return (
       <SplashScreen 
-        onComplete={() => setSplashComplete(true)} 
-        minDuration={authLoading || !initialCleanupDone || googleLoading ? 1200 : 600}
+        onComplete={handleSplashComplete} 
+        minDuration={1500}
       />
+    );
+  }
+
+  // Show loading spinner during initial auth check or Google OAuth
+  if (authLoading || !initialCleanupDone || googleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 

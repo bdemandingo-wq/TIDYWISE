@@ -367,20 +367,12 @@ export default function LandingPage() {
                   onClick={handleGetStarted}
                   className="group"
                 >
-                  Get Started
+                  Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
-              </div>
-              
-              {/* First 60 days free badge + Watch Demo */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 mt-4 justify-center lg:justify-start">
-                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full border border-success/20">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium text-success">First 60 days free</span>
-                </div>
                 <Button 
-                  variant="outline" 
-                  size="sm"
+                  size="xl" 
+                  variant="outline"
                   onClick={() => {
                     const demoSection = document.getElementById('demo');
                     if (demoSection) {
@@ -389,15 +381,22 @@ export default function LandingPage() {
                   }}
                   className="gap-2"
                 >
-                  <Play className="h-4 w-4" />
+                  <Play className="h-5 w-5" />
                   Watch Demo
                 </Button>
               </div>
               
-              <p className="text-sm text-muted-foreground mt-3 flex items-center gap-2 justify-center lg:justify-start">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                No credit card required.
-              </p>
+              {/* First 60 days free badge */}
+              <div className="flex flex-wrap items-center gap-4 mt-4 justify-center lg:justify-start">
+                <div className="flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full border border-success/20">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm font-medium text-success">First 60 days free</span>
+                </div>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                  Cancel anytime
+                </p>
+              </div>
 
               {/* Social proof mini */}
                <div className="flex items-center gap-4 mt-7 justify-center lg:justify-start">

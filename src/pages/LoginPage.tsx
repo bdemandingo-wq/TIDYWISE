@@ -30,7 +30,7 @@ export default function LoginPage() {
   
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [splashComplete, setSplashComplete] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -41,9 +41,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
     if (user) {
-      navigate('/dashboard');
+      // Show splash screen when already authenticated, then navigate
+      setShowSplash(true);
     }
-  }, [user, authLoading, initialCleanupDone, navigate]);
+  }, [user, authLoading, initialCleanupDone]);
 
   const validateForm = (): boolean => {
     try {
@@ -87,23 +88,35 @@ export default function LoginPage() {
       }
       
       toast.success('Welcome back!');
-      // Small delay to allow auth state to propagate before navigation
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 100);
+      // Show splash screen after successful login
+      setShowSplash(true);
     } catch (error: any) {
       toast.error(error.message || 'An error occurred. Please try again.');
       setLoading(false);
     }
   };
 
-  // Show splash screen while initial auth cleanup happens
-  if (authLoading || !initialCleanupDone || !splashComplete) {
+  // Handle splash screen completion - navigate to dashboard
+  const handleSplashComplete = () => {
+    navigate('/dashboard');
+  };
+
+  // Show splash screen after successful login
+  if (showSplash) {
     return (
       <SplashScreen 
-        onComplete={() => setSplashComplete(true)} 
-        minDuration={authLoading || !initialCleanupDone ? 1200 : 600}
+        onComplete={handleSplashComplete} 
+        minDuration={1500}
       />
+    );
+  }
+
+  // Show loading spinner only during initial auth check
+  if (authLoading || !initialCleanupDone) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
