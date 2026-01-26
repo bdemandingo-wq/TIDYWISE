@@ -269,6 +269,81 @@ function calculateLeadScore(
   // Base conversion score
   let conversionScore = 50;
 
+  // Combine message and notes for analysis
+  const messageText = `${lead.message || ''} ${lead.notes || ''}`.toLowerCase();
+
+  // NEGATIVE SIGNALS FROM NOTES - check these first and apply heavy penalties
+  const negativeSignals = [
+    // Not interested / rejection signals
+    { pattern: /not interested/i, penalty: 40, reason: 'expressed_not_interested' },
+    { pattern: /no interest/i, penalty: 40, reason: 'expressed_not_interested' },
+    { pattern: /don'?t want/i, penalty: 35, reason: 'expressed_not_interested' },
+    { pattern: /doesn'?t want/i, penalty: 35, reason: 'expressed_not_interested' },
+    { pattern: /not looking/i, penalty: 30, reason: 'expressed_not_interested' },
+    { pattern: /declined/i, penalty: 40, reason: 'declined' },
+    { pattern: /rejected/i, penalty: 40, reason: 'rejected' },
+    { pattern: /said no/i, penalty: 40, reason: 'said_no' },
+    { pattern: /passed on/i, penalty: 35, reason: 'passed' },
+    
+    // Contact issues
+    { pattern: /no answer/i, penalty: 15, reason: 'no_answer' },
+    { pattern: /didn'?t answer/i, penalty: 15, reason: 'no_answer' },
+    { pattern: /voicemail/i, penalty: 10, reason: 'voicemail' },
+    { pattern: /left (a )?message/i, penalty: 10, reason: 'left_message' },
+    { pattern: /wrong number/i, penalty: 50, reason: 'wrong_number' },
+    { pattern: /disconnected/i, penalty: 50, reason: 'disconnected' },
+    { pattern: /invalid (phone|number|email)/i, penalty: 45, reason: 'invalid_contact' },
+    { pattern: /bad (phone|number|email)/i, penalty: 45, reason: 'bad_contact' },
+    { pattern: /unreachable/i, penalty: 25, reason: 'unreachable' },
+    { pattern: /can'?t reach/i, penalty: 20, reason: 'unreachable' },
+    { pattern: /couldn'?t reach/i, penalty: 20, reason: 'unreachable' },
+    
+    // Competitor / already have service
+    { pattern: /went with (another|different|competitor)/i, penalty: 50, reason: 'chose_competitor' },
+    { pattern: /using (another|different|competitor)/i, penalty: 45, reason: 'has_competitor' },
+    { pattern: /already (has|have|using|hired)/i, penalty: 40, reason: 'already_has_service' },
+    { pattern: /found (someone|another)/i, penalty: 45, reason: 'found_alternative' },
+    { pattern: /hired (someone|another)/i, penalty: 50, reason: 'hired_alternative' },
+    
+    // Budget / pricing issues
+    { pattern: /too expensive/i, penalty: 30, reason: 'price_objection' },
+    { pattern: /can'?t afford/i, penalty: 35, reason: 'budget_issue' },
+    { pattern: /out of budget/i, penalty: 30, reason: 'budget_issue' },
+    { pattern: /price (too high|is high)/i, penalty: 25, reason: 'price_objection' },
+    { pattern: /cheaper/i, penalty: 20, reason: 'seeking_cheaper' },
+    
+    // Timing issues
+    { pattern: /not (right )?now/i, penalty: 20, reason: 'bad_timing' },
+    { pattern: /maybe later/i, penalty: 25, reason: 'delayed' },
+    { pattern: /call back later/i, penalty: 15, reason: 'callback_requested' },
+    { pattern: /next (year|month)/i, penalty: 20, reason: 'future_interest' },
+    { pattern: /not ready/i, penalty: 20, reason: 'not_ready' },
+    
+    // Dead leads
+    { pattern: /dead lead/i, penalty: 50, reason: 'marked_dead' },
+    { pattern: /do not (call|contact)/i, penalty: 50, reason: 'dnc' },
+    { pattern: /dnc/i, penalty: 50, reason: 'dnc' },
+    { pattern: /spam/i, penalty: 45, reason: 'spam' },
+    { pattern: /fake/i, penalty: 45, reason: 'fake_lead' },
+    { pattern: /test lead/i, penalty: 40, reason: 'test_lead' },
+    { pattern: /junk/i, penalty: 40, reason: 'junk_lead' },
+    { pattern: /unqualified/i, penalty: 35, reason: 'unqualified' },
+    { pattern: /cold/i, penalty: 25, reason: 'cold_lead' },
+  ];
+
+  const detectedNegatives: string[] = [];
+  let totalPenalty = 0;
+
+  for (const signal of negativeSignals) {
+    if (signal.pattern.test(messageText)) {
+      totalPenalty += signal.penalty;
+      detectedNegatives.push(signal.reason);
+    }
+  }
+
+  // Apply penalty (capped at -60 to prevent going negative)
+  conversionScore -= Math.min(60, totalPenalty);
+
   // Source-based adjustment
   const sourceConversionRate = sourceStats[lead.source]?.total > 0
     ? (sourceStats[lead.source].converted / sourceStats[lead.source].total) * 100
@@ -289,13 +364,38 @@ function calculateLeadScore(
   // Has phone = more engaged
   if (lead.phone) conversionScore += 5;
 
-  // Has detailed message = more serious
-  if (lead.message && lead.message.length > 50) conversionScore += 10;
+  // Has detailed message = more serious (but not if it contains negative signals)
+  if (lead.message && lead.message.length > 50 && detectedNegatives.length === 0) conversionScore += 10;
   if (lead.service_interest) conversionScore += 5;
+
+  // POSITIVE SIGNALS - boost score
+  const positiveSignals = [
+    { pattern: /ready to (book|schedule|start)/i, bonus: 25 },
+    { pattern: /wants to (book|schedule|proceed)/i, bonus: 20 },
+    { pattern: /very interested/i, bonus: 20 },
+    { pattern: /excited/i, bonus: 15 },
+    { pattern: /looking forward/i, bonus: 15 },
+    { pattern: /confirmed/i, bonus: 20 },
+    { pattern: /scheduled/i, bonus: 25 },
+    { pattern: /great call/i, bonus: 15 },
+    { pattern: /positive (call|conversation)/i, bonus: 15 },
+    { pattern: /hot lead/i, bonus: 20 },
+    { pattern: /warm lead/i, bonus: 10 },
+    { pattern: /qualified/i, bonus: 15 },
+    { pattern: /sent quote/i, bonus: 10 },
+    { pattern: /follow up/i, bonus: 5 },
+  ];
+
+  const detectedPositives: string[] = [];
+  for (const signal of positiveSignals) {
+    if (signal.pattern.test(messageText)) {
+      conversionScore += signal.bonus;
+      detectedPositives.push(signal.pattern.source);
+    }
+  }
 
   // Urgency score based on message content
   let urgencyScore = 30;
-  const messageText = `${lead.message || ''} ${lead.notes || ''}`.toLowerCase();
   if (messageText.includes('asap') || messageText.includes('urgent') || messageText.includes('today')) {
     urgencyScore = 90;
   } else if (messageText.includes('soon') || messageText.includes('this week')) {
@@ -304,11 +404,21 @@ function calculateLeadScore(
     urgencyScore = 60;
   }
 
+  // Reduce urgency if negative signals detected
+  if (detectedNegatives.length > 0) {
+    urgencyScore = Math.max(10, urgencyScore - 30);
+  }
+
   // Engagement score
   let engagementScore = 40;
   if (lead.phone && lead.message) engagementScore = 80;
   else if (lead.phone || lead.message) engagementScore = 60;
-  if (lead.notes) engagementScore += 10;
+  if (lead.notes && detectedNegatives.length === 0) engagementScore += 10;
+
+  // Reduce engagement if negative signals detected
+  if (detectedNegatives.length > 0) {
+    engagementScore = Math.max(20, engagementScore - (detectedNegatives.length * 10));
+  }
 
   // Clamp scores
   conversionScore = Math.max(0, Math.min(100, Math.round(conversionScore)));
@@ -318,9 +428,14 @@ function calculateLeadScore(
   // Predicted conversion rate
   const predictedRate = Math.round(conversionScore * 0.8);
 
-  // Recommended follow-up time
+  // Recommended follow-up time - extend if negative signals
   let recommendedFollowup = new Date();
-  if (urgencyScore >= 70) {
+  if (detectedNegatives.includes('dnc') || detectedNegatives.includes('wrong_number')) {
+    // Don't follow up
+    recommendedFollowup.setMonth(recommendedFollowup.getMonth() + 6);
+  } else if (detectedNegatives.length >= 2) {
+    recommendedFollowup.setDate(recommendedFollowup.getDate() + 30);
+  } else if (urgencyScore >= 70) {
     recommendedFollowup.setHours(recommendedFollowup.getHours() + 1);
   } else if (conversionScore >= 60) {
     recommendedFollowup.setHours(recommendedFollowup.getHours() + 4);
@@ -339,17 +454,23 @@ function calculateLeadScore(
       source_impact: sourceConversionRate > 40 ? 'positive' : 'neutral',
       recency_impact: hoursSinceCreated < 48 ? 'positive' : hoursSinceCreated > 168 ? 'negative' : 'neutral',
       engagement_level: engagementScore >= 70 ? 'high' : engagementScore >= 40 ? 'medium' : 'low',
+      notes_impact: detectedNegatives.length > 0 ? 'negative' : detectedPositives.length > 0 ? 'positive' : 'neutral',
     },
+    detected_negative_signals: detectedNegatives,
+    detected_positive_signals: detectedPositives,
     action_items: [],
   };
 
-  if (conversionScore >= 70) {
+  if (detectedNegatives.length > 0) {
+    (insights.action_items as string[]).push(`Notes indicate issues: ${detectedNegatives.slice(0, 3).join(', ')}`);
+  }
+  if (conversionScore >= 70 && detectedNegatives.length === 0) {
     (insights.action_items as string[]).push('Hot lead - prioritize immediate contact');
   }
-  if (urgencyScore >= 70) {
+  if (urgencyScore >= 70 && detectedNegatives.length === 0) {
     (insights.action_items as string[]).push('Customer expressed urgency - respond ASAP');
   }
-  if (daysSinceCreated > 7 && lead.status === 'new') {
+  if (daysSinceCreated > 7 && lead.status === 'new' && detectedNegatives.length === 0) {
     (insights.action_items as string[]).push('Lead going stale - follow up today');
   }
 
