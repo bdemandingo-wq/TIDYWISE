@@ -70,23 +70,29 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         return existing;
       }
 
-      // Get the booking's service to find a matching template
+      // Get the booking's service and organization to find a matching template
       const { data: booking } = await supabase
         .from('bookings')
-        .select('service_id, service:services(name)')
+        .select('service_id, organization_id, service:services(name)')
         .eq('id', bookingId)
         .single();
 
-      // Find a matching template - prioritize service-specific templates
+      if (!booking?.organization_id) {
+        throw new Error('Booking has no organization');
+      }
+
+      // Find a matching template - prioritize service-specific templates, filtered by organization
       const baseTemplateQuery = () => supabase
         .from('checklist_templates')
         .select(`
           id,
           service_id,
+          organization_id,
           service:services(name),
           checklist_items(id, title, requires_photo, sort_order)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('organization_id', booking.organization_id);
 
       // First try to find a service-specific template by exact service_id
       let serviceTemplate = null;
@@ -98,7 +104,7 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         
         serviceTemplate = exactMatch;
         
-        // If no exact match, try to match by service NAME
+        // If no exact match, try to match by service NAME within the same organization
         // This handles cases where there are duplicate services with same name but different IDs
         if (!serviceTemplate && booking?.service?.name) {
           const { data: allTemplates } = await baseTemplateQuery()
@@ -165,7 +171,7 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         }
       }
 
-      // Fall back to default template (no service_id)
+      // Fall back to default template (no service_id) within the same organization
       const { data: template } = await supabase
         .from('checklist_templates')
         .select(`
@@ -173,6 +179,7 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
           checklist_items(id, title, requires_photo, sort_order)
         `)
         .eq('is_active', true)
+        .eq('organization_id', booking.organization_id)
         .is('service_id', null)
         .eq('is_default', true)
         .limit(1)
