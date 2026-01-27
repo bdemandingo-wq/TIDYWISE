@@ -166,6 +166,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
   const [hiddenItems, setHiddenItems] = useState<string[]>([]);
 
@@ -256,11 +257,11 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   );
 
   useEffect(() => {
-    const fetchLogo = async () => {
+    const fetchLogoAndName = async () => {
       if (!organization?.id) return;
       const { data } = await supabase
         .from('business_settings')
-        .select('logo_url')
+        .select('logo_url, company_name')
         .eq('organization_id', organization.id)
         .limit(1)
         .maybeSingle();
@@ -268,9 +269,15 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       if (data?.logo_url) {
         setLogoUrl(data.logo_url);
       }
+      // Use company_name from business_settings if available, otherwise fall back to organization name
+      if (data?.company_name) {
+        setBusinessDisplayName(data.company_name);
+      } else if (organization?.name) {
+        setBusinessDisplayName(organization.name);
+      }
     };
-    fetchLogo();
-  }, [organization?.id]);
+    fetchLogoAndName();
+  }, [organization?.id, organization?.name]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -301,7 +308,6 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     .toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const businessName = organization?.name || 'My Business';
 
   const handleNavClick = () => {
     setMobileOpen(false);
@@ -330,7 +336,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           </div>
         )}
         {(isOpen || isMobile) && (
-          <span className="text-lg font-bold text-sidebar-foreground">{businessName}</span>
+          <span className="text-lg font-bold text-sidebar-foreground">{businessDisplayName}</span>
         )}
       </div>
 
@@ -394,13 +400,29 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
             !isOpen && !isMobile && "justify-center px-2"
           )}
         >
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground flex-shrink-0">
-            {userInitials}
-          </div>
+          {/* Show logo for owners if available, otherwise show initials */}
+          {isOwner && logoUrl ? (
+            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-background flex-shrink-0">
+              <SignedImage
+                src={logoUrl}
+                alt="Business Logo"
+                className="w-full h-full object-cover"
+                fallback={
+                  <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground">
+                    {userInitials}
+                  </div>
+                }
+              />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground flex-shrink-0">
+              {userInitials}
+            </div>
+          )}
           {(isOpen || isMobile) && (
             <>
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-sidebar-foreground">{userName}</p>
+                <p className="text-sm font-medium text-sidebar-foreground">{businessDisplayName}</p>
                 <p className="text-xs text-sidebar-foreground/60">{isOwner ? 'Owner' : 'Team Member'}</p>
               </div>
               <ChevronDown className={cn(
