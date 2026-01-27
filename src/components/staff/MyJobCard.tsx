@@ -12,6 +12,7 @@ interface StaffInfo {
   hourly_rate: number | null;
   base_wage: number | null;
   percentage_rate: number | null;
+  default_hours: number | null;
 }
 
 interface Booking {
@@ -85,8 +86,8 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           isExact: true,
         };
       } else {
-        // Hourly wage - estimate based on duration
-        const hours = booking.duration / 60 || 2;
+        // Hourly wage - use staff default hours or booking duration
+        const hours = staffInfo.default_hours || booking.duration / 60 || 2;
         return {
           amount: booking.cleaner_wage * hours,
           type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs`,
@@ -106,7 +107,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
     // Then check hourly rate
     if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      const hours = booking.duration / 60 || 2;
+      const hours = staffInfo.default_hours || booking.duration / 60 || 2;
       return {
         amount: staffInfo.hourly_rate * hours,
         type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs`,
