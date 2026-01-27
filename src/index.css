@@ -121,13 +121,17 @@
     @apply scroll-smooth;
     -webkit-overflow-scrolling: touch;
     overflow-y: scroll;
+    /* Prevent zoom getting stuck on native apps */
+    touch-action: pan-x pan-y;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
-    touch-action: manipulation;
+    touch-action: pan-x pan-y;
+    /* Prevent double-tap zoom */
+    -ms-touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {
