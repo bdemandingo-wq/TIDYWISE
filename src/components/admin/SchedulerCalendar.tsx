@@ -187,6 +187,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
+  const [dayBookingsPopup, setDayBookingsPopup] = useState<{ date: Date; bookings: BookingWithDetails[] } | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress } = useTestMode();
   const { organization } = useOrganization();
 
@@ -661,24 +662,23 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                       </span>
                       <div className="w-full space-y-1 overflow-y-auto max-h-[200px] scrollbar-thin">
-                        {/* Show first 2 bookings with names, then "+X more" */}
-                        {dayBookings.slice(0, 2).map((booking, bIndex) => (
+                        {/* Single booking: show name. 2+ bookings: show +X count */}
+                        {dayBookings.length === 1 ? (
                           <DraggableBooking
-                            key={booking.id}
-                            booking={booking}
-                            index={bIndex}
-                            onClick={() => setSelectedBooking(booking)}
+                            key={dayBookings[0].id}
+                            booking={dayBookings[0]}
+                            index={0}
+                            onClick={() => setSelectedBooking(dayBookings[0])}
                             staffList={staffList}
                           />
-                        ))}
-                        {dayBookings.length > 2 && (
+                        ) : dayBookings.length >= 2 ? (
                           <button
-                            onClick={() => setSelectedBooking(dayBookings[0])}
-                            className="w-full text-left text-xs text-muted-foreground hover:text-foreground px-1 py-0.5 rounded hover:bg-muted/50 transition-colors"
+                            onClick={() => setDayBookingsPopup({ date, bookings: dayBookings })}
+                            className="w-full text-left text-xs font-medium text-muted-foreground hover:text-foreground px-1 py-1 rounded hover:bg-muted/50 transition-colors"
                           >
-                            +{dayBookings.length - 2} more
+                            +{dayBookings.length}
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </>
                   )}
@@ -696,6 +696,43 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             </div>
           )}
         </DragOverlay>
+
+        {/* Day Bookings Popup - shows all bookings for a day when clicking +X */}
+        <Dialog open={!!dayBookingsPopup} onOpenChange={() => setDayBookingsPopup(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {dayBookingsPopup && format(dayBookingsPopup.date, 'MMMM d, yyyy')}
+              </DialogTitle>
+            </DialogHeader>
+            {dayBookingsPopup && (
+              <div className="space-y-2">
+                {dayBookingsPopup.bookings.map((booking) => {
+                  const color = getStaffColor(booking.staff_id, staffList);
+                  const fullName = booking.customer 
+                    ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                    : 'Customer';
+                  return (
+                    <button
+                      key={booking.id}
+                      onClick={() => {
+                        setDayBookingsPopup(null);
+                        setSelectedBooking(booking);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg transition-colors hover:opacity-80"
+                      style={{
+                        backgroundColor: color,
+                        color: '#fff',
+                      }}
+                    >
+                      <span className="font-medium">{maskName(fullName)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Booking Detail Dialog */}
         <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
