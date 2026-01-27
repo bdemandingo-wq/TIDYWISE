@@ -27,6 +27,7 @@ import {
   Activity,
   Zap,
   Brain,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -437,6 +438,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           <div className="mt-2 py-2 space-y-1 animate-fade-in">
             <button 
               onClick={() => {
+                setIsProfileOpen(false);
                 navigate('/dashboard/settings');
                 handleNavClick();
               }}
@@ -444,6 +446,18 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
             >
               <Settings className="w-4 h-4" />
               <span className="text-sm">Settings</span>
+            </button>
+            {/* Account Deletion - visible and accessible for App Store compliance */}
+            <button 
+              onClick={() => {
+                setIsProfileOpen(false);
+                navigate('/dashboard/settings?tab=security');
+                handleNavClick();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-sm">Delete Account</span>
             </button>
             <button 
               onClick={handleLogout}

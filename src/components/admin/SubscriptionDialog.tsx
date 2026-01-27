@@ -12,10 +12,12 @@ import {
   ArrowRight,
   Loader2,
   Sparkles,
-  X
+  X,
+  ExternalLink
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { usePlatform } from "@/hooks/usePlatform";
 
 interface SubscriptionDialogProps {
   open: boolean;
@@ -27,6 +29,7 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
   const [checkingOut, setCheckingOut] = useState(false);
   const [checking, setChecking] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const { canShowPaymentFlows, billingUrl } = usePlatform();
 
   const checkSubscription = async () => {
     try {
@@ -75,6 +78,52 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
         <DialogContent className="sm:max-w-md">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // On native platforms, show a simple redirect message instead of payment UI
+  if (!canShowPaymentFlows) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              Subscription Required
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <p className="text-muted-foreground text-center">
+              Manage your subscription at jointidywise.lovable.app to unlock all features.
+            </p>
+
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  window.open(billingUrl, '_blank');
+                  onOpenChange(false);
+                }} 
+                size="lg" 
+                variant="outline"
+                className="w-full gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Manage Subscription on Web
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full text-muted-foreground"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Continue in Limited Mode
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

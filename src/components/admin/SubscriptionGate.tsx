@@ -101,12 +101,17 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
 
 export function useSubscriptionCheck() {
   const { subscription, setShowSubscriptionDialog } = useAuth();
+  const { canShowPaymentFlows, billingUrl } = usePlatform();
 
   const requireSubscription = (callback: () => void, feature?: string) => {
     if (subscription?.subscribed && !subscription?.payment_failed) {
       callback();
-    } else {
+    } else if (canShowPaymentFlows) {
+      // Only show subscription dialog on web
       setShowSubscriptionDialog(true);
+    } else {
+      // On native, redirect to web for subscription management
+      window.open(billingUrl, '_blank');
     }
   };
 

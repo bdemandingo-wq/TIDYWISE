@@ -37,7 +37,7 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface BusinessSettings {
   id?: string;
@@ -229,12 +229,19 @@ function AccountDeletionCard() {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { organization, refetch: refetchOrganization } = useOrganization();
   const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  
+  // Get active tab from URL query param, default to "general"
+  const activeTab = searchParams.get('tab') || 'general';
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
   
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -481,7 +488,7 @@ export default function SettingsPage() {
       title="Settings"
       subtitle="Manage your business preferences"
     >
-      <Tabs defaultValue="general" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         {/*
           Mobile Safari can aggressively shrink inline-flex children, which can cause tab labels to visually overlap.
           Use an explicit scroll container + non-shrinking triggers so labels stay readable.
