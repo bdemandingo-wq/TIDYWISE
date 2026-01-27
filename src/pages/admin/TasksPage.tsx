@@ -422,8 +422,8 @@ export default function TasksPage() {
                             </div>
                           ))}
                           
-                          {/* Completed tasks - only show for weekly tasks */}
-                          {type === 'weekly' && completedTasks.length > 0 && (
+                          {/* Completed tasks - show for both daily and weekly */}
+                          {completedTasks.length > 0 && (
                             <div className="mt-6">
                               <p className="text-sm font-medium text-muted-foreground mb-2">
                                 Completed ({completedTasks.length})
@@ -431,16 +431,17 @@ export default function TasksPage() {
                               {completedTasks.map(task => (
                                 <div
                                   key={task.id}
-                                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 opacity-60"
+                                  className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
                                 >
                                   <Checkbox
                                     checked={task.is_completed}
                                     onCheckedChange={(checked) => 
                                       toggleMutation.mutate({ id: task.id, is_completed: !!checked })
                                     }
+                                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="truncate line-through">{task.content}</p>
+                                    <p className="truncate line-through text-muted-foreground">{task.content}</p>
                                   </div>
                                   <Button
                                     variant="ghost"
