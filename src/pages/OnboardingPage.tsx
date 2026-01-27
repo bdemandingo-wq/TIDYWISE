@@ -319,7 +319,8 @@ export default function OnboardingPage() {
     }
   };
 
-  const canProceedStep1 = businessName.trim().length >= 2 && (!needsPhoneCollection || phoneNumber.trim().length >= 10);
+  // Phone is now optional for App Store compliance (Guideline 5.1.1)
+  const canProceedStep1 = businessName.trim().length >= 2;
   const canProceedStep2 = selectedServices.size > 0;
 
   const totalSteps = 2;
@@ -396,20 +397,21 @@ export default function OnboardingPage() {
                 )}
               </div>
               
-              {/* Phone number collection for Google OAuth users */}
-              {needsPhoneCollection && (
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">We'll send you a welcome text with tips to get started!</p>
-                </div>
-              )}
+              {/* Phone number collection - always optional for App Store compliance */}
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                  Phone Number
+                  <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">We'll send you tips and updates to help grow your business!</p>
+              </div>
               
               <Button 
                 className="w-full" 
