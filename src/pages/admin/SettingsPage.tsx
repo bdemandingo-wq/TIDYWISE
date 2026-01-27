@@ -14,7 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
@@ -26,6 +37,7 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { useNavigate } from 'react-router-dom';
 
 interface BusinessSettings {
   id?: string;
@@ -98,7 +110,125 @@ const defaultSettings: BusinessSettings = {
   resend_api_key: '',
 };
 
+// Account Deletion Card Component - Required for App Store compliance (Guideline 5.1.1(v))
+function AccountDeletionCard() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!user?.email) return;
+    
+    if (confirmEmail.toLowerCase() !== user.email.toLowerCase()) {
+      toast.error('Email does not match. Please enter your email correctly.');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-my-account', {
+        body: { confirmEmail }
+      });
+
+      if (error) throw error;
+
+      toast.success('Your account has been permanently deleted.');
+      await signOut();
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      toast.error(error.message || 'Failed to delete account. Please try again.');
+    } finally {
+      setDeleting(false);
+      setDialogOpen(false);
+    }
+  };
+
+  return (
+    <Card className="border-destructive/50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <Trash2 className="w-5 h-5" />
+          Delete Account
+        </CardTitle>
+        <CardDescription>
+          Permanently delete your account and all associated data
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start gap-3 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-destructive mb-1">Warning: This action cannot be undone</p>
+            <p className="text-muted-foreground">
+              Deleting your account will permanently remove all your data including:
+            </p>
+            <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
+              <li>Your business and organization settings</li>
+              <li>All customer records and booking history</li>
+              <li>Staff members and team assignments</li>
+              <li>Invoices, payments, and financial data</li>
+              <li>All other associated data</li>
+            </ul>
+          </div>
+        </div>
+
+        <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="gap-2">
+              <Trash2 className="w-4 h-4" />
+              Delete My Account
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-5 h-5" />
+                Confirm Account Deletion
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4">
+                  <p>
+                    This will permanently delete your account and all data. This action cannot be reversed.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-email">
+                      Type your email <span className="font-medium">{user?.email}</span> to confirm:
+                    </Label>
+                    <Input
+                      id="confirm-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={confirmEmail}
+                      onChange={(e) => setConfirmEmail(e.target.value)}
+                      className="border-destructive/50"
+                    />
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmEmail('')}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAccount}
+                disabled={deleting || confirmEmail.toLowerCase() !== user?.email?.toLowerCase()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Yes, Delete My Account
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { organization, refetch: refetchOrganization } = useOrganization();
   const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
@@ -857,6 +987,9 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Account Deletion - Required for App Store compliance */}
+          <AccountDeletionCard />
         </TabsContent>
       </Tabs>
     </AdminLayout>
