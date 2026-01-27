@@ -1,4 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DndContext,
   DragEndEvent,
@@ -178,6 +179,7 @@ function DraggableBooking({ booking, index, onClick, staffList }: DraggableBooki
 }
 
 export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilter = 'all' }: SchedulerCalendarProps) {
+  const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
@@ -662,23 +664,37 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                       </span>
                       <div className="w-full space-y-1 overflow-y-auto max-h-[200px] scrollbar-thin">
-                        {/* Single booking: show name. 2+ bookings: show +X count */}
-                        {dayBookings.length === 1 ? (
-                          <DraggableBooking
-                            key={dayBookings[0].id}
-                            booking={dayBookings[0]}
-                            index={0}
-                            onClick={() => setSelectedBooking(dayBookings[0])}
-                            staffList={staffList}
-                          />
-                        ) : dayBookings.length >= 2 ? (
-                          <button
-                            onClick={() => setDayBookingsPopup({ date, bookings: dayBookings })}
-                            className="w-full text-left text-xs font-medium text-muted-foreground hover:text-foreground px-1 py-1 rounded hover:bg-muted/50 transition-colors"
-                          >
-                            +{dayBookings.length}
-                          </button>
-                        ) : null}
+                        {/* Mobile: 1 booking shows name, 2+ shows +X count. Desktop: show all names */}
+                        {isMobile ? (
+                          // Mobile behavior: compact +X for 2+ bookings
+                          dayBookings.length === 1 ? (
+                            <DraggableBooking
+                              key={dayBookings[0].id}
+                              booking={dayBookings[0]}
+                              index={0}
+                              onClick={() => setSelectedBooking(dayBookings[0])}
+                              staffList={staffList}
+                            />
+                          ) : dayBookings.length >= 2 ? (
+                            <button
+                              onClick={() => setDayBookingsPopup({ date, bookings: dayBookings })}
+                              className="w-full text-left text-xs font-medium text-muted-foreground hover:text-foreground px-1 py-1 rounded hover:bg-muted/50 transition-colors"
+                            >
+                              +{dayBookings.length}
+                            </button>
+                          ) : null
+                        ) : (
+                          // Desktop behavior: show all booking names
+                          dayBookings.map((booking, bIndex) => (
+                            <DraggableBooking
+                              key={booking.id}
+                              booking={booking}
+                              index={bIndex}
+                              onClick={() => setSelectedBooking(booking)}
+                              staffList={staffList}
+                            />
+                          ))
+                        )}
                       </div>
                     </>
                   )}
