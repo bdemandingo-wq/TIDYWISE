@@ -59,6 +59,7 @@ interface StaffInfo {
   base_wage: number | null;
   percentage_rate: number | null;
   tax_classification: string | null;
+  default_hours: number | null;
 }
 
 export default function StaffPortal() {
@@ -76,7 +77,7 @@ export default function StaffPortal() {
 
       const { data, error } = await supabase
         .from('staff')
-        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification')
+        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification, default_hours')
         .eq('user_id', user.id)
         .single();
 
@@ -574,6 +575,7 @@ export default function StaffPortal() {
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
                       percentage_rate: staffInfo?.percentage_rate || null,
+                      default_hours: staffInfo?.default_hours || null,
                     }}
                     onUpdateStatus={(id, status) => updateStatus.mutate({ bookingId: id, status })}
                     isUpdating={updateStatus.isPending}
@@ -609,6 +611,7 @@ export default function StaffPortal() {
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
                       percentage_rate: staffInfo?.percentage_rate || null,
+                      default_hours: staffInfo?.default_hours || null,
                     }}
                     onAssign={(id) => assignToSelf.mutate(id)}
                     isAssigning={assignToSelf.isPending}

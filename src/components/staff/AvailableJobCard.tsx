@@ -19,6 +19,7 @@ interface StaffInfo {
   hourly_rate: number | null;
   base_wage: number | null;
   percentage_rate: number | null;
+  default_hours: number | null;
 }
 
 interface Booking {
@@ -60,6 +61,8 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
 
   // Calculate potential earnings based on staff pay type
   const calculatePotentialEarnings = (): { amount: number; type: string } => {
+    const defaultHours = staffInfo.default_hours || 5;
+    
     // If booking has specific cleaner wage set
     if (booking.cleaner_wage && booking.cleaner_wage_type) {
       if (booking.cleaner_wage_type === 'percentage') {
@@ -67,12 +70,16 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
           amount: (booking.total_amount * booking.cleaner_wage) / 100,
           type: 'Based on job value',
         };
+      } else if (booking.cleaner_wage_type === 'flat') {
+        return {
+          amount: booking.cleaner_wage,
+          type: 'Flat rate',
+        };
       } else {
         // Hourly wage from booking
-        const hours = 5;
         return {
-          amount: booking.cleaner_wage * hours,
-          type: `$${booking.cleaner_wage}/hr × ${hours}hrs`,
+          amount: booking.cleaner_wage * defaultHours,
+          type: `$${booking.cleaner_wage}/hr × ${defaultHours}hrs`,
         };
       }
     }
@@ -87,10 +94,9 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
 
     // Then check hourly rate
     if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      const hours = 5;
       return {
-        amount: staffInfo.hourly_rate * hours,
-        type: `$${staffInfo.hourly_rate}/hr × ${hours}hrs`,
+        amount: staffInfo.hourly_rate * defaultHours,
+        type: `$${staffInfo.hourly_rate}/hr × ${defaultHours}hrs`,
       };
     }
 
