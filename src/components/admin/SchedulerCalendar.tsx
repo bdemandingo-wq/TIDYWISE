@@ -137,6 +137,14 @@ function DroppableDay({ id, disabled, className, children }: DroppableDayProps) 
   );
 }
 
+// Helper to format customer name as "FirstName L." 
+const formatCustomerName = (customer: { first_name: string; last_name: string } | null): string => {
+  if (!customer) return 'Customer';
+  const firstName = customer.first_name || '';
+  const lastInitial = customer.last_name ? `${customer.last_name.charAt(0)}.` : '';
+  return `${firstName} ${lastInitial}`.trim();
+};
+
 function DraggableBooking({ booking, index, onClick, staffList }: DraggableBookingProps) {
   const color = getStaffColor(booking.staff_id, staffList);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -163,10 +171,7 @@ function DraggableBooking({ booking, index, onClick, staffList }: DraggableBooki
     >
       <div className="flex items-center gap-1">
         <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-50 shrink-0" />
-        <span className="font-medium truncate">
-          {format(new Date(booking.scheduled_at), 'h:mm a')}
-        </span>{' '}
-        <span className="truncate">{booking.customer?.first_name || 'Customer'}</span>
+        <span className="truncate font-medium">{formatCustomerName(booking.customer)}</span>
       </div>
     </div>
   );
@@ -331,6 +336,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     if (!booking) return;
 
     const currentScheduled = new Date(booking.scheduled_at);
+    const previousScheduledISO = booking.scheduled_at; // Store for undo
     const newScheduled = setMinutes(
       setHours(targetDate, currentScheduled.getHours()),
       currentScheduled.getMinutes()
@@ -338,12 +344,36 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     if (isSameDay(currentScheduled, newScheduled)) return;
 
+    const customerName = formatCustomerName(booking.customer);
+
     try {
       await updateBooking.mutateAsync({
         id: bookingId,
         scheduled_at: newScheduled.toISOString(),
       });
-      toast.success(`Booking moved to ${format(newScheduled, 'MMM d, yyyy')}`);
+      
+      // Show success toast with undo action
+      toast.success(
+        `${customerName} moved to ${format(newScheduled, 'MMM d')}`,
+        {
+          duration: 8000,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              try {
+                await updateBooking.mutateAsync({
+                  id: bookingId,
+                  scheduled_at: previousScheduledISO,
+                });
+                toast.success(`Booking restored to ${format(currentScheduled, 'MMM d, yyyy')}`);
+              } catch (undoError) {
+                toast.error('Failed to undo');
+                console.error(undoError);
+              }
+            },
+          },
+        }
+      );
     } catch (error: any) {
       toast.error('Failed to reschedule booking');
       console.error(error);
@@ -631,15 +661,24 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                       </span>
                       <div className="w-full space-y-1 overflow-y-auto max-h-[200px] scrollbar-thin">
-                        {dayBookings.map((booking, bIndex) => (
-                            <DraggableBooking
-                              key={booking.id}
-                              booking={booking}
-                              index={bIndex}
-                              onClick={() => setSelectedBooking(booking)}
-                              staffList={staffList}
-                            />
-                          ))}
+                        {/* Show first 2 bookings with names, then "+X more" */}
+                        {dayBookings.slice(0, 2).map((booking, bIndex) => (
+                          <DraggableBooking
+                            key={booking.id}
+                            booking={booking}
+                            index={bIndex}
+                            onClick={() => setSelectedBooking(booking)}
+                            staffList={staffList}
+                          />
+                        ))}
+                        {dayBookings.length > 2 && (
+                          <button
+                            onClick={() => setSelectedBooking(dayBookings[0])}
+                            className="w-full text-left text-xs text-muted-foreground hover:text-foreground px-1 py-0.5 rounded hover:bg-muted/50 transition-colors"
+                          >
+                            +{dayBookings.length - 2} more
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -653,7 +692,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         <DragOverlay>
           {activeBooking && (
             <div className="booking-pill bg-primary/20 text-primary border-l-4 border-primary px-2 py-1 rounded text-sm shadow-lg">
-              {format(new Date(activeBooking.scheduled_at), 'h:mm a')} - {activeBooking.customer?.first_name || 'Customer'}
+              {formatCustomerName(activeBooking.customer)}
             </div>
           )}
         </DragOverlay>
