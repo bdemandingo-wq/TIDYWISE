@@ -51,6 +51,7 @@ interface StaffMember {
   is_active: boolean;
   tax_classification?: string | null;
   base_wage?: number | null;
+  default_hours?: number | null;
 }
 
 export default function StaffPage() {

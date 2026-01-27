@@ -43,6 +43,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     password: '',
     hourly_rate: '',
     percentage_rate: '',
+    default_hours: '5',
     tax_classification: 'w2' as 'w2' | '1099',
   });
 
@@ -73,6 +74,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
           password: formData.password,
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
           percentage_rate: formData.percentage_rate ? parseFloat(formData.percentage_rate) : undefined,
+          default_hours: formData.default_hours ? parseFloat(formData.default_hours) : 5,
           tax_classification: formData.tax_classification,
         },
       });
@@ -129,7 +131,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
   const handleClose = () => {
     if (!showCredentials) {
-      setFormData({ name: '', email: '', phone: '', password: '', hourly_rate: '', percentage_rate: '', tax_classification: 'w2' });
+      setFormData({ name: '', email: '', phone: '', password: '', hourly_rate: '', percentage_rate: '', default_hours: '5', tax_classification: 'w2' });
     }
     onOpenChange(false);
   };
@@ -138,7 +140,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     setShowCredentials(false);
     setCredentials(null);
     setCopied(false);
-    setFormData({ name: '', email: '', phone: '', password: '', hourly_rate: '', percentage_rate: '', tax_classification: 'w2' });
+    setFormData({ name: '', email: '', phone: '', password: '', hourly_rate: '', percentage_rate: '', default_hours: '5', tax_classification: 'w2' });
     onOpenChange(false);
   };
 
@@ -305,6 +307,21 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
               />
               <p className="text-xs text-muted-foreground">% of job total</p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="default_hours">Default Hours Per Job</Label>
+            <Input
+              id="default_hours"
+              type="number"
+              step="0.5"
+              min="0.5"
+              max="24"
+              value={formData.default_hours}
+              onChange={(e) => setFormData({ ...formData, default_hours: e.target.value })}
+              placeholder="5"
+            />
+            <p className="text-xs text-muted-foreground">Used for pay calculations when not using check-in/out times</p>
           </div>
 
           <DialogFooter>

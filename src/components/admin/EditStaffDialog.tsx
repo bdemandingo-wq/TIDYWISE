@@ -55,6 +55,7 @@ interface StaffMember {
   ein?: string | null;
   user_id?: string | null;
   calendar_color?: string | null;
+  default_hours?: number | null;
 }
 
 interface EditStaffDialogProps {
@@ -79,6 +80,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     phone: '',
     hourly_rate: '',
     percentage_rate: '',
+    default_hours: '5',
     bio: '',
     is_active: true,
     tax_classification: 'w2' as 'w2' | '1099',
@@ -96,6 +98,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         phone: staff.phone || '',
         hourly_rate: staff.hourly_rate?.toString() || '',
         percentage_rate: staff.percentage_rate?.toString() || '',
+        default_hours: staff.default_hours?.toString() || '5',
         bio: staff.bio || '',
         is_active: staff.is_active,
         tax_classification: (staff.tax_classification as 'w2' | '1099') || 'w2',
@@ -121,6 +124,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           phone: formData.phone || null,
           hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
           percentage_rate: formData.percentage_rate ? parseFloat(formData.percentage_rate) : null,
+          default_hours: formData.default_hours ? parseFloat(formData.default_hours) : 5,
           bio: formData.bio || null,
           is_active: formData.is_active,
           tax_classification: formData.tax_classification,
@@ -377,6 +381,21 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               />
               <p className="text-xs text-muted-foreground">% of job total</p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-default_hours">Default Hours Per Job</Label>
+            <Input
+              id="edit-default_hours"
+              type="number"
+              step="0.5"
+              min="0.5"
+              max="24"
+              value={formData.default_hours}
+              onChange={(e) => setFormData({ ...formData, default_hours: e.target.value })}
+              placeholder="5"
+            />
+            <p className="text-xs text-muted-foreground">Used for pay calculations when not using check-in/out times</p>
           </div>
 
           {/* SSN/EIN Fields */}

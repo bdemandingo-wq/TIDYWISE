@@ -3466,6 +3466,7 @@ export type Database = {
           bio: string | null
           calendar_color: string | null
           created_at: string
+          default_hours: number | null
           ein: string | null
           email: string
           hourly_rate: number | null
@@ -3487,6 +3488,7 @@ export type Database = {
           bio?: string | null
           calendar_color?: string | null
           created_at?: string
+          default_hours?: number | null
           ein?: string | null
           email: string
           hourly_rate?: number | null
@@ -3508,6 +3510,7 @@ export type Database = {
           bio?: string | null
           calendar_color?: string | null
           created_at?: string
+          default_hours?: number | null
           ein?: string | null
           email?: string
           hourly_rate?: number | null

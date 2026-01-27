@@ -13,6 +13,7 @@ interface InviteStaffRequest {
   phone?: string;
   hourly_rate?: number;
   percentage_rate?: number;
+  default_hours?: number;
   tax_classification?: 'w2' | '1099';
   password?: string;
 }
@@ -105,7 +106,7 @@ serve(async (req) => {
       });
     }
 
-    const { email, name, phone, hourly_rate, percentage_rate, tax_classification, password } = requestBody;
+    const { email, name, phone, hourly_rate, percentage_rate, default_hours, tax_classification, password } = requestBody;
 
     // Validate required fields
     if (!email || !name) {
@@ -204,6 +205,7 @@ serve(async (req) => {
             phone: phone || null,
             hourly_rate: hourly_rate || null,
             percentage_rate: percentage_rate || null,
+            default_hours: default_hours || 5,
             is_active: true,
             tax_classification: tax_classification || 'w2',
           })
@@ -319,6 +321,7 @@ serve(async (req) => {
         phone: phone || null,
         hourly_rate: hourly_rate || null,
         percentage_rate: percentage_rate || null,
+        default_hours: default_hours || 5,
         is_active: true,
         tax_classification: tax_classification || 'w2',
       })
