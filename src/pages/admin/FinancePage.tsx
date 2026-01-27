@@ -27,12 +27,14 @@ import {
   PiggyBank,
   Calculator,
   Lock,
-  Sparkles
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { usePlatform } from '@/hooks/usePlatform';
 
 interface Transaction {
   id: string;
@@ -52,6 +54,7 @@ interface Transaction {
 export default function FinancePage() {
   const { subscription, setShowSubscriptionDialog } = useAuth();
   const { organization } = useOrganization();
+  const { canShowPaymentFlows, billingUrl } = usePlatform();
   const organizationId = organization?.id;
   const isSubscribed = subscription?.subscribed ?? false;
   
@@ -216,12 +219,21 @@ export default function FinancePage() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
             <p className="text-muted-foreground mb-4 max-w-sm">
-              Finance & Tax reports require an active subscription. Start your free 2-month trial to unlock all features.
+              {canShowPaymentFlows 
+                ? "Finance & Tax reports require an active subscription. Start your free 2-month trial to unlock all features."
+                : "Finance & Tax reports require an active subscription. Manage your subscription at jointidywise.lovable.app"}
             </p>
-            <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Start Free Trial
-            </Button>
+            {canShowPaymentFlows ? (
+              <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Start Free Trial
+              </Button>
+            ) : (
+              <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Manage Subscription on Web
+              </Button>
+            )}
           </CardContent>
         </Card>
       </AdminLayout>
