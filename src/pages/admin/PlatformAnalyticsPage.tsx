@@ -185,8 +185,9 @@ export default function PlatformAnalyticsPage() {
     );
   }
 
-  const conversionRate = analytics?.signups.total 
-    ? Math.round(((analytics.subscriptions.active + analytics.subscriptions.trialing) / analytics.signups.total) * 100) 
+  // Conversion rate based on organization signups (not total signups which include staff)
+  const conversionRate = analytics?.organizations.total 
+    ? Math.round(((analytics.subscriptions.active + analytics.subscriptions.trialing) / analytics.organizations.total) * 100) 
     : 0;
 
   return (
@@ -276,7 +277,7 @@ export default function PlatformAnalyticsPage() {
             <CardContent>
               <div className="text-3xl font-bold">{conversionRate}%</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Signups → Subscriptions
+                Organizations → Subscriptions
               </p>
             </CardContent>
           </Card>
@@ -503,8 +504,8 @@ export default function PlatformAnalyticsPage() {
                   {/* Activity Stats */}
                   <div className="grid grid-cols-4 gap-3">
                     <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <p className="text-2xl font-bold text-purple-600">{analytics?.signups.last30Days || 0}</p>
-                      <p className="text-xs text-muted-foreground">Active Users (30d)</p>
+                      <p className="text-2xl font-bold text-purple-600">{sessionStats?.userList?.length || 0}</p>
+                      <p className="text-xs text-muted-foreground">Active Users (All Time)</p>
                     </div>
                     <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                       <p className="text-2xl font-bold text-blue-600">
