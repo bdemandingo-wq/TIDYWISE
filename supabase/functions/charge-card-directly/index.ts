@@ -18,11 +18,14 @@ interface ChargeRequest {
   idempotencyKey?: string;
 }
 
-const buildIdempotencyKey = (input: { organizationId: string; bookingId?: string; email: string; amountInCents: number }) => {
-  // Deterministic per booking to prevent accidental double-charges from retries/double-clicks.
-  // If bookingId is missing, fall back to email+amount (less strict, but still prevents rapid duplicates).
+const buildIdempotencyKey = (input: { organizationId: string; bookingId?: string; email: string; amountInCents: number; description?: string }) => {
+  // Include a hash of the description to avoid conflicts when the same booking/amount is retried
+  // with different parameters. Also include a timestamp bucketed to ~5 second windows to prevent
+  // rapid double-clicks while still allowing intentional retries after a short delay.
   const base = input.bookingId ? `booking:${input.bookingId}` : `email:${input.email}`;
-  return `charge-card-directly:org:${input.organizationId}:${base}:amount:${input.amountInCents}`;
+  const descHash = input.description ? input.description.slice(0, 20).replace(/\s+/g, '_') : 'no_desc';
+  const timeBucket = Math.floor(Date.now() / 5000); // 5-second window
+  return `charge-card-directly:org:${input.organizationId}:${base}:amt:${input.amountInCents}:${descHash}:${timeBucket}`;
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -86,6 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
       bookingId,
       email,
       amountInCents,
+      description,
     });
 
     // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
