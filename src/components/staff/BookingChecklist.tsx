@@ -198,13 +198,14 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
       const matchingTemplate = await findMatchingTemplate();
 
       if (matchingTemplate && matchingTemplate.checklist_items?.length > 0) {
-        // Create checklist with service-specific template
+        // Create checklist with service-specific template (org-scoped)
         const { data: newChecklist, error: createError } = await supabase
           .from('booking_checklists')
           .insert({
             booking_id: bookingId,
             staff_id: staffId,
             template_id: matchingTemplate.id,
+            organization_id: booking.organization_id,
           })
           .select()
           .single();
@@ -252,12 +253,13 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         return refetched;
       }
 
-      // No template found - create checklist with default items
+      // No template found - create checklist with default items (still org-scoped)
       const { data: newChecklist, error: createError } = await supabase
         .from('booking_checklists')
         .insert({
           booking_id: bookingId,
           staff_id: staffId,
+          organization_id: booking.organization_id,
         })
         .select()
         .single();
