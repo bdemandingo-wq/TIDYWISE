@@ -124,8 +124,19 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     if (!address.trim()) return null;
     
     try {
+      // Clean up address - add commas if missing and normalize format
+      let cleanAddress = address.trim();
+      
+      // If no commas, try to add them intelligently for US addresses
+      if (!cleanAddress.includes(',')) {
+        // Pattern: number street, city state zip
+        cleanAddress = cleanAddress
+          .replace(/\s+(FL|GA|TX|CA|NY|NC|SC|OH|PA|IL|MI|NJ|VA|WA|AZ|MA|TN|MO|MD|WI|MN|CO|AL|LA|KY|OR|OK|CT|IA|MS|AR|KS|UT|NV|NM|WV|NE|ID|HI|ME|NH|RI|MT|DE|SD|ND|AK|VT|WY|DC)\s+/i, ', $1 ')
+          .replace(/(\d{5})(\s|$)/, ', $1$2');
+      }
+      
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1&countrycodes=us`,
         { headers: { 'User-Agent': 'TidyWise/1.0' } }
       );
       const data = await response.json();
@@ -146,16 +157,28 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     setIsLoading(true);
 
     try {
-      // Geocode address if changed and not already geocoded
+      // Geocode address if changed OR if no coordinates exist yet
       let latitude = formData.home_latitude;
       let longitude = formData.home_longitude;
       
-      if (formData.home_address && formData.home_address !== staff.home_address) {
+      const needsGeocoding = formData.home_address && (
+        formData.home_address !== staff.home_address || 
+        !formData.home_latitude || 
+        !formData.home_longitude
+      );
+      
+      if (needsGeocoding) {
         setIsGeocodingAddress(true);
         const coords = await geocodeAddress(formData.home_address);
         if (coords) {
           latitude = coords.lat;
           longitude = coords.lon;
+          toast.success(`Address geocoded successfully (${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)})`);
+        } else {
+          toast.warning('Could not geocode address. Try adding commas: "Street, City, State ZIP"');
+          // Clear coordinates if geocoding fails
+          latitude = null;
+          longitude = null;
         }
         setIsGeocodingAddress(false);
       }
