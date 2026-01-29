@@ -381,32 +381,30 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                       const availability = staffAvailability.get(member.id);
                       // Only show busy badge for booking conflicts (not working hours since those are already filtered)
                       const hasConflicts = availability && availability.conflicts.length > 0;
-                      const distance = getStaffDistance(member);
+                      const distance = getStaffDistance(member as { home_latitude?: number | null; home_longitude?: number | null });
                       return (
-                        <SelectItem key={member.id} value={member.id}>
-                          <div className="flex items-center justify-between w-full gap-2">
-                            <span>{member.name}</span>
-                            <div className="flex items-center gap-1">
-                              {/* Distance badge */}
-                              {distance && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
-                                  <Car className="h-3 w-3" />
-                                  {distance.display}
-                                </span>
-                              )}
-                              {/* Availability badge */}
-                              {selectedDate && selectedTime && (
-                                <span className={cn(
-                                  "text-xs px-1.5 py-0.5 rounded",
-                                  hasConflicts 
-                                    ? "bg-amber-100 text-amber-700" 
-                                    : "bg-emerald-100 text-emerald-700"
-                                )}>
-                                  {hasConflicts ? 'Busy' : 'Available'}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                        <SelectItem key={member.id} value={member.id} className="py-2">
+                          <span className="flex items-center gap-2 w-full">
+                            <span className="flex-1">{member.name}</span>
+                            {/* Distance badge - show if staff has home coordinates */}
+                            {distance && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 flex items-center gap-0.5 shrink-0">
+                                <Car className="h-3 w-3" />
+                                {distance.display}
+                              </span>
+                            )}
+                            {/* Availability badge */}
+                            {selectedDate && selectedTime && (
+                              <span className={cn(
+                                "text-xs px-1.5 py-0.5 rounded shrink-0",
+                                hasConflicts 
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" 
+                                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                              )}>
+                                {hasConflicts ? 'Busy' : 'Available'}
+                              </span>
+                            )}
+                          </span>
                         </SelectItem>
                       );
                     })
