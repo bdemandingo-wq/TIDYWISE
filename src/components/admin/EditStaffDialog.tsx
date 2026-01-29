@@ -548,17 +548,47 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               <MapPin className="w-4 h-4" />
               Home Address
             </Label>
-            <Input
-              id="edit-home_address"
-              value={formData.home_address}
-              onChange={(e) => setFormData({ ...formData, home_address: e.target.value })}
-              placeholder="123 Main St, City, State ZIP"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="edit-home_address"
+                value={formData.home_address}
+                onChange={(e) => setFormData({ ...formData, home_address: e.target.value })}
+                placeholder="123 Main St, City, State ZIP"
+                className="flex-1"
+              />
+              {formData.home_address && !formData.home_latitude && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isGeocodingAddress}
+                  onClick={async () => {
+                    setIsGeocodingAddress(true);
+                    const coords = await geocodeAddress(formData.home_address);
+                    if (coords) {
+                      setFormData({
+                        ...formData,
+                        home_latitude: coords.lat,
+                        home_longitude: coords.lon,
+                      });
+                      toast.success('Address geocoded!');
+                    } else {
+                      toast.error('Could not geocode. Try: "Street, City, State ZIP"');
+                    }
+                    setIsGeocodingAddress(false);
+                  }}
+                >
+                  {isGeocodingAddress ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               Used for distance calculations when assigning jobs
-              {formData.home_latitude && formData.home_longitude && (
-                <span className="text-green-600 ml-1">✓ Location saved</span>
-              )}
+              {formData.home_latitude && formData.home_longitude ? (
+                <span className="text-green-600 ml-1">✓ Location saved ({formData.home_latitude.toFixed(2)}, {formData.home_longitude.toFixed(2)})</span>
+              ) : formData.home_address ? (
+                <span className="text-amber-600 ml-1">⚠ Not geocoded yet</span>
+              ) : null}
             </p>
           </div>
 
