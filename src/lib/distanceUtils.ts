@@ -69,26 +69,16 @@ export function formatDriveTime(minutes: number): string {
  * Normalize US address abbreviations to improve geocoding accuracy
  */
 function normalizeUSAddress(address: string): string {
-  let normalized = ` ${address.toLowerCase()} `;
+  let normalized = address.trim().toLowerCase();
 
-  // Remove apartment/unit/suite numbers - they confuse the geocoder
-  // and don't affect the street location for distance calculations
-  const unitPatterns = [
-    /\s+apt\.?\s*#?\s*\w+/gi,      // apt 22g, apt. #22, apt 3
-    /\s+apartment\.?\s*#?\s*\w+/gi, // apartment 22
-    /\s+unit\.?\s*#?\s*\w+/gi,      // unit 5, unit #5
-    /\s+suite\.?\s*#?\s*\w+/gi,     // suite 100
-    /\s+ste\.?\s*#?\s*\w+/gi,       // ste 100
-    /\s+#\s*\w+/gi,                  // #22g
-    /\s+bldg\.?\s*#?\s*\w+/gi,      // bldg 2
-    /\s+building\.?\s*#?\s*\w+/gi,  // building 2
-    /\s+fl\.?\s*\d+/gi,             // fl 2 (floor)
-    /\s+floor\.?\s*\d+/gi,          // floor 2
-  ];
+  // Remove apartment/unit/suite identifiers – they often confuse geocoders
+  // but don't matter for street-level distance.
+  normalized = normalized
+    .replace(/\b(apt|apartment|unit|suite|ste|bldg|building)\.?\s*#?\s*[\w-]+\b/gi, '')
+    .replace(/\s+#\s*[\w-]+\b/gi, '')
+    .replace(/\b(floor)\.?\s*\d+\b/gi, '');
 
-  for (const pattern of unitPatterns) {
-    normalized = normalized.replace(pattern, ' ');
-  }
+  normalized = ` ${normalized} `;
 
   // Common street type abbreviations to expand
   const abbreviations: Record<string, string> = {
@@ -148,43 +138,43 @@ function normalizeUSAddress(address: string): string {
     normalized = normalized.replace(new RegExp(abbr, 'gi'), full);
   }
 
-  // Clean up state abbreviations - expand common ones
-  const stateAbbreviations: Record<string, string> = {
-    ' fl ': ' florida ',
-    ' fl,': ' florida,',
-    ' ca ': ' california ',
-    ' ca,': ' california,',
-    ' tx ': ' texas ',
-    ' tx,': ' texas,',
-    ' ny ': ' new york ',
-    ' ny,': ' new york,',
-    ' ga ': ' georgia ',
-    ' ga,': ' georgia,',
-    ' nc ': ' north carolina ',
-    ' nc,': ' north carolina,',
-    ' sc ': ' south carolina ',
-    ' sc,': ' south carolina,',
-    ' va ': ' virginia ',
-    ' va,': ' virginia,',
-    ' pa ': ' pennsylvania ',
-    ' pa,': ' pennsylvania,',
-    ' oh ': ' ohio ',
-    ' oh,': ' ohio,',
-    ' az ': ' arizona ',
-    ' az,': ' arizona,',
-    ' nv ': ' nevada ',
-    ' nv,': ' nevada,',
-    ' co ': ' colorado ',
-    ' co,': ' colorado,',
-  };
+  // Expand a few street-type abbreviations (avoid "st" because it conflicts with "St Petersburg")
+  normalized = normalized
+    .replace(/\brd\b/gi, 'road')
+    .replace(/\bave\b/gi, 'avenue')
+    .replace(/\bblvd\b/gi, 'boulevard')
+    .replace(/\bdr\b/gi, 'drive')
+    .replace(/\bln\b/gi, 'lane')
+    .replace(/\bct\b/gi, 'court')
+    .replace(/\bcir\b/gi, 'circle')
+    .replace(/\bpl\b/gi, 'place')
+    .replace(/\bpkwy\b/gi, 'parkway')
+    .replace(/\bhwy\b/gi, 'highway')
+    .replace(/\btrl\b/gi, 'trail')
+    .replace(/\bter\b/gi, 'terrace');
 
-  for (const [abbr, full] of Object.entries(stateAbbreviations)) {
-    normalized = normalized.replace(new RegExp(abbr, 'gi'), full);
+  // Collapse whitespace
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // If the user typed a one-line US address without commas, try to format it as:
+  // "street, city, ST ZIP" (this prevents the "city, ST , ZIP" mistake)
+  const states =
+    'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY';
+  const oneLineMatch = normalized.match(
+    new RegExp(`^(.*?)(?:,)?\\s+([a-z\\s.]+?)\\s+(${states})\\s+(\\d{5}(?:-\\d{4})?)\\s*$`, 'i')
+  );
+  if (oneLineMatch) {
+    const street = oneLineMatch[1].replace(/\s+/g, ' ').trim();
+    const city = oneLineMatch[2].replace(/\s+/g, ' ').trim();
+    const state = oneLineMatch[3].toUpperCase();
+    const zip = oneLineMatch[4];
+    normalized = `${street}, ${city}, ${state} ${zip}`;
   }
 
   // Add "USA" to improve geocoding accuracy for US addresses
   if (!normalized.includes('usa') && !normalized.includes('united states')) {
-    normalized = normalized.trim() + ', usa';
+    normalized = normalized.replace(/\s*,\s*$/, '');
+    normalized = normalized + ', usa';
   }
 
   return normalized.trim();
@@ -196,19 +186,20 @@ function normalizeUSAddress(address: string): string {
  */
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
+    const trimmed = address.trim();
+    if (!trimmed) return null;
+    if (trimmed.length > 300) return null;
+
     // Normalize the address for better geocoding results
-    const normalizedAddress = normalizeUSAddress(address);
-    console.log('[Geocode] Original:', address);
-    console.log('[Geocode] Normalized:', normalizedAddress);
+    const normalizedAddress = normalizeUSAddress(trimmed);
 
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(normalizedAddress)}&limit=1&countrycodes=us`,
-      { headers: { 'User-Agent': 'TidyWise/1.0' } }
+      { headers: { Accept: 'application/json' } }
     );
     const results = await response.json();
     
     if (results && results.length > 0) {
-      console.log('[Geocode] Success:', results[0].display_name);
       return {
         lat: parseFloat(results[0].lat),
         lng: parseFloat(results[0].lon),
@@ -216,22 +207,19 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
     }
     
     // If normalized search fails, try the original address as fallback
-    console.log('[Geocode] Normalized failed, trying original...');
     const fallbackResponse = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      { headers: { 'User-Agent': 'TidyWise/1.0' } }
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&limit=1&countrycodes=us`,
+      { headers: { Accept: 'application/json' } }
     );
     const fallbackResults = await fallbackResponse.json();
     
     if (fallbackResults && fallbackResults.length > 0) {
-      console.log('[Geocode] Fallback success:', fallbackResults[0].display_name);
       return {
         lat: parseFloat(fallbackResults[0].lat),
         lng: parseFloat(fallbackResults[0].lon),
       };
     }
     
-    console.log('[Geocode] Both attempts failed for:', address);
     return null;
   } catch (error) {
     console.error('Geocoding failed:', error);

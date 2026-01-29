@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
+import { geocodeAddress } from '@/lib/distanceUtils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff, MapPin, Loader2 } from 'lucide-react';
@@ -120,36 +121,6 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     }
   }, [staff]);
 
-  const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
-    if (!address.trim()) return null;
-    
-    try {
-      // Clean up address - add commas if missing and normalize format
-      let cleanAddress = address.trim();
-      
-      // If no commas, try to add them intelligently for US addresses
-      if (!cleanAddress.includes(',')) {
-        // Pattern: number street, city state zip
-        cleanAddress = cleanAddress
-          .replace(/\s+(FL|GA|TX|CA|NY|NC|SC|OH|PA|IL|MI|NJ|VA|WA|AZ|MA|TN|MO|MD|WI|MN|CO|AL|LA|KY|OR|OK|CT|IA|MS|AR|KS|UT|NV|NM|WV|NE|ID|HI|ME|NH|RI|MT|DE|SD|ND|AK|VT|WY|DC)\s+/i, ', $1 ')
-          .replace(/(\d{5})(\s|$)/, ', $1$2');
-      }
-      
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1&countrycodes=us`,
-        { headers: { 'User-Agent': 'TidyWise/1.0' } }
-      );
-      const data = await response.json();
-      if (data && data[0]) {
-        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-      }
-      return null;
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staff) return;
@@ -172,8 +143,8 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         const coords = await geocodeAddress(formData.home_address);
         if (coords) {
           latitude = coords.lat;
-          longitude = coords.lon;
-          toast.success(`Address geocoded successfully (${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)})`);
+          longitude = coords.lng;
+          toast.success(`Address geocoded successfully (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
         } else {
           toast.warning('Could not geocode address. Try adding commas: "Street, City, State ZIP"');
           // Clear coordinates if geocoding fails
@@ -552,7 +523,15 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               <Input
                 id="edit-home_address"
                 value={formData.home_address}
-                onChange={(e) => setFormData({ ...formData, home_address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    home_address: e.target.value,
+                    // Clear existing coordinates so we never keep an old geotag for a new address
+                    home_latitude: null,
+                    home_longitude: null,
+                  })
+                }
                 placeholder="123 Main St, City, State ZIP"
                 className="flex-1"
               />
@@ -569,9 +548,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
                       setFormData({
                         ...formData,
                         home_latitude: coords.lat,
-                        home_longitude: coords.lon,
+                        home_longitude: coords.lng,
                       });
-                      toast.success(`Location updated! (${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)})`);
+                      toast.success(`Location updated! (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
                     } else {
                       toast.error('Could not geocode. Try: "Street, City, State ZIP"');
                     }
@@ -593,9 +572,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
             <p className="text-xs text-muted-foreground">
               Used for distance calculations when assigning jobs
               {formData.home_latitude && formData.home_longitude ? (
-                <span className="text-green-600 ml-1">✓ Location saved ({formData.home_latitude.toFixed(2)}, {formData.home_longitude.toFixed(2)})</span>
+                <span className="text-primary ml-1">✓ Location saved ({formData.home_latitude.toFixed(2)}, {formData.home_longitude.toFixed(2)})</span>
               ) : formData.home_address ? (
-                <span className="text-amber-600 ml-1">⚠ Not geocoded yet</span>
+                <span className="text-muted-foreground ml-1 font-medium">⚠ Not geocoded yet</span>
               ) : null}
             </p>
           </div>
