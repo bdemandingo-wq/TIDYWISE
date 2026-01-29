@@ -556,7 +556,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
                 placeholder="123 Main St, City, State ZIP"
                 className="flex-1"
               />
-              {formData.home_address && !formData.home_latitude && (
+              {formData.home_address && (
                 <Button
                   type="button"
                   variant="outline"
@@ -571,14 +571,22 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
                         home_latitude: coords.lat,
                         home_longitude: coords.lon,
                       });
-                      toast.success('Address geocoded!');
+                      toast.success(`Location updated! (${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)})`);
                     } else {
                       toast.error('Could not geocode. Try: "Street, City, State ZIP"');
                     }
                     setIsGeocodingAddress(false);
                   }}
+                  title={formData.home_latitude ? "Re-geocode address" : "Geocode address"}
                 >
-                  {isGeocodingAddress ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                  {isGeocodingAddress ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      {formData.home_latitude && <span className="ml-1 text-xs">↻</span>}
+                    </>
+                  )}
                 </Button>
               )}
             </div>
