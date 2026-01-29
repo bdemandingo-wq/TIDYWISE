@@ -144,9 +144,62 @@ const handler = async (req: Request): Promise<Response> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[send-openphone-sms] OpenPhone API error: ${response.status} - ${errorText}`);
+
+      let openphoneError: Record<string, unknown> | null = null;
+      try {
+        openphoneError = JSON.parse(errorText);
+      } catch {
+        // ignore non-JSON error payloads
+      }
+
+      const openphoneCode = typeof openphoneError?.code === 'string' ? (openphoneError.code as string) : null;
+      const openphoneTitle = typeof openphoneError?.title === 'string' ? (openphoneError.title as string) : null;
+      const openphoneMessage = typeof openphoneError?.message === 'string' ? (openphoneError.message as string) : null;
+
+      // A2P / 10DLC compliance block (common for US local numbers)
+      if (response.status === 400 && (openphoneCode === '0206400' || (openphoneTitle && openphoneTitle.toLowerCase().includes('a2p')))) {
+        const userFacingError =
+          'OpenPhone blocked this SMS because the workspace is not approved for A2P/10DLC yet. ' +
+          'Please complete/approve A2P registration in OpenPhone for this number, then retry.';
+
+        // Audit log: failed SMS send (A2P compliance)
+        logAudit({
+          action: AuditActions.SMS_GENERIC,
+          organizationId,
+          resourceType: 'phone',
+          resourceId: formattedPhone,
+          success: false,
+          error: `${userFacingError}${openphoneMessage ? ` (OpenPhone: ${openphoneMessage})` : ''}`,
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: userFacingError,
+            errorCode: 'A2P_NOT_APPROVED',
+            openphone: {
+              status: response.status,
+              code: openphoneCode,
+              title: openphoneTitle,
+              message: openphoneMessage,
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       
       // Handle billing/payment issues gracefully
       if (response.status === 402) {
+        // Audit log: failed SMS send (billing)
+        logAudit({
+          action: AuditActions.SMS_GENERIC,
+          organizationId,
+          resourceType: 'phone',
+          resourceId: formattedPhone,
+          success: false,
+          error: `BILLING_REQUIRED${openphoneMessage ? ` (OpenPhone: ${openphoneMessage})` : ''}`,
+        });
+
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -159,6 +212,16 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Handle auth issues
       if (response.status === 401) {
+        // Audit log: failed SMS send (auth)
+        logAudit({
+          action: AuditActions.SMS_GENERIC,
+          organizationId,
+          resourceType: 'phone',
+          resourceId: formattedPhone,
+          success: false,
+          error: `AUTH_FAILED${openphoneMessage ? ` (OpenPhone: ${openphoneMessage})` : ''}`,
+        });
+
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -168,6 +231,16 @@ const handler = async (req: Request): Promise<Response> => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Audit log: failed SMS send (generic)
+      logAudit({
+        action: AuditActions.SMS_GENERIC,
+        organizationId,
+        resourceType: 'phone',
+        resourceId: formattedPhone,
+        success: false,
+        error: `${response.status}${openphoneMessage ? ` (OpenPhone: ${openphoneMessage})` : ''}`,
+      });
       
       return new Response(
         JSON.stringify({ success: false, error: `SMS delivery failed. Please try again later.` }),
