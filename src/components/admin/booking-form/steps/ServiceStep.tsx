@@ -5,11 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, CheckCircle, DollarSign, PawPrint, Home, Ruler, BedDouble } from 'lucide-react';
+import { FileText, CheckCircle, DollarSign, PawPrint, Home, Ruler, BedDouble, ClipboardCheck, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { useServicePricing } from '@/hooks/useServicePricing';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { 
   squareFootageRanges, 
   bedroomOptions, 
@@ -17,7 +20,21 @@ import {
   frequencyOptions
 } from '@/data/pricingData';
 
+interface ChecklistTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  service_id: string | null;
+  items: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    requires_photo: boolean;
+  }>;
+}
+
 export function ServiceStep() {
+  const { organization } = useOrganization();
   const {
     services,
     selectedServiceId,
@@ -45,11 +62,40 @@ export function ServiceStep() {
     petTotal,
     selectedService,
     calculatedPrice,
+    selectedChecklistId,
+    setSelectedChecklistId,
   } = useBookingForm();
 
   // Use service-specific pricing
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
   const { settings: orgSettings } = useOrganizationSettings();
+  
+  // Fetch active checklist templates
+  const { data: checklistTemplates = [] } = useQuery({
+    queryKey: ['checklist-templates-active', organization?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('checklist_templates')
+        .select(`
+          id,
+          name,
+          description,
+          service_id,
+          items:checklist_items(id, title, description, requires_photo, sort_order)
+        `)
+        .eq('organization_id', organization?.id)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      
+      return data.map(t => ({
+        ...t,
+        items: (t.items || []).sort((a: any, b: any) => a.sort_order - b.sort_order)
+      })) as ChecklistTemplate[];
+    },
+    enabled: !!organization?.id
+  });
   
   // Get pricing for selected service
   const servicePricing = selectedServiceId ? getServicePricing(selectedServiceId) : null;
@@ -68,6 +114,14 @@ export function ServiceStep() {
   const showFrequency = orgSettings?.show_frequency_discount !== false;
   const showPets = orgSettings?.show_pet_options !== false;
   const showCondition = orgSettings?.show_home_condition !== false;
+  
+  // Filter templates: show service-specific ones first, then generic ones
+  const availableChecklists = checklistTemplates.filter(t => 
+    !t.service_id || t.service_id === selectedServiceId
+  );
+  
+  // Get selected checklist for preview
+  const selectedChecklist = checklistTemplates.find(t => t.id === selectedChecklistId);
 
   // If sqft pricing is hidden, force Bed & Bath pricing so totals can compute
   useEffect(() => {
@@ -420,6 +474,81 @@ export function ServiceStep() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Checklist Selection */}
+      {availableChecklists.length > 0 && (
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                <ClipboardCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Cleaning Checklist (Optional)</Label>
+                <p className="text-xs text-muted-foreground">Assign a checklist for quality assurance</p>
+              </div>
+            </div>
+            
+            <Select 
+              value={selectedChecklistId || 'none'} 
+              onValueChange={(value) => setSelectedChecklistId(value === 'none' ? null : value)}
+            >
+              <SelectTrigger className="h-11 bg-secondary/30 border-border/50">
+                <SelectValue placeholder="No checklist" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="none">No checklist</SelectItem>
+                {availableChecklists.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{template.name}</span>
+                      {template.service_id === selectedServiceId && (
+                        <Badge variant="secondary" className="text-xs">
+                          Match
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        ({template.items.length} items)
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Preview selected checklist */}
+            {selectedChecklist && (
+              <div className="border-t pt-4 mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Preview</span>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedChecklist.items.length} items
+                  </Badge>
+                </div>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {selectedChecklist.items.slice(0, 5).map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="flex items-center gap-2 p-2 bg-muted/50 rounded text-sm"
+                    >
+                      <CheckCircle className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate">{item.title}</span>
+                      {item.requires_photo && (
+                        <Camera className="h-3 w-3 text-muted-foreground shrink-0" />
+                      )}
+                    </div>
+                  ))}
+                  {selectedChecklist.items.length > 5 && (
+                    <p className="text-xs text-muted-foreground text-center py-1">
+                      +{selectedChecklist.items.length - 5} more items
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

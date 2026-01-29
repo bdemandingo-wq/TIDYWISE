@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      additional_charges: {
+        Row: {
+          booking_id: string
+          charge_amount: number
+          charge_name: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          organization_id: string | null
+        }
+        Insert: {
+          booking_id: string
+          charge_amount: number
+          charge_name: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          organization_id?: string | null
+        }
+        Update: {
+          booking_id?: string
+          charge_amount?: number
+          charge_name?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "additional_charges_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "additional_charges_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_calculation_log: {
         Row: {
           calculation_type: string
@@ -3469,6 +3517,9 @@ export type Database = {
           default_hours: number | null
           ein: string | null
           email: string
+          home_address: string | null
+          home_latitude: number | null
+          home_longitude: number | null
           hourly_rate: number | null
           id: string
           is_active: boolean
@@ -3491,6 +3542,9 @@ export type Database = {
           default_hours?: number | null
           ein?: string | null
           email: string
+          home_address?: string | null
+          home_latitude?: number | null
+          home_longitude?: number | null
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
@@ -3513,6 +3567,9 @@ export type Database = {
           default_hours?: number | null
           ein?: string | null
           email?: string
+          home_address?: string | null
+          home_latitude?: number | null
+          home_longitude?: number | null
           hourly_rate?: number | null
           id?: string
           is_active?: boolean

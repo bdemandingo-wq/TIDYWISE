@@ -80,6 +80,9 @@ interface BookingFormState {
   cardInfo: CardInfo | null;
   loadingCard: boolean;
   
+  // Checklist
+  selectedChecklistId: string | null;
+  
   // Discount
   appliedDiscount: AppliedDiscount | null;
 }
@@ -138,6 +141,7 @@ interface BookingFormContextType extends BookingFormState {
   setSendConfirmationSms: (send: boolean) => void;
   setCardInfo: (info: CardInfo | null) => void;
   setAppliedDiscount: (discount: AppliedDiscount | null) => void;
+  setSelectedChecklistId: (id: string | null) => void;
   
   // Actions
   loadCardInfo: (email: string) => Promise<void>;
@@ -228,6 +232,9 @@ export function BookingFormProvider({
   
   // Discount state
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
+  
+  // Checklist state
+  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
   
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -399,6 +406,7 @@ export function BookingFormProvider({
     setHomeCondition(1);
     setPetOption('no_pets');
     setConflictOverride(false);
+    setSelectedChecklistId(null);
   };
 
   const prefillFromBooking = (booking: BookingWithDetails) => {
@@ -511,6 +519,7 @@ export function BookingFormProvider({
       sendConfirmationSms,
       cardInfo,
       loadingCard,
+      selectedChecklistId,
       
       // Data
       customers,
@@ -565,6 +574,7 @@ export function BookingFormProvider({
       setSendConfirmationSms,
       setCardInfo,
       setAppliedDiscount,
+      setSelectedChecklistId,
       
       // Actions
       loadCardInfo,

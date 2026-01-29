@@ -55,7 +55,8 @@ import {
   Phone,
   Bell,
   Settings2,
-  Star
+  Star,
+  PlusCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -74,6 +75,7 @@ import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDia
 import { BulkEditCleanerWages } from '@/components/admin/BulkEditCleanerWages';
 import { supabase } from '@/lib/supabase';
 import { QuotesTabContent } from '@/components/admin/QuotesTabContent';
+import { AdditionalChargesDialog } from '@/components/admin/AdditionalChargesDialog';
 import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -148,6 +150,8 @@ export default function BookingsPage() {
   const [weeklyReminderDialogOpen, setWeeklyReminderDialogOpen] = useState(false);
   const [weeklyReminderClients, setWeeklyReminderClients] = useState<BookingWithDetails[]>([]);
   const [sendingWeeklyReminders, setSendingWeeklyReminders] = useState(false);
+  const [additionalChargesOpen, setAdditionalChargesOpen] = useState(false);
+  const [additionalChargesBooking, setAdditionalChargesBooking] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -1543,6 +1547,15 @@ export default function BookingsPage() {
                               <CreditCard className="w-4 h-4" /> 
                               {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-teal-600"
+                              onClick={() => {
+                                setAdditionalChargesBooking(booking);
+                                setAdditionalChargesOpen(true);
+                              }}
+                            >
+                              <PlusCircle className="w-4 h-4" /> Additional Charge
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="gap-2 cursor-pointer" 
@@ -1908,6 +1921,21 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Additional Charges Dialog */}
+      {additionalChargesBooking && (
+        <AdditionalChargesDialog
+          open={additionalChargesOpen}
+          onOpenChange={setAdditionalChargesOpen}
+          bookingId={additionalChargesBooking.id}
+          bookingNumber={additionalChargesBooking.booking_number}
+          organizationId={organization?.id || ''}
+          currentTotal={additionalChargesBooking.total_amount}
+          onTotalUpdated={() => {
+            // Refetch handled by invalidation in dialog
+          }}
+        />
+      )}
 
     </AdminLayout>
   );
