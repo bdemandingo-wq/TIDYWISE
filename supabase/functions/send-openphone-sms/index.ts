@@ -96,12 +96,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Extract phone number ID if a full URL was provided
-    if (phoneNumberId.includes('openphone.com')) {
-      const match = phoneNumberId.match(/phone-numbers\/([A-Za-z0-9]+)/);
-      if (match) {
-        phoneNumberId = match[1];
-        console.log(`[send-openphone-sms] Extracted phone number ID from URL: ${phoneNumberId}`);
+    // Extract phone number ID if a full URL or path was provided
+    // Match patterns like: openphone.com/phone-numbers/PNxxx, my.openphone.com/inbox/PNxxx, or just PNxxx at end
+    if (phoneNumberId.includes('/') || phoneNumberId.includes('openphone') || phoneNumberId.includes('.com')) {
+      // Try to extract PN... pattern from anywhere in the string
+      const pnMatch = phoneNumberId.match(/(PN[A-Za-z0-9]+)/);
+      if (pnMatch) {
+        phoneNumberId = pnMatch[1];
+        console.log(`[send-openphone-sms] Extracted phone number ID: ${phoneNumberId}`);
+      } else {
+        // Try to extract from path like /phone-numbers/xxx or /inbox/xxx
+        const pathMatch = phoneNumberId.match(/(?:phone-numbers|inbox)\/([A-Za-z0-9]+)/);
+        if (pathMatch) {
+          phoneNumberId = pathMatch[1];
+          console.log(`[send-openphone-sms] Extracted phone number ID from path: ${phoneNumberId}`);
+        }
       }
     }
 
