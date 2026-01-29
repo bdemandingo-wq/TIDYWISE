@@ -29,6 +29,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
+import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
 import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
@@ -693,6 +694,7 @@ export default function SettingsPage() {
         {/* SMS Settings */}
         <TabsContent value="sms" className="space-y-6">
           <SMSSettingsCard />
+          <OpenPhoneDebugTools />
         </TabsContent>
 
         {/* Reviews Settings */}

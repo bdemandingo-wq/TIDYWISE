@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.calculate-ai-intelligence]
 verify_jwt = false
+
+[functions.send-on-the-way-sms]
+verify_jwt = false

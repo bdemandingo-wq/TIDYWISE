@@ -4,10 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2 } from 'lucide-react';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 import { useMapsNavigation } from '@/hooks/useMapsNavigation';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+
 interface StaffInfo {
   hourly_rate: number | null;
   base_wage: number | null;
@@ -49,6 +52,39 @@ interface Props {
 
 export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Props) {
   const [checklistOpen, setChecklistOpen] = useState(false);
+  const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
+  const [onTheWaySent, setOnTheWaySent] = useState(false);
+
+  const handleOnTheWayClick = async () => {
+    if (!staffInfo.id || !booking.customer?.phone) {
+      toast.error('Customer phone number is required');
+      return;
+    }
+
+    setIsSendingOnTheWay(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-on-the-way-sms', {
+        body: {
+          bookingId: booking.id,
+          staffId: staffInfo.id,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('Customer notified that you\'re on the way!');
+        setOnTheWaySent(true);
+      } else {
+        toast.error(data?.error || 'Failed to send notification');
+      }
+    } catch (error) {
+      console.error('Error sending on the way SMS:', error);
+      toast.error('Failed to send notification');
+    } finally {
+      setIsSendingOnTheWay(false);
+    }
+  };
   
   // Calculate exact pay based on wage type
   const calculatePay = (): { amount: number; type: string; isExact: boolean } => {
@@ -232,6 +268,23 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2">
+          {/* On The Way Button - only show for confirmed jobs */}
+          {booking.status === 'confirmed' && booking.customer?.phone && (
+            <Button
+              variant={onTheWaySent ? "secondary" : "default"}
+              size="sm"
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+              onClick={handleOnTheWayClick}
+              disabled={isSendingOnTheWay || onTheWaySent}
+            >
+              {isSendingOnTheWay ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Car className="w-4 h-4" />
+              )}
+              {onTheWaySent ? 'Sent!' : 'On The Way'}
+            </Button>
+          )}
           {hasAddress && (
             <Button 
               variant="outline" 

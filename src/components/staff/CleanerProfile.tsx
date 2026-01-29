@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Camera, Save, Loader2, User, Mail, Phone, FileText } from 'lucide-react';
+import { Camera, Save, Loader2, User, Mail, Phone, FileText, MapPin, Home } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface StaffInfo {
@@ -18,6 +18,9 @@ interface StaffInfo {
   bio: string | null;
   avatar_url: string | null;
   tax_classification: string | null;
+  home_address: string | null;
+  home_latitude: number | null;
+  home_longitude: number | null;
 }
 
 interface Props {
@@ -33,19 +36,55 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
     name: staffInfo.name,
     phone: staffInfo.phone || '',
     bio: staffInfo.bio || '',
+    home_address: staffInfo.home_address || '',
   });
   const [hasChanges, setHasChanges] = useState(false);
+  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
 
   // Update profile mutation
   const updateProfile = useMutation({
-    mutationFn: async (data: { name: string; phone: string; bio: string }) => {
+    mutationFn: async (data: { name: string; phone: string; bio: string; home_address: string }) => {
+      // If address changed, try to geocode it
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+
+      if (data.home_address && data.home_address !== staffInfo.home_address) {
+        setIsGeocodingAddress(true);
+        try {
+          // Use browser's Geocoding API via OpenStreetMap Nominatim (free, no API key needed)
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.home_address)}&limit=1`,
+            { headers: { 'User-Agent': 'TidyWise/1.0' } }
+          );
+          const results = await response.json();
+          if (results && results.length > 0) {
+            latitude = parseFloat(results[0].lat);
+            longitude = parseFloat(results[0].lon);
+            console.log('Geocoded address:', { latitude, longitude });
+          }
+        } catch (geocodeError) {
+          console.error('Geocoding failed:', geocodeError);
+          // Continue without coordinates - address still saved
+        }
+        setIsGeocodingAddress(false);
+      }
+
+      const updateData: Record<string, unknown> = {
+        name: data.name,
+        phone: data.phone || null,
+        bio: data.bio || null,
+        home_address: data.home_address || null,
+      };
+
+      // Only update lat/lng if we have new values
+      if (latitude !== null && longitude !== null) {
+        updateData.home_latitude = latitude;
+        updateData.home_longitude = longitude;
+      }
+
       const { error } = await supabase
         .from('staff')
-        .update({
-          name: data.name,
-          phone: data.phone || null,
-          bio: data.bio || null,
-        })
+        .update(updateData)
         .eq('id', staffInfo.id);
 
       if (error) throw error;
@@ -239,6 +278,49 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
               Contact admin to change your email address
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Home Address Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Home className="h-5 w-5" />
+            Home Address
+          </CardTitle>
+          <CardDescription>
+            Used to calculate travel distance to job locations
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="home_address">Street Address</Label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="home_address"
+                value={formData.home_address}
+                onChange={(e) => handleInputChange('home_address', e.target.value)}
+                className="pl-10"
+                placeholder="123 Main St, City, State 12345"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter your full address including city, state, and ZIP code
+            </p>
+          </div>
+          {staffInfo.home_latitude && staffInfo.home_longitude && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              <span>Location verified: {staffInfo.home_latitude.toFixed(4)}, {staffInfo.home_longitude.toFixed(4)}</span>
+            </div>
+          )}
+          {isGeocodingAddress && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Verifying address location...</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 

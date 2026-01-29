@@ -60,6 +60,9 @@ interface StaffInfo {
   percentage_rate: number | null;
   tax_classification: string | null;
   default_hours: number | null;
+  home_address: string | null;
+  home_latitude: number | null;
+  home_longitude: number | null;
 }
 
 export default function StaffPortal() {
@@ -77,7 +80,7 @@ export default function StaffPortal() {
 
       const { data, error } = await supabase
         .from('staff')
-        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification, default_hours')
+        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification, default_hours, home_address, home_latitude, home_longitude')
         .eq('user_id', user.id)
         .single();
 

@@ -5,15 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign, AlertCircle, CheckCircle, MapPin, Car } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
+import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -68,7 +69,54 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     selectedService,
     conflictOverride,
     setConflictOverride,
+    address,
+    city,
+    state,
+    zipCode,
   } = useBookingForm();
+
+  // State for job location coordinates (geocoded from address)
+  const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [isGeocodingJob, setIsGeocodingJob] = useState(false);
+
+  // Geocode the job address when it changes
+  useEffect(() => {
+    const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ');
+    if (!fullAddress || fullAddress.length < 10) {
+      setJobCoordinates(null);
+      return;
+    }
+
+    const geocode = async () => {
+      setIsGeocodingJob(true);
+      const coords = await geocodeAddress(fullAddress);
+      setJobCoordinates(coords);
+      setIsGeocodingJob(false);
+    };
+
+    // Debounce geocoding
+    const timeout = setTimeout(geocode, 500);
+    return () => clearTimeout(timeout);
+  }, [address, city, state, zipCode]);
+
+  // Calculate distance from staff home to job location
+  const getStaffDistance = (staffMember: { home_latitude?: number | null; home_longitude?: number | null }) => {
+    if (!jobCoordinates || !staffMember.home_latitude || !staffMember.home_longitude) {
+      return null;
+    }
+    const miles = calculateDistanceMiles(
+      staffMember.home_latitude,
+      staffMember.home_longitude,
+      jobCoordinates.lat,
+      jobCoordinates.lng
+    );
+    return {
+      miles,
+      driveMinutes: estimateDriveMinutes(miles),
+      display: formatDistance(miles),
+      driveDisplay: formatDriveTime(estimateDriveMinutes(miles)),
+    };
+  };
 
   // Use conflict detection hook
   const { checkConflictsForStaff, getStaffAvailability, isStaffWithinWorkingHours, loading: conflictLoading } = useCleanerConflicts(
@@ -333,20 +381,31 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                       const availability = staffAvailability.get(member.id);
                       // Only show busy badge for booking conflicts (not working hours since those are already filtered)
                       const hasConflicts = availability && availability.conflicts.length > 0;
+                      const distance = getStaffDistance(member);
                       return (
                         <SelectItem key={member.id} value={member.id}>
-                          <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center justify-between w-full gap-2">
                             <span>{member.name}</span>
-                            {selectedDate && selectedTime && (
-                              <span className={cn(
-                                "ml-2 text-xs px-1.5 py-0.5 rounded",
-                                hasConflicts 
-                                  ? "bg-amber-100 text-amber-700" 
-                                  : "bg-emerald-100 text-emerald-700"
-                              )}>
-                                {hasConflicts ? 'Busy' : 'Available'}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {/* Distance badge */}
+                              {distance && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
+                                  <Car className="h-3 w-3" />
+                                  {distance.display}
+                                </span>
+                              )}
+                              {/* Availability badge */}
+                              {selectedDate && selectedTime && (
+                                <span className={cn(
+                                  "text-xs px-1.5 py-0.5 rounded",
+                                  hasConflicts 
+                                    ? "bg-amber-100 text-amber-700" 
+                                    : "bg-emerald-100 text-emerald-700"
+                                )}>
+                                  {hasConflicts ? 'Busy' : 'Available'}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </SelectItem>
                       );
@@ -458,6 +517,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                     const availability = staffAvailability.get(member.id);
                     // Only show busy badge for booking conflicts (not working hours since those are already filtered)
                     const hasConflicts = availability && availability.conflicts.length > 0;
+                    const distance = getStaffDistance(member);
                     return (
                       <button
                         key={member.id}
@@ -474,16 +534,24 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                           <Checkbox checked={isSelected} className="pointer-events-none" />
                           <span className="text-sm font-medium truncate">{member.name}</span>
                         </div>
-                        {selectedDate && selectedTime && (
-                          <span className={cn(
-                            "text-xs px-1.5 py-0.5 rounded ml-6",
-                            hasConflicts 
-                              ? "bg-amber-100 text-amber-700" 
-                              : "bg-emerald-100 text-emerald-700"
-                          )}>
-                            {hasConflicts ? 'Busy' : 'Available'}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 ml-6">
+                          {distance && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
+                              <Car className="h-3 w-3" />
+                              {distance.display}
+                            </span>
+                          )}
+                          {selectedDate && selectedTime && (
+                            <span className={cn(
+                              "text-xs px-1.5 py-0.5 rounded",
+                              hasConflicts 
+                                ? "bg-amber-100 text-amber-700" 
+                                : "bg-emerald-100 text-emerald-700"
+                            )}>
+                              {hasConflicts ? 'Busy' : 'Available'}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })
