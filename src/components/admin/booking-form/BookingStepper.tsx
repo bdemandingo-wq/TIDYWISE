@@ -273,6 +273,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     resetForm,
     staff,
     conflictOverride,
+    selectedChecklistId,
   } = useBookingForm();
 
   // Get customer phone for quote SMS
@@ -702,6 +703,50 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               pay_share: payShare,
               is_primary: i === 0,
             });
+          }
+        }
+
+        // Create checklist with selected template if one was chosen
+        if (selectedChecklistId && newBooking?.id) {
+          try {
+            // Create the booking checklist linked to the selected template
+            const { data: newChecklist, error: checklistError } = await supabase
+              .from('booking_checklists')
+              .insert({
+                booking_id: newBooking.id,
+                staff_id: selectedStaffId || null,
+                template_id: selectedChecklistId,
+                organization_id: organizationId,
+              })
+              .select()
+              .single();
+
+            if (checklistError) throw checklistError;
+
+            // Fetch the template's items
+            const { data: templateItems } = await supabase
+              .from('checklist_items')
+              .select('id, title, requires_photo, sort_order')
+              .eq('template_id', selectedChecklistId)
+              .order('sort_order');
+
+            if (templateItems && templateItems.length > 0) {
+              // Insert checklist items from the template
+              await supabase
+                .from('booking_checklist_items')
+                .insert(
+                  templateItems.map((item) => ({
+                    booking_checklist_id: newChecklist.id,
+                    checklist_item_id: item.id,
+                    title: item.title,
+                    is_completed: false,
+                    organization_id: organizationId,
+                  }))
+                );
+            }
+          } catch (checklistErr) {
+            console.error('Failed to create checklist:', checklistErr);
+            // Don't fail the booking creation, just log the error
           }
         }
 
