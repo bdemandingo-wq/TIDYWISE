@@ -1931,6 +1931,7 @@ export default function BookingsPage() {
           bookingNumber={additionalChargesBooking.booking_number}
           organizationId={organization?.id || ''}
           currentTotal={additionalChargesBooking.total_amount}
+          customerEmail={additionalChargesBooking.customer?.email}
           onTotalUpdated={() => {
             // Refetch handled by invalidation in dialog
           }}
