@@ -390,7 +390,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                             {distance && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 flex items-center gap-0.5 shrink-0">
                                 <Car className="h-3 w-3" />
-                                {distance.display}
+                                {distance.miles.toFixed(1)} mi ({distance.driveMinutes} min)
                               </span>
                             )}
                             {/* Availability badge */}
@@ -536,7 +536,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                           {distance && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-0.5">
                               <Car className="h-3 w-3" />
-                              {distance.display}
+                              {distance.miles.toFixed(1)} mi ({distance.driveMinutes} min)
                             </span>
                           )}
                           {selectedDate && selectedTime && (
