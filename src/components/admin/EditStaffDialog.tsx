@@ -22,7 +22,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff } from 'lucide-react';
+import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff, MapPin, Loader2 } from 'lucide-react';
 
 const STAFF_COLOR_OPTIONS = [
   { value: '#3b82f6', label: 'Blue' },
@@ -56,6 +56,9 @@ interface StaffMember {
   user_id?: string | null;
   calendar_color?: string | null;
   default_hours?: number | null;
+  home_address?: string | null;
+  home_latitude?: number | null;
+  home_longitude?: number | null;
 }
 
 interface EditStaffDialogProps {
@@ -70,6 +73,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +92,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     ssn_last4: '',
     ein: '',
     calendar_color: '',
+    home_address: '',
+    home_latitude: null as number | null,
+    home_longitude: null as number | null,
   });
 
   useEffect(() => {
@@ -106,9 +113,31 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         ssn_last4: staff.ssn_last4 || '',
         ein: staff.ein || '',
         calendar_color: staff.calendar_color || '',
+        home_address: staff.home_address || '',
+        home_latitude: staff.home_latitude ?? null,
+        home_longitude: staff.home_longitude ?? null,
       });
     }
   }, [staff]);
+
+  const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
+    if (!address.trim()) return null;
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+        { headers: { 'User-Agent': 'TidyWise/1.0' } }
+      );
+      const data = await response.json();
+      if (data && data[0]) {
+        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      }
+      return null;
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return null;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +146,20 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     setIsLoading(true);
 
     try {
+      // Geocode address if changed and not already geocoded
+      let latitude = formData.home_latitude;
+      let longitude = formData.home_longitude;
+      
+      if (formData.home_address && formData.home_address !== staff.home_address) {
+        setIsGeocodingAddress(true);
+        const coords = await geocodeAddress(formData.home_address);
+        if (coords) {
+          latitude = coords.lat;
+          longitude = coords.lon;
+        }
+        setIsGeocodingAddress(false);
+      }
+
       const { error } = await supabase
         .from('staff')
         .update({
@@ -132,6 +175,9 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
           ssn_last4: formData.ssn_last4 || null,
           ein: formData.ein || null,
           calendar_color: formData.calendar_color || null,
+          home_address: formData.home_address || null,
+          home_latitude: latitude,
+          home_longitude: longitude,
         })
         .eq('id', staff.id);
 
@@ -145,6 +191,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
       toast.error('Failed to update staff member');
     } finally {
       setIsLoading(false);
+      setIsGeocodingAddress(false);
     }
   };
 
@@ -472,6 +519,26 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
             <p className="text-xs text-muted-foreground">PDF, JPG, or PNG. Max 10MB. Admin-only access.</p>
           </div>
 
+          {/* Home Address */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-home_address" className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Home Address
+            </Label>
+            <Input
+              id="edit-home_address"
+              value={formData.home_address}
+              onChange={(e) => setFormData({ ...formData, home_address: e.target.value })}
+              placeholder="123 Main St, City, State ZIP"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used for distance calculations when assigning jobs
+              {formData.home_latitude && formData.home_longitude && (
+                <span className="text-green-600 ml-1">✓ Location saved</span>
+              )}
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-bio">Bio</Label>
             <Textarea
@@ -533,8 +600,15 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" disabled={isLoading || isGeocodingAddress}>
+              {isLoading || isGeocodingAddress ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isGeocodingAddress ? 'Geocoding...' : 'Saving...'}
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </DialogFooter>
         </form>
