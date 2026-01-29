@@ -66,114 +66,43 @@ export function formatDriveTime(minutes: number): string {
 }
 
 /**
- * Normalize US address abbreviations to improve geocoding accuracy
+ * Normalize US address for geocoding accuracy
  */
 function normalizeUSAddress(address: string): string {
   let normalized = address.trim().toLowerCase();
 
-  // Remove apartment/unit/suite identifiers – they often confuse geocoders
-  // but don't matter for street-level distance.
+  // Remove apartment/unit/suite identifiers – they confuse geocoders
   normalized = normalized
-    .replace(/\b(apt|apartment|unit|suite|ste|bldg|building)\.?\s*#?\s*[\w-]+\b/gi, '')
-    .replace(/\s+#\s*[\w-]+\b/gi, '')
-    .replace(/\b(floor)\.?\s*\d+\b/gi, '');
+    .replace(/\b(apt|apartment|unit|suite|ste|bldg|building)\.?\s*#?\s*[\w-]+/gi, '')
+    .replace(/\s+#[\w-]+/gi, '');
 
-  normalized = ` ${normalized} `;
-
-  // Common street type abbreviations to expand
-  const abbreviations: Record<string, string> = {
-    ' rd ': ' road ',
-    ' rd,': ' road,',
-    ' st ': ' street ',
-    ' st,': ' street,',
-    ' ave ': ' avenue ',
-    ' ave,': ' avenue,',
-    ' blvd ': ' boulevard ',
-    ' blvd,': ' boulevard,',
-    ' dr ': ' drive ',
-    ' dr,': ' drive,',
-    ' ln ': ' lane ',
-    ' ln,': ' lane,',
-    ' ct ': ' court ',
-    ' ct,': ' court,',
-    ' cir ': ' circle ',
-    ' cir,': ' circle,',
-    ' pl ': ' place ',
-    ' pl,': ' place,',
-    ' pkwy ': ' parkway ',
-    ' pkwy,': ' parkway,',
-    ' hwy ': ' highway ',
-    ' hwy,': ' highway,',
-    ' trl ': ' trail ',
-    ' trl,': ' trail,',
-    ' ter ': ' terrace ',
-    ' ter,': ' terrace,',
-    ' way ': ' way ',
-    ' way,': ' way,',
-  };
-  
-  // Expand abbreviations
-  for (const [abbr, full] of Object.entries(abbreviations)) {
-    normalized = normalized.replace(new RegExp(abbr, 'gi'), full);
+  // Replace common street abbreviations with full words
+  const streetAbbrevs: [RegExp, string][] = [
+    [/\brd\b/gi, 'road'],
+    [/\bave\b/gi, 'avenue'],
+    [/\bblvd\b/gi, 'boulevard'],
+    [/\bdr\b/gi, 'drive'],
+    [/\bln\b/gi, 'lane'],
+    [/\bct\b/gi, 'court'],
+    [/\bcir\b/gi, 'circle'],
+    [/\bpl\b/gi, 'place'],
+    [/\bpkwy\b/gi, 'parkway'],
+    [/\bhwy\b/gi, 'highway'],
+    [/\btrl\b/gi, 'trail'],
+    [/\bter\b/gi, 'terrace'],
+  ];
+  for (const [pattern, replacement] of streetAbbrevs) {
+    normalized = normalized.replace(pattern, replacement);
   }
-
-  // Handle end-of-string abbreviations (e.g., "123 main rd" without trailing space)
-  const endAbbreviations: Record<string, string> = {
-    ' rd$': ' road',
-    ' st$': ' street',
-    ' ave$': ' avenue',
-    ' blvd$': ' boulevard',
-    ' dr$': ' drive',
-    ' ln$': ' lane',
-    ' ct$': ' court',
-    ' cir$': ' circle',
-    ' pl$': ' place',
-    ' pkwy$': ' parkway',
-    ' hwy$': ' highway',
-    ' trl$': ' trail',
-    ' ter$': ' terrace',
-  };
-
-  for (const [abbr, full] of Object.entries(endAbbreviations)) {
-    normalized = normalized.replace(new RegExp(abbr, 'gi'), full);
-  }
-
-  // Expand a few street-type abbreviations (avoid "st" because it conflicts with "St Petersburg")
-  normalized = normalized
-    .replace(/\brd\b/gi, 'road')
-    .replace(/\bave\b/gi, 'avenue')
-    .replace(/\bblvd\b/gi, 'boulevard')
-    .replace(/\bdr\b/gi, 'drive')
-    .replace(/\bln\b/gi, 'lane')
-    .replace(/\bct\b/gi, 'court')
-    .replace(/\bcir\b/gi, 'circle')
-    .replace(/\bpl\b/gi, 'place')
-    .replace(/\bpkwy\b/gi, 'parkway')
-    .replace(/\bhwy\b/gi, 'highway')
-    .replace(/\btrl\b/gi, 'trail')
-    .replace(/\bter\b/gi, 'terrace');
 
   // Collapse whitespace
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // If the user typed a one-line US address without commas, try to format it as:
-  // "street, city, ST ZIP" (this prevents the "city, ST , ZIP" mistake)
-  const states =
-    'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY';
-  const oneLineMatch = normalized.match(
-    new RegExp(`^(.*?)(?:,)?\\s+([a-z\\s.]+?)\\s+(${states})\\s+(\\d{5}(?:-\\d{4})?)\\s*$`, 'i')
-  );
-  if (oneLineMatch) {
-    const street = oneLineMatch[1].replace(/\s+/g, ' ').trim();
-    const city = oneLineMatch[2].replace(/\s+/g, ' ').trim();
-    const state = oneLineMatch[3].toUpperCase();
-    const zip = oneLineMatch[4];
-    normalized = `${street}, ${city}, ${state} ${zip}`;
-  }
+  // Remove double commas or trailing commas before state/zip
+  normalized = normalized.replace(/,\s*,/g, ',').replace(/,\s*$/g, '');
 
-  // Add "USA" to improve geocoding accuracy for US addresses
+  // Append USA if not present (helps Nominatim)
   if (!normalized.includes('usa') && !normalized.includes('united states')) {
-    normalized = normalized.replace(/\s*,\s*$/, '');
     normalized = normalized + ', usa';
   }
 
