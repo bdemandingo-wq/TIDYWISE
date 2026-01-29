@@ -74,12 +74,30 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
         )
       `;
 
-      // First try: org-scoped checklist (correct + preferred)
+      // First try: org-scoped checklist WITH a template (preferred - has correct items)
+      const { data: existingWithTemplate } = await supabase
+        .from('booking_checklists')
+        .select(checklistSelect)
+        .eq('booking_id', bookingId)
+        .eq('organization_id', booking.organization_id)
+        .not('template_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // If we found one with a template, use it (this is the correct one)
+      if (existingWithTemplate) {
+        return existingWithTemplate;
+      }
+
+      // Fallback: org-scoped checklist without template (legacy)
       const { data: existingOrgMatch } = await supabase
         .from('booking_checklists')
         .select(checklistSelect)
         .eq('booking_id', bookingId)
         .eq('organization_id', booking.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       // Fallback: legacy checklist rows that were created before org_id was enforced
