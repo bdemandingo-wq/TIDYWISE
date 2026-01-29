@@ -137,37 +137,50 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get business settings for company name
+    // Get business settings for company name and admin phone
     const { data: businessSettings } = await supabase
       .from('business_settings')
-      .select('company_name')
+      .select('company_name, company_phone')
       .eq('organization_id', booking.organization_id)
       .maybeSingle();
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
+    const adminPhone = businessSettings?.company_phone;
 
-    // Build SMS message
-    let message = `🚗 ${staff.name} from ${companyName} is on the way to your appointment!`;
+    // Build customer SMS message
+    let customerMessage = `🚗 ${staff.name} from ${companyName} is on the way to your appointment!`;
     
     if (etaMinutes && etaMinutes > 0) {
-      message += `\n\nEstimated arrival: ~${etaMinutes} minutes`;
+      customerMessage += `\n\nEstimated arrival: ~${etaMinutes} minutes`;
     }
     
-    message += `\n\nBooking #${booking.booking_number}`;
+    customerMessage += `\n\nBooking #${booking.booking_number}`;
     
     if (booking.address) {
-      message += `\n📍 ${booking.address}${booking.city ? `, ${booking.city}` : ''}`;
+      customerMessage += `\n📍 ${booking.address}${booking.city ? `, ${booking.city}` : ''}`;
     }
     
-    message += `\n\nQuestions? Reply to this message.`;
+    customerMessage += `\n\nQuestions? Reply to this message.`;
 
-    // Format phone number
-    let formattedPhone = typedCustomer.phone.replace(/\D/g, '');
-    if (formattedPhone.length === 10) {
-      formattedPhone = `+1${formattedPhone}`;
-    } else if (!formattedPhone.startsWith('+')) {
-      formattedPhone = `+${formattedPhone}`;
-    }
+    // Build admin notification message
+    const adminMessage = `📍 ${staff.name} is on the way to Job #${booking.booking_number}\n\n` +
+      `Customer: ${typedCustomer.first_name} ${typedCustomer.last_name}\n` +
+      `Address: ${booking.address || 'N/A'}${booking.city ? `, ${booking.city}` : ''}\n` +
+      (etaMinutes ? `ETA: ~${etaMinutes} min` : '');
+
+    // Helper function to format phone numbers
+    const formatPhoneNumber = (phone: string): string => {
+      let formatted = phone.replace(/\D/g, '');
+      if (formatted.length === 10) {
+        formatted = `+1${formatted}`;
+      } else if (!formatted.startsWith('+')) {
+        formatted = `+${formatted}`;
+      }
+      return formatted;
+    };
+
+    // Format customer phone number
+    const formattedCustomerPhone = formatPhoneNumber(typedCustomer.phone);
 
     // Extract phone number ID if full URL was provided
     let phoneNumberId = smsSettings.openphone_phone_number_id;
@@ -178,39 +191,43 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`[send-on-the-way-sms] Sending SMS to ${formattedPhone}`);
-
     // OpenPhone expects the raw API key
     const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
-    // Send SMS via OpenPhone API
-    const response = await fetch("https://api.openphone.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Authorization": authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: phoneNumberId,
-        to: [formattedPhone],
-        content: message,
-      }),
-    });
+    // Helper function to send SMS
+    const sendSms = async (to: string, content: string, label: string): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+      console.log(`[send-on-the-way-sms] Sending ${label} SMS to ${to}`);
+      
+      const response = await fetch("https://api.openphone.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Authorization": authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: phoneNumberId,
+          to: [to],
+          content,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[send-on-the-way-sms] OpenPhone API error: ${response.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[send-on-the-way-sms] ${label} SMS failed: ${response.status} - ${errorText}`);
+        return { success: false, error: errorText };
+      }
 
+      const result = await response.json();
+      console.log(`[send-on-the-way-sms] ${label} SMS sent successfully:`, result);
+      return { success: true, messageId: result.data?.id };
+    };
+
+    // Send customer SMS
+    const customerResult = await sendSms(formattedCustomerPhone, customerMessage, 'customer');
+
+    if (!customerResult.success) {
       let errorCode = 'SMS_FAILED';
       let userMessage = 'SMS delivery failed. Please try again later.';
-
-      if (response.status === 402) {
-        errorCode = 'BILLING_REQUIRED';
-        userMessage = 'SMS service requires payment. Check your OpenPhone billing.';
-      } else if (response.status === 401) {
-        errorCode = 'AUTH_FAILED';
-        userMessage = 'Invalid OpenPhone API key. Please update your SMS settings.';
-      }
 
       return new Response(
         JSON.stringify({
@@ -222,8 +239,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const result = await response.json();
-    console.log(`[send-on-the-way-sms] SMS sent successfully:`, result);
+    // Send admin SMS if admin phone is configured
+    let adminSent = false;
+    if (adminPhone) {
+      const formattedAdminPhone = formatPhoneNumber(adminPhone);
+      const adminResult = await sendSms(formattedAdminPhone, adminMessage, 'admin');
+      adminSent = adminResult.success;
+      if (!adminResult.success) {
+        console.warn(`[send-on-the-way-sms] Admin notification failed, but customer was notified`);
+      }
+    } else {
+      console.log(`[send-on-the-way-sms] No admin phone configured, skipping admin notification`);
+    }
 
     // Audit log
     logAudit({
@@ -235,7 +262,11 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     return new Response(
-      JSON.stringify({ success: true, messageId: result.data?.id }),
+      JSON.stringify({ 
+        success: true, 
+        messageId: customerResult.messageId,
+        adminNotified: adminSent
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
