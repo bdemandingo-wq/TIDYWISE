@@ -166,48 +166,31 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Created new Stripe customer (phone only):", customerId);
     }
 
-    // Convert amount to cents for Stripe
-    const amountInCents = Math.round(amount * 100);
-
-    // Create a Stripe Checkout session in payment mode to charge immediately
+    // Create a Stripe Checkout session in SETUP mode to save card WITHOUT charging
+    // The card will be saved to the customer for future manual charges
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: "payment",
+      mode: "setup",  // SETUP mode = save card only, NO automatic charge
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Cleaning Service for ${customerName}`,
-              description: `Payment for cleaning service from ${companyName}`,
-            },
-            unit_amount: amountInCents,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: "https://tidywisecleaning.com/payment-success?success=true",
-      cancel_url: "https://tidywisecleaning.com/payment-cancelled",
+      success_url: "https://jointidywise.lovable.app/card-saved?success=true",
+      cancel_url: "https://jointidywise.lovable.app/card-saved?cancelled=true",
       metadata: {
         customerName: customerName,
-        purpose: "cleaning_payment",
+        purpose: "card_collection",  // Changed from cleaning_payment
         organizationId: organizationId,
-        amount: amount.toString(),
+        amount: amount.toString(),  // Store amount for reference (NOT charged)
       },
     });
 
-    console.log("Created Stripe payment session:", session.id);
+    console.log("Created Stripe setup session (card save only):", session.id);
 
-    // Format phone number
+    // Send SMS via OpenPhone - updated message to clarify card is NOT charged
+    const smsMessage = `${companyName}: Please add your card on file for your $${amount.toFixed(2)} service. Your card will NOT be charged until after your service. Tap here: ${session.url}`;
     let formattedPhone = phone.replace(/\D/g, '');
     if (!formattedPhone.startsWith('1') && formattedPhone.length === 10) {
       formattedPhone = '1' + formattedPhone;
     }
     formattedPhone = '+' + formattedPhone;
-
-    // Send SMS via OpenPhone
-    const smsMessage = `${companyName}: Your cleaning service total is $${amount.toFixed(2)}. Pay securely here: ${session.url}`;
 
      // OpenPhone expects the raw API key in the Authorization header
      const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
@@ -266,12 +249,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const smsResult = await openPhoneResponse.json();
-    console.log("Payment link SMS sent successfully:", smsResult);
+    console.log("Card collection link SMS sent successfully:", smsResult);
 
     return new Response(JSON.stringify({ 
       success: true, 
       sessionUrl: session.url,
-      message: "Payment link sent via SMS successfully"
+      message: "Card collection link sent via SMS successfully (card will NOT be charged automatically)"
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },

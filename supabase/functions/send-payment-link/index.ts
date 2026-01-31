@@ -2,10 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
-import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +11,7 @@ const corsHeaders = {
 };
 
 interface PaymentLinkRequest {
-  email: string;
+  phone: string;  // Customer phone number for SMS
   customerName: string;
   amount: number;
   serviceName: string;
@@ -27,14 +24,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (!RESEND_API_KEY) {
-    console.error("Missing RESEND_API_KEY secret");
-    return new Response(JSON.stringify({ error: "Email service is not configured" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
-  }
-
   try {
     // SECURITY: Verify authenticated user with admin privileges
     const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
@@ -44,13 +33,13 @@ const handler = async (req: Request): Promise<Response> => {
       return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
     }
 
-    const { email, customerName, amount, serviceName, bookingId, organizationId }: PaymentLinkRequest = await req.json();
+    const { phone, customerName, amount, serviceName, bookingId, organizationId }: PaymentLinkRequest = await req.json();
 
-    console.log("Received payment link request:", { email, customerName, amount, serviceName, bookingId, organizationId, userId: authResult.userId });
+    console.log("Received payment link request:", { phone, customerName, amount, serviceName, bookingId, organizationId, userId: authResult.userId });
 
-    if (!email || !customerName || !amount) {
+    if (!phone || !customerName || !amount) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing required fields (phone, customerName, amount)" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -99,39 +88,83 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
+    // Get organization SMS settings for OpenPhone
+    const { data: smsSettings, error: smsError } = await supabase
+      .from("organization_sms_settings")
+      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
 
-    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
-    const emailSettingsResult = await getOrgEmailSettings(organizationId);
-    
-    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
-      console.error("Failed to get email settings:", emailSettingsResult.error);
-      return new Response(JSON.stringify({ 
-        error: emailSettingsResult.error || "Email settings not configured" 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    if (smsError || !smsSettings) {
+      console.error("SMS settings error:", smsError);
+      return new Response(
+        JSON.stringify({ error: "SMS not configured. Please set up OpenPhone in Settings → SMS." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    const emailSettings = emailSettingsResult.settings;
-    const companyName = emailSettings.from_name;
-    
-    console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
+    if (!smsSettings.sms_enabled) {
+      return new Response(
+        JSON.stringify({ error: "SMS is disabled for this organization." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
-    // Check if customer exists in Stripe, create if not
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
-    let customerId: string;
+    const apiKey = smsSettings.openphone_api_key;
+    let phoneNumberId = smsSettings.openphone_phone_number_id;
+
+    if (!apiKey || !phoneNumberId) {
+      return new Response(
+        JSON.stringify({ error: "OpenPhone not configured. Please add your API Key and Phone Number ID in Settings → SMS." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Extract phone number ID if a full URL was pasted
+    const pnMatch = phoneNumberId.match(/(PN[a-zA-Z0-9]+)/);
+    if (pnMatch) {
+      phoneNumberId = pnMatch[1];
+    }
+
+    // Get company name for SMS
+    const { data: businessSettings } = await supabase
+      .from("business_settings")
+      .select("company_name")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    const companyName = businessSettings?.company_name || "Your Cleaning Service";
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
+
+    // Format phone number
+    let formattedPhone = phone.replace(/\D/g, "");
+    if (formattedPhone.length === 10) {
+      formattedPhone = "+1" + formattedPhone;
+    } else if (!formattedPhone.startsWith("+")) {
+      formattedPhone = "+" + formattedPhone;
+    }
+
+    // Check if customer exists in Stripe by phone, create if not
+    const customers = await stripe.customers.list({ limit: 100 });
+    let customerId: string | undefined;
     
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("Found existing Stripe customer:", customerId);
-    } else {
+    // Search for customer by phone in metadata or phone field
+    for (const customer of customers.data) {
+      if (customer.phone === formattedPhone || customer.metadata?.phone === formattedPhone) {
+        customerId = customer.id;
+        console.log("Found existing Stripe customer by phone:", customerId);
+        break;
+      }
+    }
+    
+    if (!customerId) {
       const newCustomer = await stripe.customers.create({
-        email: email,
         name: customerName,
+        phone: formattedPhone,
         metadata: {
           organization_id: organizationId,
+          phone: formattedPhone,
         },
       });
       customerId = newCustomer.id;
@@ -139,7 +172,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Create a Stripe Checkout session in SETUP mode to save card without charging
-    // The card will be saved to the customer for future manual charges
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "setup",  // SETUP mode = save card only, NO charge
@@ -157,112 +189,82 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Created Stripe checkout session:", session.id, "URL:", session.url);
 
-    // Send email with the card collection link
-    const emailResponse = await fetch("https://api.resend.com/emails", {
+    // Send SMS with the card collection link via OpenPhone
+    const smsMessage = `Hi ${customerName}! ${companyName} here. Please add your card on file for your $${amount.toFixed(2)} ${serviceName} service. Your card will NOT be charged until after your service. Tap here: ${session.url}`;
+
+    console.log("[send-payment-link] Sending SMS via OpenPhone to:", formattedPhone);
+
+    const openPhoneResponse = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: formatEmailFrom(emailSettings),
-        to: [email],
-        reply_to: getReplyTo(emailSettings),
-        subject: `Add Your Payment Card - ${companyName}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; background: #10b981; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-              .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 15px; }
-              .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
-              .amount { font-size: 24px; font-weight: bold; color: #10b981; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🔒 Secure Card Setup</h1>
-              </div>
-              <div class="content">
-                <p>Hi ${customerName},</p>
-                <p>Please add your payment card on file for your upcoming ${serviceName} service with ${companyName}.</p>
-                
-                <div class="info-box">
-                  <p><strong>Service:</strong> ${serviceName}</p>
-                  <p><strong>Estimated Amount:</strong> <span class="amount">$${amount.toFixed(2)}</span></p>
-                  <p style="margin-top: 10px; color: #666; font-size: 14px;">
-                    <strong>Note:</strong> Your card will be securely saved but <strong>will NOT be charged</strong> until after your service is completed.
-                  </p>
-                </div>
-                
-                <center>
-                  <a href="${session.url}" class="button">Add My Card Securely</a>
-                </center>
-                
-                <div class="secure">
-                  <span>🔒 Secured by Stripe - Bank-level encryption</span>
-                </div>
-                
-                <p style="color: #666; font-size: 14px; margin-top: 20px;">
-                  This link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
-                </p>
-              </div>
-              <div class="footer">
-                <p>Questions? Reply to this email or contact us.</p>
-                <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `,
+        content: smsMessage,
+        from: phoneNumberId,
+        to: [formattedPhone],
       }),
     });
 
-    let emailData: any = null;
-    try {
-      emailData = await emailResponse.json();
-    } catch (_e) {
-      emailData = null;
+    if (!openPhoneResponse.ok) {
+      const errorText = await openPhoneResponse.text();
+      console.error("[send-payment-link] OpenPhone API error:", openPhoneResponse.status, errorText);
+
+      let openphoneError: Record<string, unknown> | null = null;
+      try {
+        openphoneError = JSON.parse(errorText);
+      } catch {
+        // ignore non-JSON error payloads
+      }
+
+      const openphoneCode = typeof openphoneError?.code === 'string' ? openphoneError.code : null;
+      const openphoneTitle = typeof openphoneError?.title === 'string' ? openphoneError.title : null;
+
+      // A2P / 10DLC compliance block
+      if (openPhoneResponse.status === 400 && (openphoneCode === '0206400' || (openphoneTitle && openphoneTitle.toLowerCase().includes('a2p')))) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "OpenPhone blocked this SMS - A2P/10DLC registration is pending approval. Please wait for carrier approval.",
+            errorCode: "A2P_NOT_APPROVED",
+            sessionUrl: session.url,  // Still return the URL so admin can copy/share manually
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Return session URL anyway so admin can share manually
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `SMS failed to send. You can share this link manually: ${session.url}`,
+          sessionUrl: session.url,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    // If domain not verified, return helpful error
-    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
-      const domain = emailSettings.from_email.split('@')[1];
-      console.error(`Domain ${domain} is not verified on Resend`);
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
-    }
-
-    if (!emailResponse.ok) {
-      console.error("Resend API error:", { status: emailResponse.status, data: emailData });
-      throw new Error(emailData?.message || `Failed to send email (status ${emailResponse.status})`);
-    }
+    const smsResult = await openPhoneResponse.json();
+    console.log("[send-payment-link] SMS sent successfully:", smsResult);
 
     // Log successful card collection link send
     await logAudit({
-      action: AuditActions.EMAIL_SENT,
+      action: AuditActions.SMS_GENERIC,
       userId: authResult.userId!,
       organizationId: authResult.organizationId!,
       details: { 
         type: "card_collection_link",
-        customerEmail: email,
-        amount,  // Stored for reference, not charged
+        customerPhone: formattedPhone,
+        amount,
         sessionId: session.id 
       },
     });
 
-    console.log("Payment link email sent successfully:", emailData);
-
     return new Response(JSON.stringify({ 
       success: true, 
-      data: emailData,
-      paymentUrl: session.url,
+      message: "Card collection link sent via SMS",
+      sessionUrl: session.url,
       sessionId: session.id
     }), {
       status: 200,
