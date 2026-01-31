@@ -506,14 +506,14 @@ export function PaymentStep() {
                 className="h-11 w-full"
                 onClick={handleSendPaymentLinkSms}
                 disabled={sendingLinkSms || !customerPhone || !pricingBreakdown.grandTotal}
-                title={!customerPhone ? "Customer phone required" : !pricingBreakdown.grandTotal ? "Select service and details first" : `Send payment link for $${pricingBreakdown.grandTotal.toFixed(2)}`}
+                title={!customerPhone ? "Customer phone required" : !pricingBreakdown.grandTotal ? "Select service and details first" : `Send card collection link for $${pricingBreakdown.grandTotal.toFixed(2)} service`}
               >
                 {sendingLinkSms ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Phone className="mr-2 h-4 w-4" />
+                  <CreditCard className="mr-2 h-4 w-4" />
                 )}
-                Send Payment Link (${pricingBreakdown.grandTotal?.toFixed(2) || '0.00'})
+                Send Add Card Link
               </Button>
             </div>
           ) : (

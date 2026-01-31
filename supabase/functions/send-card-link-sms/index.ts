@@ -184,8 +184,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Created Stripe setup session (card save only):", session.id);
 
-    // Send SMS via OpenPhone - updated message to clarify card is NOT charged
-    const smsMessage = `${companyName}: Please add your card on file for your $${amount.toFixed(2)} service. Your card will NOT be charged until after your service. Tap here: ${session.url}`;
+    // Send SMS via OpenPhone - short, clear message with card collection link
+    const smsMessage = `${companyName}: Add your card for your $${amount.toFixed(2)} service (not charged until complete): ${session.url}`;
     let formattedPhone = phone.replace(/\D/g, '');
     if (!formattedPhone.startsWith('1') && formattedPhone.length === 10) {
       formattedPhone = '1' + formattedPhone;
