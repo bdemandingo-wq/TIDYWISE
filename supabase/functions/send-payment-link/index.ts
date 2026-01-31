@@ -138,36 +138,26 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Created new Stripe customer:", customerId);
     }
 
-    // Create a Stripe Checkout session for the payment
+    // Create a Stripe Checkout session in SETUP mode to save card without charging
+    // The card will be saved to the customer for future manual charges
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: serviceName || "Cleaning Service",
-              description: `Booking payment for ${customerName}`,
-            },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: "https://tidywisecleaning.com",
-      cancel_url: "https://tidywisecleaning.com",
+      mode: "setup",  // SETUP mode = save card only, NO charge
+      payment_method_types: ["card"],
+      success_url: "https://jointidywise.lovable.app/card-saved?success=true",
+      cancel_url: "https://jointidywise.lovable.app/card-saved?cancelled=true",
       metadata: {
         bookingId: bookingId || "",
         customerName: customerName,
         serviceName: serviceName,
         organization_id: organizationId,
+        amount: amount.toString(),  // Store amount for reference (not charged)
       },
     });
 
     console.log("Created Stripe checkout session:", session.id, "URL:", session.url);
 
-    // Send email with the Stripe payment link
+    // Send email with the card collection link
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -178,50 +168,50 @@ const handler = async (req: Request): Promise<Response> => {
         from: formatEmailFrom(emailSettings),
         to: [email],
         reply_to: getReplyTo(emailSettings),
-        subject: "Complete Your Booking Payment",
+        subject: `Add Your Payment Card - ${companyName}`,
         html: `
           <!DOCTYPE html>
           <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
               .container { max-width: 600px; margin: 0 auto; padding: 20px; }
               .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
               .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-              .amount { font-size: 36px; font-weight: bold; color: #10b981; margin: 20px 0; }
               .button { display: inline-block; background: #10b981; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-              .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
               .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-              .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 10px; }
+              .secure { display: flex; align-items: center; justify-content: center; gap: 8px; color: #666; font-size: 14px; margin-top: 15px; }
+              .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+              .amount { font-size: 24px; font-weight: bold; color: #10b981; }
             </style>
           </head>
           <body>
             <div class="container">
               <div class="header">
-                <h1>Complete Your Payment</h1>
+                <h1>🔒 Secure Card Setup</h1>
               </div>
               <div class="content">
                 <p>Hi ${customerName},</p>
-                <p>Thank you for choosing ${companyName}! Please complete your payment to confirm your booking.</p>
+                <p>Please add your payment card on file for your upcoming ${serviceName} service with ${companyName}.</p>
                 
-                <div class="details">
-                  <h3>Booking Details</h3>
+                <div class="info-box">
                   <p><strong>Service:</strong> ${serviceName}</p>
-                  <p class="amount">$${amount.toFixed(2)}</p>
+                  <p><strong>Estimated Amount:</strong> <span class="amount">$${amount.toFixed(2)}</span></p>
+                  <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                    <strong>Note:</strong> Your card will be securely saved but <strong>will NOT be charged</strong> until after your service is completed.
+                  </p>
                 </div>
                 
-                <p>Click the button below to securely complete your payment:</p>
-                
                 <center>
-                  <a href="${session.url}" class="button">Pay Now - Secure Checkout</a>
+                  <a href="${session.url}" class="button">Add My Card Securely</a>
                 </center>
                 
                 <div class="secure">
-                  <span>🔒 Secured by Stripe</span>
+                  <span>🔒 Secured by Stripe - Bank-level encryption</span>
                 </div>
                 
                 <p style="color: #666; font-size: 14px; margin-top: 20px;">
-                  This payment link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
+                  This link will expire in 24 hours. If you have any questions, please don't hesitate to contact us.
                 </p>
               </div>
               <div class="footer">
@@ -254,15 +244,15 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(emailData?.message || `Failed to send email (status ${emailResponse.status})`);
     }
 
-    // Log successful payment link send
+    // Log successful card collection link send
     await logAudit({
       action: AuditActions.EMAIL_SENT,
       userId: authResult.userId!,
       organizationId: authResult.organizationId!,
       details: { 
-        type: "payment_link",
+        type: "card_collection_link",
         customerEmail: email,
-        amount,
+        amount,  // Stored for reference, not charged
         sessionId: session.id 
       },
     });
