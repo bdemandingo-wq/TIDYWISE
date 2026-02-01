@@ -62,6 +62,45 @@ export type Database = {
           },
         ]
       }
+      admin_booking_request_notifications: {
+        Row: {
+          booking_request_id: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          organization_id: string
+        }
+        Insert: {
+          booking_request_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          organization_id: string
+        }
+        Update: {
+          booking_request_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_booking_request_notifications_booking_request_id_fkey"
+            columns: ["booking_request_id"]
+            isOneToOne: false
+            referencedRelation: "client_booking_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_booking_request_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_calculation_log: {
         Row: {
           calculation_type: string
@@ -1097,6 +1136,83 @@ export type Database = {
           },
         ]
       }
+      client_booking_requests: {
+        Row: {
+          admin_response_note: string | null
+          client_user_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          notes: string | null
+          organization_id: string
+          requested_date: string
+          responded_at: string | null
+          responded_by: string | null
+          service_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_response_note?: string | null
+          client_user_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          requested_date: string
+          responded_at?: string | null
+          responded_by?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_response_note?: string | null
+          client_user_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          requested_date?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_booking_requests_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_booking_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_booking_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_booking_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_feedback: {
         Row: {
           created_at: string
@@ -1137,6 +1253,220 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notifications: {
+        Row: {
+          client_user_id: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          organization_id: string
+          related_request_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          organization_id: string
+          related_request_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          organization_id?: string
+          related_request_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notifications_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_feedback: {
+        Row: {
+          booking_id: string | null
+          client_user_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          organization_id: string
+          rating: number
+        }
+        Insert: {
+          booking_id?: string | null
+          client_user_id: string
+          comment?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          organization_id: string
+          rating: number
+        }
+        Update: {
+          booking_id?: string | null
+          client_user_id?: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          organization_id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_feedback_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_feedback_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_feedback_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_users: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          must_change_password: boolean | null
+          organization_id: string | null
+          password_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          must_change_password?: boolean | null
+          organization_id?: string | null
+          password_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          must_change_password?: boolean | null
+          organization_id?: string | null
+          password_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_users_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tier_settings: {
+        Row: {
+          benefits: Json | null
+          color: string | null
+          created_at: string
+          id: string
+          max_spending: number | null
+          min_spending: number
+          organization_id: string
+          tier_name: string
+          tier_order: number
+          updated_at: string
+        }
+        Insert: {
+          benefits?: Json | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          max_spending?: number | null
+          min_spending?: number
+          organization_id: string
+          tier_name: string
+          tier_order?: number
+          updated_at?: string
+        }
+        Update: {
+          benefits?: Json | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          max_spending?: number | null
+          min_spending?: number
+          organization_id?: string
+          tier_name?: string
+          tier_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tier_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -4031,6 +4361,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_client_portal_user: {
+        Args: { _client_user_id: string; _user_id: string }
         Returns: boolean
       }
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
