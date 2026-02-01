@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getStripePromise } from '@/lib/stripe';
+import { getStripePromise, getCachedStripeReact, setCachedStripeReact } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -237,13 +237,19 @@ function CardFormInnerDynamic({
 export function StripeCardForm(props: CardFormProps) {
   // Lazily load Stripe.js only when this component is actually rendered.
   const stripePromise = useMemo(() => getStripePromise(), []);
-  const [stripeReact, setStripeReact] = useState<StripeReact | null>(null);
+  const [stripeReact, setStripeReact] = useState<StripeReact | null>(getCachedStripeReact);
 
   useEffect(() => {
+    // If already cached, no need to load again
+    if (stripeReact) return;
+    
     let cancelled = false;
     import('@stripe/react-stripe-js')
       .then((m) => {
-        if (!cancelled) setStripeReact(m);
+        if (!cancelled) {
+          setStripeReact(m);
+          setCachedStripeReact(m); // Cache for future use
+        }
       })
       .catch((err) => {
         console.error('Failed to load Stripe React:', err);
@@ -251,7 +257,7 @@ export function StripeCardForm(props: CardFormProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [stripeReact]);
 
   if (!stripeReact) {
     return (

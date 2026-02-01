@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2, FileText } from 'lucide-react';
 
 interface StaffInfo {
   hourly_rate: number | null;
@@ -37,6 +37,7 @@ interface Booking {
   square_footage?: string | null;
   bedrooms?: string | null;
   bathrooms?: string | null;
+  notes?: string | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -195,6 +196,18 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
                 {booking.city ? `, ${booking.city}` : ''}
                 {booking.state ? `, ${booking.state}` : ''}
               </span>
+            </div>
+          )}
+          {/* Notes section */}
+          {booking.notes && (
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">Special Instructions</p>
+                  <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{booking.notes}</p>
+                </div>
+              </div>
             </div>
           )}
           <Button

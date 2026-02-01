@@ -8,6 +8,7 @@ const DEFAULT_STRIPE_PUBLISHABLE_KEY =
 
 let cachedKey: string | null = null;
 let cachedPromise: StripePromise | null = null;
+let stripeReactModule: typeof import('@stripe/react-stripe-js') | null = null;
 
 function safeGetStoredPublishableKey(): string | null {
   try {
@@ -30,4 +31,38 @@ export function getStripePromise(publishableKey?: string): StripePromise {
 
   cachedPromise = import('@stripe/stripe-js').then(({ loadStripe }) => loadStripe(resolvedKey));
   return cachedPromise;
+}
+
+/**
+ * Pre-load Stripe modules in the background to reduce perceived load time.
+ * Call this when navigating to a payment-related screen (e.g. payment step of booking form).
+ */
+export function preloadStripeModules(): void {
+  // Start loading Stripe.js
+  getStripePromise();
+  
+  // Start loading @stripe/react-stripe-js
+  if (!stripeReactModule) {
+    import('@stripe/react-stripe-js')
+      .then((m) => {
+        stripeReactModule = m;
+      })
+      .catch((err) => {
+        console.error('Failed to preload Stripe React:', err);
+      });
+  }
+}
+
+/**
+ * Get cached Stripe React module if available.
+ */
+export function getCachedStripeReact(): typeof import('@stripe/react-stripe-js') | null {
+  return stripeReactModule;
+}
+
+/**
+ * Set the cached Stripe React module (called from StripeCardForm after loading).
+ */
+export function setCachedStripeReact(module: typeof import('@stripe/react-stripe-js')): void {
+  stripeReactModule = module;
 }
