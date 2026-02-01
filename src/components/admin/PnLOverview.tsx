@@ -1713,75 +1713,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">Variable Overhead (Monthly)</CardTitle>
-                <Link to="/dashboard/expenses" className="text-xs text-primary hover:underline flex items-center gap-1">
-                  <FileText className="w-3 h-3" /> View Expenses
-                </Link>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => addOverheadItem('variable')}>
-                <Plus className="w-4 h-4 mr-1" /> Add
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-xs text-muted-foreground mb-2">Editing costs for: <strong>{MONTHS[selectedOverheadMonth]}</strong></p>
-              {settings.variable_overhead_items.map((item, i) => {
-                // Find matching expense category for this item
-                const matchingCategory = Object.entries(EXPENSE_CATEGORY_MAP).find(
-                  ([_, map]) => map.type === 'variable' && map.name.toLowerCase() === item.name.toLowerCase()
-                )?.[0];
-                const actualAmount = matchingCategory ? (actualExpenses.byCategory[matchingCategory]?.[selectedOverheadMonth] || 0) : 0;
-                
-                return (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input
-                      value={item.name}
-                      onChange={(e) => updateOverheadItem('variable', i, 'name', e.target.value)}
-                      placeholder="Item name"
-                      className="flex-1"
-                    />
-                    <div className="flex flex-col items-end gap-0.5">
-                      <Input
-                        type="number"
-                        value={inputValue(item.monthly[selectedOverheadMonth] || 0)}
-                        onChange={(e) => updateOverheadItem('variable', i, 'monthly', parseInputValue(e.target.value), selectedOverheadMonth)}
-                        className="w-24"
-                        placeholder="0"
-                      />
-                      {actualAmount > 0 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          Actual: ${actualAmount.toFixed(0)}
-                        </span>
-                      )}
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => removeOverheadItem('variable', i)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-              <div className="pt-2 border-t space-y-1">
-                <p className="text-sm font-medium">
-                  {MONTHS[selectedOverheadMonth]} Budget: ${settings.variable_overhead_items.reduce((sum, item) => sum + (item.monthly[selectedOverheadMonth] || 0), 0).toLocaleString()}
-                </p>
-                {(() => {
-                  const variableCategories = Object.entries(EXPENSE_CATEGORY_MAP)
-                    .filter(([_, map]) => map.type === 'variable')
-                    .map(([cat]) => cat);
-                  const actualMonthTotal = variableCategories.reduce((sum, cat) => 
-                    sum + (actualExpenses.byCategory[cat]?.[selectedOverheadMonth] || 0), 0
-                  );
-                  return actualMonthTotal > 0 ? (
-                    <p className="text-xs text-primary">
-                      {MONTHS[selectedOverheadMonth]} Actual (from Expenses): ${actualMonthTotal.toLocaleString()}
-                    </p>
-                  ) : null;
-                })()}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Variable Overhead section removed */}
 
           {/* P&L Statement Table */}
           <Card>

@@ -192,13 +192,20 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
       .slice(0, 3)
       .reduce((sum, d) => sum + (d.forecast || 0), 0);
 
-    const sixMonthForecast = forecastData
-      .filter(d => d.isProjected)
+    // Get only the first 6 projected months for 6-month forecast
+    const projectedMonths = forecastData.filter(d => d.isProjected);
+    const sixMonthForecast = projectedMonths
+      .slice(0, 6)
       .reduce((sum, d) => sum + (d.forecast || 0), 0);
 
-    const ytdRevenue = historicalData
-      .filter(d => d.date.getFullYear() === new Date().getFullYear())
-      .reduce((sum, d) => sum + d.revenue, 0);
+    // Calculate YTD directly from bookings for accuracy (matches dashboard)
+    const currentYear = new Date().getFullYear();
+    const ytdRevenue = bookings
+      .filter(b => 
+        b.status !== 'cancelled' && 
+        new Date(b.scheduled_at).getFullYear() === currentYear
+      )
+      .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
     // Growth trajectory
     const recentTrend = historicalData.slice(-3);
@@ -215,7 +222,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
       recurringMonthlyRevenue,
       isGrowing
     };
-  }, [historicalData, forecastData, recurringMonthlyRevenue]);
+  }, [historicalData, forecastData, recurringMonthlyRevenue, bookings]);
 
   return (
     <div className="space-y-6">
