@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
 import { useDiscounts } from '@/hooks/useDiscounts';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { preloadStripeModules } from '@/lib/stripe';
 
 export function PaymentStep() {
   const {
@@ -70,6 +71,11 @@ export function PaymentStep() {
   const [couponCode, setCouponCode] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  // Pre-load Stripe modules when payment step is rendered
+  useEffect(() => {
+    preloadStripeModules();
+  }, []);
 
   // Get customer phone
   const customerPhone = customerTab === 'existing' && selectedCustomer 

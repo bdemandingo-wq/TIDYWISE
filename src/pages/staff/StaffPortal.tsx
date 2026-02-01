@@ -38,6 +38,7 @@ interface Booking {
   bedrooms?: string | null;
   bathrooms?: string | null;
   team_pay_share?: number | null;
+  notes?: string | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -167,7 +168,7 @@ export default function StaffPortal() {
         .from('bookings')
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment, notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)
@@ -186,7 +187,7 @@ export default function StaffPortal() {
           is_primary,
           booking:bookings(
             id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment, notes,
             customer:customers(first_name, last_name, phone),
             service:services(name)
           )
@@ -236,7 +237,7 @@ export default function StaffPortal() {
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
-          square_footage, bedrooms, bathrooms,
+          square_footage, bedrooms, bathrooms, notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)
