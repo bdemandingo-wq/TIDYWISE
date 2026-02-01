@@ -4355,6 +4355,24 @@ export type Database = {
       }
     }
     Functions: {
+      get_client_portal_user_data: {
+        Args: { p_username: string }
+        Returns: {
+          customer_id: string
+          email: string
+          first_name: string
+          is_active: boolean
+          last_name: string
+          loyalty_lifetime_points: number
+          loyalty_points: number
+          loyalty_tier: string
+          must_change_password: boolean
+          organization_id: string
+          phone: string
+          user_id: string
+          username: string
+        }[]
+      }
       get_user_organization_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -4377,6 +4395,10 @@ export type Database = {
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
+      }
+      update_client_portal_last_login: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       validate_client_portal_login: {
         Args: { p_password: string; p_username: string }
