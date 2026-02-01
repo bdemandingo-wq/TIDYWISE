@@ -4363,6 +4363,18 @@ export type Database = {
         }
         Returns: Json
       }
+      get_client_portal_bookings: {
+        Args: { p_customer_id: string }
+        Returns: {
+          address: string
+          booking_number: number
+          id: string
+          scheduled_at: string
+          service_name: string
+          status: string
+          total_amount: number
+        }[]
+      }
       get_client_portal_user_data: {
         Args: { p_email: string }
         Returns: {

@@ -73,23 +73,22 @@ export default function PortalDashboardPage() {
     const fetchData = async () => {
       setLoadingData(true);
 
-      // Fetch bookings for this customer
+      // Fetch bookings using the secure RPC function
       const { data: bookingsData } = await supabase
-        .from("bookings")
-        .select(`
-          id, 
-          booking_number, 
-          scheduled_at, 
-          status, 
-          total_amount, 
-          address,
-          service:services(name)
-        `)
-        .eq("customer_id", user.customer_id)
-        .order("scheduled_at", { ascending: false })
-        .limit(20);
+        .rpc("get_client_portal_bookings", { p_customer_id: user.customer_id });
 
-      setBookings((bookingsData || []) as any);
+      // Transform data to match expected interface
+      const transformedBookings = (bookingsData || []).map((b: any) => ({
+        id: b.id,
+        booking_number: b.booking_number,
+        scheduled_at: b.scheduled_at,
+        status: b.status,
+        total_amount: b.total_amount,
+        address: b.address,
+        service: b.service_name ? { name: b.service_name } : null,
+      }));
+
+      setBookings(transformedBookings);
 
       // Fetch booking requests
       const { data: requestsData } = await supabase
