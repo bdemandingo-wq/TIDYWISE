@@ -36,9 +36,10 @@ interface ClientPortalContextType {
   customer: CustomerInfo | null;
   loyalty: LoyaltyInfo | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => void;
   refreshData: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const ClientPortalContext = createContext<ClientPortalContextType | undefined>(undefined);
@@ -75,28 +76,28 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const signIn = async (username: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     try {
-      // Call the RPC function to validate credentials
+      // Call the RPC function to validate credentials using email
       const { data: validationResult, error: validationError } = await supabase.rpc('validate_client_portal_login' as any, {
-        p_username: username.toLowerCase().trim(),
+        p_email: email.toLowerCase().trim(),
         p_password: password,
       });
 
       if (validationError) {
         console.error('Login validation error:', validationError);
-        return { error: 'Invalid username or password' };
+        return { error: 'Invalid email or password' };
       }
 
       const validation = validationResult as { valid: boolean; reason?: string; user_id?: string } | null;
       
       if (!validation || !validation.valid) {
-        return { error: 'Invalid username or password' };
+        return { error: 'Invalid email or password' };
       }
 
-      // Use the security definer function to get all user data
+      // Use the security definer function to get all user data by email
       const { data: userData, error: userDataError } = await supabase.rpc('get_client_portal_user_data' as any, {
-        p_username: username.toLowerCase().trim(),
+        p_email: email.toLowerCase().trim(),
       });
 
       if (userDataError) {
@@ -154,6 +155,45 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ error: string | null }> => {
+    if (!user) {
+      return { error: 'Not logged in' };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('change_client_portal_password' as any, {
+        p_user_id: user.id,
+        p_current_password: currentPassword,
+        p_new_password: newPassword,
+      });
+
+      if (error) {
+        console.error('Password change error:', error);
+        return { error: 'Failed to change password' };
+      }
+
+      const result = data as { success: boolean; error?: string } | null;
+
+      if (!result || !result.success) {
+        return { error: result?.error || 'Failed to change password' };
+      }
+
+      // Update local state
+      if (user.must_change_password) {
+        const updatedUser = { ...user, must_change_password: false };
+        setUser(updatedUser);
+        if (customer) {
+          saveSession(updatedUser, customer, loyalty);
+        }
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      console.error('Password change error:', err);
+      return { error: 'An unexpected error occurred' };
+    }
+  };
+
   const signOut = () => {
     setUser(null);
     setCustomer(null);
@@ -197,6 +237,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         refreshData,
+        changePassword,
       }}
     >
       {children}

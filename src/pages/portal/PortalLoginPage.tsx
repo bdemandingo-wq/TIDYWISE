@@ -14,7 +14,7 @@ import { Seo } from "@/components/Seo";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 
 const loginSchema = z.object({
-  username: z.string().trim().min(3, "Username must be at least 3 characters"),
+  email: z.string().trim().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -27,7 +27,7 @@ export default function PortalLoginPage() {
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "" },
+    defaultValues: { email: "", password: "" },
     mode: "onSubmit",
   });
 
@@ -40,7 +40,7 @@ export default function PortalLoginPage() {
   }
 
   const onSubmit = async (values: LoginValues) => {
-    const result = await signIn(values.username, values.password);
+    const result = await signIn(values.email, values.password);
     
     if (result.error) {
       toast.error(result.error);
@@ -84,16 +84,16 @@ export default function PortalLoginPage() {
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  type="text"
-                  autoComplete="username"
-                  placeholder="your_username"
-                  {...form.register("username")}
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  {...form.register("email")}
                 />
-                {form.formState.errors.username?.message && (
-                  <p className="text-sm text-destructive">{form.formState.errors.username.message}</p>
+                {form.formState.errors.email?.message && (
+                  <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
                 )}
               </div>
 

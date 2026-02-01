@@ -4355,8 +4355,16 @@ export type Database = {
       }
     }
     Functions: {
+      change_client_portal_password: {
+        Args: {
+          p_current_password: string
+          p_new_password: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_client_portal_user_data: {
-        Args: { p_username: string }
+        Args: { p_email: string }
         Returns: {
           customer_id: string
           email: string
@@ -4401,7 +4409,7 @@ export type Database = {
         Returns: undefined
       }
       validate_client_portal_login: {
-        Args: { p_password: string; p_username: string }
+        Args: { p_email: string; p_password: string }
         Returns: Json
       }
     }
