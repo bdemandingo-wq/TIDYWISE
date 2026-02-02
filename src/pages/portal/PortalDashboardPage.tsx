@@ -13,7 +13,9 @@ import {
   Bell,
   CheckCircle2,
   XCircle,
-  Loader2
+  Loader2,
+  Settings,
+  User
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Seo } from "@/components/Seo";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
+import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 
 interface Booking {
   id: string;
@@ -41,7 +45,7 @@ interface BookingRequest {
   notes: string | null;
   admin_response_note: string | null;
   created_at: string;
-  service: { name: string } | null;
+  service_name: string | null;
 }
 
 interface Notification {
@@ -90,33 +94,17 @@ export default function PortalDashboardPage() {
 
       setBookings(transformedBookings);
 
-      // Fetch booking requests
+      // Fetch booking requests using secure RPC
       const { data: requestsData } = await supabase
-        .from("client_booking_requests")
-        .select(`
-          id,
-          requested_date,
-          status,
-          notes,
-          admin_response_note,
-          created_at,
-          service:services(name)
-        `)
-        .eq("client_user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .rpc("get_client_portal_requests", { p_client_user_id: user.id });
 
-      setRequests((requestsData || []) as any);
+      setRequests((requestsData || []) as BookingRequest[]);
 
-      // Fetch notifications
+      // Fetch notifications using secure RPC
       const { data: notificationsData } = await supabase
-        .from("client_notifications")
-        .select("*")
-        .eq("client_user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .rpc("get_client_portal_notifications", { p_client_user_id: user.id });
 
-      setNotifications(notificationsData || []);
+      setNotifications((notificationsData || []) as Notification[]);
 
       setLoadingData(false);
     };
@@ -130,10 +118,12 @@ export default function PortalDashboardPage() {
   };
 
   const markNotificationRead = async (id: string) => {
-    await supabase
-      .from("client_notifications")
-      .update({ is_read: true })
-      .eq("id", id);
+    if (!user) return;
+
+    await supabase.rpc("mark_client_notification_read", {
+      p_notification_id: id,
+      p_client_user_id: user.id,
+    });
 
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
@@ -155,6 +145,9 @@ export default function PortalDashboardPage() {
   const pastBookings = bookings.filter(
     (b) => new Date(b.scheduled_at) < new Date() || b.status === "cancelled"
   );
+
+  // Show loyalty with default 0 points if no record exists yet
+  const displayLoyalty = loyalty || { points: 0, lifetime_points: 0, tier: "bronze" };
 
   const getTierColor = (tier: string) => {
     switch (tier?.toLowerCase()) {
@@ -227,30 +220,28 @@ export default function PortalDashboardPage() {
       </header>
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Loyalty Card */}
-        {loyalty && (
-          <Card className="overflow-hidden">
-            <div className={`h-2 ${getTierColor(loyalty.tier)}`} />
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg capitalize">
-                    {loyalty.tier} Member
-                  </CardTitle>
-                </div>
-                <Badge variant="outline" className="text-lg px-3 py-1">
-                  {loyalty.points} pts
-                </Badge>
+        {/* Loyalty Card - Always show, with 0 points default */}
+        <Card className="overflow-hidden">
+          <div className={`h-2 ${getTierColor(displayLoyalty.tier)}`} />
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg capitalize">
+                  {displayLoyalty.tier} Member
+                </CardTitle>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Lifetime points: {loyalty.lifetime_points}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                {displayLoyalty.points} pts
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Lifetime points: {displayLoyalty.lifetime_points}
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Request Booking Button */}
         <Button
@@ -264,7 +255,7 @@ export default function PortalDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
@@ -275,6 +266,12 @@ export default function PortalDashboardPage() {
                   {unreadCount}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="profile">
+              <User className="h-4 w-4" />
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4" />
             </TabsTrigger>
           </TabsList>
 
@@ -302,7 +299,7 @@ export default function PortalDashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {(booking.service as any)?.name || "Service"}
+                        {booking.service?.name || "Service"}
                       </p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
@@ -348,11 +345,11 @@ export default function PortalDashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {(request.service as any)?.name || "Service Request"}
+                        {request.service_name || "Service Request"}
                       </p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        Requested: {format(new Date(request.requested_date), "MMM d, yyyy")}
+                        Requested: {format(new Date(request.requested_date), "MMM d, yyyy 'at' h:mm a")}
                       </div>
                       {request.notes && (
                         <p className="text-sm text-muted-foreground mt-1">
@@ -394,7 +391,7 @@ export default function PortalDashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
-                        {(booking.service as any)?.name || "Service"}
+                        {booking.service?.name || "Service"}
                       </p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
@@ -457,6 +454,16 @@ export default function PortalDashboardPage() {
                 </Card>
               ))
             )}
+          </TabsContent>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile">
+            <PortalProfileTab />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <PortalSettingsTab />
           </TabsContent>
         </Tabs>
       </div>

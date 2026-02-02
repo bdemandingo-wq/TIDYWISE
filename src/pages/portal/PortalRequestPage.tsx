@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ArrowLeft, Calendar as CalendarIcon, Loader2, Send } from "lucide-react";
+import { format, setHours, setMinutes } from "date-fns";
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,34 @@ interface Service {
   name: string;
 }
 
+const TIME_SLOTS = [
+  { value: "08:00", label: "8:00 AM" },
+  { value: "08:30", label: "8:30 AM" },
+  { value: "09:00", label: "9:00 AM" },
+  { value: "09:30", label: "9:30 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "10:30", label: "10:30 AM" },
+  { value: "11:00", label: "11:00 AM" },
+  { value: "11:30", label: "11:30 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "12:30", label: "12:30 PM" },
+  { value: "13:00", label: "1:00 PM" },
+  { value: "13:30", label: "1:30 PM" },
+  { value: "14:00", label: "2:00 PM" },
+  { value: "14:30", label: "2:30 PM" },
+  { value: "15:00", label: "3:00 PM" },
+  { value: "15:30", label: "3:30 PM" },
+  { value: "16:00", label: "4:00 PM" },
+  { value: "16:30", label: "4:30 PM" },
+  { value: "17:00", label: "5:00 PM" },
+];
+
 export default function PortalRequestPage() {
   const navigate = useNavigate();
   const { user, customer, loading } = useClientPortal();
   const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -59,6 +82,11 @@ export default function PortalRequestPage() {
       return;
     }
 
+    if (!selectedTime) {
+      toast.error("Please select a preferred time");
+      return;
+    }
+
     if (!user || !customer) {
       toast.error("Session expired. Please log in again.");
       navigate("/portal");
@@ -67,13 +95,17 @@ export default function PortalRequestPage() {
 
     setSubmitting(true);
 
+    // Combine date and time
+    const [hours, minutes] = selectedTime.split(":").map(Number);
+    const dateWithTime = setMinutes(setHours(selectedDate, hours), minutes);
+
     try {
       // Use security definer RPC to bypass RLS (client portal users aren't authenticated via Supabase Auth)
       const { data, error } = await supabase.rpc("submit_client_booking_request", {
         p_client_user_id: user.id,
         p_customer_id: user.customer_id,
         p_organization_id: user.organization_id,
-        p_requested_date: selectedDate.toISOString(),
+        p_requested_date: dateWithTime.toISOString(),
         p_service_id: selectedService || null,
         p_notes: notes.trim() || null,
       });
@@ -164,6 +196,26 @@ export default function PortalRequestPage() {
               </Popover>
             </div>
 
+            {/* Time Picker */}
+            <div className="space-y-2">
+              <Label>Preferred Time *</Label>
+              <Select value={selectedTime} onValueChange={setSelectedTime}>
+                <SelectTrigger>
+                  <div className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Select a time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Service Selection */}
             {services.length > 0 && (
               <div className="space-y-2">
@@ -199,7 +251,7 @@ export default function PortalRequestPage() {
               className="w-full gap-2"
               size="lg"
               onClick={handleSubmit}
-              disabled={!selectedDate || submitting}
+              disabled={!selectedDate || !selectedTime || submitting}
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
