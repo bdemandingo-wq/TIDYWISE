@@ -4355,6 +4355,19 @@ export type Database = {
       }
     }
     Functions: {
+      add_client_portal_location: {
+        Args: {
+          p_address: string
+          p_apt_suite?: string
+          p_city?: string
+          p_client_user_id: string
+          p_is_primary?: boolean
+          p_name: string
+          p_state?: string
+          p_zip_code?: string
+        }
+        Returns: string
+      }
       change_client_portal_password: {
         Args: {
           p_current_password: string
@@ -4362,6 +4375,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      delete_client_portal_location: {
+        Args: { p_client_user_id: string; p_location_id: string }
+        Returns: boolean
       }
       get_client_portal_bookings: {
         Args: { p_customer_id: string }
@@ -4373,6 +4390,42 @@ export type Database = {
           service_name: string
           status: string
           total_amount: number
+        }[]
+      }
+      get_client_portal_locations: {
+        Args: { p_customer_id: string }
+        Returns: {
+          address: string
+          apt_suite: string
+          city: string
+          id: string
+          is_primary: boolean
+          name: string
+          state: string
+          zip_code: string
+        }[]
+      }
+      get_client_portal_notifications: {
+        Args: { p_client_user_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+        }[]
+      }
+      get_client_portal_requests: {
+        Args: { p_client_user_id: string }
+        Returns: {
+          admin_response_note: string
+          created_at: string
+          id: string
+          notes: string
+          requested_date: string
+          service_name: string
+          status: string
         }[]
       }
       get_client_portal_user_data: {
@@ -4393,6 +4446,17 @@ export type Database = {
           username: string
         }[]
       }
+      get_loyalty_tier_info: {
+        Args: { p_organization_id: string }
+        Returns: {
+          benefits: Json
+          color: string
+          max_spending: number
+          min_spending: number
+          tier_name: string
+          tier_order: number
+        }[]
+      }
       get_user_organization_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -4411,6 +4475,10 @@ export type Database = {
       }
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
+      mark_client_notification_read: {
+        Args: { p_client_user_id: string; p_notification_id: string }
+        Returns: boolean
+      }
       reset_daily_tasks: { Args: never; Returns: undefined }
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
@@ -4430,6 +4498,15 @@ export type Database = {
       update_client_portal_last_login: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      update_client_portal_profile: {
+        Args: {
+          p_client_user_id: string
+          p_first_name: string
+          p_last_name: string
+          p_phone?: string
+        }
+        Returns: boolean
       }
       validate_client_portal_login: {
         Args: { p_email: string; p_password: string }
