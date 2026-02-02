@@ -12,7 +12,8 @@ import {
   Eye,
   EyeOff,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -86,6 +87,7 @@ export function ClientPortalUsersManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ClientPortalUser | null>(null);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -93,6 +95,8 @@ export function ClientPortalUsersManager() {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Fetch portal users
   const { data: portalUsers = [], isLoading } = useQuery({
@@ -218,12 +222,55 @@ export function ClientPortalUsersManager() {
     },
   });
 
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const { data, error } = await supabase.rpc('reset_client_portal_password', {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-portal-users'] });
+      toast.success('Password reset successfully! User will be prompted to change it on next login.');
+      setResetPasswordDialogOpen(false);
+      setResetPassword('');
+      setShowResetPassword(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to reset password');
+    },
+  });
+
   const resetForm = () => {
     setNewUsername('');
     setNewPassword('');
     setSelectedCustomerId('');
     setGeneratedPassword('');
     setShowPassword(false);
+  };
+
+  const generateResetPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setResetPassword(password);
+  };
+
+  const handleResetPassword = () => {
+    if (!selectedUser || !resetPassword || resetPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    resetPasswordMutation.mutate({
+      userId: selectedUser.id,
+      newPassword: resetPassword,
+    });
   };
 
   const generatePassword = () => {
@@ -361,6 +408,17 @@ export function ClientPortalUsersManager() {
                           onClick={() => toggleActive.mutate({ userId: user.id, isActive: !user.is_active })}
                         >
                           {user.is_active ? 'Deactivate' : 'Activate'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setResetPassword('');
+                            setShowResetPassword(false);
+                            setResetPasswordDialogOpen(true);
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Reset Password
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive"
@@ -506,6 +564,87 @@ export function ClientPortalUsersManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={(open) => {
+        setResetPasswordDialogOpen(open);
+        if (!open) {
+          setResetPassword('');
+          setShowResetPassword(false);
+          setSelectedUser(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for{' '}
+              <strong>{selectedUser?.customer?.first_name} {selectedUser?.customer?.last_name}</strong>.
+              They will be required to change it on their next login.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>New Password</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={generateResetPassword}>
+                  <Key className="h-4 w-4 mr-1" />
+                  Generate
+                </Button>
+              </div>
+              <div className="relative">
+                <Input
+                  type={showResetPassword ? 'text' : 'password'}
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowResetPassword((v) => !v)}
+                >
+                  {showResetPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+              {resetPassword && (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <code className="flex-1 text-sm">{resetPassword}</code>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(resetPassword, 'reset-password')}
+                  >
+                    {copiedId === 'reset-password' ? (
+                      <Check className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleResetPassword} disabled={resetPasswordMutation.isPending}>
+              {resetPasswordMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

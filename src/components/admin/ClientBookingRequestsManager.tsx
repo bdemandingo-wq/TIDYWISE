@@ -110,7 +110,10 @@ export function ClientBookingRequestsManager() {
       status: 'approved' | 'rejected';
       responseNote: string;
     }) => {
-      // Update the request
+      const request = selectedRequest;
+      if (!request || !organization?.id) throw new Error("Missing request or organization");
+
+      // Update the request status
       const { error: updateError } = await supabase
         .from('client_booking_requests')
         .update({
@@ -122,52 +125,76 @@ export function ClientBookingRequestsManager() {
 
       if (updateError) throw updateError;
 
-      // Get the request details to create notification
-      const request = selectedRequest;
-      if (request) {
-        // Create notification for the client
-        const { data: portalUser } = await supabase
-          .from('client_portal_users')
-          .select('id')
-          .eq('customer_id', request.customer?.first_name ? 
-            // Get customer_id from the request
-            (await supabase
-              .from('client_booking_requests')
-              .select('client_user_id')
-              .eq('id', requestId)
-              .single()).data?.client_user_id 
-            : null)
-          .maybeSingle();
-
-        // Get client_user_id from the request
-        const { data: requestData } = await supabase
+      // If approved, create a booking in the calendar
+      if (status === 'approved') {
+        // Get the request details for booking creation
+        const { data: requestData, error: fetchError } = await supabase
           .from('client_booking_requests')
-          .select('client_user_id')
+          .select('customer_id, service_id, requested_date')
           .eq('id', requestId)
           .single();
 
-        if (requestData?.client_user_id) {
-          await supabase.from('client_notifications').insert({
-            client_user_id: requestData.client_user_id,
-            organization_id: organization?.id,
-            title: status === 'approved' ? 'Booking Request Approved!' : 'Booking Request Update',
-            message: status === 'approved'
-              ? `Your booking request for ${format(new Date(request.requested_date), 'MMMM d, yyyy')} has been approved.${responseNote ? ` Note: ${responseNote}` : ''}`
-              : `Your booking request for ${format(new Date(request.requested_date), 'MMMM d, yyyy')} could not be accommodated.${responseNote ? ` Note: ${responseNote}` : ''}`,
-            type: status,
-            is_read: false,
-          });
+        if (fetchError) throw fetchError;
+
+        // Get default service duration
+        let duration = 120; // default 2 hours
+        if (requestData?.service_id) {
+          const { data: serviceData } = await supabase
+            .from('services')
+            .select('duration')
+            .eq('id', requestData.service_id)
+            .single();
+          if (serviceData?.duration) {
+            duration = serviceData.duration;
+          }
         }
+
+        // Create the booking using the RPC
+        const { error: bookingError } = await supabase.rpc('create_booking_from_request', {
+          p_request_id: requestId,
+          p_organization_id: organization.id,
+          p_customer_id: requestData.customer_id,
+          p_service_id: requestData.service_id,
+          p_scheduled_at: requestData.requested_date,
+          p_duration: duration,
+        });
+
+        if (bookingError) {
+          console.error("Failed to create booking:", bookingError);
+          // Don't throw - the approval still went through
+          toast.error("Request approved but failed to create booking. Please create manually.");
+        }
+      }
+
+      // Get client_user_id and create notification
+      const { data: reqData } = await supabase
+        .from('client_booking_requests')
+        .select('client_user_id')
+        .eq('id', requestId)
+        .single();
+
+      if (reqData?.client_user_id) {
+        await supabase.from('client_notifications').insert({
+          client_user_id: reqData.client_user_id,
+          organization_id: organization.id,
+          title: status === 'approved' ? 'Booking Request Approved!' : 'Booking Request Update',
+          message: status === 'approved'
+            ? `Your booking request for ${format(new Date(request.requested_date), 'MMMM d, yyyy')} has been approved.${responseNote ? ` Note: ${responseNote}` : ''}`
+            : `Your booking request for ${format(new Date(request.requested_date), 'MMMM d, yyyy')} could not be accommodated.${responseNote ? ` Note: ${responseNote}` : ''}`,
+          type: status,
+          is_read: false,
+        });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-booking-requests'] });
-      toast.success(responseAction === 'approved' ? 'Request approved!' : 'Request rejected');
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success(responseAction === 'approved' ? 'Request approved and booking created!' : 'Request rejected');
       setRespondDialogOpen(false);
       setSelectedRequest(null);
       setResponseNote('');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || 'Failed to respond to request');
     },
   });

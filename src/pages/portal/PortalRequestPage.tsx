@@ -112,9 +112,21 @@ export default function PortalRequestPage() {
 
       if (error) throw error;
 
+      // Send SMS notification to organization (fire and forget)
+      const serviceName = services.find((s) => s.id === selectedService)?.name;
+      supabase.functions.invoke("notify-booking-request", {
+        body: {
+          organizationId: user.organization_id,
+          customerName: `${customer.first_name} ${customer.last_name}`,
+          requestedDate: dateWithTime.toISOString(),
+          serviceName,
+          notes: notes.trim() || undefined,
+        },
+      }).catch((err) => console.error("SMS notification error:", err));
+
       toast.success("Booking request submitted! We'll get back to you soon.");
       navigate("/portal/dashboard");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Submit error:", err);
       toast.error("Failed to submit request. Please try again.");
     } finally {

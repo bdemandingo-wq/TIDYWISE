@@ -4376,6 +4376,17 @@ export type Database = {
         }
         Returns: Json
       }
+      create_booking_from_request: {
+        Args: {
+          p_customer_id: string
+          p_duration?: number
+          p_organization_id: string
+          p_request_id: string
+          p_scheduled_at: string
+          p_service_id: string
+        }
+        Returns: string
+      }
       delete_client_portal_location: {
         Args: { p_client_user_id: string; p_location_id: string }
         Returns: boolean
@@ -4446,6 +4457,18 @@ export type Database = {
           username: string
         }[]
       }
+      get_client_tax_report: {
+        Args: { p_client_user_id: string; p_year?: number }
+        Returns: {
+          address: string
+          booking_date: string
+          payment_status: string
+          service_name: string
+          subtotal: number
+          tax_amount: number
+          total_amount: number
+        }[]
+      }
       get_loyalty_tier_info: {
         Args: { p_organization_id: string }
         Returns: {
@@ -4477,6 +4500,10 @@ export type Database = {
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
+        Returns: boolean
+      }
+      reset_client_portal_password: {
+        Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
       reset_daily_tasks: { Args: never; Returns: undefined }

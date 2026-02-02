@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Loader2, User, MapPin, Plus, Trash2, Star, Check, Trophy } from "lucide-react";
+import { Loader2, User, MapPin, Plus, Trash2, Check, Trophy, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 
@@ -515,6 +517,125 @@ export function PortalProfileTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Tax Report Download Card */}
+      <TaxReportCard clientUserId={user?.id} />
     </div>
+  );
+}
+
+// Tax Report Component
+function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [downloading, setDownloading] = useState(false);
+
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
+
+  const handleDownload = async () => {
+    if (!clientUserId) {
+      toast.error("Unable to download report");
+      return;
+    }
+
+    setDownloading(true);
+
+    try {
+      const { data, error } = await supabase.rpc("get_client_tax_report", {
+        p_client_user_id: clientUserId,
+        p_year: parseInt(selectedYear),
+      });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.info("No completed bookings found for this year");
+        return;
+      }
+
+      // Generate CSV content
+      const headers = ["Date", "Service", "Address", "Subtotal", "Tax", "Total", "Payment Status"];
+      const rows = data.map((row: any) => [
+        format(new Date(row.booking_date), "MM/dd/yyyy"),
+        row.service_name,
+        row.address || "",
+        `$${Number(row.subtotal).toFixed(2)}`,
+        `$${Number(row.tax_amount).toFixed(2)}`,
+        `$${Number(row.total_amount).toFixed(2)}`,
+        row.payment_status,
+      ]);
+
+      // Calculate totals
+      const totalSubtotal = data.reduce((sum: number, r: any) => sum + Number(r.subtotal), 0);
+      const totalTax = data.reduce((sum: number, r: any) => sum + Number(r.tax_amount), 0);
+      const totalAmount = data.reduce((sum: number, r: any) => sum + Number(r.total_amount), 0);
+
+      rows.push(["", "", "TOTALS:", `$${totalSubtotal.toFixed(2)}`, `$${totalTax.toFixed(2)}`, `$${totalAmount.toFixed(2)}`, ""]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row: string[]) => row.map((cell) => `"${cell}"`).join(",")),
+      ].join("\n");
+
+      // Download file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `tax-report-${selectedYear}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Tax report downloaded!");
+    } catch (err) {
+      console.error("Tax report error:", err);
+      toast.error("Failed to download tax report");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          <CardTitle>Tax Reports</CardTitle>
+        </div>
+        <CardDescription>
+          Download a summary of your bookings for tax purposes
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-end gap-3">
+          <div className="flex-1 space-y-2">
+            <Label>Year</Label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleDownload} disabled={downloading}>
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Download CSV
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Report includes all completed bookings with payment details for the selected year.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
