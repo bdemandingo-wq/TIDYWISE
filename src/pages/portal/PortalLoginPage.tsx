@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2, Users } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,17 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center">
+    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 left-4"
+        onClick={() => navigate("/")}
+        aria-label="Go back"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </Button>
+      
       <Seo
         title="Client Portal | Sign In"
         description="Sign in to your client portal to view bookings, request appointments, and more."
