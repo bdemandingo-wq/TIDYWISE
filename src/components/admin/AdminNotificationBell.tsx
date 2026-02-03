@@ -36,6 +36,45 @@ export function AdminNotificationBell() {
     if (hasFetched && !force) return;
 
     try {
+      // Fetch recent booking request notifications
+      const { data: requestNotifications, error: reqError } = await supabase
+        .from('admin_booking_request_notifications')
+        .select(`
+          id,
+          is_read,
+          created_at,
+          booking_request:client_booking_requests(
+            id,
+            requested_date,
+            customer:customers(first_name, last_name),
+            service:services(name)
+          )
+        `)
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const bookingRequestNotifs: AdminNotification[] = (requestNotifications || []).map((n: any) => {
+        const customerName = n.booking_request?.customer 
+          ? `${n.booking_request.customer.first_name} ${n.booking_request.customer.last_name}`
+          : 'Customer';
+        const serviceName = n.booking_request?.service?.name || 'Service';
+        const requestDate = n.booking_request?.requested_date 
+          ? format(new Date(n.booking_request.requested_date), 'MMM d, yyyy')
+          : 'TBD';
+        
+        return {
+          id: `request-${n.id}`,
+          type: 'customer' as const,
+          title: `New Booking Request`,
+          message: `${customerName} requested ${serviceName} on ${requestDate}`,
+          is_read: n.is_read,
+          created_at: n.created_at,
+          resource_id: n.booking_request?.id,
+          resource_type: 'booking_request',
+        };
+      });
+
       // Fetch recent bookings with customer and service info
       const { data: recentBookings, error } = await supabase
         .from('bookings')
@@ -53,8 +92,9 @@ export function AdminNotificationBell() {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      const bookingNotifications: AdminNotification[] = [];
       if (!error && recentBookings) {
-        const bookingNotifications: AdminNotification[] = recentBookings.map((booking: any) => {
+        recentBookings.forEach((booking: any) => {
           const customerName = booking.customers 
             ? `${booking.customers.first_name} ${booking.customers.last_name}` 
             : 'Unknown Customer';
@@ -63,7 +103,7 @@ export function AdminNotificationBell() {
             ? format(new Date(booking.scheduled_at), 'MMM d, yyyy')
             : 'TBD';
           
-          return {
+          bookingNotifications.push({
             id: `booking-${booking.id}`,
             type: 'booking' as const,
             title: customerName,
@@ -72,19 +112,17 @@ export function AdminNotificationBell() {
             created_at: booking.created_at,
             resource_id: booking.id,
             resource_type: 'booking',
-          };
+          });
         });
-
-        // Get today's bookings as unread
-        const today = new Date().toISOString().split('T')[0];
-        const unread = bookingNotifications.filter(
-          (n) => n.created_at.startsWith(today)
-        ).map(n => ({ ...n, is_read: false }));
-
-        setNotifications([...unread, ...bookingNotifications.filter(n => !n.created_at.startsWith(today))]);
-        setUnreadCount(unread.length);
-        setHasFetched(true);
       }
+
+      // Combine and sort by created_at
+      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setNotifications(allNotifications);
+      setUnreadCount(allNotifications.filter((n) => !n.is_read).length);
+      setHasFetched(true);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -97,6 +135,19 @@ export function AdminNotificationBell() {
       // Subscribe to realtime booking changes
       const channel = supabase
         .channel('admin-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'admin_booking_request_notifications',
+            filter: `organization_id=eq.${organizationId}`,
+          },
+          () => {
+            // Refresh notifications when a new booking request comes in
+            fetchNotifications(true);
+          }
+        )
         .on(
           'postgres_changes',
           {
@@ -160,17 +211,35 @@ export function AdminNotificationBell() {
     }
   }, [organizationId]);
 
-  const markAsRead = (notificationId: string) => {
+  const markAsRead = async (notificationId: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
+
+    // If it's a booking request notification, also mark it as read in the database
+    if (notificationId.startsWith('request-')) {
+      const dbId = notificationId.replace('request-', '');
+      await supabase
+        .from('admin_booking_request_notifications')
+        .update({ is_read: true })
+        .eq('id', dbId);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     if (unreadCount > 0) {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
+      
+      // Also mark all booking request notifications as read in the database
+      if (organizationId) {
+        await supabase
+          .from('admin_booking_request_notifications')
+          .update({ is_read: true })
+          .eq('organization_id', organizationId)
+          .eq('is_read', false);
+      }
     } else {
       // Clear all notifications if all are already read
       setNotifications([]);

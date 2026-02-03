@@ -37,7 +37,9 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SignedImage } from '@/components/ui/signed-image';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 import { usePlatform } from '@/hooks/usePlatform';
 
 import {
@@ -97,6 +99,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: typeof Home;
+  badge?: number;
 }
 
 interface AdminSidebarProps {
@@ -156,6 +159,11 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
       >
         <item.icon className="w-5 h-5 flex-shrink-0" />
         {(isOpen || isMobile) && <span>{item.name}</span>}
+        {item.badge !== undefined && item.badge > 0 && (
+          <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
+            {item.badge > 9 ? '9+' : item.badge}
+          </Badge>
+        )}
       </Link>
     </div>
   );
@@ -172,6 +180,23 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
   const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+
+  // Get pending booking requests count for badge
+  const { data: pendingRequestsCount = 0 } = useQuery({
+    queryKey: ['pending-booking-requests-count', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return 0;
+      const { count, error } = await supabase
+        .from('client_booking_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id)
+        .eq('status', 'pending');
+      if (error) return 0;
+      return count || 0;
+    },
+    enabled: !!organization?.id,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -254,10 +279,16 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     return ['/dashboard/payment-integration'];
   }, [canShowPaymentFlows]);
 
-  // Filter out hidden items (user preferences + platform restrictions)
-  const visibleNavigation = navigation.filter(item => 
-    !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href)
-  );
+  // Filter out hidden items and add badges
+  const visibleNavigation = navigation
+    .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
+    .map(item => {
+      // Add badge to Client Portal if there are pending requests
+      if (item.href === '/dashboard/client-portal' && pendingRequestsCount > 0) {
+        return { ...item, badge: pendingRequestsCount };
+      }
+      return item;
+    });
 
   useEffect(() => {
     const fetchLogoAndName = async () => {
