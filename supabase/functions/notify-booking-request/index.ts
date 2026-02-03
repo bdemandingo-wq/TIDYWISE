@@ -47,20 +47,24 @@ serve(async (req) => {
 
     const smsSettings = await smsResponse.json();
     
-    if (!smsSettings || smsSettings.length === 0) {
-      console.log("SMS settings not found for organization");
+    // Safely check if SMS settings exist and have required properties
+    if (!smsSettings || smsSettings.length === 0 || !smsSettings[0]) {
+      console.log("SMS settings not found for organization:", organizationId);
       return new Response(
-        JSON.stringify({ success: false, error: "SMS not configured" }),
+        JSON.stringify({ success: true, message: "SMS not configured - skipping notification" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { openphone_api_key, openphone_phone_number_id, is_enabled } = smsSettings[0];
+    const orgSmsSettings = smsSettings[0];
+    const openphone_api_key = orgSmsSettings?.openphone_api_key;
+    const openphone_phone_number_id = orgSmsSettings?.openphone_phone_number_id;
+    const is_enabled = orgSmsSettings?.is_enabled;
 
     if (!is_enabled || !openphone_api_key || !openphone_phone_number_id) {
-      console.log("SMS is disabled or not configured");
+      console.log("SMS is disabled or not fully configured for org:", organizationId);
       return new Response(
-        JSON.stringify({ success: false, error: "SMS not enabled" }),
+        JSON.stringify({ success: true, message: "SMS not enabled - skipping notification" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
