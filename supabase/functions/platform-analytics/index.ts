@@ -90,38 +90,51 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
-    // Get subscription data and ALL customers from Stripe
+    // Get subscription data - ONLY TidyWise subscribers (not all Stripe customers)
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
     let canceledSubscriptions = 0;
     let subscriptionList: any[] = [];
-    let stripeCustomersList: any[] = [];
-    let totalStripeCustomers = 0;
-    let recentStripeCustomers = 0;
+    let subscribersList: any[] = [];
+    let totalSubscribers = 0;
+    let recentSubscribers = 0;
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
-      console.log("[PLATFORM-ANALYTICS] Fetching Stripe data...");
+      console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscription data...");
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+      const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
       
       try {
-        // Get all subscriptions
-        const subscriptions = await stripe.subscriptions.list({ limit: 100 });
-        console.log("[PLATFORM-ANALYTICS] Found subscriptions:", subscriptions.data.length);
+        // Get all subscriptions (including all statuses to show full picture)
+        const allSubscriptions = await stripe.subscriptions.list({ 
+          limit: 100,
+          status: 'all' // Get all statuses: active, trialing, canceled, etc.
+        });
+        console.log("[PLATFORM-ANALYTICS] Found subscriptions:", allSubscriptions.data.length);
         
-        for (const sub of subscriptions.data) {
+        // Track unique customers with subscriptions
+        const subscriberEmails = new Set<string>();
+        
+        for (const sub of allSubscriptions.data) {
           if (sub.status === 'active') activeSubscriptions++;
           if (sub.status === 'trialing') trialSubscriptions++;
           if (sub.status === 'canceled') canceledSubscriptions++;
           
-          // Get customer email safely
+          // Get customer details
           let customerEmail = 'Unknown';
+          let customerName = null;
+          let customerId = '';
+          let customerCreated = 0;
+          
           if (sub.customer) {
             try {
-              const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+              customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
               const customer = await stripe.customers.retrieve(customerId);
               if (!customer.deleted && 'email' in customer && customer.email) {
                 customerEmail = customer.email;
+                customerName = customer.name || null;
+                customerCreated = customer.created;
               }
             } catch (e) {
               console.log("[PLATFORM-ANALYTICS] Could not fetch customer:", e);
@@ -135,61 +148,35 @@ serve(async (req) => {
             created: safeFormatDate(sub.created),
             current_period_end: safeFormatDate(sub.current_period_end),
           });
-        }
-
-        // Get ALL Stripe customers (this captures everyone who signed up via Stripe)
-        console.log("[PLATFORM-ANALYTICS] Fetching all Stripe customers...");
-        let hasMore = true;
-        let startingAfter: string | undefined = undefined;
-        const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
-
-        while (hasMore) {
-          const params: any = { limit: 100 };
-          if (startingAfter) params.starting_after = startingAfter;
           
-          const customers = await stripe.customers.list(params);
-          
-          for (const customer of customers.data) {
-            if (!customer.deleted && customer.email) {
-              totalStripeCustomers++;
-              
-              const createdAt = safeFormatDate(customer.created);
-              
-              // Check if recent (last 30 days)
-              if (customer.created >= thirtyDaysAgoTimestamp) {
-                recentStripeCustomers++;
-              }
-              
-              stripeCustomersList.push({
-                id: customer.id,
-                email: customer.email,
-                name: customer.name || null,
-                created: createdAt,
-                source: 'stripe',
-              });
+          // Add to subscribers list (only once per email, prioritize active subscriptions)
+          if (customerEmail !== 'Unknown' && !subscriberEmails.has(customerEmail)) {
+            subscriberEmails.add(customerEmail);
+            totalSubscribers++;
+            
+            // Check if recent subscriber (last 30 days)
+            if (sub.created >= thirtyDaysAgoTimestamp) {
+              recentSubscribers++;
             }
-          }
-          
-          hasMore = customers.has_more;
-          if (customers.data.length > 0) {
-            startingAfter = customers.data[customers.data.length - 1].id;
-          } else {
-            hasMore = false;
-          }
-          
-          // Safety cap at 1000 customers to prevent timeout
-          if (totalStripeCustomers >= 1000) {
-            console.log("[PLATFORM-ANALYTICS] Hit customer limit, stopping pagination");
-            break;
+            
+            subscribersList.push({
+              id: customerId,
+              email: customerEmail,
+              name: customerName,
+              created: safeFormatDate(customerCreated),
+              subscriptionStatus: sub.status,
+              subscriptionCreated: safeFormatDate(sub.created),
+              source: 'tidywise_subscriber',
+            });
           }
         }
 
-        console.log("[PLATFORM-ANALYTICS] Total Stripe customers:", totalStripeCustomers);
+        console.log("[PLATFORM-ANALYTICS] Total TidyWise subscribers:", totalSubscribers);
         
-        // Sort by created date (most recent first)
-        stripeCustomersList.sort((a, b) => {
-          const dateA = a.created !== 'Unknown' ? new Date(a.created).getTime() : 0;
-          const dateB = b.created !== 'Unknown' ? new Date(b.created).getTime() : 0;
+        // Sort by subscription created date (most recent first)
+        subscribersList.sort((a, b) => {
+          const dateA = a.subscriptionCreated !== 'Unknown' ? new Date(a.subscriptionCreated).getTime() : 0;
+          const dateB = b.subscriptionCreated !== 'Unknown' ? new Date(b.subscriptionCreated).getTime() : 0;
           return dateB - dateA;
         });
         
@@ -218,10 +205,10 @@ serve(async (req) => {
         canceled: canceledSubscriptions,
         list: subscriptionList.slice(0, 50),
       },
-      stripeCustomers: {
-        total: totalStripeCustomers,
-        recent: stripeCustomersList.slice(0, 100), // Most recent 100
-        last30Days: recentStripeCustomers,
+      subscribers: {
+        total: totalSubscribers,
+        recent: subscribersList.slice(0, 100),
+        last30Days: recentSubscribers,
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
