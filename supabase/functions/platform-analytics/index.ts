@@ -90,15 +90,18 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
-    // Get subscription data from Stripe
+    // Get subscription data and ALL customers from Stripe
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
     let canceledSubscriptions = 0;
     let subscriptionList: any[] = [];
+    let stripeCustomersList: any[] = [];
+    let totalStripeCustomers = 0;
+    let recentStripeCustomers = 0;
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
-      console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscriptions...");
+      console.log("[PLATFORM-ANALYTICS] Fetching Stripe data...");
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       
       try {
@@ -133,6 +136,63 @@ serve(async (req) => {
             current_period_end: safeFormatDate(sub.current_period_end),
           });
         }
+
+        // Get ALL Stripe customers (this captures everyone who signed up via Stripe)
+        console.log("[PLATFORM-ANALYTICS] Fetching all Stripe customers...");
+        let hasMore = true;
+        let startingAfter: string | undefined = undefined;
+        const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
+
+        while (hasMore) {
+          const params: any = { limit: 100 };
+          if (startingAfter) params.starting_after = startingAfter;
+          
+          const customers = await stripe.customers.list(params);
+          
+          for (const customer of customers.data) {
+            if (!customer.deleted && customer.email) {
+              totalStripeCustomers++;
+              
+              const createdAt = safeFormatDate(customer.created);
+              
+              // Check if recent (last 30 days)
+              if (customer.created >= thirtyDaysAgoTimestamp) {
+                recentStripeCustomers++;
+              }
+              
+              stripeCustomersList.push({
+                id: customer.id,
+                email: customer.email,
+                name: customer.name || null,
+                created: createdAt,
+                source: 'stripe',
+              });
+            }
+          }
+          
+          hasMore = customers.has_more;
+          if (customers.data.length > 0) {
+            startingAfter = customers.data[customers.data.length - 1].id;
+          } else {
+            hasMore = false;
+          }
+          
+          // Safety cap at 1000 customers to prevent timeout
+          if (totalStripeCustomers >= 1000) {
+            console.log("[PLATFORM-ANALYTICS] Hit customer limit, stopping pagination");
+            break;
+          }
+        }
+
+        console.log("[PLATFORM-ANALYTICS] Total Stripe customers:", totalStripeCustomers);
+        
+        // Sort by created date (most recent first)
+        stripeCustomersList.sort((a, b) => {
+          const dateA = a.created !== 'Unknown' ? new Date(a.created).getTime() : 0;
+          const dateB = b.created !== 'Unknown' ? new Date(b.created).getTime() : 0;
+          return dateB - dateA;
+        });
+        
       } catch (stripeError) {
         console.error("[PLATFORM-ANALYTICS] Stripe error:", stripeError);
       }
@@ -158,6 +218,11 @@ serve(async (req) => {
         canceled: canceledSubscriptions,
         list: subscriptionList.slice(0, 50),
       },
+      stripeCustomers: {
+        total: totalStripeCustomers,
+        recent: stripeCustomersList.slice(0, 100), // Most recent 100
+        last30Days: recentStripeCustomers,
+      },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -171,4 +236,3 @@ serve(async (req) => {
     });
   }
 });
-
