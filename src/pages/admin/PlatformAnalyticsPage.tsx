@@ -26,11 +26,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 
-interface StripeCustomer {
+interface Subscriber {
   id: string;
   email: string;
   name: string | null;
   created: string;
+  subscriptionStatus: string;
+  subscriptionCreated: string;
   source: string;
 }
 
@@ -51,9 +53,9 @@ interface PlatformAnalytics {
     canceled: number;
     list: { id: string; customer_email: string; status: string; created: string; current_period_end: string }[];
   };
-  stripeCustomers: {
+  subscribers: {
     total: number;
-    recent: StripeCustomer[];
+    recent: Subscriber[];
     last30Days: number;
   };
 }
@@ -297,11 +299,11 @@ export default function PlatformAnalyticsPage() {
         </div>
 
         {/* Tabbed Content */}
-        <Tabs defaultValue="stripe-customers" className="w-full">
+        <Tabs defaultValue="subscribers" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="stripe-customers" className="flex items-center gap-2">
+            <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
-              Stripe ({analytics?.stripeCustomers?.total || 0})
+              Subscribers ({analytics?.subscribers?.total || 0})
             </TabsTrigger>
             <TabsTrigger value="signups" className="flex items-center gap-2">
               <UserPlus className="w-4 h-4" />
@@ -321,54 +323,53 @@ export default function PlatformAnalyticsPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Stripe Customers Tab - Shows ALL Stripe signups */}
-          <TabsContent value="stripe-customers">
+          {/* TidyWise Subscribers Tab - Only shows users with subscriptions */}
+          <TabsContent value="subscribers">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-primary" />
-                  All Stripe Customers
+                  TidyWise Subscribers
                   <Badge variant="secondary" className="ml-auto">
-                    +{analytics?.stripeCustomers?.last30Days || 0} last 30 days
+                    +{analytics?.subscribers?.last30Days || 0} last 30 days
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[500px] pr-4">
-                  {analytics?.stripeCustomers?.recent && analytics.stripeCustomers.recent.length > 0 ? (
+                  {analytics?.subscribers?.recent && analytics.subscribers.recent.length > 0 ? (
                     <div className="space-y-2">
-                      {analytics.stripeCustomers.recent.map((customer) => (
+                      {analytics.subscribers.recent.map((subscriber) => (
                         <div 
-                          key={customer.id} 
+                          key={subscriber.id} 
                           className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium text-primary">
-                                {customer.email?.charAt(0).toUpperCase() || '?'}
+                                {subscriber.email?.charAt(0).toUpperCase() || '?'}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium text-sm">{customer.email}</p>
-                              {customer.name && (
-                                <p className="text-xs text-muted-foreground">{customer.name}</p>
+                              <p className="font-medium text-sm">{subscriber.email}</p>
+                              {subscriber.name && (
+                                <p className="text-xs text-muted-foreground">{subscriber.name}</p>
                               )}
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {customer.created !== 'Unknown' 
-                                  ? formatDistanceToNow(new Date(customer.created), { addSuffix: true })
+                                Subscribed {subscriber.subscriptionCreated !== 'Unknown' 
+                                  ? formatDistanceToNow(new Date(subscriber.subscriptionCreated), { addSuffix: true })
                                   : 'Unknown date'}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {customer.created !== 'Unknown' 
-                                ? format(new Date(customer.created), 'MMM d, yyyy')
-                                : 'Unknown'}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                              Stripe
+                            <Badge 
+                              variant={subscriber.subscriptionStatus === 'active' ? 'default' : 
+                                       subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {subscriber.subscriptionStatus}
                             </Badge>
                           </div>
                         </div>
@@ -377,8 +378,8 @@ export default function PlatformAnalyticsPage() {
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p>No Stripe customers found</p>
-                      <p className="text-xs mt-1">Customers appear here when they sign up via Stripe</p>
+                      <p>No TidyWise subscribers found</p>
+                      <p className="text-xs mt-1">Only users with active TidyWise subscriptions appear here</p>
                     </div>
                   )}
                 </ScrollArea>
