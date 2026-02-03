@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   cleaningServices as defaultCleaningServices, 
   extras as defaultExtras,
@@ -22,13 +23,13 @@ export interface ServicePricingData {
 
 export function useServicePricing() {
   const { organization } = useOrganization();
-  const [servicePricing, setServicePricing] = useState<Map<string, ServicePricingData>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchServicePricing = useCallback(async () => {
-    if (!organization?.id) return;
+  const { data: servicePricing = new Map<string, ServicePricingData>(), isLoading: loading } = useQuery({
+    queryKey: ['service-pricing', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return new Map<string, ServicePricingData>();
 
-    try {
       const { data, error } = await supabase
         .from('service_pricing')
         .select('*')
@@ -51,17 +52,11 @@ export function useServicePricing() {
         });
       });
 
-      setServicePricing(pricingMap);
-    } catch (error) {
-      console.error('Error fetching service pricing:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [organization?.id]);
-
-  useEffect(() => {
-    fetchServicePricing();
-  }, [fetchServicePricing]);
+      return pricingMap;
+    },
+    enabled: !!organization?.id,
+    staleTime: 0, // Always check for updates
+  });
 
   const getServicePricing = useCallback((serviceId: string): ServicePricingData => {
     const existing = servicePricing.get(serviceId);
@@ -107,7 +102,8 @@ export function useServicePricing() {
 
       if (error) throw error;
       
-      await fetchServicePricing();
+      // Invalidate the cache so all components using this hook get fresh data
+      await queryClient.invalidateQueries({ queryKey: ['service-pricing', organization.id] });
       return true;
     } catch (error) {
       console.error('Error saving service pricing:', error);
@@ -115,11 +111,15 @@ export function useServicePricing() {
     }
   };
 
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['service-pricing', organization?.id] });
+  }, [queryClient, organization?.id]);
+
   return {
     servicePricing,
     loading,
     getServicePricing,
     saveServicePricing,
-    refetch: fetchServicePricing,
+    refetch,
   };
 }
