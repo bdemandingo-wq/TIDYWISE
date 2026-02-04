@@ -107,18 +107,22 @@ const cleaningConfig = {
     "Online booking form",
     "Recurring bookings",
     "Staff portal & app",
+    "Client portal",
     "GPS check-ins",
     "Quote generator",
     "Lead management",
     "Photo documentation",
     "Review requests",
-    "Loyalty programs",
+    "Loyalty tiers & rewards",
     "P&L reports",
     "Revenue forecasting",
     "Multi-location",
     "Demo/Test Mode",
     "In-App SMS inbox",
-    "Inventory tracking"
+    "Inventory tracking",
+    "Client self-cancellation",
+    "Activity analytics",
+    "AI intelligence"
   ]
 };
 
@@ -130,8 +134,8 @@ const baseFeatures = [
   },
   {
     icon: Users,
-    title: "House Cleaning CRM",
-    description: "Complete customer relationship management for maid services. Track client history, preferences, and lifetime value."
+    title: "Client Portal & Self-Service",
+    description: "Give clients their own portal to view bookings, request new appointments, cancel with tier-based policies, and track loyalty rewards."
   },
   {
     icon: CreditCard,
@@ -140,8 +144,8 @@ const baseFeatures = [
   },
   {
     icon: BarChart3,
-    title: "Cleaning Business Reports & Analytics",
-    description: "P&L tracking, revenue forecasting, and staff productivity metrics. Know your numbers like the pros."
+    title: "Platform Analytics & AI Intelligence",
+    description: "Track admin and client portal activity, user engagement, churn predictions, and revenue forecasting with AI-powered insights."
   },
   {
     icon: Smartphone,
@@ -150,8 +154,8 @@ const baseFeatures = [
   },
   {
     icon: Bell,
-    title: "Automated Follow-ups & Reviews",
-    description: "Auto-send quote follow-ups, booking confirmations, review requests, and win-back campaigns. Boost your Google reviews."
+    title: "Loyalty Tiers & Automated Campaigns",
+    description: "Reward loyal customers with tiered benefits like free cancellations. Auto-send review requests and win-back campaigns."
   },
 ];
 
