@@ -308,7 +308,9 @@ export function LoyaltyProgramSettings() {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Current Points: {selectedCustomer.points}</p>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Enter points to add"
                   value={bonusPoints}
                   onChange={(e) => setBonusPoints(e.target.value)}

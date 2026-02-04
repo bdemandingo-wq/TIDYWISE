@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Settings2, Plus, X, Save, Star, Award, Trophy, Crown } from 'lucide-react';
+import { Settings2, Plus, X, Star, Award, Trophy, Crown } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface TierSetting {
@@ -17,6 +17,12 @@ interface TierSetting {
   benefits: string[];
   color: string | null;
   tier_order: number;
+}
+
+// Local editing state for a tier
+interface TierEditState {
+  minSpending: string;
+  maxSpending: string;
 }
 
 const defaultTiers: Omit<TierSetting, 'id'>[] = [
@@ -32,6 +38,8 @@ export function LoyaltyTierEditor() {
   const organizationId = organization?.id;
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [newBenefit, setNewBenefit] = useState('');
+  // Local edit state for point thresholds (keyed by tier id)
+  const [editState, setEditState] = useState<Record<string, TierEditState>>({});
 
   const { data: tiers = [], isLoading } = useQuery({
     queryKey: ['loyalty-tier-settings', organizationId],
@@ -100,6 +108,40 @@ export function LoyaltyTierEditor() {
     },
   });
 
+  // Initialize local edit state when entering edit mode
+  const startEditing = useCallback((tier: TierSetting) => {
+    setEditState(prev => ({
+      ...prev,
+      [tier.id]: {
+        minSpending: tier.min_spending.toString(),
+        maxSpending: tier.max_spending?.toString() ?? '',
+      }
+    }));
+    setEditingTier(tier.id);
+  }, []);
+
+  // Handle local input changes (no saving)
+  const handleLocalChange = useCallback((tierId: string, field: 'minSpending' | 'maxSpending', value: string) => {
+    setEditState(prev => ({
+      ...prev,
+      [tierId]: {
+        ...prev[tierId],
+        [field]: value,
+      }
+    }));
+  }, []);
+
+  // Save threshold on blur
+  const saveThreshold = useCallback((tierId: string, field: 'min_spending' | 'max_spending') => {
+    const state = editState[tierId];
+    if (!state) return;
+
+    const rawValue = field === 'min_spending' ? state.minSpending : state.maxSpending;
+    const numValue = rawValue === '' ? null : parseFloat(rawValue);
+
+    updateTier.mutate({ tierId, updates: { [field]: numValue } });
+  }, [editState, updateTier]);
+
   const addBenefit = (tierId: string, currentBenefits: string[]) => {
     if (!newBenefit.trim()) return;
     
@@ -111,11 +153,6 @@ export function LoyaltyTierEditor() {
   const removeBenefit = (tierId: string, currentBenefits: string[], benefitToRemove: string) => {
     const updatedBenefits = currentBenefits.filter(b => b !== benefitToRemove);
     updateTier.mutate({ tierId, updates: { benefits: updatedBenefits } });
-  };
-
-  const updateThreshold = (tierId: string, field: 'min_spending' | 'max_spending', value: string) => {
-    const numValue = value === '' ? null : parseInt(value);
-    updateTier.mutate({ tierId, updates: { [field]: numValue } });
   };
 
   const getTierIcon = (tierName: string) => {
@@ -177,100 +214,111 @@ export function LoyaltyTierEditor() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {tiers.map((tier) => (
-          <div
-            key={tier.id}
-            className={`border rounded-lg p-4 border-l-4 ${getTierBorderColor(tier.tier_name)}`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                {getTierIcon(tier.tier_name)}
-                <h4 className="font-semibold">{tier.tier_name}</h4>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {tier.min_spending.toLocaleString()} - {tier.max_spending ? tier.max_spending.toLocaleString() : '∞'} pts
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingTier(editingTier === tier.id ? null : tier.id)}
-                >
-                  {editingTier === tier.id ? 'Done' : 'Edit'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Benefits Display */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {tier.benefits.map((benefit, idx) => (
-                <Badge key={idx} variant="secondary" className="flex items-center gap-1">
-                  {benefit}
-                  {editingTier === tier.id && (
-                    <button
-                      onClick={() => removeBenefit(tier.id, tier.benefits, benefit)}
-                      className="ml-1 hover:text-destructive"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </Badge>
-              ))}
-              {tier.benefits.length === 0 && (
-                <span className="text-sm text-muted-foreground italic">No benefits configured</span>
-              )}
-            </div>
-
-            {/* Edit Mode */}
-            {editingTier === tier.id && (
-              <div className="space-y-3 pt-3 border-t">
-                {/* Add Benefit */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add a benefit (e.g., '10% discount')"
-                    value={newBenefit}
-                    onChange={(e) => setNewBenefit(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        addBenefit(tier.id, tier.benefits);
-                      }
-                    }}
-                  />
+        {tiers.map((tier) => {
+          const isEditing = editingTier === tier.id;
+          const localState = editState[tier.id] || { minSpending: tier.min_spending.toString(), maxSpending: tier.max_spending?.toString() ?? '' };
+          
+          return (
+            <div
+              key={tier.id}
+              className={`border rounded-lg p-4 border-l-4 ${getTierBorderColor(tier.tier_name)}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {getTierIcon(tier.tier_name)}
+                  <h4 className="font-semibold">{tier.tier_name}</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {tier.min_spending.toLocaleString()} - {tier.max_spending ? tier.max_spending.toLocaleString() : '∞'} pts
+                  </span>
                   <Button
+                    variant="ghost"
                     size="sm"
-                    onClick={() => addBenefit(tier.id, tier.benefits)}
-                    disabled={!newBenefit.trim()}
+                    onClick={() => isEditing ? setEditingTier(null) : startEditing(tier)}
                   >
-                    <Plus className="w-4 h-4" />
+                    {isEditing ? 'Done' : 'Edit'}
                   </Button>
                 </div>
+              </div>
 
-                {/* Point Thresholds */}
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="text-xs text-muted-foreground">Min Points</label>
+              {/* Benefits Display */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {tier.benefits.map((benefit, idx) => (
+                  <Badge key={idx} variant="secondary" className="flex items-center gap-1">
+                    {benefit}
+                    {isEditing && (
+                      <button
+                        onClick={() => removeBenefit(tier.id, tier.benefits, benefit)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </Badge>
+                ))}
+                {tier.benefits.length === 0 && (
+                  <span className="text-sm text-muted-foreground italic">No benefits configured</span>
+                )}
+              </div>
+
+              {/* Edit Mode */}
+              {isEditing && (
+                <div className="space-y-3 pt-3 border-t">
+                  {/* Add Benefit */}
+                  <div className="flex gap-2">
                     <Input
-                      type="number"
-                      value={tier.min_spending}
-                      onChange={(e) => updateThreshold(tier.id, 'min_spending', e.target.value)}
-                      className="mt-1"
+                      placeholder="Add a benefit (e.g., '10% discount')"
+                      value={newBenefit}
+                      onChange={(e) => setNewBenefit(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          addBenefit(tier.id, tier.benefits);
+                        }
+                      }}
                     />
+                    <Button
+                      size="sm"
+                      onClick={() => addBenefit(tier.id, tier.benefits)}
+                      disabled={!newBenefit.trim()}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <div className="flex-1">
-                    <label className="text-xs text-muted-foreground">Max Points (empty = unlimited)</label>
-                    <Input
-                      type="number"
-                      value={tier.max_spending ?? ''}
-                      onChange={(e) => updateThreshold(tier.id, 'max_spending', e.target.value)}
-                      placeholder="Unlimited"
-                      className="mt-1"
-                    />
+
+                  {/* Point Thresholds */}
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="text-xs text-muted-foreground">Min Points</label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*\.?[0-9]*"
+                        value={localState.minSpending}
+                        onChange={(e) => handleLocalChange(tier.id, 'minSpending', e.target.value)}
+                        onBlur={() => saveThreshold(tier.id, 'min_spending')}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-muted-foreground">Max Points (empty = unlimited)</label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*\.?[0-9]*"
+                        value={localState.maxSpending}
+                        onChange={(e) => handleLocalChange(tier.id, 'maxSpending', e.target.value)}
+                        onBlur={() => saveThreshold(tier.id, 'max_spending')}
+                        placeholder="Unlimited"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
