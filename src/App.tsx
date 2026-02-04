@@ -87,6 +87,7 @@ const ReviewPage = lazy(() => import("./pages/ReviewPage"));
 const BlogIndex = lazy(() => import("./pages/blog/BlogIndex"));
 const HowToStartCleaningBusiness = lazy(() => import("./pages/blog/HowToStartCleaningBusiness"));
 const BookingKoalaVsJobberVsTidywise = lazy(() => import("./pages/blog/BookingKoalaVsJobberVsTidywise"));
+const CleaningBusinessCRM = lazy(() => import("./pages/blog/CleaningBusinessCRM"));
 const DynamicBlogPost = lazy(() => import("./pages/blog/DynamicBlogPost"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompareJobber = lazy(() => import("./pages/compare/CompareJobber"));
@@ -155,6 +156,7 @@ const App = () => (
                       <Route path="/blog" element={<BlogIndex />} />
                       <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
                       <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
+                      <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
                       <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
                       
                       {/* Comparison Pages */}
@@ -244,6 +246,7 @@ const App = () => (
                     <Route path="/blog" element={<BlogIndex />} />
                     <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
                     <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
+                    <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
                     <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
                     
                     {/* Comparison Pages */}

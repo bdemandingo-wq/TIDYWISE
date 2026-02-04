@@ -9,13 +9,23 @@ import { format } from "date-fns";
 // Static cornerstone posts that have dedicated pages
 const staticPosts = [
   {
+    slug: "crm-for-cleaning-business",
+    title: "Best CRM for Cleaning Business: Complete Guide to Maid Service Software",
+    excerpt: "Find the best CRM for your cleaning business. Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking & customer management.",
+    category: "CRM Software",
+    readTime: "12 min read",
+    date: "February 2026",
+    featured: true,
+    isStatic: true
+  },
+  {
     slug: "how-to-start-a-cleaning-business",
     title: "The Ultimate Guide on How to Start a Cleaning Business in 2026",
     excerpt: "Learn everything from automated payroll software for maid services to cleaning business inventory management. Complete step-by-step guide for aspiring entrepreneurs.",
     category: "Business Guide",
     readTime: "15 min read",
     date: "January 2026",
-    featured: true,
+    featured: false,
     isStatic: true
   },
   {

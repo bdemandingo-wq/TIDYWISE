@@ -323,7 +323,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               Subscribers ({analytics?.subscribers?.total || 0})
@@ -335,10 +335,6 @@ export default function PlatformAnalyticsPage() {
             <TabsTrigger value="organizations" className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
               Organizations ({analytics?.organizations.total || 0})
-            </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Subscriptions ({analytics?.subscriptions.list?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="w-4 h-4" />
@@ -526,75 +522,6 @@ export default function PlatformAnalyticsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="subscriptions">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-green-500" />
-                  All Subscriptions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Subscription Stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                    <p className="text-2xl font-bold text-green-600">{analytics?.subscriptions.active || 0}</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
-                  </div>
-                  <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <p className="text-2xl font-bold text-blue-600">{analytics?.subscriptions.trialing || 0}</p>
-                    <p className="text-xs text-muted-foreground">Trialing</p>
-                  </div>
-                  <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                    <p className="text-2xl font-bold text-red-600">{analytics?.subscriptions.canceled || 0}</p>
-                    <p className="text-xs text-muted-foreground">Canceled</p>
-                  </div>
-                </div>
-
-                <ScrollArea className="h-[320px] pr-4">
-                  {analytics?.subscriptions.list && analytics.subscriptions.list.length > 0 ? (
-                    <div className="space-y-2">
-                      {analytics.subscriptions.list.map((sub) => (
-                        <div 
-                          key={sub.id} 
-                          className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              sub.status === 'active' ? 'bg-green-500/10' : 
-                              sub.status === 'trialing' ? 'bg-blue-500/10' : 'bg-red-500/10'
-                            }`}>
-                              <CreditCard className={`w-5 h-5 ${
-                                sub.status === 'active' ? 'text-green-500' : 
-                                sub.status === 'trialing' ? 'text-blue-500' : 'text-red-500'
-                              }`} />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{sub.customer_email}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Created: {sub.created !== 'Unknown' ? format(new Date(sub.created), 'MMM d, yyyy') : 'Unknown'}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge 
-                            variant={sub.status === 'active' ? 'default' : sub.status === 'trialing' ? 'secondary' : 'destructive'}
-                            className="capitalize"
-                          >
-                            {sub.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p>No subscriptions found</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="activity">
             <Card>
