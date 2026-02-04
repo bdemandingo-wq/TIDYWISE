@@ -4391,6 +4391,10 @@ export type Database = {
         Args: { p_client_user_id: string; p_location_id: string }
         Returns: boolean
       }
+      delete_client_portal_notification: {
+        Args: { p_client_user_id: string; p_notification_id: string }
+        Returns: boolean
+      }
       get_client_portal_bookings: {
         Args: { p_customer_id: string }
         Returns: {

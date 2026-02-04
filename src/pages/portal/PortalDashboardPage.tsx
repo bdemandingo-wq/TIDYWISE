@@ -15,8 +15,10 @@ import {
   XCircle,
   Loader2,
   Settings,
-  User
+  User,
+  Trash2
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -128,6 +130,21 @@ export default function PortalDashboardPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
+  };
+
+  const deleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+
+    const { data } = await supabase.rpc("delete_client_portal_notification", {
+      p_notification_id: id,
+      p_client_user_id: user.id,
+    });
+
+    if (data) {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      toast.success("Notification deleted");
+    }
   };
 
   if (loading || !user || !customer) {
@@ -432,13 +449,13 @@ export default function PortalDashboardPage() {
                 >
                   <div className="flex items-start gap-3">
                     {notification.type === "approved" ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
                     ) : notification.type === "rejected" ? (
                       <XCircle className="h-5 w-5 text-destructive mt-0.5" />
                     ) : (
                       <Bell className="h-5 w-5 text-primary mt-0.5" />
                     )}
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium">{notification.title}</p>
                       <p className="text-sm text-muted-foreground">
                         {notification.message}
@@ -447,9 +464,18 @@ export default function PortalDashboardPage() {
                         {format(new Date(notification.created_at), "MMM d, h:mm a")}
                       </p>
                     </div>
-                    {!notification.is_read && (
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!notification.is_read && (
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                      )}
+                      <button
+                        onClick={(e) => deleteNotification(notification.id, e)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               ))
