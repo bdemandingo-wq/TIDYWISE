@@ -4376,6 +4376,10 @@ export type Database = {
         }
         Returns: Json
       }
+      client_cancel_booking: {
+        Args: { p_booking_id: string; p_customer_id: string }
+        Returns: Json
+      }
       create_booking_from_request: {
         Args: {
           p_customer_id: string

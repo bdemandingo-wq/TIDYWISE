@@ -16,8 +16,19 @@ import {
   Loader2,
   Settings,
   User,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -66,6 +77,9 @@ export default function PortalDashboardPage() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -158,6 +172,55 @@ export default function PortalDashboardPage() {
     if (data) {
       setRequests((prev) => prev.filter((r) => r.id !== id));
       toast.success("Request deleted");
+    }
+  };
+
+  const handleCancelClick = (booking: Booking) => {
+    setBookingToCancel(booking);
+    setCancelDialogOpen(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!user || !bookingToCancel) return;
+
+    setCancelling(true);
+    try {
+      const { data, error } = await supabase.rpc("client_cancel_booking" as any, {
+        p_booking_id: bookingToCancel.id,
+        p_customer_id: user.customer_id,
+      });
+
+      if (error) {
+        toast.error("Failed to cancel booking");
+        return;
+      }
+
+      const result = data as { success: boolean; error?: string; within_48_hours?: boolean } | null;
+
+      if (!result?.success) {
+        if (result?.within_48_hours) {
+          toast.error(result.error || "Same day or next day cancellations may incur a fee. Please contact us directly.", {
+            duration: 6000,
+          });
+        } else {
+          toast.error(result?.error || "Unable to cancel booking");
+        }
+        return;
+      }
+
+      // Update local state
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingToCancel.id ? { ...b, status: "cancelled" } : b
+        )
+      );
+      toast.success("Booking cancelled successfully");
+    } catch (err) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setCancelling(false);
+      setCancelDialogOpen(false);
+      setBookingToCancel(null);
     }
   };
 
@@ -347,11 +410,20 @@ export default function PortalDashboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-2">
                       {getStatusBadge(booking.status)}
-                      <p className="text-lg font-semibold mt-2">
+                      <p className="text-lg font-semibold">
                         ${booking.total_amount}
                       </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleCancelClick(booking)}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -516,6 +588,45 @@ export default function PortalDashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookingToCancel && (
+                <>
+                  Are you sure you want to cancel your{" "}
+                  <strong>{bookingToCancel.service?.name || "cleaning"}</strong> scheduled for{" "}
+                  <strong>{format(new Date(bookingToCancel.scheduled_at), "MMM d, yyyy 'at' h:mm a")}</strong>?
+                  <br /><br />
+                  <span className="text-muted-foreground text-sm">
+                    Note: Same day or next day cancellations (within 48 hours) may incur a fee unless you are a Platinum member.
+                  </span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelBooking}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Yes, Cancel"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
