@@ -1373,6 +1373,60 @@ export type Database = {
           },
         ]
       }
+      client_portal_sessions: {
+        Row: {
+          client_user_id: string | null
+          created_at: string
+          customer_email: string | null
+          duration_seconds: number
+          id: string
+          is_active: boolean
+          organization_id: string | null
+          session_end: string | null
+          session_start: string
+          updated_at: string
+        }
+        Insert: {
+          client_user_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          duration_seconds?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          session_end?: string | null
+          session_start?: string
+          updated_at?: string
+        }
+        Update: {
+          client_user_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          duration_seconds?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          session_end?: string | null
+          session_start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_sessions_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_portal_users: {
         Row: {
           created_at: string

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
+import { ClientPortalSessionTrackerProvider } from "@/components/ClientPortalSessionTrackerProvider";
 
 interface ProtectedPortalRouteProps {
   children: ReactNode;
@@ -22,5 +23,9 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
     return <Navigate to="/portal" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <ClientPortalSessionTrackerProvider>
+      {children}
+    </ClientPortalSessionTrackerProvider>
+  );
 }

@@ -65,6 +65,25 @@ interface UserSessionStats {
   user_email: string;
   total_duration_seconds: number;
   session_count: number;
+  user_type?: 'admin' | 'client_portal';
+}
+
+interface SessionStatsResponse {
+  avgSessionDuration: number;
+  totalSessions: number;
+  userList: UserSessionStats[];
+  adminStats?: {
+    totalSessions: number;
+    totalDuration: number;
+    avgDuration: number;
+    userCount: number;
+  };
+  clientPortalStats?: {
+    totalSessions: number;
+    totalDuration: number;
+    avgDuration: number;
+    userCount: number;
+  };
 }
 
 // Helper to format seconds into human readable time
@@ -87,11 +106,12 @@ export default function PlatformAnalyticsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'client_portal'>('all');
 
   // Fetch session data - ALL TIME for total sessions, 30d for avg duration
   const { data: sessionStats, refetch: refetchSessions } = useQuery({
     queryKey: ['platform-session-stats'],
-    queryFn: async () => {
+    queryFn: async (): Promise<SessionStatsResponse> => {
       // Fetch ALL TIME sessions for total count
       const { data: allTimeData, error: allTimeError } = await supabase.functions.invoke('platform-session-stats', {
         body: { days: 0 }, // 0 = all time
@@ -103,10 +123,13 @@ export default function PlatformAnalyticsPage() {
         avgSessionDuration: allTimeData?.avgSessionDuration ?? 0,
         totalSessions: allTimeData?.totalSessions ?? 0,
         userList: (allTimeData?.userList ?? []) as UserSessionStats[],
+        adminStats: allTimeData?.adminStats,
+        clientPortalStats: allTimeData?.clientPortalStats,
       };
     },
     enabled: user?.email === 'support@tidywisecleaning.com',
   });
+
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -576,38 +599,91 @@ export default function PlatformAnalyticsPage() {
           <TabsContent value="activity">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-500" />
-                  User Activity Tracking
-                  <Badge variant="secondary" className="ml-auto">Live</Badge>
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-purple-500" />
+                    User Activity Tracking
+                    <Badge variant="secondary">Live</Badge>
+                  </CardTitle>
+                  {/* Filter buttons */}
+                  <div className="flex gap-1">
+                    <Button 
+                      variant={activityFilter === 'all' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setActivityFilter('all')}
+                    >
+                      All
+                    </Button>
+                    <Button 
+                      variant={activityFilter === 'admin' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setActivityFilter('admin')}
+                    >
+                      Admin ({sessionStats?.adminStats?.userCount || 0})
+                    </Button>
+                    <Button 
+                      variant={activityFilter === 'client_portal' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setActivityFilter('client_portal')}
+                    >
+                      Client Portal ({sessionStats?.clientPortalStats?.userCount || 0})
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   {/* Activity Stats */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <p className="text-2xl font-bold text-purple-600">{sessionStats?.userList?.length || 0}</p>
-                      <p className="text-xs text-muted-foreground">Active Users (All Time)</p>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {activityFilter === 'all' 
+                          ? (sessionStats?.userList?.length || 0)
+                          : activityFilter === 'admin'
+                            ? (sessionStats?.adminStats?.userCount || 0)
+                            : (sessionStats?.clientPortalStats?.userCount || 0)
+                        }
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activityFilter === 'client_portal' ? 'Portal Users' : 'Active Users'} (All Time)
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                       <p className="text-2xl font-bold text-blue-600">
-                        {Math.round(((sessionStats?.userList?.length || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)}%
+                        {activityFilter === 'all' 
+                          ? Math.round(((sessionStats?.userList?.length || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)
+                          : activityFilter === 'admin'
+                            ? Math.round(((sessionStats?.adminStats?.userCount || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)
+                            : (sessionStats?.clientPortalStats?.userCount || 0)
+                        }%
                       </p>
-                      <p className="text-xs text-muted-foreground">Engagement Rate</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activityFilter === 'client_portal' ? 'Portal Engagement' : 'Engagement Rate'}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                       <div className="flex items-center justify-center gap-1">
                         <Timer className="w-4 h-4 text-green-600" />
                         <p className="text-2xl font-bold text-green-600">
-                          {formatDuration(sessionStats?.avgSessionDuration || 0)}
+                          {formatDuration(
+                            activityFilter === 'all' 
+                              ? (sessionStats?.avgSessionDuration || 0)
+                              : activityFilter === 'admin'
+                                ? (sessionStats?.adminStats?.avgDuration || 0)
+                                : (sessionStats?.clientPortalStats?.avgDuration || 0)
+                          )}
                         </p>
                       </div>
                       <p className="text-xs text-muted-foreground">Avg Session Duration</p>
                     </div>
                     <div className="text-center p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
                       <p className="text-2xl font-bold text-amber-600">
-                        {sessionStats?.totalSessions || 0}
+                        {activityFilter === 'all' 
+                          ? (sessionStats?.totalSessions || 0)
+                          : activityFilter === 'admin'
+                            ? (sessionStats?.adminStats?.totalSessions || 0)
+                            : (sessionStats?.clientPortalStats?.totalSessions || 0)
+                        }
                       </p>
                       <p className="text-xs text-muted-foreground">Total Sessions (All Time)</p>
                     </div>
@@ -621,45 +697,60 @@ export default function PlatformAnalyticsPage() {
                       <span className="text-xs text-muted-foreground ml-auto">By time spent (all time)</span>
                     </h4>
                     <ScrollArea className="h-[280px] pr-4">
-                      {sessionStats?.userList && sessionStats.userList.length > 0 ? (
-                        <div className="space-y-2">
-                          {sessionStats.userList.slice(0, 15).map((userStat, index) => (
-                            <div 
-                              key={userStat.user_id} 
-                              className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                  index === 0 ? 'bg-yellow-500/20 text-yellow-600' :
-                                  index === 1 ? 'bg-gray-300/30 text-gray-600' :
-                                  index === 2 ? 'bg-amber-600/20 text-amber-700' :
-                                  'bg-primary/10 text-primary'
-                                }`}>
-                                  {index + 1}
+                      {(() => {
+                        const filteredUsers = sessionStats?.userList?.filter(u => 
+                          activityFilter === 'all' || u.user_type === activityFilter
+                        ) || [];
+                        
+                        if (filteredUsers.length > 0) {
+                          return (
+                            <div className="space-y-2">
+                              {filteredUsers.slice(0, 15).map((userStat, index) => (
+                                <div 
+                                  key={userStat.user_id} 
+                                  className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                      index === 0 ? 'bg-yellow-500/20 text-yellow-600' :
+                                      index === 1 ? 'bg-gray-300/30 text-gray-600' :
+                                      index === 2 ? 'bg-amber-600/20 text-amber-700' :
+                                      'bg-primary/10 text-primary'
+                                    }`}>
+                                      {index + 1}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm">{userStat.user_email}</p>
+                                        {userStat.user_type === 'client_portal' && (
+                                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">Portal</Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        {userStat.session_count} session{userStat.session_count !== 1 ? 's' : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {formatDuration(userStat.total_duration_seconds)}
+                                    </Badge>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-sm">{userStat.user_email}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {userStat.session_count} session{userStat.session_count !== 1 ? 's' : ''}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {formatDuration(userStat.total_duration_seconds)}
-                                </Badge>
-                              </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12 text-muted-foreground">
-                          <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p>No session data available yet</p>
-                          <p className="text-xs mt-1">Sessions are tracked as users browse the app</p>
-                        </div>
-                      )}
+                          );
+                        }
+                        
+                        return (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>No session data available yet</p>
+                            <p className="text-xs mt-1">Sessions are tracked as users browse the app</p>
+                          </div>
+                        );
+                      })()}
                     </ScrollArea>
                   </div>
                 </div>

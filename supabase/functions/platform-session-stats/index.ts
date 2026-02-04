@@ -14,6 +14,20 @@ type SessionRow = {
   duration_seconds: number | null;
 };
 
+type ClientPortalSessionRow = {
+  client_user_id: string | null;
+  customer_email: string | null;
+  duration_seconds: number | null;
+};
+
+type UserStat = {
+  user_id: string;
+  user_email: string;
+  total_duration_seconds: number;
+  session_count: number;
+  user_type: 'admin' | 'client_portal';
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -65,12 +79,10 @@ serve(async (req) => {
     const pageSize = 1000;
     const maxPages = 100; // safety cap (100k sessions)
 
-    const userStats: Record<
-      string,
-      { user_id: string; user_email: string; total_duration_seconds: number; session_count: number }
-    > = {};
-    let totalDuration = 0;
-    let totalSessions = 0;
+    // === ADMIN USER SESSIONS ===
+    const adminStats: Record<string, UserStat> = {};
+    let adminTotalDuration = 0;
+    let adminTotalSessions = 0;
 
     for (let page = 0; page < maxPages; page++) {
       const from = page * pageSize;
@@ -93,32 +105,91 @@ serve(async (req) => {
         const email = row.user_email ?? "Unknown";
         const duration = row.duration_seconds ?? 0;
 
-        totalDuration += duration;
-        totalSessions++;
+        adminTotalDuration += duration;
+        adminTotalSessions++;
 
-        if (!userStats[userId]) {
-          userStats[userId] = {
+        if (!adminStats[userId]) {
+          adminStats[userId] = {
             user_id: userId,
             user_email: email,
             total_duration_seconds: 0,
             session_count: 0,
+            user_type: 'admin',
           };
         }
 
-        userStats[userId].total_duration_seconds += duration;
-        userStats[userId].session_count++;
+        adminStats[userId].total_duration_seconds += duration;
+        adminStats[userId].session_count++;
 
         // Preserve the first non-unknown email we see
-        if (userStats[userId].user_email === "Unknown" && email !== "Unknown") {
-          userStats[userId].user_email = email;
+        if (adminStats[userId].user_email === "Unknown" && email !== "Unknown") {
+          adminStats[userId].user_email = email;
         }
       }
 
       if (rows.length < pageSize) break;
     }
 
+    // === CLIENT PORTAL SESSIONS ===
+    const clientStats: Record<string, UserStat> = {};
+    let clientTotalDuration = 0;
+    let clientTotalSessions = 0;
+
+    for (let page = 0; page < maxPages; page++) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error } = await supabaseAdmin
+        .from("client_portal_sessions")
+        .select("client_user_id, customer_email, duration_seconds")
+        .gte("session_start", startIso)
+        .order("session_start", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const rows = (data ?? []) as ClientPortalSessionRow[];
+      if (rows.length === 0) break;
+
+      for (const row of rows) {
+        const userId = row.client_user_id ?? "__unknown__";
+        const email = row.customer_email ?? "Unknown";
+        const duration = row.duration_seconds ?? 0;
+
+        clientTotalDuration += duration;
+        clientTotalSessions++;
+
+        if (!clientStats[userId]) {
+          clientStats[userId] = {
+            user_id: userId,
+            user_email: email,
+            total_duration_seconds: 0,
+            session_count: 0,
+            user_type: 'client_portal',
+          };
+        }
+
+        clientStats[userId].total_duration_seconds += duration;
+        clientStats[userId].session_count++;
+
+        // Preserve the first non-unknown email we see
+        if (clientStats[userId].user_email === "Unknown" && email !== "Unknown") {
+          clientStats[userId].user_email = email;
+        }
+      }
+
+      if (rows.length < pageSize) break;
+    }
+
+    // === COMBINED STATS ===
+    const totalDuration = adminTotalDuration + clientTotalDuration;
+    const totalSessions = adminTotalSessions + clientTotalSessions;
     const avgSessionDuration = totalSessions > 0 ? Math.floor(totalDuration / totalSessions) : 0;
-    const userList = Object.values(userStats).sort(
+    
+    // Combined user list sorted by time spent
+    const adminList = Object.values(adminStats);
+    const clientList = Object.values(clientStats);
+    const combinedList = [...adminList, ...clientList].sort(
       (a, b) => b.total_duration_seconds - a.total_duration_seconds
     );
 
@@ -126,7 +197,20 @@ serve(async (req) => {
       JSON.stringify({
         avgSessionDuration,
         totalSessions,
-        userList,
+        userList: combinedList,
+        // Separate stats for filtering in UI
+        adminStats: {
+          totalSessions: adminTotalSessions,
+          totalDuration: adminTotalDuration,
+          avgDuration: adminTotalSessions > 0 ? Math.floor(adminTotalDuration / adminTotalSessions) : 0,
+          userCount: adminList.length,
+        },
+        clientPortalStats: {
+          totalSessions: clientTotalSessions,
+          totalDuration: clientTotalDuration,
+          avgDuration: clientTotalSessions > 0 ? Math.floor(clientTotalDuration / clientTotalSessions) : 0,
+          userCount: clientList.length,
+        },
       }),
       {
         status: 200,
