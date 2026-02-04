@@ -1,9 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface RequestBody {
@@ -14,12 +15,78 @@ interface RequestBody {
   notes?: string;
 }
 
+const extractPhoneNumberId = (input: string): string => {
+  const trimmed = (input || "").trim();
+  const pnMatch = trimmed.match(/(PN[A-Za-z0-9]+)/);
+  if (pnMatch) return pnMatch[1];
+  const pathMatch = trimmed.match(/(?:phone-numbers|inbox)\/([A-Za-z0-9]+)$/);
+  if (pathMatch) return pathMatch[1];
+  return trimmed;
+};
+
+const formatE164US = (phone: string): string | null => {
+  const raw = (phone || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("+")) return raw;
+
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  if (digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  return null;
+};
+
+const sendOpenPhoneMessage = async (payload: {
+  apiKey: string;
+  from: string;
+  to: string;
+  content: string;
+}): Promise<Response> => {
+  const authToken = payload.apiKey.trim().replace(/^Bearer\s+/i, "");
+
+  // OpenPhone auth varies across tokens; try raw token first, then Bearer fallback on 401.
+  const doSend = (authHeader: string) =>
+    fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        from: payload.from,
+        to: [payload.to],
+        content: payload.content,
+      }),
+    });
+
+  let resp = await doSend(authToken);
+  if (resp.status === 401) {
+    // Consume body before retry
+    await resp.text();
+    resp = await doSend(`Bearer ${authToken}`);
+  }
+  return resp;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[notify-booking-request] Missing backend configuration");
+      return new Response(
+        JSON.stringify({ success: false, error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const body: RequestBody = await req.json();
     const { organizationId, customerName, requestedDate, serviceName, notes } = body;
 
@@ -30,70 +97,64 @@ serve(async (req) => {
       );
     }
 
-    // Get OpenPhone credentials from org settings
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const { data: smsSettings, error: smsError } = await supabase
+      .from("organization_sms_settings")
+      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
 
-    // Fetch organization SMS settings
-    const smsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/organization_sms_settings?organization_id=eq.${organizationId}&select=openphone_api_key,openphone_phone_number_id,sms_enabled`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-      }
-    );
-
-    const smsSettings = await smsResponse.json();
-    
-    // Safely check if SMS settings exist and have required properties
-    if (!smsSettings || smsSettings.length === 0 || !smsSettings[0]) {
-      console.log("SMS settings not found for organization:", organizationId);
+    if (smsError) {
+      console.error("[notify-booking-request] Failed to load SMS settings:", smsError);
       return new Response(
-        JSON.stringify({ success: true, message: "SMS not configured - skipping notification" }),
+        JSON.stringify({ success: false, error: "Failed to load SMS settings" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const orgSmsSettings = smsSettings[0];
-    const openphone_api_key = orgSmsSettings?.openphone_api_key;
-    const openphone_phone_number_id = orgSmsSettings?.openphone_phone_number_id;
-    const sms_enabled = orgSmsSettings?.sms_enabled;
-
-    if (!sms_enabled || !openphone_api_key || !openphone_phone_number_id) {
-      console.log("SMS is disabled or not fully configured for org:", organizationId);
+    if (!smsSettings || !smsSettings.sms_enabled) {
+      console.log("[notify-booking-request] SMS not enabled for org:", organizationId);
       return new Response(
-        JSON.stringify({ success: true, message: "SMS not enabled - skipping notification" }),
+        JSON.stringify({ success: true, message: "SMS not enabled - skipping" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get admin phone number from business settings
-    const bizResponse = await fetch(
-      `${supabaseUrl}/rest/v1/business_settings?organization_id=eq.${organizationId}&select=company_phone,company_name`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-      }
-    );
+    const apiKey = (smsSettings.openphone_api_key || "").trim();
+    const phoneNumberId = extractPhoneNumberId(smsSettings.openphone_phone_number_id || "");
 
-    const bizSettings = await bizResponse.json();
-    
-    if (!bizSettings || bizSettings.length === 0 || !bizSettings[0].company_phone) {
-      console.log("No company phone found for SMS notification");
+    if (!apiKey || !phoneNumberId) {
+      console.log("[notify-booking-request] Missing OpenPhone credentials for org:", organizationId);
+      return new Response(
+        JSON.stringify({ success: true, message: "SMS not configured - skipping" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: bizSettings, error: bizError } = await supabase
+      .from("business_settings")
+      .select("company_phone, company_name")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (bizError) {
+      console.error("[notify-booking-request] Failed to load business settings:", bizError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to load admin phone" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const adminPhone = formatE164US(bizSettings?.company_phone || "");
+    if (!adminPhone) {
+      console.log("[notify-booking-request] No valid admin phone configured for org:", organizationId);
       return new Response(
         JSON.stringify({ success: false, error: "No admin phone configured" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const adminPhone = bizSettings[0].company_phone;
-    const companyName = bizSettings[0].company_name || "Your Business";
+    const companyName = bizSettings?.company_name || "Your Business";
 
-    // Format the date for display
     const dateObj = new Date(requestedDate);
     const formattedDate = dateObj.toLocaleDateString("en-US", {
       weekday: "short",
@@ -106,44 +167,44 @@ serve(async (req) => {
       hour12: true,
     });
 
-    // Compose the SMS message
     let message = `📋 New Booking Request!\n\nCustomer: ${customerName}\nDate: ${formattedDate} at ${formattedTime}`;
-    if (serviceName) {
-      message += `\nService: ${serviceName}`;
-    }
+    if (serviceName) message += `\nService: ${serviceName}`;
     if (notes) {
-      message += `\nNotes: ${notes.substring(0, 100)}${notes.length > 100 ? "..." : ""}`;
+      const safeNotes = notes.substring(0, 100);
+      message += `\nNotes: ${safeNotes}${notes.length > 100 ? "..." : ""}`;
     }
     message += `\n\nReview in ${companyName} dashboard.`;
 
-    // Extract phone number ID (handle full URLs)
-    const phoneIdMatch = openphone_phone_number_id.match(/(PN[a-zA-Z0-9]+)/);
-    const phoneNumberId = phoneIdMatch ? phoneIdMatch[1] : openphone_phone_number_id;
-
-    // Send SMS via OpenPhone
-    const openPhoneResponse = await fetch("https://api.openphone.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openphone_api_key}`,
-      },
-      body: JSON.stringify({
-        content: message,
-        from: phoneNumberId,
-        to: [adminPhone],
-      }),
+    const openPhoneResponse = await sendOpenPhoneMessage({
+      apiKey,
+      from: phoneNumberId,
+      to: adminPhone,
+      content: message,
     });
 
     if (!openPhoneResponse.ok) {
       const errorText = await openPhoneResponse.text();
-      console.error("OpenPhone API error:", errorText);
+      console.error("[notify-booking-request] OpenPhone API error:", errorText);
+
+      if (openPhoneResponse.status === 401) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid OpenPhone API key. Please update your SMS settings.",
+            errorCode: "AUTH_FAILED",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
         JSON.stringify({ success: false, error: "Failed to send SMS" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("SMS notification sent successfully for booking request");
+    console.log("[notify-booking-request] SMS notification sent successfully");
+    await openPhoneResponse.text();
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -151,7 +212,7 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in notify-booking-request:", errorMessage);
+    console.error("[notify-booking-request] Error:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
