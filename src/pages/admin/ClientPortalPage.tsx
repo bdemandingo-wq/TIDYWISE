@@ -2,7 +2,8 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientPortalUsersManager } from '@/components/admin/ClientPortalUsersManager';
 import { ClientBookingRequestsManager } from '@/components/admin/ClientBookingRequestsManager';
-import { Users, Calendar, Trophy } from 'lucide-react';
+import { LoyaltyProgramSettings } from '@/components/admin/LoyaltyProgramSettings';
+import { Users, Calendar, Gift } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -33,7 +34,7 @@ export default function ClientPortalPage() {
       subtitle="Manage customer portal access and booking requests"
     >
       <Tabs defaultValue="requests" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="requests" className="gap-2">
             <Calendar className="h-4 w-4" />
             Requests
@@ -47,6 +48,10 @@ export default function ClientPortalPage() {
             <Users className="h-4 w-4" />
             Users
           </TabsTrigger>
+          <TabsTrigger value="loyalty" className="gap-2">
+            <Gift className="h-4 w-4" />
+            Loyalty
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests" className="mt-6">
@@ -55,6 +60,10 @@ export default function ClientPortalPage() {
 
         <TabsContent value="users" className="mt-6">
           <ClientPortalUsersManager />
+        </TabsContent>
+
+        <TabsContent value="loyalty" className="mt-6">
+          <LoyaltyProgramSettings />
         </TabsContent>
       </Tabs>
     </AdminLayout>
