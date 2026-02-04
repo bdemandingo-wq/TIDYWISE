@@ -53,9 +53,10 @@ const sidebarItems = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Subscription', href: '/dashboard/subscription', icon: Sparkles },
+  { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Sparkles },
+  { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
-  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
+  { name: 'Help Videos', href: '/dashboard/help', icon: HelpCircle },
 ];
 
 export function SidebarVisibilitySettings() {
