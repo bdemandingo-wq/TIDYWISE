@@ -36,7 +36,7 @@ serve(async (req) => {
 
     // Fetch organization SMS settings
     const smsResponse = await fetch(
-      `${supabaseUrl}/rest/v1/organization_sms_settings?organization_id=eq.${organizationId}&select=openphone_api_key,openphone_phone_number_id,is_enabled`,
+      `${supabaseUrl}/rest/v1/organization_sms_settings?organization_id=eq.${organizationId}&select=openphone_api_key,openphone_phone_number_id,sms_enabled`,
       {
         headers: {
           apikey: supabaseKey,
@@ -59,9 +59,9 @@ serve(async (req) => {
     const orgSmsSettings = smsSettings[0];
     const openphone_api_key = orgSmsSettings?.openphone_api_key;
     const openphone_phone_number_id = orgSmsSettings?.openphone_phone_number_id;
-    const is_enabled = orgSmsSettings?.is_enabled;
+    const sms_enabled = orgSmsSettings?.sms_enabled;
 
-    if (!is_enabled || !openphone_api_key || !openphone_phone_number_id) {
+    if (!sms_enabled || !openphone_api_key || !openphone_phone_number_id) {
       console.log("SMS is disabled or not fully configured for org:", organizationId);
       return new Response(
         JSON.stringify({ success: true, message: "SMS not enabled - skipping notification" }),
