@@ -396,15 +396,13 @@ export default function PortalDashboardPage() {
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <div className="flex items-center gap-2">
                         {getStatusBadge(request.status)}
-                        {request.status === "pending" && (
-                          <button
-                            onClick={() => deleteRequest(request.id)}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            aria-label="Delete request"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => deleteRequest(request.id)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          aria-label="Delete request"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(request.created_at), "MMM d")}
