@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Gift, Star, Trophy, Crown, Users, TrendingUp, Award } from 'lucide-react';
 import { format } from 'date-fns';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { LoyaltyTierEditor } from './LoyaltyTierEditor';
 
 interface CustomerLoyalty {
   id: string;
@@ -235,32 +236,8 @@ export function LoyaltyProgramSettings() {
         </Card>
       </div>
 
-      {/* Tier Thresholds Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Loyalty Tier Thresholds
-          </CardTitle>
-          <CardDescription>Points are earned at $1 = 1 point after each completed booking</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">
-              <Star className="w-3 h-3 mr-1" /> Bronze: 0+ pts
-            </Badge>
-            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
-              <Award className="w-3 h-3 mr-1" /> Silver: 500+ pts
-            </Badge>
-            <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">
-              <Trophy className="w-3 h-3 mr-1" /> Gold: 2,000+ pts
-            </Badge>
-            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
-              <Crown className="w-3 h-3 mr-1" /> Platinum: 5,000+ pts
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tier Benefits Editor */}
+      <LoyaltyTierEditor />
 
       {/* Members List */}
       <Card>
