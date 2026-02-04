@@ -90,7 +90,10 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
-    // Get subscription data - ONLY TidyWise subscribers (not all Stripe customers)
+    // Get subscription data - ONLY TidyWise CRM subscribers (filter by product ID)
+    // TIDYWISE Pro Subscription product ID - only count these as CRM subscribers
+    const TIDYWISE_CRM_PRODUCT_ID = "prod_Tg3zSKe9hRHLZy";
+    
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
     let canceledSubscriptions = 0;
@@ -102,6 +105,7 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
       console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscription data...");
+      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM product:", TIDYWISE_CRM_PRODUCT_ID);
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
       
@@ -111,12 +115,19 @@ serve(async (req) => {
           limit: 100,
           status: 'all' // Get all statuses: active, trialing, canceled, etc.
         });
-        console.log("[PLATFORM-ANALYTICS] Found subscriptions:", allSubscriptions.data.length);
+        console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptions.data.length);
+        
+        // Filter to only TidyWise CRM subscriptions
+        const crmSubscriptions = allSubscriptions.data.filter((sub: Stripe.Subscription) => {
+          const productId = sub.items.data[0]?.price?.product;
+          return productId === TIDYWISE_CRM_PRODUCT_ID;
+        });
+        console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
         
         // Track unique customers with subscriptions
         const subscriberEmails = new Set<string>();
         
-        for (const sub of allSubscriptions.data) {
+        for (const sub of crmSubscriptions) {
           if (sub.status === 'active') activeSubscriptions++;
           if (sub.status === 'trialing') trialSubscriptions++;
           if (sub.status === 'canceled') canceledSubscriptions++;
