@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle, Gift } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
+import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
@@ -499,6 +500,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
             <TabsTrigger className="shrink-0" value="pricing">Pricing</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="loyalty">Loyalty</TabsTrigger>
             <TabsTrigger className="shrink-0" value="notifications">Notifications</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sms">SMS</TabsTrigger>
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
@@ -635,6 +637,27 @@ export default function SettingsPage() {
         <TabsContent value="pricing" className="space-y-6">
           <PricingSettingsCard />
           <FormDisplaySettings />
+        </TabsContent>
+
+        {/* Loyalty Settings */}
+        <TabsContent value="loyalty" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="w-5 h-5" />
+                Loyalty Program
+              </CardTitle>
+              <CardDescription>
+                Configure your customer loyalty tiers and benefits
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Points are earned at $1 = 1 point after each completed booking. Customize the benefits for each tier below.
+              </p>
+            </CardContent>
+          </Card>
+          <LoyaltyTierEditor />
         </TabsContent>
 
         {/* Notifications */}
