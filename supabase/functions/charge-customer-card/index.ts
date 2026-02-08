@@ -161,20 +161,46 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Create a payment intent with capture_method: 'manual' to place a hold without charging
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: "usd",
-      customer: customerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
-      capture_method: "manual", // This places a hold but doesn't capture (charge) the funds
-      description: description || "Cleaning service hold",
-      metadata: {
-        bookingId: bookingId || "",
-        organization_id: organizationId,
-      },
-    });
+    let paymentIntent: Stripe.PaymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        capture_method: "manual", // This places a hold but doesn't capture (charge) the funds
+        description: description || "Cleaning service hold",
+        metadata: {
+          bookingId: bookingId || "",
+          organization_id: organizationId,
+        },
+      });
+    } catch (stripeError: any) {
+      // Log the error but check if a payment intent was still created
+      console.error("Stripe payment intent creation error:", stripeError);
+      
+      // If it's a card error, handle it specifically
+      if (stripeError.type === "StripeCardError") {
+        const declineCode = stripeError.decline_code || stripeError.code || "unknown";
+        const friendlyMessage = DECLINE_CODE_MESSAGES[declineCode] || stripeError.message || "Card was declined";
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            declined: true,
+            error: friendlyMessage,
+            declineCode: declineCode,
+            rawMessage: stripeError.message
+          }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      // For other errors, re-throw to be caught by outer handler
+      throw stripeError;
+    }
 
     console.log("Hold placed successfully:", paymentIntent.id, "Status:", paymentIntent.status);
 

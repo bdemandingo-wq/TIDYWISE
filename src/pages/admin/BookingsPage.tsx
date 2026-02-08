@@ -364,6 +364,11 @@ export default function BookingsPage() {
       return;
     }
 
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      return;
+    }
+
     setCapturingPayment(booking.id);
     
     try {
@@ -371,6 +376,7 @@ export default function BookingsPage() {
         body: {
           paymentIntentId,
           amountToCapture: booking.total_amount,
+          organizationId: organization.id,
         }
       });
 
@@ -413,12 +419,18 @@ export default function BookingsPage() {
       return;
     }
 
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      return;
+    }
+
     setCancelingHold(booking.id);
     
     try {
       const { data, error } = await supabase.functions.invoke('cancel-hold', {
         body: {
           paymentIntentId,
+          organizationId: organization.id,
         }
       });
 
