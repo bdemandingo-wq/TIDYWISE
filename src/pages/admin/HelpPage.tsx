@@ -127,7 +127,7 @@ export default function HelpPage() {
           description: newDescription.trim() || null,
           loom_url: embedUrl,
           sort_order: maxSortOrder + 1,
-          organization_id: organizationId,
+          organization_id: isPlatformAdmin ? null : organizationId,
         }]);
 
       if (error) throw error;
