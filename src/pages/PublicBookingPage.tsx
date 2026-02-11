@@ -92,53 +92,107 @@ export default function PublicBookingPage() {
     return total;
   };
 
+  const buildScheduledAt = () => {
+    if (!selectedDate || !selectedTime) return new Date().toISOString();
+    const date = new Date(selectedDate);
+    // Parse time like "9:00 AM" or "3:30 PM"
+    const match = selectedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let hour = parseInt(match[1]);
+      const minute = parseInt(match[2]);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+      date.setHours(hour, minute, 0, 0);
+    }
+    return date.toISOString();
+  };
+
   const handleNext = async () => {
     if (step === 3) {
-      // Submit booking and send confirmation email
+      // Submit booking: create in DB then send confirmation email
       setIsSubmitting(true);
-      const newConfirmationNumber = `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      setConfirmationNumber(newConfirmationNumber);
       
       try {
         const extraNames = selectedExtras.map(id => extras.find(e => e.id === id)?.name).filter(Boolean) as string[];
-        
-        const { error } = await supabase.functions.invoke('send-booking-email', {
+        const scheduledAt = buildScheduledAt();
+        const nameParts = customerInfo.name.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        // 1. Create the booking via the external-booking-webhook (handles customer + booking creation)
+        const { data: webhookResult, error: webhookError } = await supabase.functions.invoke('external-booking-webhook', {
           body: {
-            customerName: customerInfo.name,
-            customerEmail: customerInfo.email,
-            customerPhone: customerInfo.phone,
-            serviceName: service?.name || '',
-            homeSize: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : '',
-            appointmentDate: selectedDate?.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            }),
-            appointmentTime: selectedTime,
+            first_name: firstName,
+            last_name: lastName,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
             address: customerInfo.address,
             city: customerInfo.city,
             state: customerInfo.state,
-            zipCode: customerInfo.zipCode,
-            extras: extraNames,
-            totalPrice: calculateTotal(),
-            confirmationNumber: newConfirmationNumber,
-            organizationId: organizationId || undefined,
+            zip_code: customerInfo.zipCode,
+            service_name: service?.name || '',
+            scheduled_at: scheduledAt,
+            duration: service ? 120 : 120,
+            total_amount: calculateTotal(),
+            frequency: 'one-time',
+            notes: customerInfo.notes || undefined,
+            extras: selectedExtras.length > 0 ? { names: extraNames } : undefined,
+            organization_id: organizationId || undefined,
+            organization_slug: orgSlug || undefined,
+            square_footage: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : undefined,
           },
         });
-        
-        if (error) {
-          console.error('Email error:', error);
-          toast.error('Booking confirmed but email failed to send');
-        } else {
-          toast.success('Booking confirmed! Check your email for confirmation.');
+
+        if (webhookError) {
+          console.error('Booking creation error:', webhookError);
+          toast.error('Failed to create booking. Please try again.');
+          setIsSubmitting(false);
+          return;
         }
+
+        const bookingNumber = webhookResult?.booking_number || '';
+        const newConfirmationNumber = bookingNumber ? `BK-${bookingNumber}` : `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        setConfirmationNumber(newConfirmationNumber);
+
+        // 2. Send confirmation email (non-blocking)
+        try {
+          await supabase.functions.invoke('send-booking-email', {
+            body: {
+              customerName: customerInfo.name,
+              customerEmail: customerInfo.email,
+              customerPhone: customerInfo.phone,
+              serviceName: service?.name || '',
+              homeSize: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : '',
+              appointmentDate: selectedDate?.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              }),
+              appointmentTime: selectedTime,
+              address: customerInfo.address,
+              city: customerInfo.city,
+              state: customerInfo.state,
+              zipCode: customerInfo.zipCode,
+              extras: extraNames,
+              totalPrice: calculateTotal(),
+              confirmationNumber: newConfirmationNumber,
+              organizationId: organizationId || undefined,
+            },
+          });
+        } catch (emailErr) {
+          console.error('Email send failed:', emailErr);
+          // Don't block - booking was already created
+        }
+
+        toast.success('Booking confirmed! Check your email for confirmation.');
+        setStep(4);
       } catch (err) {
-        console.error('Failed to send email:', err);
-        toast.error('Booking confirmed but email failed to send');
+        console.error('Failed to create booking:', err);
+        toast.error('Something went wrong. Please try again.');
       } finally {
         setIsSubmitting(false);
-        setStep(4);
       }
     } else if (step < 4) {
       setStep(step + 1);
