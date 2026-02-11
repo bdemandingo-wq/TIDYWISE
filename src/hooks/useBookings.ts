@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -124,6 +125,33 @@ export interface NewCustomerData {
 export function useBookings() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const queryClient = useQueryClient();
+
+  // Realtime subscription to auto-refresh when external bookings arrive
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const channel = supabase
+      .channel(`bookings-realtime-${organizationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['bookings'] });
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organizationId, queryClient]);
 
   return useQuery({
     queryKey: ['bookings', organizationId],
@@ -141,7 +169,7 @@ export function useBookings() {
         `)
         .eq('organization_id', organizationId)
         .order('scheduled_at', { ascending: false })
-        .limit(500); // Pagination limit for performance
+        .limit(500);
 
       if (error) {
         console.error('Error fetching bookings:', error);
@@ -151,8 +179,8 @@ export function useBookings() {
       return data as BookingWithDetails[];
     },
     enabled: !!organizationId,
-    staleTime: 1000 * 60 * 2, // 2 minutes - bookings change frequently
-    gcTime: 1000 * 60 * 10, // Keep in cache for 10 minutes
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 10,
   });
 }
 
