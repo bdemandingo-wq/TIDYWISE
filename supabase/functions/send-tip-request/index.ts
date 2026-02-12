@@ -112,8 +112,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const tipLink = shortUrlError ? fullTipLink : `${appUrl}/c/${shortCode}`;
 
+    // Build a clean display link (strip protocol for SMS readability)
+    const displayLink = tipLink.replace(/^https?:\/\//, '');
+
     // Build SMS message
-    const message = `Hi ${typedCustomer.first_name}! 😊 We loved serving you from ${companyName}! Leave a tip for your cleaner here: ${tipLink} 💚`;
+    const message = `Hi ${typedCustomer.first_name}! 😊 We loved serving you from ${companyName}! Tap to leave a tip for your cleaner: ${displayLink} 💚`;
 
     // Fetch SMS settings
     const { data: smsSettings } = await supabase
