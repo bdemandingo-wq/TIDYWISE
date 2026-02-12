@@ -17,6 +17,7 @@ interface CleanerAvailabilityDashboardProps {
     phone?: string | null;
     avatar_url?: string | null;
     is_active: boolean;
+    default_hours?: number | null;
   }>;
   workingHours: Array<{
     id: string;
@@ -65,7 +66,11 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
         startTime: hours?.start_time || '09:00',
         endTime: hours?.end_time || '17:00',
         bookings: dayBookings,
-        bookedHours: dayBookings.reduce((sum, b) => sum + (b.duration / 60), 0),
+        bookedHours: dayBookings.reduce((sum, b) => {
+          const staffMember = staff.find(s => s.id === cleanerId);
+          const hours = staffMember?.default_hours || (b.duration / 60) || 2;
+          return sum + hours;
+        }, 0),
       };
     };
   }, [bookings, workingHours]);
