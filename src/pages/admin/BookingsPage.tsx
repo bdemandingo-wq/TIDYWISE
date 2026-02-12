@@ -1666,239 +1666,194 @@ export default function BookingsPage() {
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" className="w-52 bg-popover border-border rounded-xl max-h-[70vh] overflow-y-auto">
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">Booking</DropdownMenuLabel>
-                            <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => {
-                                setActiveBooking(booking);
-                                setViewDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="w-4 h-4" /> View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => {
-                                setEditingBooking(booking);
-                                setAddDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => handleDuplicate(booking)}
-                            >
-                              <Copy className="w-4 h-4" /> Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer" 
-                              onClick={() => {
-                                handleStatusChange(booking.id, 'completed');
-                                setActiveBooking(booking);
-                                setAdjustPaymentOpen(true);
-                              }}
-                              disabled={booking.status === 'completed'}
-                            >
-                              Mark Complete & Adjust Pay
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-amber-600" 
-                              onClick={async () => {
-                                await handleStatusChange(booking.id, 'confirmed');
-                                toast({ title: "Marked Uncleaned", description: `Booking #${booking.booking_number} marked as uncleaned.` });
-                              }}
-                              disabled={booking.status === 'confirmed'}
-                            >
-                              <XCircle className="w-4 h-4" /> Mark Uncleaned
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer" 
-                              onClick={() => {
-                                setActiveBooking(booking);
-                                setAdjustPaymentOpen(true);
-                              }}
-                            >
-                              <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 text-destructive cursor-pointer focus:text-destructive"
-                              onClick={() => handleDelete(booking)}
-                            >
-                              <Trash2 className="w-4 h-4" /> Delete
-                            </DropdownMenuItem>
-                            </DropdownMenuGroup>
+                           <DropdownMenuContent align="end" className="w-[420px] bg-popover border-border rounded-xl p-0">
+                            <div className="grid grid-cols-2 divide-x divide-border">
+                              {/* Left column: Booking */}
+                              <div className="p-1">
+                                <DropdownMenuLabel className="text-xs text-muted-foreground px-2">Booking</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => {
+                                    setActiveBooking(booking);
+                                    setViewDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" /> View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => {
+                                    setEditingBooking(booking);
+                                    setAddDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => handleDuplicate(booking)}
+                                >
+                                  <Copy className="w-4 h-4" /> Duplicate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer" 
+                                  onClick={() => {
+                                    handleStatusChange(booking.id, 'completed');
+                                    setActiveBooking(booking);
+                                    setAdjustPaymentOpen(true);
+                                  }}
+                                  disabled={booking.status === 'completed'}
+                                >
+                                  Mark Complete & Adjust Pay
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-amber-600" 
+                                  onClick={async () => {
+                                    await handleStatusChange(booking.id, 'confirmed');
+                                    toast({ title: "Marked Uncleaned", description: `Booking #${booking.booking_number} marked as uncleaned.` });
+                                  }}
+                                  disabled={booking.status === 'confirmed'}
+                                >
+                                  <XCircle className="w-4 h-4" /> Mark Uncleaned
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer" 
+                                  onClick={() => {
+                                    setActiveBooking(booking);
+                                    setAdjustPaymentOpen(true);
+                                  }}
+                                >
+                                  <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="gap-2 text-destructive cursor-pointer focus:text-destructive"
+                                  onClick={() => handleDelete(booking)}
+                                >
+                                  <Trash2 className="w-4 h-4" /> Delete
+                                </DropdownMenuItem>
+                              </div>
 
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">Payments & Communication</DropdownMenuLabel>
-                            <DropdownMenuGroup>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-emerald-600" 
-                              onClick={async () => {
-                                await updateBooking.mutateAsync({
-                                  id: booking.id,
-                                  payment_status: 'paid' as any
-                                });
-                                toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
-                              }}
-                              disabled={booking.payment_status === 'paid'}
-                            >
-                              <CreditCard className="w-4 h-4" /> 
-                              {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer text-teal-600"
-                              onClick={() => {
-                                setAdditionalChargesBooking(booking);
-                                setAdditionalChargesOpen(true);
-                              }}
-                            >
-                              <PlusCircle className="w-4 h-4" /> Additional Charge
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer text-amber-600"
-                              onClick={() => setChargeConfirmBooking(booking)}
-                              disabled={
-                                chargingCard === booking.id ||
-                                booking.payment_status === 'paid' ||
-                                !booking.customer?.email
-                              }
-                            >
-                              {chargingCard === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <DollarSign className="w-4 h-4" />
-                              )}
-                              {booking.payment_status === 'paid'
-                                ? 'Already Paid'
-                                : 'Charge Card Now'}
-                            </DropdownMenuItem>
-                            {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer"
-                                onClick={() => setPlaceHoldConfirmBooking(booking)}
-                                disabled={
-                                  placingHold === booking.id ||
-                                  !booking.customer?.email
-                                }
-                              >
-                                {placingHold === booking.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CreditCard className="w-4 h-4" />
+                              {/* Right column: Payments & Communication */}
+                              <div className="p-1">
+                                <DropdownMenuLabel className="text-xs text-muted-foreground px-2">Payments & Comms</DropdownMenuLabel>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-emerald-600" 
+                                  onClick={async () => {
+                                    await updateBooking.mutateAsync({
+                                      id: booking.id,
+                                      payment_status: 'paid' as any
+                                    });
+                                    toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
+                                  }}
+                                  disabled={booking.payment_status === 'paid'}
+                                >
+                                  <CreditCard className="w-4 h-4" /> 
+                                  {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-teal-600"
+                                  onClick={() => {
+                                    setAdditionalChargesBooking(booking);
+                                    setAdditionalChargesOpen(true);
+                                  }}
+                                >
+                                  <PlusCircle className="w-4 h-4" /> Additional Charge
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-amber-600"
+                                  onClick={() => setChargeConfirmBooking(booking)}
+                                  disabled={
+                                    chargingCard === booking.id ||
+                                    booking.payment_status === 'paid' ||
+                                    !booking.customer?.email
+                                  }
+                                >
+                                  {chargingCard === booking.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <DollarSign className="w-4 h-4" />
+                                  )}
+                                  {booking.payment_status === 'paid' ? 'Already Paid' : 'Charge Card Now'}
+                                </DropdownMenuItem>
+                                {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer"
+                                    onClick={() => setPlaceHoldConfirmBooking(booking)}
+                                    disabled={placingHold === booking.id || !booking.customer?.email}
+                                  >
+                                    {placingHold === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                                    Place Hold
+                                  </DropdownMenuItem>
                                 )}
-                                Place Hold
-                              </DropdownMenuItem>
-                            )}
-                            {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer"
-                                onClick={() => setCaptureConfirmBooking(booking)}
-                                disabled={capturingPayment === booking.id}
-                              >
-                                {capturingPayment === booking.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CreditCard className="w-4 h-4" />
+                                {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer"
+                                    onClick={() => setCaptureConfirmBooking(booking)}
+                                    disabled={capturingPayment === booking.id}
+                                  >
+                                    {capturingPayment === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                                    Capture Hold
+                                  </DropdownMenuItem>
                                 )}
-                                Capture Hold
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => handleCancelHold(booking)}
-                              disabled={
-                                cancelingHold === booking.id ||
-                                booking.payment_status === 'paid' ||
-                                booking.payment_status === 'refunded' ||
-                                !(booking as any).payment_intent_id
-                              }
-                            >
-                              {cancelingHold === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <XCircle className="w-4 h-4" />
-                              )}
-                              Release Hold
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => {
-                                setRefundDialogBooking(booking);
-                                setRefundType('full');
-                                setRefundAmount('');
-                              }}
-                              disabled={
-                                booking.payment_status === 'refunded' ||
-                                (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id)
-                              }
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                              Refund
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => {
-                                setPaymentHistoryBooking(booking);
-                                setPaymentHistoryOpen(true);
-                              }}
-                            >
-                              <Clock className="w-4 h-4" /> Payment History
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-blue-600" 
-                              onClick={() => handleSendReminder(booking)}
-                              disabled={sendingReminder === booking.id || !booking.customer?.phone}
-                            >
-                              {sendingReminder === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Phone className="w-4 h-4" />
-                              )}
-                              Send Customer Reminder
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-purple-600" 
-                              onClick={() => handleSendCleanerNotification(booking)}
-                              disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}
-                            >
-                              {sendingCleanerNotification === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Phone className="w-4 h-4" />
-                              )}
-                              Notify Cleaner
-                            </DropdownMenuItem>
-                            {!booking.staff && (
-                              <DropdownMenuItem 
-                                className="gap-2 cursor-pointer text-green-600" 
-                                onClick={() => handleNotifyCleanersOpenJob(booking)}
-                                disabled={notifyingOpenJob === booking.id}
-                              >
-                                {notifyingOpenJob === booking.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Bell className="w-4 h-4" />
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => handleCancelHold(booking)}
+                                  disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}
+                                >
+                                  {cancelingHold === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                  Release Hold
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => { setRefundDialogBooking(booking); setRefundType('full'); setRefundAmount(''); }}
+                                  disabled={booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id)}
+                                >
+                                  <RotateCcw className="w-4 h-4" /> Refund
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => { setPaymentHistoryBooking(booking); setPaymentHistoryOpen(true); }}
+                                >
+                                  <Clock className="w-4 h-4" /> Payment History
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-blue-600" 
+                                  onClick={() => handleSendReminder(booking)}
+                                  disabled={sendingReminder === booking.id || !booking.customer?.phone}
+                                >
+                                  {sendingReminder === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
+                                  Send Reminder
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-purple-600" 
+                                  onClick={() => handleSendCleanerNotification(booking)}
+                                  disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}
+                                >
+                                  {sendingCleanerNotification === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
+                                  Notify Cleaner
+                                </DropdownMenuItem>
+                                {!booking.staff && (
+                                  <DropdownMenuItem 
+                                    className="gap-2 cursor-pointer text-green-600" 
+                                    onClick={() => handleNotifyCleanersOpenJob(booking)}
+                                    disabled={notifyingOpenJob === booking.id}
+                                  >
+                                    {notifyingOpenJob === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                                    Notify All Cleaners
+                                  </DropdownMenuItem>
                                 )}
-                                Notify All Cleaners (Open Job)
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary underline-offset-2 hover:underline" 
-                              onClick={() => handleSendReviewRequest(booking)}
-                              disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
-                            >
-                              {sendingReviewRequest === booking.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Star className="w-3 h-3" />
-                              )}
-                              Send Review
-                            </DropdownMenuItem>
-                            </DropdownMenuGroup>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary" 
+                                  onClick={() => handleSendReviewRequest(booking)}
+                                  disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
+                                >
+                                  {sendingReviewRequest === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
+                                  Send Review
+                                </DropdownMenuItem>
+                              </div>
+                            </div>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
