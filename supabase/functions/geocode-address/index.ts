@@ -159,9 +159,10 @@ serve(async (req) => {
       }
     }
 
+    // Return 200 with success:false so Supabase client doesn't throw FunctionsHttpError
     return new Response(
       JSON.stringify({ success: false, error: 'Could not geocode address' }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
