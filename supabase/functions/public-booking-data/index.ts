@@ -63,7 +63,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const [servicesRes, pricingRes] = await Promise.all([
+    const [servicesRes, pricingRes, brandRes] = await Promise.all([
       supabase
         .from("services")
         .select("id, name, description, duration, price, is_active, image_url, created_at, updated_at, organization_id")
@@ -74,6 +74,11 @@ serve(async (req: Request) => {
         .from("service_pricing")
         .select("id, service_id, organization_id, minimum_price, sqft_prices, bedroom_pricing, extras, home_condition_options, pet_options, created_at, updated_at")
         .eq("organization_id", org.id),
+      supabase
+        .from("business_settings")
+        .select("primary_color, accent_color")
+        .eq("organization_id", org.id)
+        .maybeSingle(),
     ]);
 
     if (servicesRes.error) {
@@ -102,6 +107,10 @@ serve(async (req: Request) => {
         organization: org,
         services: servicesRes.data ?? [],
         servicePricing: pricingRes.data ?? [],
+        branding: brandRes.data ? {
+          primary_color: brandRes.data.primary_color || '#3b82f6',
+          accent_color: brandRes.data.accent_color || '#14b8a6',
+        } : null,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

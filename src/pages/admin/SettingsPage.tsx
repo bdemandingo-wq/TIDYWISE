@@ -238,6 +238,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
   
   // Get active tab from URL query param, default to "general"
   const activeTab = searchParams.get('tab') || 'general';
@@ -651,13 +652,29 @@ export default function SettingsPage() {
                 Configure your customer loyalty tiers and benefits
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Enable Loyalty Program</p>
+                  <p className="text-sm text-muted-foreground">
+                    When disabled, customers won't earn points or receive tier-based discounts
+                  </p>
+                </div>
+                <Switch
+                  checked={orgSettings?.loyalty_program_enabled ?? true}
+                  onCheckedChange={async (checked) => {
+                    await saveOrgSettings({ loyalty_program_enabled: checked });
+                    toast.success(checked ? 'Loyalty program enabled' : 'Loyalty program disabled');
+                  }}
+                />
+              </div>
+              <Separator />
+              <p className="text-sm text-muted-foreground">
                 Points are earned at $1 = 1 point after each completed booking. Customize the benefits for each tier below.
               </p>
             </CardContent>
           </Card>
-          <LoyaltyTierEditor />
+          {(orgSettings?.loyalty_program_enabled ?? true) && <LoyaltyTierEditor />}
         </TabsContent>
 
         {/* Notifications */}
@@ -940,10 +957,24 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
-              </Button>
+              <div className="flex gap-2">
+                <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Changes
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => {
+                    updateField('primary_color', '#3b82f6');
+                    updateField('accent_color', '#14b8a6');
+                    toast.info('Colors reset to defaults. Click Save to apply.');
+                  }}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset to Default
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

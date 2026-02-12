@@ -2871,6 +2871,7 @@ export type Database = {
           created_at: string
           demo_mode_enabled: boolean | null
           id: string
+          loyalty_program_enabled: boolean
           organization_id: string
           sales_tax_percent: number | null
           show_addons_on_booking: boolean | null
@@ -2885,6 +2886,7 @@ export type Database = {
           created_at?: string
           demo_mode_enabled?: boolean | null
           id?: string
+          loyalty_program_enabled?: boolean
           organization_id: string
           sales_tax_percent?: number | null
           show_addons_on_booking?: boolean | null
@@ -2899,6 +2901,7 @@ export type Database = {
           created_at?: string
           demo_mode_enabled?: boolean | null
           id?: string
+          loyalty_program_enabled?: boolean
           organization_id?: string
           sales_tax_percent?: number | null
           show_addons_on_booking?: boolean | null

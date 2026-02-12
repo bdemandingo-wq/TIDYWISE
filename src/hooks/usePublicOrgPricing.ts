@@ -26,6 +26,8 @@ export interface PublicOrgData {
   organizationId: string | null;
   organizationName: string;
   logoUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
   services: PublicService[];
   extras: PublicExtra[];
   loading: boolean;
@@ -38,6 +40,7 @@ type PublicBookingDataResponse = {
   organization?: { id: string; name: string; logo_url: string | null };
   services?: any[];
   servicePricing?: any[];
+  branding?: { primary_color: string; accent_color: string } | null;
 };
 
 function getDefaultPayload() {
@@ -58,6 +61,8 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState<string | null>(null);
+  const [accentColor, setAccentColor] = useState<string | null>(null);
   const [services, setServices] = useState<PublicService[]>([]);
   const [extras, setExtras] = useState<PublicExtra[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +103,10 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
         setOrganizationId(data.organization.id);
         setOrganizationName(data.organization.name);
         setLogoUrl(data.organization.logo_url);
+        if (data.branding) {
+          setPrimaryColor(data.branding.primary_color);
+          setAccentColor(data.branding.accent_color);
+        }
 
         const pricingMap = new Map<string, any>();
         (data.servicePricing || []).forEach((p: any) => pricingMap.set(p.service_id, p));
@@ -175,6 +184,8 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
     organizationId,
     organizationName,
     logoUrl,
+    primaryColor,
+    accentColor,
     services,
     extras,
     loading,

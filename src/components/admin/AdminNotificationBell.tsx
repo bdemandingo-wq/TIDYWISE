@@ -116,8 +116,40 @@ export function AdminNotificationBell() {
         });
       }
 
+      // Add weekly booking reminder notification (Monday)
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday
+      const weeklyReminders: AdminNotification[] = [];
+      
+      if (dayOfWeek === 1) { // Monday
+        // Check how many upcoming bookings this week
+        const weekEnd = new Date(today);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        
+        const { data: upcomingBookings } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .in('status', ['pending', 'confirmed'])
+          .gte('scheduled_at', today.toISOString())
+          .lte('scheduled_at', weekEnd.toISOString());
+        
+        const count = upcomingBookings?.length || 0;
+        if (count > 0) {
+          weeklyReminders.push({
+            id: `weekly-reminder-${today.toISOString().split('T')[0]}`,
+            type: 'system',
+            title: '📅 Weekly Booking Reminders',
+            message: `You have ${count} upcoming booking${count > 1 ? 's' : ''} this week. Send reminders to your customers!`,
+            is_read: false,
+            created_at: today.toISOString(),
+            resource_type: 'reminder',
+          });
+        }
+      }
+
       // Combine and sort by created_at
-      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications]
+      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications, ...weeklyReminders]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setNotifications(allNotifications);

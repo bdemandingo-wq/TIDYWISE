@@ -71,6 +71,8 @@ export default function PublicBookingPage() {
     organizationName, 
     organizationId,
     logoUrl,
+    primaryColor,
+    accentColor,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
@@ -235,7 +237,10 @@ export default function PublicBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={primaryColor ? {
+      '--brand-primary': primaryColor,
+      '--brand-accent': accentColor || primaryColor,
+    } as React.CSSProperties : undefined}>
       {/* Header */}
       <header className="bg-sidebar text-sidebar-foreground">
         <div className="container mx-auto px-4 py-4">
@@ -426,10 +431,10 @@ export default function PublicBookingPage() {
                 </div>
               )}
               
-              {service && service.name.toLowerCase().includes('deep') && (
+              {service && service.description && (
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
                   <p className="text-sm font-medium text-primary">
-                    ✨ Deep Clean includes all add-on services (windows, appliances, baseboards, walls, and more)
+                    ✨ {service.description}
                   </p>
                 </div>
               )}

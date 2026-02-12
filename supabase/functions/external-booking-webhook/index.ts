@@ -196,7 +196,87 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("[external-booking-webhook] Created booking:", booking.id, "Number:", booking.booking_number);
 
-    // Optionally send admin notification
+    // Create a lead entry for this customer automatically
+    try {
+      const { data: existingLead } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('email', payload.email.toLowerCase())
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (!existingLead) {
+        await supabase
+          .from('leads')
+          .insert({
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            email: payload.email.toLowerCase(),
+            phone: payload.phone || null,
+            source: 'booking_form',
+            status: 'new',
+            notes: `Auto-created from public booking form (BK-${booking.booking_number})`,
+            organization_id: organizationId,
+          });
+        console.log("[external-booking-webhook] Auto-created lead for customer");
+      }
+    } catch (leadErr) {
+      console.error("[external-booking-webhook] Failed to create lead:", leadErr);
+      // Non-blocking
+    }
+
+    // Send SMS notification to admin phone via OpenPhone
+    try {
+      const { data: smsSettings } = await supabase
+        .from('organization_sms_settings')
+        .select('openphone_api_key, openphone_phone_number_id')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const { data: bizSettings } = await supabase
+        .from('business_settings')
+        .select('company_phone, company_name')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (smsSettings?.openphone_api_key && smsSettings?.openphone_phone_number_id && bizSettings?.company_phone) {
+        let adminPhone = bizSettings.company_phone.replace(/\D/g, '');
+        if (adminPhone.length === 10) adminPhone = '1' + adminPhone;
+        if (!adminPhone.startsWith('+')) adminPhone = '+' + adminPhone;
+
+        const bookingDate = new Date(payload.scheduled_at);
+        const dateStr = bookingDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const timeStr = bookingDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+        const smsBody = `📋 New Online Booking #BK-${booking.booking_number}\n` +
+          `Customer: ${payload.first_name} ${payload.last_name}\n` +
+          `Service: ${payload.service_name || 'N/A'}\n` +
+          `Date: ${dateStr} at ${timeStr}\n` +
+          `Address: ${payload.address || 'N/A'}\n` +
+          `Total: $${payload.total_amount?.toFixed(2) || '0.00'}`;
+
+        await fetch('https://api.openphone.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Authorization': smsSettings.openphone_api_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: smsBody,
+            to: [adminPhone],
+            from: smsSettings.openphone_phone_number_id,
+          }),
+        });
+        console.log("[external-booking-webhook] SMS notification sent to admin:", adminPhone);
+      } else {
+        console.log("[external-booking-webhook] SMS settings not configured, skipping SMS notification");
+      }
+    } catch (smsErr) {
+      console.error("[external-booking-webhook] Failed to send SMS notification:", smsErr);
+      // Non-blocking
+    }
+
+    // Optionally send admin email notification
     try {
       await fetch(`${SUPABASE_URL}/functions/v1/send-admin-booking-notification`, {
         method: 'POST',
@@ -211,7 +291,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     } catch (notifyError) {
       console.error("[external-booking-webhook] Failed to send admin notification:", notifyError);
-      // Don't fail the webhook for notification errors
     }
 
     return new Response(

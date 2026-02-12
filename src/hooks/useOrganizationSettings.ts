@@ -13,6 +13,7 @@ export interface OrganizationPricingSettings {
   show_bed_bath_on_booking: boolean;
   sales_tax_percent: number;
   demo_mode_enabled: boolean;
+  loyalty_program_enabled: boolean;
 }
 
 const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
@@ -24,6 +25,7 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   show_bed_bath_on_booking: true,
   sales_tax_percent: 0,
   demo_mode_enabled: false,
+  loyalty_program_enabled: true,
 };
 
 export function useOrganizationSettings() {
@@ -55,6 +57,7 @@ export function useOrganizationSettings() {
           show_bed_bath_on_booking: data.show_bed_bath_on_booking ?? true,
           sales_tax_percent: Number(data.sales_tax_percent) || 0,
           demo_mode_enabled: data.demo_mode_enabled ?? false,
+          loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
         });
       } else {
         // Create default settings
@@ -88,6 +91,7 @@ export function useOrganizationSettings() {
         show_bed_bath_on_booking: updates.show_bed_bath_on_booking ?? settings?.show_bed_bath_on_booking ?? true,
         sales_tax_percent: updates.sales_tax_percent ?? settings?.sales_tax_percent ?? 0,
         demo_mode_enabled: updates.demo_mode_enabled ?? settings?.demo_mode_enabled ?? false,
+        loyalty_program_enabled: updates.loyalty_program_enabled ?? settings?.loyalty_program_enabled ?? true,
       };
 
       const { data, error } = await supabase
@@ -112,6 +116,7 @@ export function useOrganizationSettings() {
         show_bed_bath_on_booking: data.show_bed_bath_on_booking ?? true,
         sales_tax_percent: Number(data.sales_tax_percent) || 0,
         demo_mode_enabled: data.demo_mode_enabled ?? false,
+        loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
       });
 
       return true;
