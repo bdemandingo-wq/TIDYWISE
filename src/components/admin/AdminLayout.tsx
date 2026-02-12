@@ -8,6 +8,7 @@ import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { hapticImpact } from '@/lib/haptics';
 import { usePlatform } from '@/hooks/usePlatform';
+import { useBrandingColors } from '@/hooks/useBrandingColors';
 
 // Performance: only load subscription UI when it's actually needed (opened).
 // Only load on web - native apps don't show payment dialogs (App Store compliance)
@@ -28,6 +29,9 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   const { canShowPaymentFlows } = usePlatform();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Apply org branding colors to entire CRM theme
+  useBrandingColors();
 
   const crmTabOrder = useMemo(
     () => ['/dashboard', '/dashboard/customers', '/dashboard/leads', '/dashboard/messages', '/dashboard/settings'],

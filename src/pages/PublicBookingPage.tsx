@@ -157,38 +157,7 @@ export default function PublicBookingPage() {
         const newConfirmationNumber = bookingNumber ? `BK-${bookingNumber}` : `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
         setConfirmationNumber(newConfirmationNumber);
 
-        // 2. Send confirmation email (non-blocking)
-        try {
-          await supabase.functions.invoke('send-booking-email', {
-            body: {
-              customerName: customerInfo.name,
-              customerEmail: customerInfo.email,
-              customerPhone: customerInfo.phone,
-              serviceName: service?.name || '',
-              homeSize: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : '',
-              appointmentDate: selectedDate?.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              }),
-              appointmentTime: selectedTime,
-              address: customerInfo.address,
-              city: customerInfo.city,
-              state: customerInfo.state,
-              zipCode: customerInfo.zipCode,
-              extras: extraNames,
-              totalPrice: calculateTotal(),
-              confirmationNumber: newConfirmationNumber,
-              organizationId: organizationId || undefined,
-            },
-          });
-        } catch (emailErr) {
-          console.error('Email send failed:', emailErr);
-          // Don't block - booking was already created
-        }
-
-        toast.success('Booking confirmed! Check your email for confirmation.');
+        toast.success(`Booking confirmed! Your confirmation number is ${newConfirmationNumber}. You'll receive an SMS confirmation shortly.`);
         setStep(4);
       } catch (err) {
         console.error('Failed to create booking:', err);
@@ -666,7 +635,7 @@ export default function PublicBookingPage() {
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
                 <p className="text-muted-foreground">
-                  Your appointment has been scheduled. You'll receive a confirmation email shortly.
+                  Your appointment has been scheduled. You'll receive an SMS confirmation shortly.
                 </p>
               </div>
 
@@ -696,9 +665,9 @@ export default function PublicBookingPage() {
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-primary/20">
-                    <p className="text-sm text-muted-foreground">
-                      Check your email for your full loyalty progress and tier benefits!
-                    </p>
+                     <p className="text-sm text-muted-foreground">
+                       Track your loyalty progress and tier benefits with each booking!
+                     </p>
                   </div>
                 </CardContent>
               </Card>
