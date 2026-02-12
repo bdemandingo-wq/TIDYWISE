@@ -183,8 +183,8 @@ const handler = async (req: Request): Promise<Response> => {
       customer: customerId,
       mode: "setup",  // SETUP mode = save card only, NO automatic charge
       payment_method_types: ["card"],
-      success_url: "https://jointidywise.lovable.app/card-saved?success=true",
-      cancel_url: "https://jointidywise.lovable.app/card-saved?cancelled=true",
+      success_url: `${APP_URL}/card-saved?success=true`,
+      cancel_url: `${APP_URL}/card-saved?cancelled=true`,
       metadata: {
         customerName: customerName,
         purpose: "card_collection",  // Changed from cleaning_payment

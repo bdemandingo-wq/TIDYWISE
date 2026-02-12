@@ -131,13 +131,16 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Created new Stripe customer:", customerId);
     }
 
+    // Build dynamic success/cancel URLs using the app's published URL
+    const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.lovable.app";
+
     // Create a Stripe Checkout session in setup mode to collect card details
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "setup",
       payment_method_types: ["card"],
-      success_url: "https://tidywisecleaning.com/card-saved?success=true",
-      cancel_url: "https://tidywisecleaning.com/card-saved?cancelled=true",
+      success_url: `${appUrl}/card-saved?success=true`,
+      cancel_url: `${appUrl}/card-saved?cancelled=true`,
       metadata: {
         customerName: customerName,
         purpose: "card_collection",
