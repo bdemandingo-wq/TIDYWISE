@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { supabase } from '@/lib/supabase';
+import { SignedImage } from '@/components/ui/signed-image';
 import { toast } from 'sonner';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
@@ -875,10 +876,10 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   {settings.logo_url ? (
                     <div className="w-20 h-20 rounded-lg border bg-background overflow-hidden flex items-center justify-center">
-                      <img 
+                      <SignedImage 
                         src={settings.logo_url} 
                         alt="Company logo" 
-                        className="max-w-full max-h-full object-contain"
+                        className="w-full h-full object-contain"
                       />
                     </div>
                   ) : (
