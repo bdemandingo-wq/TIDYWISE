@@ -135,6 +135,7 @@ export default function ExpensesPage() {
   // Update expense
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      if (!organization?.id) throw new Error('No organization found');
       const { error } = await supabase
         .from('expenses')
         .update({
@@ -144,7 +145,8 @@ export default function ExpensesPage() {
           vendor: data.vendor || null,
           expense_date: format(data.expense_date, 'yyyy-MM-dd'),
         })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -162,7 +164,8 @@ export default function ExpensesPage() {
   // Delete expense
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('expenses').delete().eq('id', id).eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
