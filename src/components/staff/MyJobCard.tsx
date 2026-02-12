@@ -20,6 +20,7 @@ interface StaffInfo {
 
 interface Booking {
   id: string;
+  organization_id?: string | null;
   booking_number: number;
   scheduled_at: string;
   duration: number;
@@ -325,6 +326,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
                 <BookingChecklist
                   bookingId={booking.id}
                   staffId={staffInfo.id}
+                  organizationId={booking.organization_id || ''}
                   onComplete={() => setChecklistOpen(false)}
                 />
               </DialogContent>
@@ -333,7 +335,8 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           {staffInfo.id && booking.status === 'in_progress' && (
             <BookingPhotoUpload 
               bookingId={booking.id} 
-              staffId={staffInfo.id} 
+              staffId={staffInfo.id}
+              organizationId={booking.organization_id || ''}
             />
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (

@@ -10,10 +10,11 @@ import { useNativeCamera } from '@/hooks/useNativeCamera';
 interface BookingPhotoUploadProps {
   bookingId: string;
   staffId: string;
+  organizationId: string;
   onPhotoUploaded?: () => void;
 }
 
-export function BookingPhotoUpload({ bookingId, staffId, onPhotoUploaded }: BookingPhotoUploadProps) {
+export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhotoUploaded }: BookingPhotoUploadProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoType, setPhotoType] = useState<'before' | 'after'>('after');
@@ -62,8 +63,8 @@ export function BookingPhotoUpload({ bookingId, staffId, onPhotoUploaded }: Book
     setUploading(true);
     try {
       const fileExt = selectedFile.name.split('.').pop();
-      // Store path only (not full URL) for signed URL generation
-      const filePath = `${bookingId}/${photoType}_${Date.now()}.${fileExt}`;
+      // Path: org_id/booking_id/filename - org_id prefix enforced by storage RLS
+      const filePath = `${organizationId}/${bookingId}/${photoType}_${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('booking-photos')

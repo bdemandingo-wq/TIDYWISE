@@ -14,6 +14,7 @@ import { BookingPhotoUpload } from './BookingPhotoUpload';
 interface BookingChecklistProps {
   bookingId: string;
   staffId: string;
+  organizationId?: string;
   onComplete?: () => void;
 }
 
@@ -27,7 +28,7 @@ interface ChecklistItem {
   requires_photo?: boolean;
 }
 
-export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChecklistProps) {
+export function BookingChecklist({ bookingId, staffId, organizationId, onComplete }: BookingChecklistProps) {
   const queryClient = useQueryClient();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
@@ -507,6 +508,7 @@ export function BookingChecklist({ bookingId, staffId, onComplete }: BookingChec
                 <BookingPhotoUpload
                   bookingId={bookingId}
                   staffId={staffId}
+                  organizationId={organizationId || ''}
                 />
               </div>
             )}
