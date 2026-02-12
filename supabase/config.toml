@@ -152,3 +152,6 @@ verify_jwt = false
 
 [functions.get-tip-details]
 verify_jwt = false
+
+[functions.confirm-tip-payment]
+verify_jwt = false

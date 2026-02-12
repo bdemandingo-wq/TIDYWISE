@@ -94,14 +94,12 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Update tip with amount and payment intent
+    // Update tip with amount and checkout session ID (not yet paid - awaiting Stripe checkout)
     await supabase
       .from('tips')
       .update({
         amount,
-        payment_intent_id: session.payment_intent as string || session.id,
-        status: 'paid',
-        paid_at: new Date().toISOString(),
+        payment_intent_id: session.id,
       })
       .eq('id', tip.id);
 

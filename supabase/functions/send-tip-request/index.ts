@@ -89,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build tip link
-    const tipLink = `${appUrl}/tip/${tip.token}`;
+    const fullTipLink = `${appUrl}/tip/${tip.token}`;
 
     // Get business settings for company name
     const { data: businessSettings } = await supabase
@@ -100,8 +100,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
 
+    // Shorten the tip link using short_urls table
+    const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { error: shortUrlError } = await supabase
+      .from('short_urls')
+      .insert({
+        code: shortCode,
+        target_url: fullTipLink,
+        organization_id: organizationId,
+      });
+
+    const tipLink = shortUrlError ? fullTipLink : `${appUrl}/c/${shortCode}`;
+
     // Build SMS message
-    const message = `Hi ${typedCustomer.first_name}! 😊 We're glad you enjoyed our service from ${companyName}! If you'd like to leave a tip for your cleaner, you can do so here:\n\n${tipLink}\n\nThank you for your support! 💚`;
+    const message = `Hi ${typedCustomer.first_name}! 😊 We loved serving you from ${companyName}! Leave a tip for your cleaner here: ${tipLink} 💚`;
 
     // Fetch SMS settings
     const { data: smsSettings } = await supabase

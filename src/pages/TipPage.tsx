@@ -39,6 +39,13 @@ export default function TipPage() {
     
     const fetchTip = async () => {
       try {
+        // If returning from Stripe success, confirm payment first
+        if (paymentStatus === 'success') {
+          await supabase.functions.invoke('confirm-tip-payment', {
+            body: { token },
+          });
+        }
+
         const { data, error } = await supabase.functions.invoke('get-tip-details', {
           body: { token },
         });
@@ -55,7 +62,7 @@ export default function TipPage() {
       }
     };
     fetchTip();
-  }, [token]);
+  }, [token, paymentStatus]);
 
   const finalAmount = selectedAmount || (customAmount ? parseFloat(customAmount) : 0);
 
