@@ -131,6 +131,8 @@ export default function BookingsPage() {
   const [capturingPayment, setCapturingPayment] = useState<string | null>(null);
   const [cancelingHold, setCancelingHold] = useState<string | null>(null);
   const [chargingCard, setChargingCard] = useState<string | null>(null);
+  const [placingHold, setPlacingHold] = useState<string | null>(null);
+  const [placeHoldConfirmBooking, setPlaceHoldConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkAssigning, setBulkAssigning] = useState(false);
@@ -354,6 +356,62 @@ export default function BookingsPage() {
       }
       return next;
     });
+  };
+
+  const handlePlaceHold = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.email) {
+      toast({ title: "Error", description: "No customer email found", variant: "destructive" });
+      return;
+    }
+
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      return;
+    }
+
+    setPlacingHold(booking.id);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('charge-customer-card', {
+        body: {
+          email: booking.customer.email,
+          amount: booking.total_amount,
+          description: `Hold for Booking #${booking.booking_number} - ${booking.service?.name || 'Service'}`,
+          bookingId: booking.id,
+          organizationId: organization.id,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Hold Placed",
+          description: data.message
+        });
+
+        await updateBooking.mutateAsync({
+          id: booking.id,
+          payment_intent_id: data.paymentIntentId,
+          payment_status: 'partial' as any,
+        });
+      } else {
+        toast({
+          title: data.declined ? "Card Declined" : "Hold Failed",
+          description: data.error,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to place hold:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to place hold",
+        variant: "destructive"
+      });
+    } finally {
+      setPlacingHold(null);
+    }
   };
 
   const handleCapturePayment = async (booking: BookingWithDetails) => {
@@ -1670,26 +1728,39 @@ export default function BookingsPage() {
                                 ? 'Already Paid'
                                 : 'Charge Card Now'}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer"
-                              onClick={() => setCaptureConfirmBooking(booking)}
-                              disabled={
-                                capturingPayment === booking.id ||
-                                booking.payment_status === 'paid' ||
-                                !(booking as any).payment_intent_id
-                              }
-                            >
-                              {capturingPayment === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CreditCard className="w-4 h-4" />
-                              )}
-                              {booking.payment_status === 'paid'
-                                ? 'Payment Captured'
-                                : !(booking as any).payment_intent_id
-                                  ? 'Place Hold'
-                                  : 'Capture Hold'}
-                            </DropdownMenuItem>
+                            {/* Place Hold - only when no payment_intent_id */}
+                            {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                              <DropdownMenuItem
+                                className="gap-2 cursor-pointer"
+                                onClick={() => setPlaceHoldConfirmBooking(booking)}
+                                disabled={
+                                  placingHold === booking.id ||
+                                  !booking.customer?.email
+                                }
+                              >
+                                {placingHold === booking.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CreditCard className="w-4 h-4" />
+                                )}
+                                Place Hold
+                              </DropdownMenuItem>
+                            )}
+                            {/* Capture Hold - only when payment_intent_id exists */}
+                            {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                              <DropdownMenuItem
+                                className="gap-2 cursor-pointer"
+                                onClick={() => setCaptureConfirmBooking(booking)}
+                                disabled={capturingPayment === booking.id}
+                              >
+                                {capturingPayment === booking.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CreditCard className="w-4 h-4" />
+                                )}
+                                Capture Hold
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer"
                               onClick={() => handleCancelHold(booking)}
@@ -1851,6 +1922,35 @@ export default function BookingsPage() {
               }}
             >
               Yes, Charge Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Place Hold Confirmation Dialog */}
+      <AlertDialog open={!!placeHoldConfirmBooking} onOpenChange={(open) => !open && setPlaceHoldConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Place Hold</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to place a hold of <strong>${placeHoldConfirmBooking?.total_amount?.toFixed(2)}</strong> on{' '}
+              <strong>{placeHoldConfirmBooking?.customer?.first_name} {placeHoldConfirmBooking?.customer?.last_name}</strong>'s card?
+              <br /><br />
+              This will authorize the amount but not charge the card until you capture the payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (placeHoldConfirmBooking) {
+                  handlePlaceHold(placeHoldConfirmBooking);
+                  setPlaceHoldConfirmBooking(null);
+                }
+              }}
+            >
+              Yes, Place Hold
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

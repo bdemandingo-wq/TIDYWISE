@@ -49,12 +49,12 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("organization_id", organizationId)
       .maybeSingle();
 
-    // Use org-specific key or fall back to global key for legacy orgs
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key || Deno.env.get("STRIPE_SECRET_KEY");
+    // STRICT ISOLATION: Only use organization-specific key, never fallback to global keys
+    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
     
     if (!stripeSecretKey) {
       return new Response(
-        JSON.stringify({ error: "No Stripe key available" }),
+        JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
