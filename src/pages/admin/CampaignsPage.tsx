@@ -19,7 +19,7 @@ interface AITemplate {
   message: string;
 }
 
-type AudienceType = 'all_eligible' | 'active_clients' | 'inactive_clients';
+type AudienceType = 'active_clients' | 'inactive_clients';
 
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
@@ -28,7 +28,6 @@ const campaignTypes = [
 ];
 
 const audienceOptions = [
-  { value: "all_eligible", label: "All Eligible (Excluding opted-out)" },
   { value: "active_clients", label: "Active Clients" },
   { value: "inactive_clients", label: "Inactive Clients" },
 ];
@@ -39,8 +38,8 @@ export default function CampaignsPage() {
   const { organizationId: orgId } = useOrgId();
   
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
-  const [targetAudience, setTargetAudience] = useState<AudienceType>('all_eligible');
-  const [aiAudience, setAiAudience] = useState<AudienceType>('all_eligible');
+  const [targetAudience, setTargetAudience] = useState<AudienceType>('active_clients');
+  const [aiAudience, setAiAudience] = useState<AudienceType>('active_clients');
   const [smsTestResult, setSmsTestResult] = useState<{ 
     inactive: number; 
     contactable: number;
@@ -298,7 +297,6 @@ export default function CampaignsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all_eligible">All Eligible Customers</SelectItem>
                     <SelectItem value="active_clients">Active Clients</SelectItem>
                     <SelectItem value="inactive_clients">Inactive Clients</SelectItem>
                   </SelectContent>
@@ -318,7 +316,7 @@ export default function CampaignsPage() {
             <p className="text-xs text-muted-foreground">
               {aiAudience === 'inactive_clients' && "💡 AI will generate win-back copy with urgency and special offers to re-engage inactive customers."}
               {aiAudience === 'active_clients' && "💡 AI will generate loyalty, appreciation, and upsell copy to retain and grow existing client relationships."}
-              {aiAudience === 'all_eligible' && "💡 AI will generate balanced messaging suitable for mixed audiences."}
+              
             </p>
 
             {aiTemplates.length > 0 && (
@@ -401,6 +399,7 @@ export default function CampaignsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="7">7 days</SelectItem>
                     <SelectItem value="14">14 days</SelectItem>
                     <SelectItem value="30">30 days</SelectItem>
                     <SelectItem value="60">60 days</SelectItem>
