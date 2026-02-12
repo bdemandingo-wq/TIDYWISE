@@ -186,6 +186,8 @@ const handler = async (req: Request): Promise<Response> => {
         const declineCode = stripeError.decline_code || stripeError.code || "unknown";
         const friendlyMessage = DECLINE_CODE_MESSAGES[declineCode] || stripeError.message || "Card was declined";
         
+        // Return 200 with success:false so the Supabase client parses it properly
+        // (Supabase client throws on non-2xx, losing the body)
         return new Response(
           JSON.stringify({ 
             success: false,
@@ -194,7 +196,7 @@ const handler = async (req: Request): Promise<Response> => {
             declineCode: declineCode,
             rawMessage: stripeError.message
           }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
       
@@ -237,6 +239,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       console.log("Card declined with code:", declineCode);
       
+      // Return 200 with success:false so the Supabase client parses it properly
       return new Response(
         JSON.stringify({ 
           success: false,
@@ -245,7 +248,7 @@ const handler = async (req: Request): Promise<Response> => {
           declineCode: declineCode,
           rawMessage: error.message
         }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
