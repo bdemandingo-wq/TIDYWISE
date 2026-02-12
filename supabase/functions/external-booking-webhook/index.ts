@@ -1,40 +1,35 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "npm:zod@3.25.76";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 };
 
-interface ExternalBookingPayload {
-  // Customer info
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  
-  // Address info
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  
-  // Booking info
-  service_name?: string;
-  scheduled_at: string; // ISO date string
-  duration?: number; // in minutes, default 120
-  total_amount?: number;
-  bedrooms?: string;
-  bathrooms?: string;
-  square_footage?: string;
-  frequency?: string;
-  notes?: string;
-  extras?: Record<string, unknown>;
-  
-  // Organization identifier (slug or id)
-  organization_slug?: string;
-  organization_id?: string;
-}
+// Strict input validation schema
+const BookingSchema = z.object({
+  first_name: z.string().trim().min(1).max(100),
+  last_name: z.string().trim().min(1).max(100),
+  email: z.string().trim().email().max(255).transform(v => v.toLowerCase()),
+  phone: z.string().trim().max(20).regex(/^\+?[0-9\s\-().]{7,20}$/).optional().nullable(),
+  address: z.string().trim().max(500).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  state: z.string().trim().max(100).optional().nullable(),
+  zip_code: z.string().trim().max(20).optional().nullable(),
+  service_name: z.string().trim().max(200).optional().nullable(),
+  scheduled_at: z.string().datetime({ message: "scheduled_at must be a valid ISO 8601 datetime" }),
+  duration: z.number().int().min(15).max(1440).optional().nullable(),
+  total_amount: z.number().min(0).max(100000).optional().nullable(),
+  bedrooms: z.string().trim().max(10).optional().nullable(),
+  bathrooms: z.string().trim().max(10).optional().nullable(),
+  square_footage: z.string().trim().max(20).optional().nullable(),
+  frequency: z.string().trim().max(50).optional().nullable(),
+  notes: z.string().trim().max(5000).optional().nullable(),
+  extras: z.record(z.unknown()).optional().nullable(),
+  organization_slug: z.string().trim().min(1).max(100).optional().nullable(),
+  organization_id: z.string().uuid().optional().nullable(),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -51,20 +46,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Parse the incoming payload
-    const payload: ExternalBookingPayload = await req.json();
-    console.log("[external-booking-webhook] v2 - Received payload:", JSON.stringify(payload));
+    // Parse and validate incoming payload with Zod
+    const rawPayload = await req.json();
+    console.log("[external-booking-webhook] v3 - Received payload");
 
-    // Validate required fields
-    if (!payload.first_name || !payload.last_name || !payload.email || !payload.scheduled_at) {
+    const parseResult = BookingSchema.safeParse(rawPayload);
+    if (!parseResult.success) {
+      console.error("[external-booking-webhook] Validation failed:", parseResult.error.flatten());
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields: first_name, last_name, email, scheduled_at" 
+          error: "Invalid input",
+          details: parseResult.error.flatten().fieldErrors,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const payload = parseResult.data;
 
     // Find organization by slug or id
     let organizationId = payload.organization_id;
@@ -147,11 +146,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Find service by name if provided
     let serviceId: string | null = null;
     if (payload.service_name) {
+      // Escape SQL LIKE wildcards to prevent pattern injection
+      const safeName = payload.service_name.replace(/%/g, '\\%').replace(/_/g, '\\_');
       const { data: service } = await supabase
         .from('services')
         .select('id')
         .eq('organization_id', organizationId)
-        .ilike('name', `%${payload.service_name}%`)
+        .ilike('name', `%${safeName}%`)
         .limit(1)
         .maybeSingle();
       
