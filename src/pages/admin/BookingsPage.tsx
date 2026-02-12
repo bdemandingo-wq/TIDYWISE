@@ -69,6 +69,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { useBookings, useUpdateBooking, useDeleteBooking, useStaff, BookingWithDetails } from '@/hooks/useBookings';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, addDays } from 'date-fns';
@@ -1664,7 +1666,9 @@ export default function BookingsPage() {
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 bg-popover border-border rounded-xl">
+                           <DropdownMenuContent align="end" className="w-52 bg-popover border-border rounded-xl max-h-[70vh] overflow-y-auto">
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">Booking</DropdownMenuLabel>
+                            <DropdownMenuGroup>
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer"
                               onClick={() => {
@@ -1689,30 +1693,6 @@ export default function BookingsPage() {
                             >
                               <Copy className="w-4 h-4" /> Duplicate
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-emerald-600" 
-                              onClick={async () => {
-                                await updateBooking.mutateAsync({
-                                  id: booking.id,
-                                  payment_status: 'paid' as any
-                                });
-                                toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
-                              }}
-                              disabled={booking.payment_status === 'paid'}
-                            >
-                              <CreditCard className="w-4 h-4" /> 
-                              {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 cursor-pointer text-teal-600"
-                              onClick={() => {
-                                setAdditionalChargesBooking(booking);
-                                setAdditionalChargesOpen(true);
-                              }}
-                            >
-                              <PlusCircle className="w-4 h-4" /> Additional Charge
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="gap-2 cursor-pointer" 
                               onClick={() => {
@@ -1743,59 +1723,40 @@ export default function BookingsPage() {
                             >
                               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-blue-600" 
-                              onClick={() => handleSendReminder(booking)}
-                              disabled={sendingReminder === booking.id || !booking.customer?.phone}
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive cursor-pointer focus:text-destructive"
+                              onClick={() => handleDelete(booking)}
                             >
-                              {sendingReminder === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Phone className="w-4 h-4" />
-                              )}
-                              Send Customer Reminder
+                              <Trash2 className="w-4 h-4" /> Delete
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-purple-600" 
-                              onClick={() => handleSendCleanerNotification(booking)}
-                              disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}
-                            >
-                              {sendingCleanerNotification === booking.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Phone className="w-4 h-4" />
-                              )}
-                              Notify Cleaner
-                            </DropdownMenuItem>
-                            {/* Notify All Cleaners for unassigned jobs */}
-                            {!booking.staff && (
-                              <DropdownMenuItem 
-                                className="gap-2 cursor-pointer text-green-600" 
-                                onClick={() => handleNotifyCleanersOpenJob(booking)}
-                                disabled={notifyingOpenJob === booking.id}
-                              >
-                                {notifyingOpenJob === booking.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Bell className="w-4 h-4" />
-                                )}
-                                Notify All Cleaners (Open Job)
-                              </DropdownMenuItem>
-                            )}
-                            {/* Send Review Request - styled as subtle link */}
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary underline-offset-2 hover:underline" 
-                              onClick={() => handleSendReviewRequest(booking)}
-                              disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
-                            >
-                              {sendingReviewRequest === booking.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Star className="w-3 h-3" />
-                              )}
-                              Send Review
-                            </DropdownMenuItem>
+                            </DropdownMenuGroup>
+
                             <DropdownMenuSeparator />
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">Payments & Communication</DropdownMenuLabel>
+                            <DropdownMenuGroup>
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-emerald-600" 
+                              onClick={async () => {
+                                await updateBooking.mutateAsync({
+                                  id: booking.id,
+                                  payment_status: 'paid' as any
+                                });
+                                toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
+                              }}
+                              disabled={booking.payment_status === 'paid'}
+                            >
+                              <CreditCard className="w-4 h-4" /> 
+                              {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-teal-600"
+                              onClick={() => {
+                                setAdditionalChargesBooking(booking);
+                                setAdditionalChargesOpen(true);
+                              }}
+                            >
+                              <PlusCircle className="w-4 h-4" /> Additional Charge
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer text-amber-600"
                               onClick={() => setChargeConfirmBooking(booking)}
@@ -1814,7 +1775,6 @@ export default function BookingsPage() {
                                 ? 'Already Paid'
                                 : 'Charge Card Now'}
                             </DropdownMenuItem>
-                            {/* Place Hold - only when no payment_intent_id */}
                             {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
                               <DropdownMenuItem
                                 className="gap-2 cursor-pointer"
@@ -1832,7 +1792,6 @@ export default function BookingsPage() {
                                 Place Hold
                               </DropdownMenuItem>
                             )}
-                            {/* Capture Hold - only when payment_intent_id exists */}
                             {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
                               <DropdownMenuItem
                                 className="gap-2 cursor-pointer"
@@ -1889,12 +1848,57 @@ export default function BookingsPage() {
                               <Clock className="w-4 h-4" /> Payment History
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="gap-2 text-destructive cursor-pointer focus:text-destructive"
-                              onClick={() => handleDelete(booking)}
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-blue-600" 
+                              onClick={() => handleSendReminder(booking)}
+                              disabled={sendingReminder === booking.id || !booking.customer?.phone}
                             >
-                              <Trash2 className="w-4 h-4" /> Delete
+                              {sendingReminder === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Phone className="w-4 h-4" />
+                              )}
+                              Send Customer Reminder
                             </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-purple-600" 
+                              onClick={() => handleSendCleanerNotification(booking)}
+                              disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}
+                            >
+                              {sendingCleanerNotification === booking.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Phone className="w-4 h-4" />
+                              )}
+                              Notify Cleaner
+                            </DropdownMenuItem>
+                            {!booking.staff && (
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer text-green-600" 
+                                onClick={() => handleNotifyCleanersOpenJob(booking)}
+                                disabled={notifyingOpenJob === booking.id}
+                              >
+                                {notifyingOpenJob === booking.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Bell className="w-4 h-4" />
+                                )}
+                                Notify All Cleaners (Open Job)
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary underline-offset-2 hover:underline" 
+                              onClick={() => handleSendReviewRequest(booking)}
+                              disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
+                            >
+                              {sendingReviewRequest === booking.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Star className="w-3 h-3" />
+                              )}
+                              Send Review
+                            </DropdownMenuItem>
+                            </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
