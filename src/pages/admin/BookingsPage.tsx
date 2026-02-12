@@ -13,6 +13,8 @@ import {
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -56,7 +58,8 @@ import {
   Bell,
   Settings2,
   Star,
-  PlusCircle
+  PlusCircle,
+  RotateCcw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -154,6 +157,10 @@ export default function BookingsPage() {
   const [sendingWeeklyReminders, setSendingWeeklyReminders] = useState(false);
   const [additionalChargesOpen, setAdditionalChargesOpen] = useState(false);
   const [additionalChargesBooking, setAdditionalChargesBooking] = useState<BookingWithDetails | null>(null);
+  const [refundDialogBooking, setRefundDialogBooking] = useState<BookingWithDetails | null>(null);
+  const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [processingRefund, setProcessingRefund] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -411,6 +418,71 @@ export default function BookingsPage() {
       });
     } finally {
       setPlacingHold(null);
+    }
+  };
+
+  const handleProcessRefund = async (booking: BookingWithDetails) => {
+    const paymentIntentId = (booking as any).payment_intent_id;
+    
+    if (!paymentIntentId) {
+      toast({ title: "Error", description: "No payment found for this booking to refund", variant: "destructive" });
+      return;
+    }
+
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      return;
+    }
+
+    if (refundType === 'partial' && (!refundAmount || parseFloat(refundAmount) <= 0)) {
+      toast({ title: "Error", description: "Please enter a valid refund amount", variant: "destructive" });
+      return;
+    }
+
+    setProcessingRefund(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('process-refund', {
+        body: {
+          paymentIntentId,
+          organizationId: organization.id,
+          refundType,
+          amount: refundType === 'partial' ? parseFloat(refundAmount) : undefined,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Refund Processed",
+          description: data.message,
+        });
+
+        await updateBooking.mutateAsync({
+          id: booking.id,
+          payment_status: (data.isFullRefund ? 'refunded' : 'partial') as any,
+        });
+
+        setRefundDialogBooking(null);
+        setRefundType('full');
+        setRefundAmount('');
+      } else {
+        toast({
+          title: "Refund Failed",
+          description: data.error,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to process refund:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingRefund(false);
     }
   };
 
@@ -1781,6 +1853,21 @@ export default function BookingsPage() {
                             <DropdownMenuItem
                               className="gap-2 cursor-pointer"
                               onClick={() => {
+                                setRefundDialogBooking(booking);
+                                setRefundType('full');
+                                setRefundAmount('');
+                              }}
+                              disabled={
+                                booking.payment_status === 'refunded' ||
+                                !(booking as any).payment_intent_id
+                              }
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Refund
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
                                 setPaymentHistoryBooking(booking);
                                 setPaymentHistoryOpen(true);
                               }}
@@ -1980,6 +2067,75 @@ export default function BookingsPage() {
               }}
             >
               Yes, Capture Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Refund Dialog */}
+      <AlertDialog open={!!refundDialogBooking} onOpenChange={(open) => {
+        if (!open) {
+          setRefundDialogBooking(null);
+          setRefundType('full');
+          setRefundAmount('');
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Process Refund</AlertDialogTitle>
+            <AlertDialogDescription>
+              Refund payment for Booking #{refundDialogBooking?.booking_number} —{' '}
+              <strong>{refundDialogBooking?.customer?.first_name} {refundDialogBooking?.customer?.last_name}</strong>
+              <br />
+              Original amount: <strong>${refundDialogBooking?.total_amount?.toFixed(2)}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-4">
+            <RadioGroup value={refundType} onValueChange={(v) => setRefundType(v as 'full' | 'partial')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="full" id="refund-full" />
+                <Label htmlFor="refund-full">Full Refund (${refundDialogBooking?.total_amount?.toFixed(2)})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="partial" id="refund-partial" />
+                <Label htmlFor="refund-partial">Partial Refund</Label>
+              </div>
+            </RadioGroup>
+            {refundType === 'partial' && (
+              <div className="space-y-2">
+                <Label htmlFor="refund-amount">Refund Amount ($)</Label>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={refundDialogBooking?.total_amount}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingRefund}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              disabled={processingRefund}
+              onClick={() => {
+                if (refundDialogBooking) {
+                  handleProcessRefund(refundDialogBooking);
+                }
+              }}
+            >
+              {processingRefund ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                `Refund ${refundType === 'full' ? `$${refundDialogBooking?.total_amount?.toFixed(2)}` : refundAmount ? `$${parseFloat(refundAmount).toFixed(2)}` : '...'}`
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
