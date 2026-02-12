@@ -32,6 +32,7 @@ import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 // Generate 30-minute time slots from 8:00 AM to 5:00 PM in 12-hour format
 const timeSlots = Array.from({ length: 19 }, (_, i) => {
@@ -42,6 +43,37 @@ const timeSlots = Array.from({ length: 19 }, (_, i) => {
   const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
   return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
 });
+
+function hexToHSL(hex: string): string {
+  hex = hex.replace('#', '');
+  if (hex.length !== 6) return '221 83% 53%';
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
+function adjustLightness(hsl: string, amount: number): string {
+  const parts = hsl.match(/(\d+)\s+(\d+)%\s+(\d+)%/);
+  if (!parts) return hsl;
+  const h = parseInt(parts[1]);
+  const sv = parseInt(parts[2]);
+  const lv = Math.min(100, Math.max(0, parseInt(parts[3]) + amount));
+  return `${h} ${sv}% ${lv}%`;
+}
 
 export default function PublicBookingPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -76,21 +108,51 @@ export default function PublicBookingPage() {
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
+  // Apply org branding colors to the page's CSS variables
+  useEffect(() => {
+    if (!primaryColor && !accentColor) return;
+    const root = document.documentElement;
+    if (primaryColor) {
+      const pHSL = hexToHSL(primaryColor);
+      root.style.setProperty('--primary', pHSL);
+      root.style.setProperty('--primary-foreground', '210 40% 98%');
+      root.style.setProperty('--primary-glow', adjustLightness(pHSL, 7));
+      root.style.setProperty('--ring', pHSL);
+      root.style.setProperty('--sidebar-primary', pHSL);
+      root.style.setProperty('--sidebar-ring', pHSL);
+    }
+    if (accentColor) {
+      const aHSL = hexToHSL(accentColor);
+      root.style.setProperty('--accent', aHSL);
+      root.style.setProperty('--accent-foreground', '0 0% 100%');
+      root.style.setProperty('--accent-glow', adjustLightness(aHSL, 5));
+    }
+    return () => {
+      // Clean up on unmount
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--primary-foreground');
+      root.style.removeProperty('--primary-glow');
+      root.style.removeProperty('--ring');
+      root.style.removeProperty('--sidebar-primary');
+      root.style.removeProperty('--sidebar-ring');
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-foreground');
+      root.style.removeProperty('--accent-glow');
+    };
+  }, [primaryColor, accentColor]);
+
   const service = services.find(s => s.id === selectedService);
-  
+
   const calculateTotal = () => {
     let total = 0;
     if (service && selectedSqFtIndex !== null) {
       total = service.prices[selectedSqFtIndex] || service.minimumPrice;
     }
-    
-    // Add extras
     const extrasTotal = selectedExtras.reduce((sum, extraId) => {
       const extra = extras.find(e => e.id === extraId);
       return sum + (extra?.price || 0);
     }, 0);
     total += extrasTotal;
-    
     return total;
   };
 
@@ -206,10 +268,7 @@ export default function PublicBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background" style={primaryColor ? {
-      '--brand-primary': primaryColor,
-      '--brand-accent': accentColor || primaryColor,
-    } as React.CSSProperties : undefined}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-sidebar text-sidebar-foreground">
         <div className="container mx-auto px-4 py-4">
