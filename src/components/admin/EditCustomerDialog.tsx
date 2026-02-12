@@ -11,10 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck } from 'lucide-react';
+import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 
 interface Customer {
   id: string;
@@ -38,6 +41,7 @@ interface EditCustomerDialogProps {
 
 export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustomerDialogProps) {
   const queryClient = useQueryClient();
+  const { organization } = useOrganization();
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -53,6 +57,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   });
   
   const [submitting, setSubmitting] = useState(false);
+  const [showCardForm, setShowCardForm] = useState(false);
 
   useEffect(() => {
     if (customer) {
@@ -68,6 +73,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         marketing_status: customer.marketing_status || 'active',
         customer_status: customer.customer_status || 'lead',
       });
+      setShowCardForm(false);
     }
   }, [customer]);
 
@@ -116,7 +122,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -281,6 +287,46 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
               <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
                 ⚠️ This customer will not receive any automated SMS campaigns including win-back, seasonal promos, or promotional messages.
               </p>
+            )}
+          </div>
+
+          {/* Add Card on File */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                <Label className="font-medium">Card on File</Label>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCardForm(!showCardForm)}
+              >
+                {showCardForm ? 'Hide' : 'Add Card'}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Securely save a card for future billing. The card will not be charged.
+            </p>
+            {showCardForm && organization?.id && formData.email && (
+              <StripeCardForm
+                email={formData.email}
+                customerName={`${formData.first_name} ${formData.last_name}`}
+                organizationId={organization.id}
+                showHoldOption={false}
+                onCardSaved={(cardInfo) => {
+                  toast.success(`Card saved: ${cardInfo.brand} ending in ${cardInfo.last4}`);
+                  setShowCardForm(false);
+                }}
+                onError={(error) => {
+                  toast.error(error);
+                }}
+              />
+            )}
+            {showCardForm && !formData.email && (
+              <p className="text-sm text-destructive">Please enter a customer email first to add a card.</p>
             )}
           </div>
 

@@ -386,6 +386,9 @@ export default function SettingsPage() {
         refetchOrganization();
       }
 
+      // Trigger branding re-apply across the CRM
+      window.dispatchEvent(new Event('branding-updated'));
+
       toast.success('Settings saved successfully');
     } catch (error) {
       console.error('Error saving settings:', error);
