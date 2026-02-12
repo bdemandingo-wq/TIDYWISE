@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CustomerSearchInput } from '@/components/admin/CustomerSearchInput';
+import { LeadSearchInput } from '@/components/admin/LeadSearchInput';
+import { Search, X, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Collapsible,
   CollapsibleContent,
@@ -470,61 +474,43 @@ export function InvoiceFormDialog({
 
                   {/* Customer/Lead Selection */}
                   {formData.customer_type === 'customer' ? (
-                    <Select 
-                      value={formData.customer_id || '__none__'} 
-                      onValueChange={(v) => {
-                        if (v === '__none__') {
+                    <CustomerSearchInput
+                      customers={[...customers].sort((a, b) => 
+                        `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+                      )}
+                      selectedCustomerId={formData.customer_id}
+                      onSelectCustomer={(id) => {
+                        if (!id) {
                           setFormData({ ...formData, customer_id: '', address: '' });
                           return;
                         }
-                        const customer = customers.find(c => c.id === v);
+                        const customer = customers.find(c => c.id === id);
                         setFormData({ 
                           ...formData, 
-                          customer_id: v,
+                          customer_id: id,
                           address: customer?.address || formData.address,
                         });
                       }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select customer..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Select customer...</SelectItem>
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.first_name} {c.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Search customers..."
+                    />
                   ) : (
-                    <Select 
-                      value={formData.lead_id || '__none__'} 
-                      onValueChange={(v) => {
-                        if (v === '__none__') {
+                    <LeadSearchInput
+                      leads={[...leads].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                      selectedLeadId={formData.lead_id}
+                      onSelectLead={(id) => {
+                        if (!id) {
                           setFormData({ ...formData, lead_id: '', address: '' });
                           return;
                         }
-                        const lead = leads.find(l => l.id === v);
+                        const lead = leads.find(l => l.id === id);
                         setFormData({ 
                           ...formData, 
-                          lead_id: v,
+                          lead_id: id,
                           address: lead?.address || formData.address,
                         });
                       }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select lead..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Select lead...</SelectItem>
-                        {leads.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Search leads..."
+                    />
                   )}
 
                   {/* Selected Customer Info */}
