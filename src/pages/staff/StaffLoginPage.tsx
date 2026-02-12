@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, EyeOff, HardHat, Loader2, Fingerprint } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, HardHat, Loader2, Fingerprint } from "lucide-react";
 
 import { Seo } from "@/components/Seo";
 import { hasStaffOrAdminRole, requestStaffPasswordReset, signInStaff } from "@/features/staff-auth/staffAuth";
@@ -155,6 +155,15 @@ export default function StaffLoginPage() {
       />
 
       <section className="w-full max-w-md">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4 gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate('/')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
         <Card className="shadow-xl border-primary/10">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
