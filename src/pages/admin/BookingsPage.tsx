@@ -423,11 +423,6 @@ export default function BookingsPage() {
 
   const handleProcessRefund = async (booking: BookingWithDetails) => {
     const paymentIntentId = (booking as any).payment_intent_id;
-    
-    if (!paymentIntentId) {
-      toast({ title: "Error", description: "No payment found for this booking to refund", variant: "destructive" });
-      return;
-    }
 
     if (!organization?.id) {
       toast({ title: "Error", description: "Organization context required", variant: "destructive" });
@@ -442,6 +437,25 @@ export default function BookingsPage() {
     setProcessingRefund(true);
 
     try {
+      // If no payment intent, handle as manual refund (just update status)
+      if (!paymentIntentId) {
+        const newStatus = refundType === 'full' ? 'refunded' : 'partial';
+        await updateBooking.mutateAsync({
+          id: booking.id,
+          payment_status: newStatus as any,
+        });
+        toast({
+          title: "Refund Recorded",
+          description: refundType === 'full'
+            ? `Full refund of $${booking.total_amount?.toFixed(2)} recorded`
+            : `Partial refund of $${parseFloat(refundAmount).toFixed(2)} recorded`,
+        });
+        setRefundDialogBooking(null);
+        setRefundType('full');
+        setRefundAmount('');
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('process-refund', {
         body: {
           paymentIntentId,
@@ -1859,7 +1873,7 @@ export default function BookingsPage() {
                               }}
                               disabled={
                                 booking.payment_status === 'refunded' ||
-                                !(booking as any).payment_intent_id
+                                (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id)
                               }
                             >
                               <RotateCcw className="w-4 h-4" />
