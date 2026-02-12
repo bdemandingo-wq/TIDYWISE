@@ -19,6 +19,7 @@ interface CardFormProps {
   onHoldPlaced?: (holdInfo: { paymentIntentId: string; amount: number }) => void;
   showHoldOption?: boolean;
   defaultHoldAmount?: number;
+  publicBooking?: boolean;
 }
 
 const CARD_ELEMENT_OPTIONS = {
@@ -52,6 +53,7 @@ function CardFormInnerDynamic({
     onHoldPlaced,
     showHoldOption = true,
     defaultHoldAmount = 50,
+    publicBooking = false,
   } = props;
 
   const stripe = stripeReact.useStripe();
@@ -80,6 +82,7 @@ function CardFormInnerDynamic({
           email,
           customerName,
           organizationId,
+          publicBooking,
         },
       });
 

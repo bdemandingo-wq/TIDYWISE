@@ -620,6 +620,7 @@ export default function PublicBookingPage() {
                       customerName={customerInfo.name}
                       organizationId={organizationId}
                       showHoldOption={false}
+                      publicBooking={true}
                       onCardSaved={(cardInfo) => {
                         setCardSaved(true);
                         toast.success(`Card saved: ${cardInfo.brand} ending in ${cardInfo.last4}`);

@@ -14,6 +14,7 @@ interface SetupIntentRequest {
   email: string;
   customerName: string;
   organizationId: string;
+  publicBooking?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,17 +23,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // SECURITY: Verify authenticated user with admin privileges
-    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
-    
-    if (!authResult.success) {
-      console.error("Auth failed:", authResult.error);
-      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
-    }
+    const { email, customerName, organizationId, publicBooking }: SetupIntentRequest = await req.json();
 
-    const { email, customerName, organizationId }: SetupIntentRequest = await req.json();
-
-    // SECURITY: Verify organization context matches authenticated user
+    // SECURITY: Require organization context always
     if (!organizationId) {
       return new Response(
         JSON.stringify({ error: "Organization ID is required" }),
@@ -40,18 +33,35 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (organizationId !== authResult.organizationId) {
-      console.error("Organization mismatch in create-setup-intent");
-      await logAudit({
-        action: AuditActions.PAYMENT_FAILED,
-        userId: authResult.userId!,
-        organizationId: authResult.organizationId!,
-        details: { reason: "Organization mismatch", requestedOrg: organizationId },
-      });
-      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    let authUserId: string | null = null;
+
+    if (publicBooking) {
+      // Public booking flow: no auth required, but org must exist
+      console.log("Public booking card setup for:", { email, customerName, organizationId });
+    } else {
+      // Admin/CRM flow: require admin auth
+      const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+      
+      if (!authResult.success) {
+        console.error("Auth failed:", authResult.error);
+        return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+      }
+
+      if (organizationId !== authResult.organizationId) {
+        console.error("Organization mismatch in create-setup-intent");
+        await logAudit({
+          action: AuditActions.PAYMENT_FAILED,
+          userId: authResult.userId!,
+          organizationId: authResult.organizationId!,
+          details: { reason: "Organization mismatch", requestedOrg: organizationId },
+        });
+        return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+      }
+
+      authUserId = authResult.userId!;
     }
 
-    console.log("Creating SetupIntent for:", { email, customerName, organizationId, userId: authResult.userId });
+    console.log("Creating SetupIntent for:", { email, customerName, organizationId });
 
     if (!email || !customerName) {
       return new Response(
@@ -116,17 +126,19 @@ const handler = async (req: Request): Promise<Response> => {
       usage: "off_session",
     });
 
-    // Log the setup intent creation
-    await logAudit({
-      action: AuditActions.CARD_SAVED,
-      userId: authResult.userId!,
-      organizationId: authResult.organizationId!,
-      details: { 
-        customerId,
-        customerEmail: email,
-        setupIntentId: setupIntent.id 
-      },
-    });
+    // Log the setup intent creation (only for authenticated users)
+    if (authUserId) {
+      await logAudit({
+        action: AuditActions.CARD_SAVED,
+        userId: authUserId,
+        organizationId: organizationId,
+        details: { 
+          customerId,
+          customerEmail: email,
+          setupIntentId: setupIntent.id 
+        },
+      });
+    }
 
     console.log("Created SetupIntent:", setupIntent.id);
 
