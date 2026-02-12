@@ -32,13 +32,13 @@ export default function ServicesPage() {
         </TabsContent>
 
         <TabsContent value="service-pricing" className="space-y-6">
-          <Card>
+          <Card className="border-primary/30 bg-primary/5">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-primary" />
-                Important
+              <CardTitle className="flex items-center gap-2 text-primary font-bold">
+                <AlertTriangle className="w-5 h-5" />
+                ⚠️ Important
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm font-semibold text-foreground">
                 To ensure your public booking form always shows the correct prices, update pricing in this tab.
               </p>
             </CardHeader>
