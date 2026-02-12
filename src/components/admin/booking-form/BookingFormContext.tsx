@@ -450,6 +450,24 @@ export function BookingFormProvider({
     setCleanerWage(bookingAny.cleaner_wage ? String(bookingAny.cleaner_wage) : '');
     setCleanerWageType(bookingAny.cleaner_wage_type || 'hourly');
     setCleanerOverrideHours(bookingAny.cleaner_override_hours ? String(bookingAny.cleaner_override_hours) : '');
+
+    // Load existing checklist template for this booking
+    if (booking.id && organizationId) {
+      supabase
+        .from('booking_checklists')
+        .select('template_id')
+        .eq('booking_id', booking.id)
+        .eq('organization_id', organizationId)
+        .not('template_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.template_id) {
+            setSelectedChecklistId(data.template_id);
+          }
+        });
+    }
   };
 
   // Auto-fill property when existing customer selected

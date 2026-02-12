@@ -621,6 +621,72 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       
       if (isExistingBooking) {
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
+
+        // Update checklist if a checklist template was selected during edit
+        if (selectedChecklistId) {
+          try {
+            // Check if a checklist already exists for this booking
+            const { data: existingChecklist } = await supabase
+              .from('booking_checklists')
+              .select('id, template_id')
+              .eq('booking_id', booking.id)
+              .eq('organization_id', organizationId!)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            // Only update if no checklist exists or template changed
+            if (!existingChecklist || existingChecklist.template_id !== selectedChecklistId) {
+              // Delete old checklist items and checklist if exists
+              if (existingChecklist) {
+                await supabase
+                  .from('booking_checklist_items')
+                  .delete()
+                  .eq('booking_checklist_id', existingChecklist.id);
+                await supabase
+                  .from('booking_checklists')
+                  .delete()
+                  .eq('id', existingChecklist.id);
+              }
+
+              // Create new checklist with selected template
+              const { data: newChecklist, error: checklistError } = await supabase
+                .from('booking_checklists')
+                .insert({
+                  booking_id: booking.id,
+                  staff_id: bookingData.staff_id || null,
+                  template_id: selectedChecklistId,
+                  organization_id: organizationId,
+                })
+                .select()
+                .single();
+
+              if (!checklistError && newChecklist) {
+                const { data: templateItems } = await supabase
+                  .from('checklist_items')
+                  .select('id, title, requires_photo, sort_order')
+                  .eq('template_id', selectedChecklistId)
+                  .order('sort_order');
+
+                if (templateItems && templateItems.length > 0) {
+                  await supabase
+                    .from('booking_checklist_items')
+                    .insert(
+                      templateItems.map((item) => ({
+                        booking_checklist_id: newChecklist.id,
+                        checklist_item_id: item.id,
+                        title: item.title,
+                        is_completed: false,
+                        organization_id: organizationId,
+                      }))
+                    );
+                }
+              }
+            }
+          } catch (checklistErr) {
+            console.error('Failed to update checklist:', checklistErr);
+          }
+        }
         
         // If user chose to apply to future bookings, update those too
         if (updateFutureBookings && pendingBookingData?.futureBookings && pendingBookingData?.changedFields) {
@@ -630,7 +696,6 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           for (const futureBooking of futureBookings) {
             const updateData: Record<string, any> = { id: futureBooking.id };
             
-            // Apply each changed field to future bookings
             for (const change of changedFields) {
               if (change.key === 'staff_id') {
                 updateData.staff_id = bookingData.staff_id;
@@ -639,7 +704,6 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 updateData.total_amount = bookingData.total_amount;
               }
               if (change.key === 'scheduled_time') {
-                // Update just the time on the future booking's date
                 const futureDate = new Date(futureBooking.scheduled_at);
                 const [hours, minutes] = selectedTime.split(':').map(Number);
                 futureDate.setHours(hours, minutes, 0, 0);
