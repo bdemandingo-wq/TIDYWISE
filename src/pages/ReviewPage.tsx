@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Star, Send, ExternalLink, CheckCircle, Heart } from 'lucide-react';
+import { Star, Send, CheckCircle, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
@@ -10,24 +10,21 @@ export default function ReviewPage() {
   const { token } = useParams<{ token: string }>();
   const [searchParams] = useSearchParams();
   const initialRating = parseInt(searchParams.get('rating') || '0');
-  
-  const [rating, setRating] = useState(initialRating || 0);
+
+  const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [googleUrl, setGoogleUrl] = useState<string | null>(null);
-  const [showGoogleRedirect, setShowGoogleRedirect] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isValid, setIsValid] = useState(false);
+  const [reviewData, setReviewData] = useState<any>(null);
+  const [redirectedToGoogle, setRedirectedToGoogle] = useState(false);
 
   useEffect(() => {
     const validateToken = async () => {
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
+      if (!token) { setIsLoading(false); return; }
       try {
         const { data, error } = await supabase
           .from('review_requests')
@@ -35,42 +32,73 @@ export default function ReviewPage() {
           .eq('review_link_token', token)
           .single();
 
-        if (error || !data) {
-          console.error('Invalid token:', error);
-          setIsLoading(false);
-          return;
-        }
+        if (error || !data) { setIsLoading(false); return; }
 
         setIsValid(true);
         setGoogleUrl(data.google_review_url);
-        
-        // Mark as opened
+        setReviewData(data);
+
         await supabase
           .from('review_requests')
           .update({ opened_at: new Date().toISOString() })
           .eq('review_link_token', token);
 
+        // If user clicked a star from email (4-5), auto-redirect to Google
+        if (initialRating >= 4 && data.google_review_url) {
+          await handleHighRating(initialRating, data);
+        } else if (initialRating >= 1 && initialRating <= 3) {
+          setRating(initialRating);
+        }
       } catch (err) {
         console.error('Error validating token:', err);
       } finally {
         setIsLoading(false);
       }
     };
-
     validateToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const handleSubmit = async () => {
+  const handleHighRating = async (stars: number, data?: any) => {
+    const reqData = data || reviewData;
+    // Save rating internally
+    await supabase
+      .from('review_requests')
+      .update({
+        rating: stars,
+        responded_at: new Date().toISOString(),
+        status: 'completed'
+      })
+      .eq('review_link_token', token);
+
+    // Redirect to Google immediately
+    const url = data?.google_review_url || googleUrl;
+    if (url) {
+      setRedirectedToGoogle(true);
+      window.location.href = url;
+    } else {
+      // No Google URL, just show thank you
+      setIsSubmitted(true);
+      setRating(stars);
+    }
+  };
+
+  const handleStarClick = async (stars: number) => {
+    setRating(stars);
+    if (stars >= 4 && googleUrl) {
+      await handleHighRating(stars);
+    }
+    // 1-3 stars: just set rating, user fills feedback form
+  };
+
+  const handleSubmitLowRating = async () => {
     if (rating === 0) {
       toast({ title: "Please select a rating", variant: "destructive" });
       return;
     }
-
     setIsSubmitting(true);
-
     try {
-      // Update the review request with rating and feedback
-      const { data: reviewData, error } = await supabase
+      const { data: updatedReview, error } = await supabase
         .from('review_requests')
         .update({
           rating,
@@ -79,22 +107,19 @@ export default function ReviewPage() {
           status: 'completed'
         })
         .eq('review_link_token', token)
-        .select('booking_id, customer_id')
+        .select('booking_id, customer_id, staff_id')
         .single();
 
       if (error) throw error;
 
-      // If rating is 3 or below, route to internal feedback system
-      if (rating <= 3 && reviewData) {
-        // Get customer name from the review context
+      if (updatedReview) {
         const { data: customerData } = await supabase
           .from('customers')
           .select('first_name, last_name, organization_id')
-          .eq('id', reviewData.customer_id)
+          .eq('id', updatedReview.customer_id)
           .single();
 
         if (customerData) {
-          // Create client feedback entry for low ratings
           await supabase
             .from('client_feedback')
             .insert({
@@ -109,12 +134,6 @@ export default function ReviewPage() {
       }
 
       setIsSubmitted(true);
-
-      // If 4+ stars and Google URL exists, show redirect option
-      if (rating >= 4 && googleUrl) {
-        setShowGoogleRedirect(true);
-      }
-
       toast({ title: "Thank you!", description: "Your feedback has been submitted." });
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -124,16 +143,13 @@ export default function ReviewPage() {
     }
   };
 
-  const handleGoogleRedirect = () => {
-    if (googleUrl) {
-      window.open(googleUrl, '_blank');
-    }
-  };
-
-  if (isLoading) {
+  if (isLoading || redirectedToGoogle) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          {redirectedToGoogle && <p className="text-muted-foreground">Taking you to Google Reviews...</p>}
+        </div>
       </div>
     );
   }
@@ -150,7 +166,7 @@ export default function ReviewPage() {
     );
   }
 
-  if (isSubmitted && !showGoogleRedirect) {
+  if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
@@ -161,41 +177,9 @@ export default function ReviewPage() {
           <p className="text-gray-600 mb-4">Your feedback means the world to us. We're always working to improve our service.</p>
           <div className="flex items-center justify-center gap-1 text-amber-500">
             {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`h-6 w-6 ${star <= rating ? 'fill-current' : 'fill-none'}`}
-              />
+              <Star key={star} className={`h-6 w-6 ${star <= rating ? 'fill-current' : 'fill-none'}`} />
             ))}
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (showGoogleRedirect) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Heart className="h-10 w-10 text-blue-600 fill-current" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">We're So Glad You Had a Great Experience!</h1>
-          <p className="text-gray-600 mb-6">
-            Would you mind sharing your review on Google? It helps other people find great cleaning services and means so much to our team!
-          </p>
-          <Button 
-            onClick={handleGoogleRedirect}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl flex items-center justify-center gap-2"
-          >
-            <ExternalLink className="h-5 w-5" />
-            Leave a Google Review
-          </Button>
-          <button 
-            onClick={() => setShowGoogleRedirect(false)}
-            className="mt-4 text-gray-500 hover:text-gray-700 text-sm"
-          >
-            No thanks, I'm done
-          </button>
         </div>
       </div>
     );
@@ -204,13 +188,16 @@ export default function ReviewPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
             <span className="text-3xl">✨</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-800">How was your cleaning?</h1>
-          <p className="text-gray-600 mt-2">Your feedback helps us serve you better</p>
+          <p className="text-gray-600 mt-2">
+            {googleUrl
+              ? 'Tap a star — 4-5 stars takes you straight to Google Reviews!'
+              : 'Your feedback helps us serve you better'}
+          </p>
         </div>
 
         {/* Star Rating */}
@@ -218,7 +205,7 @@ export default function ReviewPage() {
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
-              onClick={() => setRating(star)}
+              onClick={() => handleStarClick(star)}
               onMouseEnter={() => setHoveredRating(star)}
               onMouseLeave={() => setHoveredRating(0)}
               className="transition-transform hover:scale-110 focus:outline-none"
@@ -234,59 +221,49 @@ export default function ReviewPage() {
           ))}
         </div>
 
-        {/* Rating Label */}
-        {rating > 0 && (
-          <div className="text-center mb-6">
-            <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium ${
-              rating >= 4 
-                ? 'bg-emerald-100 text-emerald-700' 
-                : rating >= 3 
-                  ? 'bg-amber-100 text-amber-700'
+        {/* Low rating feedback form (1-3 stars) */}
+        {rating >= 1 && rating <= 3 && (
+          <>
+            <div className="text-center mb-6">
+              <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium ${
+                rating === 3 ? 'bg-amber-100 text-amber-700'
                   : 'bg-red-100 text-red-700'
-            }`}>
-              {rating === 5 && "Excellent! 🎉"}
-              {rating === 4 && "Great! 😊"}
-              {rating === 3 && "Good 👍"}
-              {rating === 2 && "Could be better 😕"}
-              {rating === 1 && "Not satisfied 😞"}
-            </span>
-          </div>
+              }`}>
+                {rating === 3 && "Good 👍"}
+                {rating === 2 && "Could be better 😕"}
+                {rating === 1 && "Not satisfied 😞"}
+              </span>
+            </div>
+
+            <div className="mb-6">
+              <Textarea
+                placeholder="We're sorry to hear that. Please tell us what went wrong so we can make it right..."
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                className="min-h-[120px] resize-none border-gray-200 focus:border-primary focus:ring-primary"
+              />
+            </div>
+
+            <Button
+              onClick={handleSubmitLowRating}
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="h-5 w-5" />
+                  Submit Feedback
+                </>
+              )}
+            </Button>
+          </>
         )}
 
-        {/* Feedback Textarea */}
-        <div className="mb-6">
-          <Textarea
-            placeholder={
-              rating <= 3 && rating > 0
-                ? "We're sorry to hear that. Please tell us what went wrong so we can make it right..."
-                : "Tell us more about your experience (optional)..."
-            }
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            className="min-h-[120px] resize-none border-gray-200 focus:border-primary focus:ring-primary"
-          />
-        </div>
-
-        {/* Submit Button */}
-        <Button
-          onClick={handleSubmit}
-          disabled={rating === 0 || isSubmitting}
-          className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              Submitting...
-            </>
-          ) : (
-            <>
-              <Send className="h-5 w-5" />
-              Submit Feedback
-            </>
-          )}
-        </Button>
-
-        {/* Privacy Note */}
         <p className="text-xs text-gray-400 text-center mt-4">
           Your feedback is confidential and helps us improve our service.
         </p>
