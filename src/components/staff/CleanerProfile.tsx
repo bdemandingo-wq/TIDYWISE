@@ -51,20 +51,18 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
       if (data.home_address && data.home_address !== staffInfo.home_address) {
         setIsGeocodingAddress(true);
         try {
-          // Use browser's Geocoding API via OpenStreetMap Nominatim (free, no API key needed)
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.home_address)}&limit=1`,
-            { headers: { 'User-Agent': 'TidyWise/1.0' } }
-          );
-          const results = await response.json();
-          if (results && results.length > 0) {
-            latitude = parseFloat(results[0].lat);
-            longitude = parseFloat(results[0].lon);
+          const { data: geocodeResult, error: geocodeError } = await supabase.functions.invoke('geocode-address', {
+            body: { address: data.home_address },
+          });
+          if (!geocodeError && geocodeResult?.success) {
+            latitude = geocodeResult.lat;
+            longitude = geocodeResult.lng;
             console.log('Geocoded address:', { latitude, longitude });
+          } else {
+            console.warn('Geocoding returned no results, address will be saved without coordinates');
           }
         } catch (geocodeError) {
           console.error('Geocoding failed:', geocodeError);
-          // Continue without coordinates - address still saved
         }
         setIsGeocodingAddress(false);
       }
