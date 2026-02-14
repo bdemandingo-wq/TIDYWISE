@@ -130,7 +130,12 @@ export default function DepositPage() {
       <Card className="w-full max-w-md shadow-xl border-blue-200/50">
         <CardHeader className="text-center pb-2">
           {depositDetails.logoUrl && (
-            <img src={depositDetails.logoUrl} alt={depositDetails.companyName} className="h-12 mx-auto mb-3 object-contain" />
+            <img
+              src={depositDetails.logoUrl}
+              alt={depositDetails.companyName}
+              className="h-12 mx-auto mb-3 object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
           )}
           <div className="w-14 h-14 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-2">
             <CreditCard className="w-7 h-7 text-blue-600" />
