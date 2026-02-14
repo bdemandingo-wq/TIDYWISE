@@ -76,18 +76,18 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Using org email settings - from:", emailSettings.from_email, "name:", companyName);
     
-    // Get Google review URL from business_settings (still needed for review link)
+    // Get Google review URL and org-specific app URL from business_settings
     const { data: businessSettings } = await supabase
       .from('business_settings')
-      .select('google_review_url')
+      .select('google_review_url, app_url')
       .eq('organization_id', organizationId)
       .maybeSingle();
     
     // Generate unique token for this review request
     const token = crypto.randomUUID();
     
-    // Get project URL for review page link - use environment variable or fallback
-    const projectUrl = Deno.env.get("PROJECT_URL") || "https://slwfkaqczvwvvvavkgpr.lovable.app";
+    // Use org-specific app URL, fallback to global PROJECT_URL
+    const projectUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
     const reviewPageUrl = `${projectUrl}/review/${token}`;
 
     // Get staff_id from booking to associate review with cleaner
