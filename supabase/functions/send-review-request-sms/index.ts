@@ -80,10 +80,10 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
     
-    // Get business settings for company name and review template
+    // Get business settings for company name, review template, and org-specific app URL
     const { data: businessSettings } = await supabase
       .from('business_settings')
-      .select('company_name, google_review_url, review_sms_template')
+      .select('company_name, google_review_url, review_sms_template, app_url')
       .eq('organization_id', organizationId)
       .maybeSingle();
 
@@ -93,8 +93,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate unique token for this review request
     const token = crypto.randomUUID();
     
-    // Get the review page URL - use environment variable or fallback
-    const projectUrl = (Deno.env.get("PROJECT_URL") || "https://www.jointidywise.com").replace(/\/+$/, '');
+    // Use org-specific app URL, fallback to global PROJECT_URL
+    const projectUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
     const reviewPageUrl = `${projectUrl}/review/${token}`;
 
     // Get staff_id and staff name from booking to associate review with cleaner
