@@ -1,7 +1,6 @@
 import { useState, lazy, Suspense, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { 
   Calendar, 
@@ -161,7 +160,6 @@ const baseFeatures = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -366,22 +364,13 @@ export default function LandingPage() {
                 Looking for Booking Koala or Jobber alternatives? TIDYWISE gives you online booking, smart scheduling, automated payroll, and CRM—all in one platform.
               </p>
 
-              {/* CTA Form - Premium styling */}
-              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto lg:mx-0">
-                <div className="relative flex-1">
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-14 pl-4 pr-4 text-base rounded-xl border-border/50 bg-background/80 backdrop-blur-sm focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
+              {/* CTA - Clean and focused */}
+              <div className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto lg:mx-0">
                 <Button 
                   size="xl" 
                   variant="premium"
                   onClick={handleGetStarted}
-                  className="group"
+                  className="group flex-1 sm:flex-none"
                 >
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -402,11 +391,21 @@ export default function LandingPage() {
                 </Button>
               </div>
               
-              {/* Cancel anytime */}
-              <p className="text-sm text-muted-foreground flex items-center gap-2 mt-4 justify-center lg:justify-start">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                Cancel anytime
-              </p>
+              {/* Trust signals */}
+              <div className="flex flex-wrap items-center gap-4 mt-5 justify-center lg:justify-start text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  No credit card required
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  60-day free trial
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  Cancel anytime
+                </span>
+              </div>
 
               {/* Social proof mini */}
                <div className="flex items-center gap-4 mt-7 justify-center lg:justify-start">
@@ -733,7 +732,7 @@ export default function LandingPage() {
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-lg font-medium">First 60 days free</span>
             </div>
           </div>
