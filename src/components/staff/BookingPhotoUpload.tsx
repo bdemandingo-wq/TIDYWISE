@@ -78,6 +78,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
         .insert({
           booking_id: bookingId,
           staff_id: staffId,
+          organization_id: organizationId,
           photo_url: filePath, // Store path, not public URL
           photo_type: photoType,
         });
