@@ -636,6 +636,7 @@ export default function SettingsPage() {
         {/* Booking Form Sharing */}
         <TabsContent value="booking-form" className="space-y-6">
           <BookingFormShareCard organizationSlug={organization?.slug} />
+          <FormDisplaySettings />
         </TabsContent>
 
         {/* Pricing Settings */}
