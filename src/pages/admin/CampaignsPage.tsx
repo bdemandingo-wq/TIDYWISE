@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
-import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check, Filter, UserX, BarChart3, AlertCircle } from "lucide-react";
+import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check, Filter, BarChart3, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface AITemplate {
@@ -19,7 +19,7 @@ interface AITemplate {
   message: string;
 }
 
-type AudienceType = 'active_clients' | 'inactive_clients' | 'cancelled_clients';
+type AudienceType = 'active_clients' | 'inactive_clients';
 
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
@@ -31,7 +31,6 @@ const campaignTypes = [
 const audienceOptions = [
   { value: "active_clients", label: "Active Clients" },
   { value: "inactive_clients", label: "Inactive Clients" },
-  { value: "cancelled_clients", label: "Cancelled / Churned Clients" },
 ];
 
 export default function CampaignsPage() {
@@ -319,17 +318,6 @@ export default function CampaignsPage() {
               <p className="text-xs text-muted-foreground">Re-engage inactive customers with personalized SMS</p>
             </CardContent>
           </Card>
-          <Card className="border-destructive/20 bg-destructive/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <UserX className="h-4 w-4 text-destructive" />
-                Win Back Cancelled
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">Target churned clients with special re-engagement offers</p>
-            </CardContent>
-          </Card>
           <Card className="border-amber-500/20 bg-amber-500/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -378,7 +366,6 @@ export default function CampaignsPage() {
                   <SelectContent>
                     <SelectItem value="active_clients">Active Clients</SelectItem>
                     <SelectItem value="inactive_clients">Inactive Clients</SelectItem>
-                    <SelectItem value="cancelled_clients">Cancelled / Churned</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
