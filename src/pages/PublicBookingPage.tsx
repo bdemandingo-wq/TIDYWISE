@@ -355,18 +355,6 @@ export default function PublicBookingPage() {
               <p className={cn("text-sm", isLight ? "text-muted-foreground" : "text-sidebar-foreground/70")}>Book your service online</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Link to="/staff/login">
-                 <Button variant="outline" className={cn(isLight ? "border-border text-foreground hover:bg-accent" : "bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80")}>
-                  Staff Login
-                </Button>
-              </Link>
-              <Link to="/admin">
-                <Button variant="outline" className={cn(isLight ? "border-border text-foreground hover:bg-accent" : "bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80")}>
-                  Admin Login
-                </Button>
-              </Link>
-            </div>
           </div>
         </div>
       </header>
