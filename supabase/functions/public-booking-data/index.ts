@@ -63,6 +63,28 @@ serve(async (req: Request) => {
       );
     }
 
+    // Resolve logo_url if it uses internal storage format
+    let resolvedLogoUrl = org.logo_url;
+    if (resolvedLogoUrl && resolvedLogoUrl.startsWith('storage:')) {
+      try {
+        const parts = resolvedLogoUrl.replace('storage:', '').split(':');
+        const bucket = parts[0];
+        const path = parts.slice(1).join(':');
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(path, 3600); // 1 hour
+        if (!signedError && signedData?.signedUrl) {
+          resolvedLogoUrl = signedData.signedUrl;
+        } else {
+          console.warn('[public-booking-data] Failed to sign logo URL:', signedError?.message);
+          resolvedLogoUrl = null;
+        }
+      } catch (e) {
+        console.warn('[public-booking-data] Logo URL resolution error:', e);
+        resolvedLogoUrl = null;
+      }
+    }
+
     const [servicesRes, pricingRes, brandRes, pricingSettingsRes] = await Promise.all([
       supabase
         .from("services")
@@ -109,7 +131,7 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        organization: org,
+        organization: { ...org, logo_url: resolvedLogoUrl },
         services: servicesRes.data ?? [],
         servicePricing: pricingRes.data ?? [],
         branding: brandRes.data ? {
