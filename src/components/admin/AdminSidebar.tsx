@@ -504,12 +504,13 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Mobile Toggle Button */}
+      {/* Mobile Toggle Button - positioned in the sticky header area */}
       <Button
         variant="ghost"
         size="icon"
-         className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-4 z-50 md:hidden"
+        className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-2 z-50 md:hidden min-w-[44px] min-h-[44px]"
         onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
       >
         <Menu className="w-6 h-6" />
       </Button>
