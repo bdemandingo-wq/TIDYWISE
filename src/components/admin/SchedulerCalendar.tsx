@@ -864,24 +864,28 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   )}
 
                   {/* Staff / Team Assignments */}
-                  {(selectedBooking.staff || teamMembers.length > 0) && (
-                    <div className="flex items-start gap-3 text-sm">
-                      <Users className="w-4 h-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="font-medium">Assigned Staff</p>
-                        {selectedBooking.staff && (
-                          <p className="text-muted-foreground">
-                            {maskName(selectedBooking.staff.name)}{teamMembers.length > 0 ? ' (Primary)' : ''}
-                          </p>
-                        )}
-                        {teamMembers.map((member: any) => (
-                          <p key={member.id} className="text-muted-foreground">
-                            {maskName(member.name)} (Team)
-                          </p>
-                        ))}
+                  {(selectedBooking.staff || teamMembers.length > 0) && (() => {
+                    // Filter out primary staff from team list to avoid duplicates
+                    const additionalTeam = teamMembers.filter((m: any) => m.id !== selectedBooking.staff_id);
+                    return (
+                      <div className="flex items-start gap-3 text-sm">
+                        <Users className="w-4 h-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="font-medium">Assigned Staff</p>
+                          {selectedBooking.staff && (
+                            <p className="text-muted-foreground">
+                              {maskName(selectedBooking.staff.name)}{additionalTeam.length > 0 ? ' (Primary)' : ''}
+                            </p>
+                          )}
+                          {additionalTeam.map((member: any) => (
+                            <p key={member.id} className="text-muted-foreground">
+                              {maskName(member.name)} (Team)
+                            </p>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 <div className="flex gap-2 pt-4 border-t">
