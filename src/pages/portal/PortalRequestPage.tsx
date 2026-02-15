@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, setHours, setMinutes } from "date-fns";
-import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,17 @@ import { cn } from "@/lib/utils";
 interface Service {
   id: string;
   name: string;
+}
+
+interface Location {
+  id: string;
+  name: string;
+  address: string | null;
+  apt_suite: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  is_primary: boolean | null;
 }
 
 const TIME_SLOTS = [
@@ -47,9 +58,11 @@ export default function PortalRequestPage() {
   const navigate = useNavigate();
   const { user, customer, loading } = useClientPortal();
   const [services, setServices] = useState<Service[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,7 +86,20 @@ export default function PortalRequestPage() {
       setServices(data || []);
     };
 
+    const fetchLocations = async () => {
+      const { data } = await supabase.rpc("get_client_portal_locations", {
+        p_customer_id: user.customer_id,
+      });
+      const locs = (data || []) as Location[];
+      setLocations(locs);
+      // Auto-select primary location
+      const primary = locs.find((l) => l.is_primary);
+      if (primary) setSelectedLocation(primary.id);
+      else if (locs.length === 1) setSelectedLocation(locs[0].id);
+    };
+
     fetchServices();
+    fetchLocations();
   }, [user]);
 
   const handleSubmit = async () => {
@@ -100,6 +126,13 @@ export default function PortalRequestPage() {
     const dateWithTime = setMinutes(setHours(selectedDate, hours), minutes);
 
     try {
+      // Build notes with address info
+      const selectedLoc = locations.find((l) => l.id === selectedLocation);
+      const addressLine = selectedLoc
+        ? `Address: ${[selectedLoc.name, selectedLoc.address, selectedLoc.apt_suite, selectedLoc.city, selectedLoc.state, selectedLoc.zip_code].filter(Boolean).join(", ")}`
+        : null;
+      const combinedNotes = [addressLine, notes.trim()].filter(Boolean).join("\n") || null;
+
       // Use security definer RPC to bypass RLS (client portal users aren't authenticated via Supabase Auth)
       const { data, error } = await supabase.rpc("submit_client_booking_request", {
         p_client_user_id: user.id,
@@ -107,7 +140,7 @@ export default function PortalRequestPage() {
         p_organization_id: user.organization_id,
         p_requested_date: dateWithTime.toISOString(),
         p_service_id: selectedService || null,
-        p_notes: notes.trim() || null,
+        p_notes: combinedNotes,
       });
 
       if (error) throw error;
@@ -227,6 +260,33 @@ export default function PortalRequestPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Address Selection */}
+            {locations.length > 1 && (
+              <div className="space-y-2">
+                <Label>Address *</Label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger>
+                    <div className="flex items-center">
+                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Select an address" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{loc.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {[loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(", ")}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Service Selection */}
             {services.length > 0 && (
