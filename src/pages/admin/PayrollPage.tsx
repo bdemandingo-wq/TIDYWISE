@@ -154,9 +154,6 @@ export default function PayrollPage() {
     queryKey: ['bookings-payroll', dateRange, organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      // Use end-of-day for the 'to' date so bookings on that day are included
-      const toEndOfDay = new Date(dateRange.to);
-      toEndOfDay.setHours(23, 59, 59, 999);
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -166,7 +163,7 @@ export default function PayrollPage() {
         `)
         .eq('organization_id', organizationId)
         .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString())
+        .lte('scheduled_at', dateRange.to.toISOString())
         .order('scheduled_at', { ascending: false });
       if (error) throw error;
       return data;

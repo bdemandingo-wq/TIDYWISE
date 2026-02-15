@@ -68,9 +68,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         query = query.gte('scheduled_at', dateRange.from.toISOString());
       }
       if (dateRange?.to) {
-        const toEndOfDay = new Date(dateRange.to);
-        toEndOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('scheduled_at', toEndOfDay.toISOString());
+        query = query.lte('scheduled_at', dateRange.to.toISOString());
       }
 
       const { data, error } = await query.order('scheduled_at', { ascending: false });
