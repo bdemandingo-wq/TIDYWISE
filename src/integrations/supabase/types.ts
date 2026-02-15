@@ -2559,8 +2559,10 @@ export type Database = {
       locations: {
         Row: {
           address: string | null
+          apt_suite: string | null
           city: string | null
           created_at: string
+          customer_id: string | null
           email: string | null
           id: string
           is_active: boolean | null
@@ -2575,8 +2577,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          apt_suite?: string | null
           city?: string | null
           created_at?: string
+          customer_id?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
@@ -2591,8 +2595,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          apt_suite?: string | null
           city?: string | null
           created_at?: string
+          customer_id?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
@@ -2606,6 +2612,13 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "locations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "locations_organization_id_fkey"
             columns: ["organization_id"]
