@@ -190,18 +190,18 @@ export function FormDisplaySettings() {
               </Button>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {colorOptions.map((opt) => {
               const currentValue = localSettings[opt.key];
               const placeholder = localSettings.booking_form_theme === 'dark' ? opt.defaultDark : opt.defaultLight;
               return (
                 <div key={opt.key} className="flex items-center gap-3 p-3 rounded-lg border bg-secondary/20">
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <input
                       type="color"
                       value={currentValue || placeholder}
                       onChange={(e) => setLocalSettings(prev => ({ ...prev, [opt.key]: e.target.value }))}
-                      className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+                      className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-1 [&::-webkit-color-swatch]:rounded"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
