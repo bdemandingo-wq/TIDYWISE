@@ -546,12 +546,12 @@ export default function PublicBookingPage() {
                             className={cn(
                               "flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all h-[100px]",
                               selectedExtras.includes(extra.id) 
-                                ? "border-primary bg-primary/5" 
+                                ? "border-primary bg-primary/10" 
                                 : "border-border hover:border-primary/50"
                             )}
                           >
-                            <span className="font-medium text-center text-sm mb-1">{extra.name}</span>
-                            <span className="text-primary font-semibold">+${extra.price}</span>
+                            <span className="font-medium text-center text-sm mb-1 text-foreground">{extra.name}</span>
+                            <span className="text-primary font-bold text-base">+${extra.price}</span>
                           </div>
                         ))}
                       </div>
