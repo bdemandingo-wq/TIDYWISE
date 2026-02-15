@@ -23,6 +23,7 @@ interface CustomerInfo {
   last_name: string;
   email: string;
   phone: string | null;
+  property_type: string | null;
 }
 
 interface LoyaltyInfo {
@@ -130,6 +131,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         last_name: row.last_name,
         email: row.email,
         phone: row.phone,
+        property_type: row.property_type || 'residential',
       };
 
       const loyaltyData: LoyaltyInfo | null = row.loyalty_points !== null ? {
@@ -205,9 +207,16 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     // Refresh customer info
-    const { data: customerData } = await supabase
+    const { data: rawCustomerData } = await supabase
       .from('customers')
       .select('id, first_name, last_name, email, phone')
+      .eq('id', user.customer_id)
+      .single();
+
+    // Fetch property_type separately to avoid type issues with generated types
+    const { data: propData } = await supabase
+      .from('customers')
+      .select('property_type' as any)
       .eq('id', user.customer_id)
       .single();
 
@@ -218,7 +227,11 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       .eq('customer_id', user.customer_id)
       .maybeSingle();
 
-    if (customerData) {
+    if (rawCustomerData) {
+      const customerData: CustomerInfo = {
+        ...rawCustomerData,
+        property_type: (propData as any)?.property_type || 'residential',
+      };
       setCustomer(customerData);
       saveSession(user, customerData, loyaltyData);
     }

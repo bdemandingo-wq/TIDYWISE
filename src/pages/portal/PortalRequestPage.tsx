@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, setHours, setMinutes } from "date-fns";
-import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Seo } from "@/components/Seo";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
@@ -64,7 +66,10 @@ export default function PortalRequestPage() {
   const [selectedService, setSelectedService] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [isTurnover, setIsTurnover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const isAirbnb = customer?.property_type === 'airbnb';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -131,7 +136,8 @@ export default function PortalRequestPage() {
       const addressLine = selectedLoc
         ? `Address: ${[selectedLoc.name, selectedLoc.address, selectedLoc.apt_suite, selectedLoc.city, selectedLoc.state, selectedLoc.zip_code].filter(Boolean).join(", ")}`
         : null;
-      const combinedNotes = [addressLine, notes.trim()].filter(Boolean).join("\n") || null;
+      const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
+      const combinedNotes = [addressLine, turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
 
       // Use security definer RPC to bypass RLS (client portal users aren't authenticated via Supabase Auth)
       const { data, error } = await supabase.rpc("submit_client_booking_request", {
@@ -304,6 +310,38 @@ export default function PortalRequestPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Turnover Clean Option for Airbnb */}
+            {isAirbnb && (
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="turnover"
+                    checked={isTurnover}
+                    onCheckedChange={(checked) => setIsTurnover(checked === true)}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="turnover"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      This is a turnover clean
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Turnover cleans must be completed at a specific time between guests
+                    </p>
+                  </div>
+                </div>
+                {isTurnover && (
+                  <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Please ensure the selected time is accurate — turnover cleans are time-sensitive and must be completed before the next guest arrives.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
 

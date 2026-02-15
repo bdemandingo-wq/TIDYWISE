@@ -39,6 +39,7 @@ export function PortalProfileTab() {
   const [firstName, setFirstName] = useState(customer?.first_name || "");
   const [lastName, setLastName] = useState(customer?.last_name || "");
   const [phone, setPhone] = useState(customer?.phone || "");
+  const [propertyType, setPropertyType] = useState(customer?.property_type || "residential");
   const [savingProfile, setSavingProfile] = useState(false);
   
   const [locations, setLocations] = useState<Location[]>([]);
@@ -63,6 +64,7 @@ export function PortalProfileTab() {
       setFirstName(customer.first_name);
       setLastName(customer.last_name);
       setPhone(customer.phone || "");
+      setPropertyType(customer.property_type || "residential");
     }
   }, [customer]);
 
@@ -110,11 +112,12 @@ export function PortalProfileTab() {
     setSavingProfile(true);
 
     try {
-      const { data, error } = await supabase.rpc("update_client_portal_profile", {
+      const { data, error } = await supabase.rpc("update_client_portal_profile" as any, {
         p_client_user_id: user.id,
         p_first_name: firstName.trim(),
         p_last_name: lastName.trim(),
         p_phone: phone.trim() || null,
+        p_property_type: propertyType,
       });
 
       if (error) throw error;
@@ -251,6 +254,23 @@ export function PortalProfileTab() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="(555) 123-4567"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="property-type">Property Type</Label>
+            <Select value={propertyType} onValueChange={setPropertyType}>
+              <SelectTrigger id="property-type">
+                <SelectValue placeholder="Select property type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="residential">Residential</SelectItem>
+                <SelectItem value="airbnb">Airbnb / Vacation Rental</SelectItem>
+                <SelectItem value="commercial">Commercial</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              This helps us tailor our services to your property
+            </p>
           </div>
 
           <Button onClick={handleSaveProfile} disabled={savingProfile} className="w-full">

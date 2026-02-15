@@ -4804,6 +4804,7 @@ export type Database = {
           must_change_password: boolean
           organization_id: string
           phone: string
+          property_type: string
           user_id: string
           username: string
         }[]
