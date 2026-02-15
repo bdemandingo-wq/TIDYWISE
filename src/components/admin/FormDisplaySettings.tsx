@@ -33,7 +33,7 @@ export function FormDisplaySettings() {
         show_home_condition: settings.show_home_condition,
         show_bed_bath_on_booking: settings.show_bed_bath_on_booking,
         sales_tax_percent: settings.sales_tax_percent,
-        booking_form_theme: (settings as any).booking_form_theme || 'dark',
+        booking_form_theme: settings.booking_form_theme || 'dark',
       });
     }
   }, [settings]);

@@ -14,6 +14,7 @@ export interface OrganizationPricingSettings {
   sales_tax_percent: number;
   demo_mode_enabled: boolean;
   loyalty_program_enabled: boolean;
+  booking_form_theme: string;
 }
 
 const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
@@ -26,6 +27,7 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   sales_tax_percent: 0,
   demo_mode_enabled: false,
   loyalty_program_enabled: true,
+  booking_form_theme: 'dark',
 };
 
 export function useOrganizationSettings() {
@@ -58,6 +60,7 @@ export function useOrganizationSettings() {
           sales_tax_percent: Number(data.sales_tax_percent) || 0,
           demo_mode_enabled: data.demo_mode_enabled ?? false,
           loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
+          booking_form_theme: (data as any).booking_form_theme ?? 'dark',
         });
       } else {
         // Create default settings
@@ -92,6 +95,7 @@ export function useOrganizationSettings() {
         sales_tax_percent: updates.sales_tax_percent ?? settings?.sales_tax_percent ?? 0,
         demo_mode_enabled: updates.demo_mode_enabled ?? settings?.demo_mode_enabled ?? false,
         loyalty_program_enabled: updates.loyalty_program_enabled ?? settings?.loyalty_program_enabled ?? true,
+        booking_form_theme: updates.booking_form_theme ?? settings?.booking_form_theme ?? 'dark',
       };
 
       const { data, error } = await supabase
@@ -117,6 +121,7 @@ export function useOrganizationSettings() {
         sales_tax_percent: Number(data.sales_tax_percent) || 0,
         demo_mode_enabled: data.demo_mode_enabled ?? false,
         loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
+        booking_form_theme: (data as any).booking_form_theme ?? 'dark',
       });
 
       return true;
