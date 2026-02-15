@@ -50,8 +50,9 @@ export function getActualHours(booking: WageBooking, staff?: WageStaff | null): 
 export function calculateBookingWage(booking: WageBooking, staff?: WageStaff | null): WageResult {
   const hoursWorked = getActualHours(booking, staff);
 
-  // If an explicit actual payment was recorded, use it
-  if (booking.cleaner_actual_payment != null && booking.cleaner_actual_payment > 0) {
+  // If an explicit actual payment was recorded AND is positive, use it.
+  // A value of 0 means "not set" (database default), so we fall through to wage calc.
+  if (booking.cleaner_actual_payment != null && Number(booking.cleaner_actual_payment) > 0) {
     return {
       calculatedPay: Number(booking.cleaner_actual_payment),
       hoursWorked,
