@@ -188,6 +188,16 @@ export default function PayrollPage() {
     },
   });
 
+  // Calculate actual hours from check-in/out timestamps
+  const getActualHours = (booking: any, staffMember: any) => {
+    if (booking.cleaner_checkin_at && booking.cleaner_checkout_at) {
+      const checkin = new Date(booking.cleaner_checkin_at).getTime();
+      const checkout = new Date(booking.cleaner_checkout_at).getTime();
+      return (checkout - checkin) / (1000 * 60 * 60);
+    }
+    return booking.cleaner_override_hours || staffMember?.default_hours || (booking.duration / 60);
+  };
+
   // Calculate wage for a single booking
   const calculateBookingWage = (booking: any, staffMember: any) => {
     // If actual payment is set, use it
@@ -197,13 +207,13 @@ export default function PayrollPage() {
         actualPay: Number(booking.cleaner_actual_payment),
         wageType: 'actual',
         wageRate: Number(booking.cleaner_actual_payment),
-        hoursWorked: booking.cleaner_override_hours || (booking.duration / 60),
+        hoursWorked: getActualHours(booking, staffMember),
       };
     }
 
     const wageType = booking.cleaner_wage_type || 'hourly';
     const wageRate = booking.cleaner_wage || staffMember?.base_wage || staffMember?.hourly_rate || 0;
-    const hoursWorked = booking.cleaner_override_hours || (booking.duration / 60);
+    const hoursWorked = getActualHours(booking, staffMember);
     
     let calculatedPay = 0;
     

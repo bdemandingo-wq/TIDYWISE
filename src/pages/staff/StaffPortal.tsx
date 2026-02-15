@@ -168,7 +168,8 @@ export default function StaffPortal() {
         .from('bookings')
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment, notes,
+          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+          cleaner_checkin_at, cleaner_checkout_at, notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)
@@ -186,7 +187,8 @@ export default function StaffPortal() {
           is_primary,
           booking:bookings(
             id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment, notes,
+            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+            cleaner_checkin_at, cleaner_checkout_at, notes,
             customer:customers(first_name, last_name, phone),
             service:services(name)
           )

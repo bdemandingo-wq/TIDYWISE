@@ -27,6 +27,8 @@ interface Booking {
   cleaner_actual_payment: number | null;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
+  cleaner_checkin_at: string | null;
+  cleaner_checkout_at: string | null;
   service: { name: string } | null;
   customer: { first_name: string; last_name: string } | null;
 }
@@ -46,6 +48,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         .select(`
           id, booking_number, scheduled_at, duration, status, total_amount,
           cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          cleaner_checkin_at, cleaner_checkout_at,
           service:services(name),
           customer:customers(first_name, last_name)
         `)
@@ -66,6 +69,16 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
+  // Helper to get actual hours worked from check-in/out or fallback to duration
+  const getActualHours = (b: Booking): number => {
+    if (b.cleaner_checkin_at && b.cleaner_checkout_at) {
+      const checkin = new Date(b.cleaner_checkin_at).getTime();
+      const checkout = new Date(b.cleaner_checkout_at).getTime();
+      return (checkout - checkin) / (1000 * 60 * 60);
+    }
+    return b.duration / 60;
+  };
+
   // Calculate earnings
   const stats = useMemo(() => {
     const totalEarnings = bookings.reduce((sum, b) => {
@@ -75,7 +88,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
 
     const totalJobs = bookings.length;
     const avgPerJob = totalJobs > 0 ? totalEarnings / totalJobs : 0;
-    const totalHours = bookings.reduce((sum, b) => sum + (b.duration / 60), 0);
+    const totalHours = bookings.reduce((sum, b) => sum + getActualHours(b), 0);
     const avgPerHour = totalHours > 0 ? totalEarnings / totalHours : 0;
 
     return {
@@ -89,13 +102,13 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
 
   // Export to CSV for taxes
   const exportToCSV = () => {
-    const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Duration (hrs)', 'Total Job Amount', 'Your Earnings'];
+    const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Total Job Amount', 'Your Earnings'];
     const rows = bookings.map((b) => [
       format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
       b.booking_number,
       b.service?.name || 'N/A',
       b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'N/A',
-      (b.duration / 60).toFixed(2),
+      getActualHours(b).toFixed(2),
       b.total_amount.toFixed(2),
       (b.cleaner_actual_payment || 0).toFixed(2),
     ]);
@@ -272,7 +285,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                           ? `${booking.customer.first_name} ${booking.customer.last_name}`
                           : 'N/A'}
                       </TableCell>
-                      <TableCell className="text-right">{(booking.duration / 60).toFixed(1)}h</TableCell>
+                      <TableCell className="text-right">{getActualHours(booking).toFixed(1)}h</TableCell>
                       <TableCell className="text-right">${booking.total_amount.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
                         ${(booking.cleaner_actual_payment || 0).toFixed(2)}

@@ -33,6 +33,8 @@ interface Booking {
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
   cleaner_actual_payment: number | null;
+  cleaner_checkin_at?: string | null;
+  cleaner_checkout_at?: string | null;
   notes?: string | null;
   customer: {
     first_name: string;
@@ -88,6 +90,21 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     }
   };
   
+  // Get actual hours from check-in/out if available
+  const getActualHours = (): number => {
+    if (booking.cleaner_checkin_at && booking.cleaner_checkout_at) {
+      const checkin = new Date(booking.cleaner_checkin_at).getTime();
+      const checkout = new Date(booking.cleaner_checkout_at).getTime();
+      return (checkout - checkin) / (1000 * 60 * 60);
+    }
+    if (booking.cleaner_checkin_at && booking.status === 'in_progress') {
+      // Job in progress - show elapsed time so far
+      const checkin = new Date(booking.cleaner_checkin_at).getTime();
+      return (Date.now() - checkin) / (1000 * 60 * 60);
+    }
+    return staffInfo.default_hours || booking.duration / 60 || 2;
+  };
+
   // Calculate exact pay based on wage type
   const calculatePay = (): { amount: number; type: string; isExact: boolean } => {
     // If team pay share is set, use it directly
@@ -108,6 +125,9 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       };
     }
 
+    const hours = getActualHours();
+    const hasActualTime = !!(booking.cleaner_checkin_at && booking.cleaner_checkout_at);
+
     // If booking has specific cleaner wage set
     if (booking.cleaner_wage && booking.cleaner_wage_type) {
       if (booking.cleaner_wage_type === 'percentage') {
@@ -117,19 +137,16 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           isExact: true,
         };
       } else if (booking.cleaner_wage_type === 'flat') {
-        // FLAT RATE - exact amount
         return {
           amount: booking.cleaner_wage,
           type: 'Flat rate',
           isExact: true,
         };
       } else {
-        // Hourly wage - use staff default hours or booking duration
-        const hours = staffInfo.default_hours || booking.duration / 60 || 2;
         return {
           amount: booking.cleaner_wage * hours,
           type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs`,
-          isExact: false,
+          isExact: hasActualTime,
         };
       }
     }
@@ -145,11 +162,10 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
     // Then check hourly rate
     if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      const hours = staffInfo.default_hours || booking.duration / 60 || 2;
       return {
         amount: staffInfo.hourly_rate * hours,
         type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs`,
-        isExact: false,
+        isExact: hasActualTime,
       };
     }
 
