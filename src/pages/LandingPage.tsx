@@ -206,6 +206,7 @@ export default function LandingPage() {
         title="TIDYWISE - #1 Cleaning Business Software | Booking Koala & Jobber Alternative"
         description="Best cleaning business software for maid services. Smart scheduling, automated payroll, CRM, GPS tracking & online booking. Better than Booking Koala & Jobber. Start free."
         canonicalPath="/"
+        ogImage="/images/tidywise-og.png"
       />
 
       {/* Navigation - Premium glassmorphism (iOS safe-area aware) */}

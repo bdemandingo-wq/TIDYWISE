@@ -52,9 +52,11 @@
     
     <!-- Fonts: use system stack to minimize shipped assets and external font dependencies -->
     
-    <!-- DNS prefetch for Supabase -->
+    <!-- DNS prefetch & preconnect for third-party services -->
     <link rel="dns-prefetch" href="https://slwfkaqczvwvvvavkgpr.supabase.co" />
     <link rel="preconnect" href="https://slwfkaqczvwvvvavkgpr.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://js.stripe.com" />
+    <link rel="dns-prefetch" href="https://maps.googleapis.com" />
 
     <!-- Homepage Schema Markup -->
     <script type="application/ld+json">
