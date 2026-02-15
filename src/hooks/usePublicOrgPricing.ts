@@ -28,6 +28,7 @@ export interface PublicOrgData {
   logoUrl: string | null;
   primaryColor: string | null;
   accentColor: string | null;
+  bookingFormTheme: 'light' | 'dark';
   services: PublicService[];
   extras: PublicExtra[];
   loading: boolean;
@@ -41,6 +42,7 @@ type PublicBookingDataResponse = {
   services?: any[];
   servicePricing?: any[];
   branding?: { primary_color: string; accent_color: string } | null;
+  bookingFormTheme?: string;
 };
 
 function getDefaultPayload() {
@@ -63,6 +65,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState<string | null>(null);
+  const [bookingFormTheme, setBookingFormTheme] = useState<'light' | 'dark'>('dark');
   const [services, setServices] = useState<PublicService[]>([]);
   const [extras, setExtras] = useState<PublicExtra[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +110,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
           setPrimaryColor(data.branding.primary_color);
           setAccentColor(data.branding.accent_color);
         }
+        setBookingFormTheme((data.bookingFormTheme === 'light' ? 'light' : 'dark'));
 
         const pricingMap = new Map<string, any>();
         (data.servicePricing || []).forEach((p: any) => pricingMap.set(p.service_id, p));
@@ -186,6 +190,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
     logoUrl,
     primaryColor,
     accentColor,
+    bookingFormTheme,
     services,
     extras,
     loading,

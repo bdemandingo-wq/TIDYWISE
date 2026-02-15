@@ -3,10 +3,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Save, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 export function FormDisplaySettings() {
   const { settings, loading, saveSettings } = useOrganizationSettings();
@@ -19,6 +20,7 @@ export function FormDisplaySettings() {
     show_home_condition: true,
     show_bed_bath_on_booking: true,
     sales_tax_percent: 0,
+    booking_form_theme: 'dark' as string,
   });
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export function FormDisplaySettings() {
         show_home_condition: settings.show_home_condition,
         show_bed_bath_on_booking: settings.show_bed_bath_on_booking,
         sales_tax_percent: settings.sales_tax_percent,
+        booking_form_theme: (settings as any).booking_form_theme || 'dark',
       });
     }
   }, [settings]);
@@ -101,6 +104,45 @@ export function FormDisplaySettings() {
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Booking Form Theme */}
+        <div>
+          <Label className="text-sm font-medium mb-3 block">Booking Form Theme</Label>
+          <p className="text-xs text-muted-foreground mb-3">Choose the appearance of your public booking form</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setLocalSettings(prev => ({ ...prev, booking_form_theme: 'dark' }))}
+              className={cn(
+                'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+                localSettings.booking_form_theme === 'dark'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/40'
+              )}
+            >
+              <div className="w-full h-20 rounded-lg bg-gray-900 flex items-center justify-center">
+                <Moon className="h-6 w-6 text-gray-300" />
+              </div>
+              <span className="text-sm font-medium">Dark</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalSettings(prev => ({ ...prev, booking_form_theme: 'light' }))}
+              className={cn(
+                'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+                localSettings.booking_form_theme === 'light'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/40'
+              )}
+            >
+              <div className="w-full h-20 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                <Sun className="h-6 w-6 text-amber-500" />
+              </div>
+              <span className="text-sm font-medium">Light</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-border/50" />
         {/* Visibility Toggles */}
         <div className="space-y-4">
           {toggleOptions.map((option) => (

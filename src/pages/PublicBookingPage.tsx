@@ -78,8 +78,11 @@ export default function PublicBookingPage() {
     logoUrl,
     primaryColor,
     accentColor,
+    bookingFormTheme,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
+
+  const isLight = bookingFormTheme === 'light';
 
   // Apply org branding colors once when loaded (no re-renders)
   useEffect(() => {
@@ -271,9 +274,9 @@ export default function PublicBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn("min-h-screen", isLight ? "bg-white text-gray-900" : "bg-background")}>
       {/* Header */}
-      <header className="bg-sidebar text-sidebar-foreground">
+      <header className={cn(isLight ? "bg-gray-50 text-gray-900 border-b border-gray-200" : "bg-sidebar text-sidebar-foreground")}>
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -286,17 +289,17 @@ export default function PublicBookingPage() {
               )}
               <div>
                 <h1 className="text-xl font-bold">{organizationName || 'Book Your Service'}</h1>
-                <p className="text-sm text-sidebar-foreground/70">Book your service online</p>
+              <p className={cn("text-sm", isLight ? "text-gray-500" : "text-sidebar-foreground/70")}>Book your service online</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Link to="/staff/login">
-                <Button variant="outline" className="bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80">
+                <Button variant="outline" className={cn(isLight ? "border-gray-300 text-gray-700 hover:bg-gray-100" : "bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80")}>
                   Staff Login
                 </Button>
               </Link>
               <Link to="/admin">
-                <Button variant="outline" className="bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80">
+                <Button variant="outline" className={cn(isLight ? "border-gray-300 text-gray-700 hover:bg-gray-100" : "bg-sidebar-accent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent/80")}>
                   Admin Login
                 </Button>
               </Link>
@@ -306,7 +309,7 @@ export default function PublicBookingPage() {
       </header>
 
       {/* Progress Steps */}
-      <div className="border-b border-border bg-card">
+      <div className={cn("border-b", isLight ? "border-gray-200 bg-gray-50" : "border-border bg-card")}>
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-center gap-4 md:gap-8 overflow-x-auto">
             {steps.map((s, i) => (
