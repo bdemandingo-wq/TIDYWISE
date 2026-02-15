@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_bookings: {
+        Row: {
+          converted: boolean | null
+          converted_at: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          followup_sent: boolean | null
+          followup_sent_at: string | null
+          id: string
+          last_name: string | null
+          organization_id: string
+          phone: string | null
+          service_id: string | null
+          session_token: string
+          step_reached: number | null
+          updated_at: string
+        }
+        Insert: {
+          converted?: boolean | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          followup_sent?: boolean | null
+          followup_sent_at?: string | null
+          id?: string
+          last_name?: string | null
+          organization_id: string
+          phone?: string | null
+          service_id?: string | null
+          session_token: string
+          step_reached?: number | null
+          updated_at?: string
+        }
+        Update: {
+          converted?: boolean | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          followup_sent?: boolean | null
+          followup_sent_at?: string | null
+          id?: string
+          last_name?: string | null
+          organization_id?: string
+          phone?: string | null
+          service_id?: string | null
+          session_token?: string
+          step_reached?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_bookings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abandoned_bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       additional_charges: {
         Row: {
           booking_id: string
@@ -936,6 +1005,9 @@ export type Database = {
       campaign_sms_sends: {
         Row: {
           campaign_id: string | null
+          campaign_type: string | null
+          converted: boolean | null
+          converted_at: string | null
           customer_id: string | null
           id: string
           message_content: string | null
@@ -946,6 +1018,9 @@ export type Database = {
         }
         Insert: {
           campaign_id?: string | null
+          campaign_type?: string | null
+          converted?: boolean | null
+          converted_at?: string | null
           customer_id?: string | null
           id?: string
           message_content?: string | null
@@ -956,6 +1031,9 @@ export type Database = {
         }
         Update: {
           campaign_id?: string | null
+          campaign_type?: string | null
+          converted?: boolean | null
+          converted_at?: string | null
           customer_id?: string | null
           id?: string
           message_content?: string | null

@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
-import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check, Filter } from "lucide-react";
+import { MessageSquare, Phone, Zap, Send, Users, Clock, Trash2, Play, Loader2, Sparkles, Copy, Check, Filter, UserX, BarChart3, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 interface AITemplate {
@@ -19,17 +19,19 @@ interface AITemplate {
   message: string;
 }
 
-type AudienceType = 'active_clients' | 'inactive_clients';
+type AudienceType = 'active_clients' | 'inactive_clients' | 'cancelled_clients';
 
 const campaignTypes = [
   { value: "inactive_customer", label: "Inactive Customer Win-Back" },
   { value: "seasonal_promo", label: "Seasonal Promotion" },
   { value: "win_back", label: "Win Back Campaign" },
+  { value: "abandoned_followup", label: "Abandoned Booking Follow-Up" },
 ];
 
 const audienceOptions = [
   { value: "active_clients", label: "Active Clients" },
   { value: "inactive_clients", label: "Inactive Clients" },
+  { value: "cancelled_clients", label: "Cancelled / Churned Clients" },
 ];
 
 export default function CampaignsPage() {
@@ -40,6 +42,7 @@ export default function CampaignsPage() {
   const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('active_clients');
   const [aiAudience, setAiAudience] = useState<AudienceType>('active_clients');
+  const [abandonedTestResult, setAbandonedTestResult] = useState<{ abandonedCount: number; bookings?: any[] } | null>(null);
   const [smsTestResult, setSmsTestResult] = useState<{ 
     inactive: number; 
     contactable: number;
@@ -59,6 +62,9 @@ export default function CampaignsPage() {
     days_inactive: 30,
     message: 'Hi {first_name}! We miss you at {company_name}. It\'s been a while since your last clean. Book now and get 15% off! Reply STOP to opt out.'
   });
+  const [abandonedMessage, setAbandonedMessage] = useState(
+    'Hi {first_name}! We noticed you started booking with {company_name} but didn\'t finish. We\'d love to help you complete your reservation! Reply to this message or visit our booking page. Reply STOP to opt out.'
+  );
   const [aiTemplates, setAiTemplates] = useState<AITemplate[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -215,6 +221,66 @@ export default function CampaignsPage() {
     },
   });
 
+  // Abandoned booking follow-up mutations
+  const testAbandonedFollowup = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("followup-abandoned-booking", {
+        body: { organizationId: orgId, testMode: true },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setAbandonedTestResult({ abandonedCount: data.abandonedCount || 0, bookings: data.bookings || [] });
+      toast({ title: "Preview complete", description: `Found ${data.abandonedCount || 0} abandoned bookings` });
+    },
+    onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+  });
+
+  const runAbandonedFollowup = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("followup-abandoned-booking", {
+        body: { organizationId: orgId, testMode: false, message: abandonedMessage },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Follow-ups sent!", description: `Sent ${data.sentCount || 0} SMS messages` });
+      setAbandonedTestResult(null);
+    },
+    onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+  });
+
+  // Conversion analytics
+  const { data: conversionStats } = useQuery({
+    queryKey: ["campaign-conversions", orgId],
+    queryFn: async () => {
+      if (!orgId) return null;
+      const { data: sends } = await supabase
+        .from("campaign_sms_sends")
+        .select("id, converted, campaign_type")
+        .eq("organization_id", orgId);
+      
+      if (!sends) return { total: 0, converted: 0, rate: 0, byType: {} };
+      
+      const total = sends.length;
+      const converted = sends.filter(s => s.converted).length;
+      const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
+      
+      const byType: Record<string, { total: number; converted: number }> = {};
+      for (const send of sends) {
+        const type = send.campaign_type || 'inactive_clients';
+        if (!byType[type]) byType[type] = { total: 0, converted: 0 };
+        byType[type].total++;
+        if (send.converted) byType[type].converted++;
+      }
+      
+      return { total, converted, rate, byType };
+    },
+    enabled: !!orgId,
+  });
+
   const handleUseTemplate = (template: AITemplate) => {
     setSmsFormData(prev => ({ ...prev, message: template.message }));
     toast({ title: "Template applied!", description: `"${template.name}" copied to message composer` });
@@ -241,38 +307,51 @@ export default function CampaignsPage() {
     <AdminLayout title="SMS Campaigns" subtitle="Automated SMS re-engagement campaigns">
       <div className="space-y-6">
         {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
-                Win Back Customers
+                Win Back Inactive
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Re-engage inactive customers with personalized SMS</p>
             </CardContent>
           </Card>
-          <Card className="border-amber-500/20 bg-amber-500/5">
+          <Card className="border-destructive/20 bg-destructive/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                Seasonal Promos
+                <UserX className="h-4 w-4 text-destructive" />
+                Win Back Cancelled
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">Send holiday and seasonal promotional messages</p>
+              <p className="text-xs text-muted-foreground">Target churned clients with special re-engagement offers</p>
+            </CardContent>
+          </Card>
+          <Card className="border-amber-500/20 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                Abandoned Bookings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Follow up with visitors who didn't complete booking</p>
             </CardContent>
           </Card>
           <Card className="border-green-500/20 bg-green-500/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-green-500" />
-                Read Receipts
+                <BarChart3 className="h-4 w-4 text-green-500" />
+                Conversion Tracking
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">Track delivery status via OpenPhone webhooks</p>
+              <p className="text-xs text-muted-foreground">
+                {conversionStats ? `${conversionStats.rate}% conversion (${conversionStats.converted}/${conversionStats.total})` : 'Track campaign results'}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -299,6 +378,7 @@ export default function CampaignsPage() {
                   <SelectContent>
                     <SelectItem value="active_clients">Active Clients</SelectItem>
                     <SelectItem value="inactive_clients">Inactive Clients</SelectItem>
+                    <SelectItem value="cancelled_clients">Cancelled / Churned</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -520,7 +600,111 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
 
-        {/* Saved SMS Campaign Templates */}
+        {/* Abandoned Booking Follow-Up */}
+        <Card className="border-amber-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Abandoned Booking Follow-Up
+            </CardTitle>
+            <CardDescription>
+              Automatically reach out to visitors who started but didn't complete their booking on your public form.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Follow-Up Message</Label>
+              <Textarea
+                value={abandonedMessage}
+                onChange={(e) => setAbandonedMessage(e.target.value)}
+                placeholder="Hi {first_name}! We noticed you started booking..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Available placeholders: {"{first_name}"}, {"{company_name}"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => testAbandonedFollowup.mutate()}
+                disabled={testAbandonedFollowup.isPending}
+              >
+                {testAbandonedFollowup.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Filter className="h-4 w-4 mr-2" />
+                Preview
+              </Button>
+              <Button
+                onClick={() => runAbandonedFollowup.mutate()}
+                disabled={runAbandonedFollowup.isPending || !abandonedTestResult}
+              >
+                {runAbandonedFollowup.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Send className="h-4 w-4 mr-2" />
+                Send Follow-Ups
+              </Button>
+            </div>
+            {abandonedTestResult && (
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <p className="text-sm font-medium">
+                  Found <strong>{abandonedTestResult.abandonedCount}</strong> abandoned bookings with phone numbers.
+                </p>
+                {abandonedTestResult.bookings && abandonedTestResult.bookings.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {abandonedTestResult.bookings.map((b: any) => (
+                      <div key={b.id} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
+                        <span className="font-medium">{b.first_name || 'Unknown'}</span>
+                        <span className="text-xs text-muted-foreground">{b.phone} • Step {b.step_reached}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Conversion Analytics */}
+        {conversionStats && conversionStats.total > 0 && (
+          <Card className="border-green-500/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-green-500" />
+                Campaign Conversion Analytics
+              </CardTitle>
+              <CardDescription>Track how many campaign recipients rebooked after receiving your SMS</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-2xl font-bold">{conversionStats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total Sent</p>
+                </div>
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">{conversionStats.converted}</p>
+                  <p className="text-xs text-muted-foreground">Converted (Rebooked)</p>
+                </div>
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-2xl font-bold text-primary">{conversionStats.rate}%</p>
+                  <p className="text-xs text-muted-foreground">Conversion Rate</p>
+                </div>
+              </div>
+              {Object.keys(conversionStats.byType).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium">By Audience Type:</p>
+                  {Object.entries(conversionStats.byType).map(([type, stats]: [string, any]) => (
+                    <div key={type} className="flex items-center justify-between text-sm p-2 border rounded">
+                      <span className="capitalize">{type.replace(/_/g, ' ')}</span>
+                      <span className="text-muted-foreground">
+                        {stats.converted}/{stats.total} ({stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Saved Campaign Templates</CardTitle>

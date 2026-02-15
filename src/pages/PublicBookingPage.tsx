@@ -89,6 +89,53 @@ export default function PublicBookingPage() {
     return () => clearPublicBranding();
   }, [primaryColor, accentColor]);
 
+  // Track abandoned bookings - save progress when user has contact info
+  const sessionTokenRef = useState(() => crypto.randomUUID())[0];
+  const abandonedTrackedRef = useState({ tracked: false })[0];
+
+  useEffect(() => {
+    // Track when user reaches step 3+ with contact info (they've provided name/phone)
+    if (step >= 3 && customerInfo.phone && organizationId && !abandonedTrackedRef.tracked) {
+      abandonedTrackedRef.tracked = true;
+      const nameParts = customerInfo.name.trim().split(/\s+/);
+      supabase
+        .from('abandoned_bookings')
+        .insert({
+          organization_id: organizationId,
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(' ') || null,
+          email: customerInfo.email || null,
+          phone: customerInfo.phone,
+          service_id: selectedService || null,
+          step_reached: step,
+          session_token: sessionTokenRef,
+        })
+        .then(({ error }) => {
+          if (error) console.log('Abandoned tracking skipped:', error.message);
+        });
+    }
+
+    // Update step_reached if already tracked
+    if (abandonedTrackedRef.tracked && step > 3) {
+      supabase
+        .from('abandoned_bookings')
+        .update({ step_reached: step })
+        .eq('session_token', sessionTokenRef)
+        .then(() => {});
+    }
+  }, [step, customerInfo.phone]);
+
+  // Mark as converted when booking completes
+  useEffect(() => {
+    if (confirmationNumber && abandonedTrackedRef.tracked) {
+      supabase
+        .from('abandoned_bookings')
+        .update({ converted: true, converted_at: new Date().toISOString() })
+        .eq('session_token', sessionTokenRef)
+        .then(() => {});
+    }
+  }, [confirmationNumber]);
+
   const service = services.find(s => s.id === selectedService);
 
   const calculateTotal = () => {
