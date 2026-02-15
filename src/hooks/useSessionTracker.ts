@@ -12,6 +12,7 @@ export function useSessionTracker() {
   const sessionStartRef = useRef<number>(Date.now());
   const isIdleRef = useRef<boolean>(false);
   const activeTimeRef = useRef<number>(0);
+  const creatingRef = useRef<boolean>(false);
 
   // Reset activity timer on user interaction
   const handleActivity = useCallback(() => {
@@ -38,7 +39,8 @@ export function useSessionTracker() {
 
   // Create a new session
   const createSession = useCallback(async () => {
-    if (!user) return;
+    if (!user || creatingRef.current || sessionIdRef.current) return;
+    creatingRef.current = true;
     
     try {
       console.log('[SESSION_TRACKER] createSession start', { userId: user.id, email: user.email });
@@ -62,6 +64,8 @@ export function useSessionTracker() {
       lastActivityRef.current = Date.now();
     } catch (err) {
       console.error('[SESSION_TRACKER] createSession failed', { userId: user.id, email: user.email, err });
+    } finally {
+      creatingRef.current = false;
     }
   }, [user]);
 
