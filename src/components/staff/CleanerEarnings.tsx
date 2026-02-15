@@ -11,24 +11,18 @@ import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText } f
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
+import { calculateBookingWage, getActualHours, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 
 interface Props {
   staffId: string;
   staffName: string;
 }
 
-interface Booking {
+interface Booking extends WageBooking {
   id: string;
   booking_number: number;
   scheduled_at: string;
-  duration: number;
   status: string;
-  total_amount: number;
-  cleaner_actual_payment: number | null;
-  cleaner_wage: number | null;
-  cleaner_wage_type: string | null;
-  cleaner_checkin_at: string | null;
-  cleaner_checkout_at: string | null;
   service: { name: string } | null;
   customer: { first_name: string; last_name: string } | null;
 }
@@ -37,6 +31,21 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
+  });
+
+  // Fetch staff member's wage info so we can calculate properly
+  const { data: staffInfo } = useQuery({
+    queryKey: ['cleaner-wage-info', staffId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('base_wage, hourly_rate, default_hours')
+        .eq('id', staffId)
+        .single();
+      if (error) throw error;
+      return data as WageStaff;
+    },
+    enabled: !!staffId,
   });
 
   // Fetch completed bookings for this cleaner
@@ -48,7 +57,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         .select(`
           id, booking_number, scheduled_at, duration, status, total_amount,
           cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
-          cleaner_checkin_at, cleaner_checkout_at,
+          cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
           service:services(name),
           customer:customers(first_name, last_name)
         `)
@@ -69,51 +78,43 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // Helper to get actual hours worked from check-in/out or fallback to duration
-  const getActualHours = (b: Booking): number => {
-    if (b.cleaner_checkin_at && b.cleaner_checkout_at) {
-      const checkin = new Date(b.cleaner_checkin_at).getTime();
-      const checkout = new Date(b.cleaner_checkout_at).getTime();
-      return (checkout - checkin) / (1000 * 60 * 60);
-    }
-    return b.duration / 60;
-  };
-
-  // Calculate earnings
+  // Calculate earnings using the SAME shared logic as payroll
   const stats = useMemo(() => {
-    const totalEarnings = bookings.reduce((sum, b) => {
-      const payment = b.cleaner_actual_payment || 0;
-      return sum + payment;
-    }, 0);
+    let totalEarnings = 0;
+    let totalHours = 0;
+
+    bookings.forEach((b) => {
+      const wage = calculateBookingWage(b, staffInfo);
+      totalEarnings += wage.calculatedPay;
+      totalHours += wage.hoursWorked;
+    });
 
     const totalJobs = bookings.length;
     const avgPerJob = totalJobs > 0 ? totalEarnings / totalJobs : 0;
-    const totalHours = bookings.reduce((sum, b) => sum + getActualHours(b), 0);
     const avgPerHour = totalHours > 0 ? totalEarnings / totalHours : 0;
 
-    return {
-      totalEarnings,
-      totalJobs,
-      avgPerJob,
-      totalHours,
-      avgPerHour,
-    };
-  }, [bookings]);
+    return { totalEarnings, totalJobs, avgPerJob, totalHours, avgPerHour };
+  }, [bookings, staffInfo]);
+
+  // Get earnings for a single booking (shared logic)
+  const getBookingEarnings = (b: Booking) => calculateBookingWage(b, staffInfo).calculatedPay;
 
   // Export to CSV for taxes
   const exportToCSV = () => {
     const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Total Job Amount', 'Your Earnings'];
-    const rows = bookings.map((b) => [
-      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
-      b.booking_number,
-      b.service?.name || 'N/A',
-      b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'N/A',
-      getActualHours(b).toFixed(2),
-      b.total_amount.toFixed(2),
-      (b.cleaner_actual_payment || 0).toFixed(2),
-    ]);
+    const rows = bookings.map((b) => {
+      const wage = calculateBookingWage(b, staffInfo);
+      return [
+        format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
+        b.booking_number,
+        b.service?.name || 'N/A',
+        b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'N/A',
+        wage.hoursWorked.toFixed(2),
+        b.total_amount.toFixed(2),
+        wage.calculatedPay.toFixed(2),
+      ];
+    });
 
-    // Add summary row
     rows.push([]);
     rows.push(['Summary']);
     rows.push(['Total Jobs', stats.totalJobs.toString()]);
@@ -273,25 +274,28 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bookings.map((booking) => (
-                    <TableRow key={booking.id}>
-                      <TableCell>{format(new Date(booking.scheduled_at), 'MMM d, yyyy')}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">#{booking.booking_number}</Badge>
-                      </TableCell>
-                      <TableCell>{booking.service?.name || 'N/A'}</TableCell>
-                      <TableCell>
-                        {booking.customer
-                          ? `${booking.customer.first_name} ${booking.customer.last_name}`
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">{getActualHours(booking).toFixed(1)}h</TableCell>
-                      <TableCell className="text-right">${booking.total_amount.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        ${(booking.cleaner_actual_payment || 0).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {bookings.map((booking) => {
+                    const wage = calculateBookingWage(booking, staffInfo);
+                    return (
+                      <TableRow key={booking.id}>
+                        <TableCell>{format(new Date(booking.scheduled_at), 'MMM d, yyyy')}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">#{booking.booking_number}</Badge>
+                        </TableCell>
+                        <TableCell>{booking.service?.name || 'N/A'}</TableCell>
+                        <TableCell>
+                          {booking.customer
+                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right">{wage.hoursWorked.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">${booking.total_amount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600">
+                          ${wage.calculatedPay.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

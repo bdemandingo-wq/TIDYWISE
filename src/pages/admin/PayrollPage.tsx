@@ -23,7 +23,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-
+import { calculateBookingWage } from '@/lib/wageCalculation';
 interface StaffWithPayroll {
   id: string;
   name: string;
@@ -188,50 +188,16 @@ export default function PayrollPage() {
     },
   });
 
-  // Calculate actual hours from check-in/out timestamps
-  const getActualHours = (booking: any, staffMember: any) => {
-    if (booking.cleaner_checkin_at && booking.cleaner_checkout_at) {
-      const checkin = new Date(booking.cleaner_checkin_at).getTime();
-      const checkout = new Date(booking.cleaner_checkout_at).getTime();
-      return (checkout - checkin) / (1000 * 60 * 60);
-    }
-    return booking.cleaner_override_hours || staffMember?.default_hours || (booking.duration / 60);
-  };
-
-  // Calculate wage for a single booking
-  const calculateBookingWage = (booking: any, staffMember: any) => {
-    // If actual payment is set, use it
-    if (booking.cleaner_actual_payment) {
-      return {
-        calculatedPay: Number(booking.cleaner_actual_payment),
-        actualPay: Number(booking.cleaner_actual_payment),
-        wageType: 'actual',
-        wageRate: Number(booking.cleaner_actual_payment),
-        hoursWorked: getActualHours(booking, staffMember),
-      };
-    }
-
-    const wageType = booking.cleaner_wage_type || 'hourly';
-    const wageRate = booking.cleaner_wage || staffMember?.base_wage || staffMember?.hourly_rate || 0;
-    const hoursWorked = getActualHours(booking, staffMember);
-    
-    let calculatedPay = 0;
-    
-    if (wageType === 'flat') {
-      calculatedPay = Number(wageRate);
-    } else if (wageType === 'percentage') {
-      calculatedPay = (Number(booking.total_amount) * Number(wageRate)) / 100;
-    } else {
-      // hourly
-      calculatedPay = Number(wageRate) * hoursWorked;
-    }
-
+  // Wage calculation uses shared utility from lib/wageCalculation.ts
+  // to ensure portal and payroll always match.
+  const calcWage = (booking: any, staffMember: any) => {
+    const result = calculateBookingWage(booking, staffMember);
     return {
-      calculatedPay: Math.round(calculatedPay * 100) / 100,
-      actualPay: null,
-      wageType,
-      wageRate: Number(wageRate),
-      hoursWorked,
+      calculatedPay: result.calculatedPay,
+      actualPay: booking.cleaner_actual_payment ? Number(booking.cleaner_actual_payment) : null,
+      wageType: result.wageType,
+      wageRate: result.wageRate,
+      hoursWorked: result.hoursWorked,
     };
   };
 
@@ -241,7 +207,7 @@ export default function PayrollPage() {
       .filter((b: any) => b.status === 'completed' && b.staff_id)
       .map((b: any) => {
         const staffMember = staff.find((s) => s.id === b.staff_id);
-        const wageInfo = calculateBookingWage(b, staffMember);
+        const wageInfo = calcWage(b, staffMember);
         
         return {
           id: b.id,
@@ -270,7 +236,7 @@ export default function PayrollPage() {
       let totalPay = 0;
       
       staffBookings.forEach((b: any) => {
-        const wageInfo = calculateBookingWage(b, s);
+        const wageInfo = calcWage(b, s);
         totalHours += wageInfo.hoursWorked;
         totalPay += wageInfo.calculatedPay;
       });
@@ -279,7 +245,7 @@ export default function PayrollPage() {
       const ytdStaffBookings = ytdBookings.filter((b: any) => b.staff_id === s.id);
       let ytdEarnings = 0;
       ytdStaffBookings.forEach((b: any) => {
-        const wageInfo = calculateBookingWage(b, s);
+        const wageInfo = calcWage(b, s);
         ytdEarnings += wageInfo.calculatedPay;
       });
 
