@@ -214,16 +214,30 @@ export function AdminNotificationBell() {
             table: 'bookings',
             filter: `organization_id=eq.${organizationId}`,
           },
-          (payload) => {
+          async (payload) => {
             const updatedBooking = payload.new as any;
             const oldBooking = payload.old as any;
             
             // Only notify on status changes
             if (oldBooking.status !== updatedBooking.status || oldBooking.payment_status !== updatedBooking.payment_status) {
+              // Fetch customer name for the notification
+              let customerName = 'Customer';
+              let scheduledDate = '';
+              const { data: bookingDetails } = await supabase
+                .from('bookings')
+                .select('customers:customer_id(first_name, last_name), scheduled_at')
+                .eq('id', updatedBooking.id)
+                .single();
+              if (bookingDetails) {
+                const c = bookingDetails.customers as any;
+                if (c) customerName = `${c.first_name} ${c.last_name}`;
+                if (bookingDetails.scheduled_at) scheduledDate = format(new Date(bookingDetails.scheduled_at), 'MMM d, yyyy');
+              }
+
               const newNotification: AdminNotification = {
                 id: `booking-update-${updatedBooking.id}-${Date.now()}`,
                 type: 'booking',
-                title: `Booking #${updatedBooking.booking_number} Updated`,
+                title: `${customerName}${scheduledDate ? ` • ${scheduledDate}` : ''}`,
                 message: `Status changed to ${updatedBooking.status}`,
                 is_read: false,
                 created_at: new Date().toISOString(),
