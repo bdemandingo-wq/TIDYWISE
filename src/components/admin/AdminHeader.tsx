@@ -1,5 +1,6 @@
 import { ReactNode, Suspense, lazy, useState } from 'react';
 import { Search, Plus, Eye, EyeOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/admin/ThemeToggle';
@@ -30,7 +31,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
         We respect the safe-area inset here and keep the visual height consistent.
       */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center justify-between h-11 md:h-14 px-2 md:px-4">
+        <div className="flex items-center justify-between h-12 md:h-14 px-3 md:px-4">
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-base md:text-xl font-semibold text-foreground leading-tight">{title}</h1>
@@ -53,7 +54,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
               className="flex-1 min-w-0 overflow-x-auto pl-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             aria-label="Header actions"
           >
-            <div className="flex w-max min-w-full items-center justify-end gap-1.5 md:gap-4 whitespace-nowrap">
+            <div className="flex w-max min-w-full items-center justify-end gap-2 md:gap-4 whitespace-nowrap">
               {/* Search */}
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -75,9 +76,9 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
                 size="icon"
                 onClick={toggleTestMode}
                 title={isTestMode ? 'Disable Demo Mode' : 'Enable Demo Mode'}
-                className={isTestMode ? 'text-accent' : ''}
+                className={cn("min-w-[44px] min-h-[44px]", isTestMode ? 'text-accent' : '')}
               >
-                {isTestMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {isTestMode ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </Button>
 
               {/* Theme Toggle */}

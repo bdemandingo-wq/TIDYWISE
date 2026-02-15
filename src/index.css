@@ -561,3 +561,21 @@
 .pac-item span {
   color: hsl(var(--foreground)) !important;
 }
+
+/* Mobile touch target minimum size (44x44px per Apple/Google guidelines) */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a[href],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for inline text links and badges */
+  .inline, .badge, [data-no-min-touch] {
+    min-height: unset;
+    min-width: unset;
+  }
+}

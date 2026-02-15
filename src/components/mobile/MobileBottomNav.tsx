@@ -131,9 +131,9 @@ export function MobileBottomNav() {
               to={to}
               className={({ isActive }) =>
                 cn(
-                  'h-14 flex flex-col items-center justify-center gap-1',
-                  'text-xs font-medium transition-colors',
-                  'active:scale-[0.98] will-change-transform',
+                  'h-14 flex flex-col items-center justify-center gap-0.5',
+                  'text-[11px] font-medium transition-colors',
+                  'active:scale-[0.96] will-change-transform min-w-[48px]',
                   isActive ? 'text-foreground' : 'text-muted-foreground'
                 )
               }
@@ -150,9 +150,9 @@ export function MobileBottomNav() {
               <button
                 type="button"
                 className={cn(
-                  'h-14 flex flex-col items-center justify-center gap-1',
-                  'text-xs font-medium transition-colors',
-                  'active:scale-[0.98] will-change-transform',
+                  'h-14 flex flex-col items-center justify-center gap-0.5',
+                  'text-[11px] font-medium transition-colors',
+                  'active:scale-[0.96] will-change-transform min-w-[48px]',
                   overflowActive ? 'text-foreground' : 'text-muted-foreground'
                 )}
                 aria-label="More"
