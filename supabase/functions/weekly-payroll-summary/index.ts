@@ -68,7 +68,8 @@ const handler = async (req: Request): Promise<Response> => {
         const hoursWorked = booking.cleaner_override_hours || (booking.duration / 60);
         let pay = 0;
 
-        if (booking.cleaner_actual_payment) {
+        if (booking.cleaner_actual_payment != null) {
+          // Explicit pay set (including $0) — use it directly
           pay = Number(booking.cleaner_actual_payment);
         } else {
           const wageType = booking.cleaner_wage_type || 'hourly';
