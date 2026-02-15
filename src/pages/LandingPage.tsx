@@ -224,6 +224,7 @@ export default function LandingPage() {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Features</a>
               <a href="#blog" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Blog</a>
               <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Testimonials</a>
+              <Button variant="ghost" onClick={() => navigate("/pricing")} className="text-sm">Pricing</Button>
               <Button variant="ghost" onClick={() => navigate("/portal")} className="text-sm">Client Portal</Button>
               <Button variant="ghost" onClick={() => navigate("/staff/login")} className="text-sm">Staff Portal</Button>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>

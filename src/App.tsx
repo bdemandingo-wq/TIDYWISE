@@ -100,6 +100,7 @@ const RouteOptimization = lazy(() => import("./pages/features/RouteOptimization"
 const InvoicingSoftware = lazy(() => import("./pages/features/InvoicingSoftware"));
 const SchedulingSoftware = lazy(() => import("./pages/features/SchedulingSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const RedirectPage = lazy(() => import("./pages/RedirectPage"));
 const CardSavedPage = lazy(() => import("./pages/CardSavedPage"));
@@ -157,6 +158,7 @@ const App = () => (
                       <Route path="/tip/:token" element={<TipPage />} />
                       <Route path="/deposit/:token" element={<DepositPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/pricing" element={<PricingPage />} />
                       <Route path="/onboarding" element={<OnboardingPage />} />
                       <Route path="/review/:token" element={<ReviewPage />} />
                       <Route path="/blog" element={<BlogIndex />} />
@@ -250,6 +252,7 @@ const App = () => (
                     <Route path="/tip/:token" element={<TipPage />} />
                     <Route path="/deposit/:token" element={<DepositPage />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                    <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
                     <Route path="/blog" element={<BlogIndex />} />
