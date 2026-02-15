@@ -26,15 +26,11 @@ import {
   Receipt,
   PiggyBank,
   Calculator,
-  Lock,
-  Sparkles,
-  ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
-import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { usePlatform } from '@/hooks/usePlatform';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 
 interface Transaction {
   id: string;
@@ -52,11 +48,8 @@ interface Transaction {
 }
 
 export default function FinancePage() {
-  const { subscription, setShowSubscriptionDialog } = useAuth();
   const { organization } = useOrganization();
-  const { canShowPaymentFlows, billingUrl } = usePlatform();
   const organizationId = organization?.id;
-  const isSubscribed = subscription?.subscribed ?? false;
   
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
@@ -84,7 +77,7 @@ export default function FinancePage() {
       if (error) throw error;
       return data;
     },
-    enabled: isSubscribed && !!organizationId,
+    enabled: !!organizationId,
   });
 
   // Fetch expenses for the date range - scoped to organization
@@ -101,7 +94,7 @@ export default function FinancePage() {
       if (error) throw error;
       return data;
     },
-    enabled: isSubscribed && !!organizationId,
+    enabled: !!organizationId,
   });
 
   // Transform bookings to transactions with calculated fees
@@ -205,40 +198,6 @@ export default function FinancePage() {
     }));
   }, [transactions]);
 
-  // Show subscription gate if not subscribed (after all hooks)
-  if (!isSubscribed) {
-    return (
-      <AdminLayout
-        title="Finance & Taxes"
-        subtitle="Profit & loss, transactions, and tax exports"
-      >
-        <Card className="border-dashed border-2 border-muted-foreground/20">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <Lock className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
-            <p className="text-muted-foreground mb-4 max-w-sm">
-              {canShowPaymentFlows 
-                ? "Finance & Tax reports require an active subscription. Start your free 2-month trial to unlock all features."
-                : "Finance & Tax reports require an active subscription. Manage your subscription at jointidywise.lovable.app"}
-            </p>
-            {canShowPaymentFlows ? (
-              <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Start Free Trial
-              </Button>
-            ) : (
-              <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Manage Subscription on Web
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </AdminLayout>
-    );
-  }
 
   // Export functions
   const exportQuickBooksCSV = () => {
@@ -300,6 +259,7 @@ export default function FinancePage() {
       title="Finance & Taxes"
       subtitle="Profit & loss, transactions, and tax exports"
     >
+      <SubscriptionGate feature="Finance & Tax reports">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
         <Popover>
@@ -576,6 +536,7 @@ export default function FinancePage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

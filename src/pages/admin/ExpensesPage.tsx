@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -259,6 +260,7 @@ export default function ExpensesPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Expenses & Supplies">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
@@ -490,6 +492,7 @@ export default function ExpensesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

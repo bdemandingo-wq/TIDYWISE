@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -346,6 +347,7 @@ export default function PayrollPage() {
         </Button>
       }
     >
+      <SubscriptionGate feature="Payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
@@ -628,6 +630,7 @@ export default function PayrollPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

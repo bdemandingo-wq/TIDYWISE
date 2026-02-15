@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SubscriptionGate } from "@/components/admin/SubscriptionGate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -304,6 +305,7 @@ export default function CampaignsPage() {
 
   return (
     <AdminLayout title="SMS Campaigns" subtitle="Automated SMS re-engagement campaigns">
+      <SubscriptionGate feature="SMS Campaigns">
       <div className="space-y-6">
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -741,6 +743,7 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
       </div>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

@@ -1,4 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientPortalUsersManager } from '@/components/admin/ClientPortalUsersManager';
 import { ClientBookingRequestsManager } from '@/components/admin/ClientBookingRequestsManager';
@@ -33,6 +34,7 @@ export default function ClientPortalPage() {
       title="Client Portal"
       subtitle="Manage customer portal access and booking requests"
     >
+      <SubscriptionGate feature="Client Portal">
       <Tabs defaultValue="requests" className="w-full">
         <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="requests" className="gap-2">
@@ -66,6 +68,7 @@ export default function ClientPortalPage() {
           <LoyaltyProgramSettings />
         </TabsContent>
       </Tabs>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

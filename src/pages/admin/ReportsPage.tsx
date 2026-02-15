@@ -1,4 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff } from '@/hooks/useBookings';
 import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck } from 'lucide-react';
@@ -268,6 +269,7 @@ export default function ReportsPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Reports">
       {/* Summary Stats - Uniform Card Size */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard
@@ -479,6 +481,7 @@ export default function ReportsPage() {
           />
         </TabsContent>
       </Tabs>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
