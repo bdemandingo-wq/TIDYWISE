@@ -285,17 +285,27 @@ export default function LandingPage() {
                        className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                      >
                        Testimonials
-                     </a>
+                      </a>
                       <Button
                         variant="ghost"
                         className="justify-start"
                         onClick={() => {
                           closeMobileMenu();
-                          navigate("/portal");
+                          navigate("/pricing");
                         }}
                       >
-                        Client Portal
+                        Pricing
                       </Button>
+                       <Button
+                         variant="ghost"
+                         className="justify-start"
+                         onClick={() => {
+                           closeMobileMenu();
+                           navigate("/portal");
+                         }}
+                       >
+                         Client Portal
+                       </Button>
                       <Button
                         variant="ghost"
                         className="justify-start"

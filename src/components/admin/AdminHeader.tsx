@@ -32,7 +32,9 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
       */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between h-12 md:h-14 px-3 md:px-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Space for mobile hamburger */}
+            <div className="w-10 md:hidden" aria-hidden="true" />
             <div>
               <h1 className="text-base md:text-xl font-semibold text-foreground leading-tight">{title}</h1>
             </div>
