@@ -422,8 +422,8 @@ export default function SettingsPage() {
     setUploadingLogo(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${organization?.id || 'default'}-${Date.now()}.${fileExt}`;
-      const filePath = `logos/${fileName}`;
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `${organization?.id}/logos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('booking-photos')
