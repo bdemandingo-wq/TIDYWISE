@@ -221,9 +221,42 @@ export default function StaffPortal() {
         bookingMap.set(b.id, b as Booking);
       }
 
-      return Array.from(bookingMap.values()).sort(
+      const allBookings = Array.from(bookingMap.values()).sort(
         (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
       );
+
+      // Fetch team members for all bookings
+      const bookingIds = allBookings.map(b => b.id);
+      if (bookingIds.length > 0) {
+        const { data: allTeamMembers } = await supabase
+          .from('booking_team_assignments')
+          .select('booking_id, staff:staff(id, name)')
+          .in('booking_id', bookingIds);
+
+        // Also get primary staff names for bookings
+        const staffIds = [...new Set(allBookings.map(b => (b as any).staff_id).filter(Boolean))];
+        const { data: primaryStaffData } = staffIds.length > 0
+          ? await supabase.from('staff').select('id, name').in('id', staffIds)
+          : { data: [] };
+
+        const primaryStaffMap = new Map((primaryStaffData || []).map(s => [s.id, s.name]));
+
+        for (const booking of allBookings) {
+          const members = (allTeamMembers || [])
+            .filter(tm => tm.booking_id === booking.id)
+            .map(tm => (tm.staff as any)?.name)
+            .filter(Boolean);
+          
+          const primaryName = primaryStaffMap.get((booking as any).staff_id);
+          if (primaryName && !members.includes(primaryName)) {
+            members.unshift(primaryName);
+          }
+
+          (booking as any).team_members = members.length > 1 ? members : [];
+        }
+      }
+
+      return allBookings;
     },
     enabled: !!staffInfo?.id,
   });

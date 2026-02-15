@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users } from 'lucide-react';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 import { useMapsNavigation } from '@/hooks/useMapsNavigation';
@@ -45,6 +45,7 @@ interface Booking {
     name: string;
   } | null;
   team_pay_share?: number | null;
+  team_members?: string[];
 }
 
 interface Props {
@@ -293,6 +294,21 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               <div>
                 <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">Special Instructions</p>
                 <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{booking.notes}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Team Members */}
+        {booking.team_members && booking.team_members.length > 0 && (
+          <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-start gap-2">
+              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">Team Clean ({booking.team_members.length} members)</p>
+                <p className="text-sm text-indigo-800 dark:text-indigo-200">
+                  {booking.team_members.join(' • ')}
+                </p>
               </div>
             </div>
           </div>
