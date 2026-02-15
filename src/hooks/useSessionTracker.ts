@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes of inactivity = idle
 const UPDATE_INTERVAL_MS = 30 * 1000; // Update session every 30 seconds
+const SESSION_RESUME_WINDOW_MS = 30 * 60 * 1000; // Resume sessions started within last 30 minutes
 
 export function useSessionTracker() {
   const { user } = useAuth();
@@ -37,33 +38,54 @@ export function useSessionTracker() {
     }
   }, []);
 
-  // Create a new session
+  // Try to resume an existing active session, or create a new one
   const createSession = useCallback(async () => {
     if (!user || creatingRef.current || sessionIdRef.current) return;
     creatingRef.current = true;
     
     try {
-      console.log('[SESSION_TRACKER] createSession start', { userId: user.id, email: user.email });
-      const { data, error } = await supabase
+      // First, try to find a recent active session for this user to resume
+      const resumeAfter = new Date(Date.now() - SESSION_RESUME_WINDOW_MS).toISOString();
+      const { data: existingSession } = await supabase
         .from('user_sessions')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          session_start: new Date().toISOString(),
-          is_active: true,
-          duration_seconds: 0,
-        })
-        .select('id')
+        .select('id, duration_seconds, session_start')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .gte('session_start', resumeAfter)
+        .order('session_start', { ascending: false })
+        .limit(1)
         .single();
 
-      if (error) throw error;
-      sessionIdRef.current = data.id;
-      console.log('[SESSION_TRACKER] createSession success', { sessionId: data.id, userId: user.id, email: user.email });
-      sessionStartRef.current = Date.now();
-      activeTimeRef.current = 0;
-      lastActivityRef.current = Date.now();
+      if (existingSession) {
+        // Resume existing session
+        sessionIdRef.current = existingSession.id;
+        activeTimeRef.current = (existingSession.duration_seconds ?? 0) * 1000;
+        lastActivityRef.current = Date.now();
+        sessionStartRef.current = new Date(existingSession.session_start).getTime();
+        console.log('[SESSION_TRACKER] resumed session', { sessionId: existingSession.id, previousDuration: existingSession.duration_seconds });
+      } else {
+        // Create brand new session
+        const { data, error } = await supabase
+          .from('user_sessions')
+          .insert({
+            user_id: user.id,
+            user_email: user.email,
+            session_start: new Date().toISOString(),
+            is_active: true,
+            duration_seconds: 0,
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        sessionIdRef.current = data.id;
+        sessionStartRef.current = Date.now();
+        activeTimeRef.current = 0;
+        lastActivityRef.current = Date.now();
+        console.log('[SESSION_TRACKER] created new session', { sessionId: data.id });
+      }
     } catch (err) {
-      console.error('[SESSION_TRACKER] createSession failed', { userId: user.id, email: user.email, err });
+      console.error('[SESSION_TRACKER] createSession failed', { userId: user.id, err });
     } finally {
       creatingRef.current = false;
     }
@@ -98,8 +120,6 @@ export function useSessionTracker() {
     } catch (err) {
       console.error('[SESSION_TRACKER] updateSession failed', {
         sessionId: sessionIdRef.current,
-        userId: user.id,
-        email: user.email,
         durationSeconds,
         err,
       });
@@ -142,9 +162,8 @@ export function useSessionTracker() {
 
   useEffect(() => {
     if (!user) return;
-    console.log('[SESSION_TRACKER] init', { userId: user.id, email: user.email });
 
-    // Start session
+    // Start or resume session
     createSession();
 
     // Activity event listeners
@@ -178,17 +197,21 @@ export function useSessionTracker() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(updateInterval);
       clearInterval(idleCheckInterval);
-      endSession();
+      // Don't end session on unmount - just update it so it can be resumed
+      updateSession();
     };
   }, [user, createSession, handleActivity, updateSession, endSession, checkIdle]);
 
-  // Handle page unload - use fetch with keepalive for proper auth headers
+  // Handle page unload (actual close/navigate away) - this truly ends the session
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (sessionIdRef.current) {
+        // Final active time calculation
+        if (!isIdleRef.current) {
+          activeTimeRef.current += Date.now() - lastActivityRef.current;
+        }
         const durationSeconds = Math.floor(activeTimeRef.current / 1000);
         
-        // Use fetch with keepalive - sendBeacon doesn't support auth headers
         try {
           await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`,
@@ -205,11 +228,11 @@ export function useSessionTracker() {
                 duration_seconds: durationSeconds,
                 is_active: false,
               }),
-              keepalive: true, // Ensures request completes even after page closes
+              keepalive: true,
             }
           );
         } catch {
-          // Silently fail on unload - can't do much here
+          // Silently fail on unload
         }
       }
     };
