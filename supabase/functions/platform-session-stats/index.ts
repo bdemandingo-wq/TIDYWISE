@@ -92,6 +92,7 @@ serve(async (req) => {
         .from("user_sessions")
         .select("user_id, user_email, duration_seconds")
         .gte("session_start", startIso)
+        .gt("duration_seconds", 0) // Exclude ghost/duplicate 0-duration sessions
         .order("session_start", { ascending: false })
         .range(from, to);
 
@@ -143,6 +144,7 @@ serve(async (req) => {
         .from("client_portal_sessions")
         .select("client_user_id, customer_email, duration_seconds")
         .gte("session_start", startIso)
+        .gt("duration_seconds", 0) // Exclude ghost/duplicate 0-duration sessions
         .order("session_start", { ascending: false })
         .range(from, to);
 
