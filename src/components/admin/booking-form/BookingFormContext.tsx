@@ -472,6 +472,31 @@ export function BookingFormProvider({
             setSelectedChecklistId(data.template_id);
           }
         });
+
+      // Load team assignments for this booking
+      supabase
+        .from('booking_team_assignments')
+        .select('staff_id, pay_share')
+        .eq('booking_id', booking.id)
+        .then(({ data: teamData }) => {
+          if (teamData && teamData.length > 0) {
+            setIsTeamMode(true);
+            const memberIds = teamData.map(t => t.staff_id);
+            // Include primary staff if not already in team
+            if (booking.staff && !memberIds.includes(booking.staff.id)) {
+              memberIds.unshift(booking.staff.id);
+            }
+            setSelectedTeamMembers(memberIds);
+            // Load pay shares
+            const payMap: Record<string, number> = {};
+            teamData.forEach(t => {
+              if (t.pay_share != null) {
+                payMap[t.staff_id] = t.pay_share;
+              }
+            });
+            setTeamMemberPay(payMap);
+          }
+        });
     }
   };
 
