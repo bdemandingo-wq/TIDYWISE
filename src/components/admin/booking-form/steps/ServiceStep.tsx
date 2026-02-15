@@ -365,7 +365,7 @@ export function ServiceStep() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Frequency</Label>
               <Select 
-                value={showCustomInput ? '__custom__' : frequency} 
+                value={showCustomInput ? '__custom__' : (frequency === 'custom' && customFrequencyDays && !showCustomInput ? `custom_${customFrequencyDays}` : frequency)} 
                 onValueChange={(val) => {
                   if (val === '__custom__') {
                     setShowCustomInput(true);
