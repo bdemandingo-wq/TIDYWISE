@@ -58,6 +58,20 @@ const handler = async (req: Request): Promise<Response> => {
             .eq("id", item.id);
           continue;
         }
+        // Safety check: verify booking is still completed before sending
+        const { data: bookingCheck } = await supabase
+          .from("bookings")
+          .select("status")
+          .eq("id", item.booking_id)
+          .single();
+
+        if (!bookingCheck || bookingCheck.status !== 'completed') {
+          await supabase.from("automated_review_sms_queue")
+            .update({ sent: true, sent_at: new Date().toISOString(), error: "Booking no longer completed" })
+            .eq("id", item.id);
+          continue;
+        }
+
         // Get customer details
         const { data: customer } = await supabase
           .from("customers")

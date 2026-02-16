@@ -2,20 +2,21 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Seo } from '@/components/Seo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Zap, Star, Clock, PhoneMissed, RotateCcw, Repeat, UserX,
-  HelpCircle, Settings, Home, Calendar, ClipboardList, Users, Target,
+  HelpCircle, Home, Calendar, ClipboardList, Users, Target,
   MessageSquare, Briefcase, UserCircle, CheckSquare, Package, DollarSign,
   Receipt, BarChart3, Sparkles, CreditCard, Tag, MapPin, Globe, Brain,
+  Activity, Lightbulb,
 } from 'lucide-react';
+import { AutomationHealthMonitor } from '@/components/admin/automation/AutomationHealthMonitor';
+import { CRMSuggestionsPanel } from '@/components/admin/automation/CRMSuggestionsPanel';
 
 const automationMeta: Record<string, {
   icon: typeof Zap;
@@ -138,8 +139,10 @@ export default function AutomationCenterPage() {
       <Seo title="Automation Center" description="Manage your automated workflows and learn about platform features." />
       <div className="space-y-6">
         <Tabs defaultValue="automations" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="automations" className="gap-2"><Zap className="w-4 h-4" /> Automations</TabsTrigger>
+            <TabsTrigger value="health" className="gap-2"><Activity className="w-4 h-4" /> Health Monitor</TabsTrigger>
+            <TabsTrigger value="suggestions" className="gap-2"><Lightbulb className="w-4 h-4" /> Suggestions</TabsTrigger>
             <TabsTrigger value="guide" className="gap-2"><HelpCircle className="w-4 h-4" /> Feature Guide</TabsTrigger>
           </TabsList>
 
@@ -197,6 +200,14 @@ export default function AutomationCenterPage() {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="health" className="space-y-4">
+            <AutomationHealthMonitor />
+          </TabsContent>
+
+          <TabsContent value="suggestions" className="space-y-4">
+            <CRMSuggestionsPanel />
           </TabsContent>
 
           <TabsContent value="guide" className="space-y-4">
