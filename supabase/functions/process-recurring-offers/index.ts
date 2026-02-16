@@ -130,8 +130,17 @@ serve(async (req: Request) => {
           continue;
         }
 
-        // 5. Build message
-        const message = `Hi! This is Tidywise Cleaning. Most of our recurring clients never have to worry about cleaning again and also get priority scheduling and lower pricing than one-time bookings.\n\nWant us to lock in a regular cleaning every 2 or 4 weeks so your home stays taken care of automatically?`;
+        // 5. Get business settings for company name
+        const { data: businessSettings } = await supabase
+          .from("business_settings")
+          .select("company_name")
+          .eq("organization_id", item.organization_id)
+          .maybeSingle();
+
+        const companyName = businessSettings?.company_name || "Your cleaning service";
+
+        // Build message
+        const message = `Hi! This is ${companyName}. Most of our recurring clients never have to worry about cleaning again and also get priority scheduling and lower pricing than one-time bookings.\n\nWant us to lock in a regular cleaning every 2 or 4 weeks so your home stays taken care of automatically?`;
 
         // 6. Send via OpenPhone
         let phoneNumberId = smsSettings.openphone_phone_number_id;

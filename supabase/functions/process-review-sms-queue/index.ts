@@ -112,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Build SMS message
         const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "there";
-        const message = `Hi ${customerName}! This is ${businessSettings?.company_name || 'Tidywise Cleaning'}. If you enjoyed your cleaning today, we'd really appreciate a quick review here: ${reviewPageUrl}. Thank you for supporting our small business!`;
+        const message = `Hi ${customerName}! This is ${businessSettings?.company_name || 'Your cleaning service'}. If you enjoyed your cleaning today, we'd really appreciate a quick review here: ${reviewPageUrl}. Thank you for supporting our small business!`;
 
         // Format phone
         let formattedPhone = customer.phone.replace(/\D/g, "");
