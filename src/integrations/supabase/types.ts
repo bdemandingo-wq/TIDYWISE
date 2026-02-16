@@ -261,6 +261,57 @@ export type Database = {
           },
         ]
       }
+      automated_review_sms_queue: {
+        Row: {
+          booking_id: string
+          created_at: string
+          customer_id: string | null
+          error: string | null
+          id: string
+          organization_id: string
+          send_at: string
+          sent: boolean
+          sent_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          organization_id: string
+          send_at: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          organization_id?: string
+          send_at?: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automated_review_sms_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automated_review_sms_queue_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           category: string
