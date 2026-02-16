@@ -3676,6 +3676,76 @@ export type Database = {
           },
         ]
       }
+      rebooking_reminder_queue: {
+        Row: {
+          booking_id: string
+          cancelled: boolean
+          cancelled_reason: string | null
+          created_at: string
+          customer_id: string
+          defer_count: number
+          deferred_until: string | null
+          error: string | null
+          id: string
+          organization_id: string
+          send_at: string
+          sent: boolean
+          sent_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          cancelled?: boolean
+          cancelled_reason?: string | null
+          created_at?: string
+          customer_id: string
+          defer_count?: number
+          deferred_until?: string | null
+          error?: string | null
+          id?: string
+          organization_id: string
+          send_at: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          cancelled?: boolean
+          cancelled_reason?: string | null
+          created_at?: string
+          customer_id?: string
+          defer_count?: number
+          deferred_until?: string | null
+          error?: string | null
+          id?: string
+          organization_id?: string
+          send_at?: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rebooking_reminder_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rebooking_reminder_queue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rebooking_reminder_queue_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_bookings: {
         Row: {
           address: string | null

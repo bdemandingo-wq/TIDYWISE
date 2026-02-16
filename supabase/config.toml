@@ -170,3 +170,6 @@ verify_jwt = false
 
 [functions.process-review-sms-queue]
 verify_jwt = false
+
+[functions.process-rebooking-reminders]
+verify_jwt = false
