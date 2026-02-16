@@ -3860,6 +3860,69 @@ export type Database = {
           },
         ]
       }
+      recurring_offer_queue: {
+        Row: {
+          booking_id: string
+          cancelled: boolean
+          cancelled_reason: string | null
+          created_at: string
+          customer_id: string
+          defer_count: number
+          deferred_until: string | null
+          error: string | null
+          id: string
+          organization_id: string
+          send_at: string
+          sent: boolean
+          sent_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          cancelled?: boolean
+          cancelled_reason?: string | null
+          created_at?: string
+          customer_id: string
+          defer_count?: number
+          deferred_until?: string | null
+          error?: string | null
+          id?: string
+          organization_id: string
+          send_at: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          cancelled?: boolean
+          cancelled_reason?: string | null
+          created_at?: string
+          customer_id?: string
+          defer_count?: number
+          deferred_until?: string | null
+          error?: string | null
+          id?: string
+          organization_id?: string
+          send_at?: string
+          sent?: boolean
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_offer_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_offer_queue_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           completed_at: string | null

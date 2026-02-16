@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.process-rebooking-reminders]
 verify_jwt = false
+
+[functions.process-recurring-offers]
+verify_jwt = false
