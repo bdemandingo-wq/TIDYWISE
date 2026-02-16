@@ -552,6 +552,51 @@ export type Database = {
           },
         ]
       }
+      booking_reminder_log: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          organization_id: string
+          recipient_phone: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          recipient_phone: string
+          reminder_type: string
+          sent_at?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          recipient_phone?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_reminder_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_reminder_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_team_assignments: {
         Row: {
           booking_id: string
