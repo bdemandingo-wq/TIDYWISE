@@ -480,13 +480,17 @@ export function BookingFormProvider({
         .eq('booking_id', booking.id)
         .then(({ data: teamData }) => {
           if (teamData && teamData.length > 0) {
-            setIsTeamMode(true);
             const memberIds = teamData.map(t => t.staff_id);
             // Include primary staff if not already in team
             if (booking.staff && !memberIds.includes(booking.staff.id)) {
               memberIds.unshift(booking.staff.id);
             }
-            setSelectedTeamMembers(memberIds);
+            // Only enable team mode if there are MULTIPLE people assigned
+            const isActualTeam = memberIds.length > 1;
+            setIsTeamMode(isActualTeam);
+            if (isActualTeam) {
+              setSelectedTeamMembers(memberIds);
+            }
             // Load pay shares
             const payMap: Record<string, number> = {};
             teamData.forEach(t => {

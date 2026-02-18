@@ -132,19 +132,21 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     return getStaffAvailability(activeStaff.map(s => s.id));
   }, [activeStaff, selectedDate, selectedTime, getStaffAvailability]);
 
-  // Filter staff to only show those available based on working hours
-  // Staff are completely hidden if they're outside their configured working hours
+  // Filter staff to only show those outside working hours
+  // Staff with booking conflicts are still shown (admin can override)
+  // Only staff who are outside their configured working hours are hidden
   const availableStaff = useMemo(() => {
     if (!selectedDate || !selectedTime) {
       // If no date/time selected yet, show all active staff
       return activeStaff;
     }
-    // Only show staff who are within their working hours for the selected date/time
+    // Only hide staff who are outside their working hours
+    // Staff with booking conflicts (busy) are still shown so admin can select + override
     return activeStaff.filter(s => {
       const availability = staffAvailability.get(s.id);
       // If no availability data, show the staff (default available)
       if (!availability) return true;
-      // Hide staff who are outside their working hours
+      // Hide only if outside configured working hours
       return !availability.isOutsideWorkingHours;
     });
   }, [activeStaff, selectedDate, selectedTime, staffAvailability]);
@@ -239,15 +241,20 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     return 0;
   };
 
-  // Initialize pay when team members change
+  // Initialize pay ONLY for newly added team members (not pre-loaded ones from DB)
+  // We check if the value is strictly undefined AND the amount is > 0 to avoid overwriting DB values
   useEffect(() => {
     selectedTeamMembers.forEach(staffId => {
+      // Only auto-calculate if truly missing (undefined), not if it was loaded as 0 from DB
       if (teamMemberPay[staffId] === undefined) {
         const suggestedPay = calculateSuggestedPay(staffId);
-        updateTeamMemberPay(staffId, Math.round(suggestedPay * 100) / 100);
+        if (suggestedPay > 0) {
+          updateTeamMemberPay(staffId, Math.round(suggestedPay * 100) / 100);
+        }
+        // If suggestedPay is 0, leave as 0 (don't auto-set $1 or any incorrect value)
       }
     });
-  }, [selectedTeamMembers, totalAmount, calculatedPrice]);
+  }, [selectedTeamMembers]);
 
   // Helper to render availability badge
   const renderAvailabilityBadge = (staffId: string) => {
