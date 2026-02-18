@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,27 +67,22 @@ const handler = async (req: Request): Promise<Response> => {
       return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
     }
 
-    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    // STRICT ISOLATION: Get organization-specific Stripe credentials via shared helper
+    const stripeResult = await getOrgStripeClient(organizationId);
+    if (!stripeResult.success || !stripeResult.stripe) {
+      return new Response(
+        JSON.stringify({ error: stripeResult.error || "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const stripe = stripeResult.stripe;
+
+    // Shared Supabase client for org settings (SMS, business settings)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    const { data: orgStripeSettings } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
-    
-    if (!stripeSecretKey) {
-      return new Response(
-        JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
 
     // Get organization SMS settings for OpenPhone
     const { data: smsSettings, error: smsError } = await supabase
@@ -135,8 +131,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = businessSettings?.company_name || "Your Cleaning Service";
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
-
     // Format phone number
     let formattedPhone = phone.replace(/\D/g, "");
     if (formattedPhone.length === 10) {
@@ -145,17 +139,20 @@ const handler = async (req: Request): Promise<Response> => {
       formattedPhone = "+" + formattedPhone;
     }
 
-    // Check if customer exists in Stripe by phone, create if not
+    // STRICT ISOLATION: Look for customer scoped to this organization by phone + org metadata
+    // List all customers, then filter to only those belonging to this org
     const customers = await stripe.customers.list({ limit: 100 });
     let customerId: string | undefined;
     
-    // Search for customer by phone in metadata or phone field
-    for (const customer of customers.data) {
-      if (customer.phone === formattedPhone || customer.metadata?.phone === formattedPhone) {
-        customerId = customer.id;
-        console.log("Found existing Stripe customer by phone:", customerId);
-        break;
-      }
+    // Only accept customers explicitly tagged to this org
+    const orgCustomer = customers.data.find((c: Stripe.Customer) =>
+      c.metadata?.organization_id === organizationId &&
+      (c.phone === formattedPhone || c.metadata?.phone === formattedPhone)
+    );
+
+    if (orgCustomer) {
+      customerId = orgCustomer.id;
+      console.log("Found existing org-specific Stripe customer by phone:", customerId);
     }
     
     if (!customerId) {
@@ -168,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
       });
       customerId = newCustomer.id;
-      console.log("Created new Stripe customer:", customerId);
+      console.log("Created new org-specific Stripe customer:", customerId);
     }
 
     // Create a Stripe Checkout session in SETUP mode to save card without charging

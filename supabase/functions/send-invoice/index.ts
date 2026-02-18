@@ -122,21 +122,27 @@ const handler = async (req: Request): Promise<Response> => {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Check if customer exists in Stripe (scoped to org's Stripe account)
-    const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+    // STRICT ISOLATION: Look for customer scoped to this org by email + org metadata
+    const customers = await stripe.customers.list({ email: customerEmail, limit: 100 });
     let customerId: string | undefined;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("[send-invoice] Found existing Stripe customer:", customerId);
+
+    // Only accept customers explicitly tagged to this organization
+    const orgCustomer = customers.data.find((c: Stripe.Customer) =>
+      c.metadata?.organization_id === data.organizationId
+    );
+
+    if (orgCustomer) {
+      customerId = orgCustomer.id;
+      console.log("[send-invoice] Found existing org-specific Stripe customer:", customerId);
     } else {
-      // Create new customer with organization metadata
+      // Create new customer WITH organization_id in metadata for isolation
       const newCustomer = await stripe.customers.create({
         email: customerEmail,
         name: customerName,
         metadata: { organization_id: data.organizationId },
       });
       customerId = newCustomer.id;
-      console.log("[send-invoice] Created new Stripe customer:", customerId);
+      console.log("[send-invoice] Created new org-specific Stripe customer:", customerId);
     }
 
     // Create a Stripe Checkout session for this invoice payment

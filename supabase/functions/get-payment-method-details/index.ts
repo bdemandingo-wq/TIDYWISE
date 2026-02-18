@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,29 +36,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // STRICT ISOLATION: Get organization-specific Stripe credentials
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: orgStripeSettings } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
-    
-    if (!stripeSecretKey) {
+    // STRICT ISOLATION: Get org-specific Stripe client via shared helper
+    const stripeResult = await getOrgStripeClient(organizationId);
+    if (!stripeResult.success || !stripeResult.stripe) {
       return new Response(
-        JSON.stringify({ error: "Stripe not configured for this organization" }),
+        JSON.stringify({ error: stripeResult.error || "Stripe not configured for this organization" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = stripeResult.stripe;
 
     const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
