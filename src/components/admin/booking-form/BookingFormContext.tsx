@@ -473,11 +473,12 @@ export function BookingFormProvider({
           }
         });
 
-      // Load team assignments for this booking
+      // Load team assignments for this booking (org-scoped)
       supabase
         .from('booking_team_assignments')
         .select('staff_id, pay_share')
         .eq('booking_id', booking.id)
+        .eq('organization_id', organizationId ?? '')
         .then(({ data: teamData }) => {
           if (teamData && teamData.length > 0) {
             const memberIds = teamData.map(t => t.staff_id);

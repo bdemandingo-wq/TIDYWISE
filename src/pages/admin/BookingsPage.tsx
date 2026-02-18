@@ -796,11 +796,12 @@ export default function BookingsPage() {
         .filter(Boolean)
         .join(', ');
 
-      // Get team members for this booking
+      // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
         .from('booking_team_assignments')
         .select('staff_id, staff:staff(id, name, phone)')
-        .eq('booking_id', booking.id);
+        .eq('booking_id', booking.id)
+        .eq('organization_id', organization?.id ?? '');
 
       // Collect all staff to notify (primary + team members)
       const staffToNotify: { name: string; phone: string }[] = [];

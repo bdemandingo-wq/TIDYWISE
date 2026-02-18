@@ -209,19 +209,20 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
   const { data: allBookings = [], isLoading } = useBookings();
 
-  // Fetch team assignments for the selected booking
+  // Fetch team assignments for the selected booking (org-scoped)
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['booking-team-assignments', selectedBooking?.id],
+    queryKey: ['booking-team-assignments', selectedBooking?.id, organization?.id],
     queryFn: async () => {
-      if (!selectedBooking?.id) return [];
+      if (!selectedBooking?.id || !organization?.id) return [];
       const { data, error } = await supabase
         .from('booking_team_assignments')
         .select('staff_id, staff:staff(id, name)')
-        .eq('booking_id', selectedBooking.id);
+        .eq('booking_id', selectedBooking.id)
+        .eq('organization_id', organization.id);
       if (error) return [];
       return (data || []).map((a: any) => a.staff).filter(Boolean);
     },
-    enabled: !!selectedBooking?.id,
+    enabled: !!selectedBooking?.id && !!organization?.id,
   });
 
   // Fetch all team assignments for calendar display
@@ -445,11 +446,12 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         ? `${booking.customer.first_name} ${booking.customer.last_name}`
         : 'Unknown Customer';
 
-      // Get team members for this booking
+      // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
         .from('booking_team_assignments')
         .select('staff_id, staff:staff(id, name, phone)')
-        .eq('booking_id', booking.id);
+        .eq('booking_id', booking.id)
+        .eq('organization_id', organization?.id ?? '');
 
       // Collect all staff to notify (primary + team members)
       const staffToNotify: { name: string; phone: string }[] = [];
