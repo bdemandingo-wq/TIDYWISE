@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { differenceInMinutes, parseISO, format, isSameDay, getDay } from 'date-fns';
+import { useOrgId } from '@/hooks/useOrgId';
 
 export interface ConflictInfo {
   bookingId: string;
@@ -39,10 +40,11 @@ export function useCleanerConflicts(
   const [allBookingsOnDate, setAllBookingsOnDate] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [loading, setLoading] = useState(false);
+  const { organizationId } = useOrgId();
 
   // Fetch bookings and working hours for the selected date
   useEffect(() => {
-    if (!selectedDate) {
+    if (!selectedDate || !organizationId) {
       setAllBookingsOnDate([]);
       setWorkingHours([]);
       return;
@@ -56,7 +58,7 @@ export function useCleanerConflicts(
         const endOfDay = new Date(selectedDate);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Fetch bookings
+        // SECURITY: Fetch bookings scoped to this organization only
         const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
           .select(`
@@ -69,20 +71,27 @@ export function useCleanerConflicts(
             customer:customers(first_name, last_name),
             service:services(name)
           `)
+          .eq('organization_id', organizationId)
           .gte('scheduled_at', startOfDay.toISOString())
           .lte('scheduled_at', endOfDay.toISOString())
           .not('status', 'in', '("cancelled","no_show")');
 
         if (bookingsError) throw bookingsError;
 
-        // Fetch team assignments
-        const { data: teamAssignments } = await supabase
-          .from('booking_team_assignments')
-          .select('booking_id, staff_id');
+        // Fetch team assignments only for bookings in this org on this date
+        const bookingIds = (bookingsData || []).map(b => b.id);
+        let teamAssignments: { booking_id: string; staff_id: string }[] = [];
+        if (bookingIds.length > 0) {
+          const { data: teamData } = await supabase
+            .from('booking_team_assignments')
+            .select('booking_id, staff_id')
+            .in('booking_id', bookingIds);
+          teamAssignments = teamData || [];
+        }
 
         // Merge team assignments into bookings
         const bookingsWithTeam = (bookingsData || []).map(booking => {
-          const teamStaffIds = (teamAssignments || [])
+          const teamStaffIds = teamAssignments
             .filter(t => t.booking_id === booking.id)
             .map(t => t.staff_id);
           return {
@@ -93,12 +102,19 @@ export function useCleanerConflicts(
 
         setAllBookingsOnDate(bookingsWithTeam);
 
-        // Fetch working hours for all staff
-        // Use type workaround for Supabase deep type inference
+        // SECURITY: Fetch working hours only for staff in this organization
         const client: any = supabase;
         const { data: hoursData, error: hoursError } = await client
           .from('working_hours')
-          .select('*');
+          .select('staff_id, day_of_week, start_time, end_time, is_available')
+          .in('staff_id', 
+            await supabase
+              .from('staff')
+              .select('id')
+              .eq('organization_id', organizationId)
+              .eq('is_active', true)
+              .then(r => (r.data || []).map((s: { id: string }) => s.id))
+          );
 
         if (hoursError) throw hoursError;
         setWorkingHours(hoursData || []);
@@ -112,7 +128,7 @@ export function useCleanerConflicts(
     };
 
     fetchData();
-  }, [selectedDate?.toDateString()]);
+  }, [selectedDate?.toDateString(), organizationId]);
 
   // Check if staff is within their working hours for the selected date/time
   // Returns false ONLY if the staff has working hours configured AND the day is explicitly blocked/unavailable
