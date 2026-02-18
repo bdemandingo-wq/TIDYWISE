@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getStripePromise, getCachedStripeReact, setCachedStripeReact } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, Lock } from 'lucide-react';
@@ -41,26 +41,28 @@ const CARD_ELEMENT_OPTIONS = {
   hidePostalCode: true,
 };
 
-function CardFormInnerDynamic({
+/**
+ * Inner form — rendered inside <Elements> so useStripe()/useElements() work.
+ * The stripe instance here is GUARANTEED to be the same one used to create Elements.
+ * We pass in the pre-fetched clientSecret so no second Stripe instance is needed.
+ */
+function CardFormInner({
   stripeReact,
-  onPublishableKeyReceived,
-  ...props
+  prefetchedClientSecret,
+  email,
+  customerName,
+  organizationId,
+  onCardSaved,
+  onError,
+  onHoldPlaced,
+  showHoldOption = true,
+  defaultHoldAmount = 50,
+  publicBooking = false,
 }: CardFormProps & {
   stripeReact: StripeReact;
-  onPublishableKeyReceived?: (key: string) => void;
+  prefetchedClientSecret: string;
 }) {
-  const {
-    email,
-    customerName,
-    organizationId,
-    onCardSaved,
-    onError,
-    onHoldPlaced,
-    showHoldOption = true,
-    defaultHoldAmount = 50,
-    publicBooking = false,
-  } = props;
-
+  // These hooks read from the Elements context — same Stripe instance as the provider.
   const stripe = stripeReact.useStripe();
   const elements = stripeReact.useElements();
   const [loading, setLoading] = useState(false);
@@ -69,53 +71,18 @@ function CardFormInnerDynamic({
   const [holdAmount, setHoldAmount] = useState(defaultHoldAmount.toString());
 
   const handleSaveCard = async () => {
-    if (!stripe || !elements) {
-      return;
-    }
+    if (!stripe || !elements) return;
 
     const cardElement = elements.getElement(stripeReact.CardElement);
-    if (!cardElement) {
-      return;
-    }
+    if (!cardElement) return;
 
     setLoading(true);
 
     try {
-      // First, create a SetupIntent on the server
-      const { data: setupData, error: setupError } = await supabase.functions.invoke('create-setup-intent', {
-        body: {
-          email,
-          customerName,
-          organizationId,
-          publicBooking,
-        },
-      });
-
-      if (setupError || !setupData?.clientSecret) {
-        throw new Error(setupError?.message || 'Failed to create setup intent');
-      }
-
-      // CRITICAL FIX: The clientSecret is created using the org's Stripe secret key.
-      // We MUST confirm using the matching org-specific publishable key — NOT the platform default.
-      // This prevents the "No such setupintent" error when orgs use their own Stripe accounts.
-      let stripeInstance: Stripe | null = stripe;
-      if (setupData.publishableKey && setupData.publishableKey !== '') {
-        // Notify parent to update future Stripe Elements with the org key
-        onPublishableKeyReceived?.(setupData.publishableKey);
-        // Load a Stripe instance scoped to the org's publishable key
-        const { loadStripe } = await import('@stripe/stripe-js');
-        const orgStripe = await loadStripe(setupData.publishableKey);
-        if (orgStripe) {
-          stripeInstance = orgStripe;
-        }
-      }
-
-      if (!stripeInstance) {
-        throw new Error('Failed to initialize Stripe for this organization');
-      }
-
-      // Confirm the SetupIntent with the card details using the correct Stripe account
-      const { error: confirmError, setupIntent } = await stripeInstance.confirmCardSetup(setupData.clientSecret, {
+      // Use the pre-fetched clientSecret — no need to call create-setup-intent again.
+      // Crucially, we confirm using `stripe` from useStripe(), which is the SAME instance
+      // that was used to create these Elements. This is what Stripe requires.
+      const { error: confirmError, setupIntent } = await stripe.confirmCardSetup(prefetchedClientSecret, {
         payment_method: {
           card: cardElement,
           billing_details: {
@@ -130,7 +97,6 @@ function CardFormInnerDynamic({
       }
 
       if (setupIntent?.status === 'succeeded' && setupIntent.payment_method) {
-        // Get card details from the payment method
         const { data: cardData, error: cardError } = await supabase.functions.invoke('get-payment-method-details', {
           body: {
             paymentMethodId: setupIntent.payment_method,
@@ -148,7 +114,6 @@ function CardFormInnerDynamic({
           paymentMethodId: setupIntent.payment_method as string,
         });
 
-        // If hold is requested, place it now
         if (placeHold && parseFloat(holdAmount) > 0) {
           const { data: holdData, error: holdError } = await supabase.functions.invoke('charge-customer-card', {
             body: {
@@ -182,7 +147,6 @@ function CardFormInnerDynamic({
           });
         }
 
-        // Clear the card element
         cardElement.clear();
       }
     } catch (error: any) {
@@ -200,7 +164,7 @@ function CardFormInnerDynamic({
       <div className="p-3 border rounded-md bg-background">
         <stripeReact.CardElement options={CARD_ELEMENT_OPTIONS} onChange={(e) => setCardComplete(e.complete)} />
       </div>
-      
+
       {showHoldOption && (
         <div className="space-y-3 p-4 bg-secondary/30 rounded-lg border border-border/50">
           <div className="flex items-center space-x-2">
@@ -214,7 +178,7 @@ function CardFormInnerDynamic({
               Place temporary hold (not charged)
             </Label>
           </div>
-          
+
           {placeHold && (
             <div className="flex items-center gap-2 ml-6">
               <Label htmlFor="holdAmount" className="text-sm text-muted-foreground whitespace-nowrap">
@@ -234,7 +198,7 @@ function CardFormInnerDynamic({
               </div>
             </div>
           )}
-          
+
           {placeHold && (
             <p className="text-xs text-muted-foreground ml-6">
               This hold authorizes but does not charge the card. You can capture or release it later.
@@ -242,7 +206,7 @@ function CardFormInnerDynamic({
           )}
         </div>
       )}
-      
+
       <Button
         type="button"
         variant="secondary"
@@ -261,43 +225,22 @@ function CardFormInnerDynamic({
   );
 }
 
-// Inner wrapper that manages the Stripe Elements provider with an org-specific key
-function StripeCardFormWithReact({
-  stripeReact,
-  stripePromise,
-  setStripePromise,
-  ...props
-}: CardFormProps & {
-  stripeReact: StripeReact;
-  stripePromise: Promise<Stripe | null> | null;
-  setStripePromise: (p: Promise<Stripe | null>) => void;
-}) {
-  // Use a stable placeholder promise until we learn the org's publishable key
-  const placeholderPromise = useMemo(() => getStripePromise(), []);
-  const effectivePromise = stripePromise ?? placeholderPromise;
-
-  return (
-    <stripeReact.Elements stripe={effectivePromise}>
-      <CardFormInnerDynamic
-        stripeReact={stripeReact}
-        onPublishableKeyReceived={(key) => {
-          // Switch to the org-specific key for future renders
-          setStripePromise(getStripePromise(key));
-        }}
-        {...props}
-      />
-    </stripeReact.Elements>
-  );
-}
-
+/**
+ * Outer shell: pre-fetches the org's publishable key + clientSecret BEFORE mounting Elements.
+ * This guarantees that Elements and confirmCardSetup both use the exact same Stripe instance.
+ */
 export function StripeCardForm(props: CardFormProps) {
-  // stripePromise is updated once we discover the org's publishable key
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
-  const [stripeReact, setStripeReact] = useState<StripeReact | null>(getCachedStripeReact);
+  const { email, customerName, organizationId, publicBooking = false } = props;
 
+  const [stripeReact, setStripeReact] = useState<StripeReact | null>(getCachedStripeReact);
+  // Both stripePromise and clientSecret are resolved together before Elements mounts.
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
+
+  // Step 1: Load @stripe/react-stripe-js module
   useEffect(() => {
     if (stripeReact) return;
-    
     let cancelled = false;
     import('@stripe/react-stripe-js')
       .then((m) => {
@@ -306,15 +249,54 @@ export function StripeCardForm(props: CardFormProps) {
           setCachedStripeReact(m);
         }
       })
-      .catch((err) => {
-        console.error('Failed to load Stripe React:', err);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch((err) => console.error('Failed to load Stripe React:', err));
+    return () => { cancelled = true; };
   }, [stripeReact]);
 
-  if (!stripeReact) {
+  // Step 2: Pre-fetch org publishable key + SetupIntent clientSecret together.
+  // We do this BEFORE rendering <Elements> so that the Stripe instance used to create
+  // Elements is the SAME instance used later for confirmCardSetup.
+  useEffect(() => {
+    if (!organizationId || !email || !customerName) return;
+    let cancelled = false;
+
+    async function prefetch() {
+      try {
+        const { data: setupData, error: setupError } = await supabase.functions.invoke('create-setup-intent', {
+          body: { email, customerName, organizationId, publicBooking },
+        });
+
+        if (cancelled) return;
+
+        if (setupError || !setupData?.clientSecret) {
+          throw new Error(setupError?.message || 'Failed to initialize payment form');
+        }
+
+        // Resolve the correct Stripe publishable key for this org.
+        // getStripePromise caches by key, so the same instance is always returned for the same key.
+        const resolvedKey = setupData.publishableKey || undefined;
+        const promise = getStripePromise(resolvedKey);
+
+        setStripePromise(promise);
+        setClientSecret(setupData.clientSecret);
+      } catch (err: any) {
+        if (!cancelled) setInitError(err.message || 'Failed to initialize payment form');
+      }
+    }
+
+    prefetch();
+    return () => { cancelled = true; };
+  }, [organizationId, email, customerName, publicBooking]);
+
+  // Loading states
+  if (!stripeReact || !stripePromise || !clientSecret) {
+    if (initError) {
+      return (
+        <div className="p-4 border rounded-lg bg-card">
+          <p className="text-sm text-destructive">{initError}</p>
+        </div>
+      );
+    }
     return (
       <div className="p-4 border rounded-lg bg-card">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -325,12 +307,16 @@ export function StripeCardForm(props: CardFormProps) {
     );
   }
 
+  // Step 3: Mount Elements with the org-specific stripePromise.
+  // CardFormInner uses useStripe() which returns the instance from THIS Elements provider.
+  // confirmCardSetup is called on that same instance — no mismatch possible.
   return (
-    <StripeCardFormWithReact
-      stripeReact={stripeReact}
-      stripePromise={stripePromise}
-      setStripePromise={setStripePromise}
-      {...props}
-    />
+    <stripeReact.Elements stripe={stripePromise}>
+      <CardFormInner
+        stripeReact={stripeReact}
+        prefetchedClientSecret={clientSecret}
+        {...props}
+      />
+    </stripeReact.Elements>
   );
 }
