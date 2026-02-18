@@ -115,20 +115,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2025-08-27.basil" });
 
-    // Check if customer exists in Stripe, create if not
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    // SECURITY FIX: Look for customer with matching email AND organization_id in metadata
+    const customers = await stripe.customers.list({ email: email, limit: 100 });
     let customerId: string;
-    
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log("Found existing Stripe customer:", customerId);
+
+    // Find customer that belongs to THIS organization specifically
+    const orgCustomer = customers.data.find((c: any) => {
+      return c.metadata?.organization_id === organizationId;
+    });
+
+    if (orgCustomer) {
+      customerId = orgCustomer.id;
+      console.log("Found existing org-specific Stripe customer:", customerId);
     } else {
+      // Create new customer WITH organization_id in metadata for strict isolation
       const newCustomer = await stripe.customers.create({
         email: email,
         name: customerName,
+        metadata: {
+          organization_id: organizationId,
+        },
       });
       customerId = newCustomer.id;
-      console.log("Created new Stripe customer:", customerId);
+      console.log("Created new org-specific Stripe customer:", customerId);
     }
 
     // Build dynamic success/cancel URLs using the app's published URL
