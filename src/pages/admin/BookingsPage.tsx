@@ -1828,6 +1828,21 @@ export default function BookingsPage() {
                                   <CreditCard className="w-4 h-4" /> 
                                   {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
                                 </DropdownMenuItem>
+                                {booking.payment_status === 'paid' && (
+                                  <DropdownMenuItem 
+                                    className="gap-2 cursor-pointer text-orange-600" 
+                                    onClick={async () => {
+                                      await updateBooking.mutateAsync({
+                                        id: booking.id,
+                                        payment_status: 'pending' as any
+                                      });
+                                      toast({ title: "Marked Unpaid", description: `Booking #${booking.booking_number} marked as unpaid.` });
+                                    }}
+                                  >
+                                    <XCircle className="w-4 h-4" /> 
+                                    Mark Unpaid
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   className="gap-2 cursor-pointer text-teal-600"
                                   onClick={() => {
