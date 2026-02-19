@@ -257,8 +257,8 @@ export default function PayrollPage() {
   const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
     const baseResult = calculateBookingWage(booking, staffMember);
 
-    // 1. per-person pay_share always wins (team assignment adjusted pay)
-    if (payShareOverride != null) {
+    // 1. per-person pay_share wins ONLY when > 0 (0 means "not set", not "zero pay")
+    if (payShareOverride != null && Number(payShareOverride) > 0) {
       return {
         calculatedPay: Number(payShareOverride),
         actualPay: Number(payShareOverride),
@@ -270,10 +270,10 @@ export default function PayrollPage() {
     // 2. booking-level cleaner_actual_payment (single cleaner adjusted pay)
     if (booking.cleaner_actual_payment != null) {
       return {
-        calculatedPay: baseResult.calculatedPay,
+        calculatedPay: Number(booking.cleaner_actual_payment),
         actualPay: Number(booking.cleaner_actual_payment),
-        wageType: baseResult.wageType,
-        wageRate: baseResult.wageRate,
+        wageType: 'actual',
+        wageRate: Number(booking.cleaner_actual_payment),
         hoursWorked: baseResult.hoursWorked,
       };
     }

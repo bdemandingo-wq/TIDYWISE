@@ -48,9 +48,11 @@ function resolveEarnings(
 ) {
   const base = calculateBookingWage(booking, staffInfo);
 
-  if (payShare != null) {
+  // pay_share only wins when > 0 (0 means "not set", not "zero pay")
+  if (payShare != null && Number(payShare) > 0) {
     return { calculatedPay: Number(payShare), hoursWorked: base.hoursWorked };
   }
+  // cleaner_actual_payment is the adjusted pay set in the booking tab
   if (booking.cleaner_actual_payment != null) {
     return { calculatedPay: Number(booking.cleaner_actual_payment), hoursWorked: base.hoursWorked };
   }
