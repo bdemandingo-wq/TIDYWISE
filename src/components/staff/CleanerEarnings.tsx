@@ -11,7 +11,7 @@ import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText } f
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { calculateBookingWage, getActualHours, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import { calculateBookingWage, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 
 interface Props {
   staffId: string;
@@ -27,13 +27,43 @@ interface Booking extends WageBooking {
   customer: { first_name: string; last_name: string } | null;
 }
 
+interface TeamAssignment {
+  booking_id: string;
+  staff_id: string;
+  pay_share: number | null;
+  is_primary: boolean | null;
+}
+
+/**
+ * Unified pay resolver — mirrors PayrollPage.calcWage exactly.
+ * Priority:
+ *  1. pay_share on team assignment (per-person adjusted pay for team bookings)
+ *  2. cleaner_actual_payment on booking (single-cleaner adjusted pay)
+ *  3. standard wage formula (hourly / flat / percentage)
+ */
+function resolveEarnings(
+  booking: Booking,
+  staffInfo: WageStaff | undefined | null,
+  payShare: number | null | undefined,
+) {
+  const base = calculateBookingWage(booking, staffInfo);
+
+  if (payShare != null) {
+    return { calculatedPay: Number(payShare), hoursWorked: base.hoursWorked };
+  }
+  if (booking.cleaner_actual_payment != null) {
+    return { calculatedPay: Number(booking.cleaner_actual_payment), hoursWorked: base.hoursWorked };
+  }
+  return { calculatedPay: base.calculatedPay, hoursWorked: base.hoursWorked };
+}
+
 export function CleanerEarnings({ staffId, staffName }: Props) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
 
-  // Fetch staff member's wage info so we can calculate properly
+  // Fetch staff member's wage info
   const { data: staffInfo } = useQuery({
     queryKey: ['cleaner-wage-info', staffId],
     queryFn: async () => {
@@ -48,9 +78,15 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // Fetch completed bookings for this cleaner
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['cleaner-earnings', staffId, dateRange],
+  // Build date range bounds
+  const fromISO = dateRange?.from?.toISOString();
+  const toEndOfDay = dateRange?.to ? new Date(dateRange.to) : null;
+  if (toEndOfDay) toEndOfDay.setHours(23, 59, 59, 999);
+  const toISO = toEndOfDay?.toISOString();
+
+  // 1. Fetch completed bookings where this staff is the PRIMARY cleaner
+  const { data: primaryBookings = [], isLoading: loadingPrimary } = useQuery({
+    queryKey: ['cleaner-earnings-primary', staffId, dateRange],
     queryFn: async () => {
       let query = supabase
         .from('bookings')
@@ -63,16 +99,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         `)
         .eq('staff_id', staffId)
         .eq('status', 'completed');
-
-      if (dateRange?.from) {
-        query = query.gte('scheduled_at', dateRange.from.toISOString());
-      }
-      if (dateRange?.to) {
-        const toEndOfDay = new Date(dateRange.to);
-        toEndOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('scheduled_at', toEndOfDay.toISOString());
-      }
-
+      if (fromISO) query = query.gte('scheduled_at', fromISO);
+      if (toISO)   query = query.lte('scheduled_at', toISO);
       const { data, error } = await query.order('scheduled_at', { ascending: false });
       if (error) throw error;
       return data as Booking[];
@@ -80,43 +108,108 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // Calculate earnings using the SAME shared logic as payroll
+  // 2. Fetch team assignments for this staff in the date range (catches team bookings where they aren't primary)
+  const { data: teamAssignments = [], isLoading: loadingTeam } = useQuery({
+    queryKey: ['cleaner-earnings-team', staffId, dateRange],
+    queryFn: async () => {
+      // First find all booking ids in range where this staff appears as a team member
+      let bookingQuery = supabase
+        .from('booking_team_assignments')
+        .select('booking_id, staff_id, pay_share, is_primary')
+        .eq('staff_id', staffId);
+      const { data: assignments, error: aErr } = await bookingQuery;
+      if (aErr) throw aErr;
+      if (!assignments?.length) return [];
+
+      // Fetch the actual bookings for those assignments that are completed + in date range
+      const bookingIds = assignments.map((a) => a.booking_id);
+      let bQuery = supabase
+        .from('bookings')
+        .select(`
+          id, booking_number, scheduled_at, duration, status, total_amount,
+          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
+          staff_id,
+          service:services(name),
+          customer:customers(first_name, last_name)
+        `)
+        .in('id', bookingIds)
+        .eq('status', 'completed');
+      if (fromISO) bQuery = bQuery.gte('scheduled_at', fromISO);
+      if (toISO)   bQuery = bQuery.lte('scheduled_at', toISO);
+      const { data: bookings, error: bErr } = await bQuery.order('scheduled_at', { ascending: false });
+      if (bErr) throw bErr;
+
+      // Attach pay_share to each booking
+      return (bookings || []).map((b: any) => {
+        const a = assignments.find((x) => x.booking_id === b.id)!;
+        return { booking: b as Booking, payShare: a.pay_share, isPrimary: a.is_primary };
+      });
+    },
+    enabled: !!staffId,
+  });
+
+  // Merge: primary bookings + team bookings (de-duplicate by booking id)
+  const allEntries = useMemo(() => {
+    const entries: { booking: Booking; payShare: number | null }[] = [];
+    const seen = new Set<string>();
+
+    // Primary bookings: get their pay_share from team assignments if available
+    for (const b of primaryBookings) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      const ta = teamAssignments.find((t) => t.booking.id === b.id);
+      entries.push({ booking: b, payShare: ta?.payShare ?? null });
+    }
+
+    // Team bookings not already included as primary
+    for (const t of teamAssignments) {
+      if (seen.has(t.booking.id)) continue;
+      seen.add(t.booking.id);
+      entries.push({ booking: t.booking, payShare: t.payShare });
+    }
+
+    // Sort descending by date
+    entries.sort((a, b) =>
+      new Date(b.booking.scheduled_at).getTime() - new Date(a.booking.scheduled_at).getTime()
+    );
+    return entries;
+  }, [primaryBookings, teamAssignments]);
+
+  // Stats — uses same priority logic as PayrollPage
   const stats = useMemo(() => {
     let totalEarnings = 0;
     let totalHours = 0;
+    for (const { booking, payShare } of allEntries) {
+      const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
+      totalEarnings += calculatedPay;
+      totalHours += hoursWorked;
+    }
+    const totalJobs = allEntries.length;
+    return {
+      totalEarnings,
+      totalJobs,
+      avgPerJob: totalJobs > 0 ? totalEarnings / totalJobs : 0,
+      totalHours,
+      avgPerHour: totalHours > 0 ? totalEarnings / totalHours : 0,
+    };
+  }, [allEntries, staffInfo]);
 
-    bookings.forEach((b) => {
-      const wage = calculateBookingWage(b, staffInfo);
-      totalEarnings += wage.calculatedPay;
-      totalHours += wage.hoursWorked;
-    });
-
-    const totalJobs = bookings.length;
-    const avgPerJob = totalJobs > 0 ? totalEarnings / totalJobs : 0;
-    const avgPerHour = totalHours > 0 ? totalEarnings / totalHours : 0;
-
-    return { totalEarnings, totalJobs, avgPerJob, totalHours, avgPerHour };
-  }, [bookings, staffInfo]);
-
-  // Get earnings for a single booking (shared logic)
-  const getBookingEarnings = (b: Booking) => calculateBookingWage(b, staffInfo).calculatedPay;
-
-  // Export to CSV for taxes
+  // Export to CSV
   const exportToCSV = () => {
     const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Total Job Amount', 'Your Earnings'];
-    const rows = bookings.map((b) => {
-      const wage = calculateBookingWage(b, staffInfo);
+    const rows = allEntries.map(({ booking, payShare }) => {
+      const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
       return [
-        format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
-        b.booking_number,
-        b.service?.name || 'N/A',
-        b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'N/A',
-        wage.hoursWorked.toFixed(2),
-        b.total_amount.toFixed(2),
-        wage.calculatedPay.toFixed(2),
+        format(new Date(booking.scheduled_at), 'yyyy-MM-dd'),
+        booking.booking_number,
+        booking.service?.name || 'N/A',
+        booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'N/A',
+        hoursWorked.toFixed(2),
+        booking.total_amount.toFixed(2),
+        calculatedPay.toFixed(2),
       ];
     });
-
     rows.push([]);
     rows.push(['Summary']);
     rows.push(['Total Jobs', stats.totalJobs.toString()]);
@@ -125,11 +218,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     rows.push(['Average Per Job', stats.avgPerJob.toFixed(2)]);
     rows.push(['Average Per Hour', stats.avgPerHour.toFixed(2)]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.join(',')),
-    ].join('\n');
-
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -142,24 +231,16 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     const now = new Date();
     let from: Date;
     let to: Date = now;
-
     switch (preset) {
-      case 'month':
-        from = startOfMonth(now);
-        to = endOfMonth(now);
-        break;
-      case 'quarter':
-        from = subMonths(startOfMonth(now), 2);
-        break;
-      case 'ytd':
-        from = startOfYear(now);
-        break;
-      case 'year':
-        from = subMonths(now, 12);
-        break;
+      case 'month':   from = startOfMonth(now); to = endOfMonth(now); break;
+      case 'quarter': from = subMonths(startOfMonth(now), 2); break;
+      case 'ytd':     from = startOfYear(now); break;
+      case 'year':    from = subMonths(now, 12); break;
     }
     setDateRange({ from, to });
   };
+
+  const isLoading = loadingPrimary || loadingTeam;
 
   return (
     <div className="space-y-6">
@@ -171,9 +252,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange?.from ? (
                 dateRange.to ? (
-                  <>
-                    {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
-                  </>
+                  <>{format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}</>
                 ) : (
                   format(dateRange.from, 'LLL dd, y')
                 )
@@ -200,7 +279,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
           <Button variant="outline" size="sm" onClick={() => setPreset('ytd')}>Year to Date</Button>
         </div>
 
-        <Button onClick={exportToCSV} disabled={bookings.length === 0} className="ml-auto gap-2">
+        <Button onClick={exportToCSV} disabled={allEntries.length === 0} className="ml-auto gap-2">
           <Download className="h-4 w-4" />
           Export for Taxes
         </Button>
@@ -250,14 +329,12 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Earnings History</CardTitle>
-          <CardDescription>
-            Detailed breakdown of your completed jobs and earnings
-          </CardDescription>
+          <CardDescription>Detailed breakdown of your completed jobs and earnings</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
-          ) : bookings.length === 0 ? (
+          ) : allEntries.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No completed jobs in this date range.
             </p>
@@ -276,8 +353,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bookings.map((booking) => {
-                    const wage = calculateBookingWage(booking, staffInfo);
+                  {allEntries.map(({ booking, payShare }) => {
+                    const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
                     return (
                       <TableRow key={booking.id}>
                         <TableCell>{format(new Date(booking.scheduled_at), 'MMM d, yyyy')}</TableCell>
@@ -290,10 +367,10 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                             ? `${booking.customer.first_name} ${booking.customer.last_name}`
                             : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-right">{wage.hoursWorked.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">{hoursWorked.toFixed(1)}h</TableCell>
                         <TableCell className="text-right">${booking.total_amount.toFixed(2)}</TableCell>
                         <TableCell className="text-right font-medium text-green-600">
-                          ${wage.calculatedPay.toFixed(2)}
+                          ${calculatedPay.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     );
