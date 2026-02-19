@@ -25,6 +25,7 @@ import {
   Edit,
   GripVertical,
   Users,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -890,7 +891,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   })()}
                 </div>
 
-                <div className="flex gap-2 pt-4 border-t">
+                <div className="flex gap-2 pt-4 border-t flex-wrap">
                   <Button
                     variant="outline"
                     className="flex-1"
@@ -898,6 +899,26 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      const duplicated = {
+                        ...selectedBooking,
+                        id: '' as any,
+                        booking_number: 0,
+                        status: 'pending' as const,
+                        payment_status: 'pending' as const,
+                      };
+                      setSelectedBooking(null);
+                      setTimeout(() => {
+                        setEditingBooking(duplicated as BookingWithDetails);
+                      }, 100);
+                    }}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate
                   </Button>
                   {selectedBooking.staff && (
                     <Button
