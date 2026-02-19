@@ -212,7 +212,7 @@ export function BookingDetailsDialog({
               {bookingAny.cleaner_actual_payment && (
                 <div className="sm:col-span-2">
                   <dt className="text-xs text-muted-foreground">Actual Paid to Cleaner</dt>
-                  <dd className="text-sm font-bold text-emerald-600">${bookingAny.cleaner_actual_payment}</dd>
+                  <dd className="text-sm font-bold text-green-600">${bookingAny.cleaner_actual_payment}</dd>
                 </div>
               )}
             </dl>
@@ -554,47 +554,98 @@ export function AdjustPaymentDialog({
   booking: BookingWithDetails | null;
 }) {
   const updateBooking = useUpdateBooking();
-  const [actualPayment, setActualPayment] = useState<string>("");
-  
+  const { organizationId } = useOrgId();
+
+  // Primary staff payment (stored on booking)
+  const [primaryPayment, setPrimaryPayment] = useState<string>("");
+  // Team member payments: { staffId -> amount string }
+  const [teamPayments, setTeamPayments] = useState<Record<string, string>>({});
+  // Team members fetched from booking_team_assignments
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; pay_share: number | null }[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const bookingAny = booking as any;
 
   useEffect(() => {
-    if (open && booking) {
-      setActualPayment(bookingAny?.cleaner_actual_payment ? String(bookingAny.cleaner_actual_payment) : "");
-    }
-  }, [open, booking]);
+    if (!open || !booking) return;
+
+    // Reset primary payment
+    setPrimaryPayment(bookingAny?.cleaner_actual_payment != null ? String(bookingAny.cleaner_actual_payment) : "");
+
+    // Fetch team assignments for this booking (org-scoped)
+    const fetchTeam = async () => {
+      if (!organizationId) return;
+      setLoadingTeam(true);
+      const { data } = await supabase
+        .from('booking_team_assignments')
+        .select('staff_id, pay_share, staff:staff(id, name)')
+        .eq('booking_id', booking.id)
+        .eq('organization_id', organizationId);
+
+      if (data && data.length > 0) {
+        const members = data.map((a: any) => ({
+          id: a.staff_id,
+          name: a.staff?.name || 'Unknown',
+          pay_share: a.pay_share,
+        }));
+        setTeamMembers(members);
+        const payments: Record<string, string> = {};
+        members.forEach(m => {
+          payments[m.id] = m.pay_share != null ? String(m.pay_share) : "";
+        });
+        setTeamPayments(payments);
+      } else {
+        setTeamMembers([]);
+        setTeamPayments({});
+      }
+      setLoadingTeam(false);
+    };
+
+    fetchTeam();
+  }, [open, booking, organizationId]);
 
   if (!booking) return null;
 
-  const saving = updateBooking.isPending;
+  const isTeamBooking = teamMembers.length > 0;
 
-  // Calculate estimated pay for reference
+  // Calculate estimated pay for reference (primary cleaner)
   const calculateEstimatedPay = () => {
     const wage = bookingAny?.cleaner_wage;
     if (!wage) return null;
-    
     const wageType = bookingAny?.cleaner_wage_type || 'hourly';
-    
-    if (wageType === 'flat') {
-      return wage;
-    } else if (wageType === 'percentage') {
-      return (booking.total_amount * wage) / 100;
-    } else {
-      const hours = bookingAny?.cleaner_override_hours || (booking.duration / 60);
-      return wage * hours;
-    }
+    if (wageType === 'flat') return wage;
+    if (wageType === 'percentage') return (booking.total_amount * wage) / 100;
+    const hours = bookingAny?.cleaner_override_hours || (booking.duration / 60);
+    return wage * hours;
   };
 
   const estimatedPay = calculateEstimatedPay();
 
   const handleSave = async () => {
     try {
+      setSaving(true);
+
+      // Always save primary cleaner payment on the booking record
       await updateBooking.mutateAsync({
         id: booking.id,
-        cleaner_actual_payment: actualPayment ? parseFloat(actualPayment) : null,
+        cleaner_actual_payment: primaryPayment ? parseFloat(primaryPayment) : null,
       });
 
-      toast({ title: "Saved", description: "Payment adjusted successfully" });
+      // Save individual pay_share for each team member
+      if (isTeamBooking && organizationId) {
+        for (const member of teamMembers) {
+          const amount = teamPayments[member.id];
+          await supabase
+            .from('booking_team_assignments')
+            .update({ pay_share: amount ? parseFloat(amount) : null })
+            .eq('booking_id', booking.id)
+            .eq('staff_id', member.id)
+            .eq('organization_id', organizationId);
+        }
+      }
+
+      toast({ title: "Saved", description: "Cleaner payments adjusted successfully" });
       onOpenChange(false);
     } catch (e: any) {
       toast({
@@ -602,6 +653,8 @@ export function AdjustPaymentDialog({
         description: e?.message || "Failed to update payment",
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -611,7 +664,7 @@ export function AdjustPaymentDialog({
         <DialogHeader>
           <DialogTitle>Adjust Cleaner Payment</DialogTitle>
           <DialogDescription>
-            Booking #{booking.booking_number} - {booking.staff?.name || "Unassigned"}
+            Booking #{booking.booking_number}
           </DialogDescription>
         </DialogHeader>
 
@@ -621,7 +674,7 @@ export function AdjustPaymentDialog({
               <span className="text-muted-foreground">Service Total:</span>
               <span className="font-medium">${booking.total_amount}</span>
             </div>
-            {estimatedPay !== null && (
+            {estimatedPay !== null && !isTeamBooking && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Estimated Cleaner Pay:</span>
                 <span className="font-medium">${estimatedPay.toFixed(2)}</span>
@@ -629,24 +682,81 @@ export function AdjustPaymentDialog({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label className="font-semibold">Actual Amount Paid</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                type="number" 
-                value={actualPayment} 
-                onChange={(e) => setActualPayment(e.target.value)} 
-                placeholder={estimatedPay ? estimatedPay.toFixed(2) : "0.00"}
-                className="pl-9 text-lg"
-                inputMode="decimal"
-                autoFocus
-              />
+          {loadingTeam ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Enter the final amount you paid to the cleaner for this job.
-            </p>
-          </div>
+          ) : isTeamBooking ? (
+            // TEAM BOOKING: individual payment fields per cleaner
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Team Payments</p>
+
+              {/* Primary cleaner */}
+              {booking.staff && (
+                <div className="space-y-1">
+                  <Label className="text-sm text-muted-foreground">
+                    {booking.staff.name} {teamMembers.some(m => m.id === booking.staff?.id) ? '' : '(Primary)'}
+                  </Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      value={primaryPayment}
+                      onChange={(e) => setPrimaryPayment(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-9"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Additional team members (exclude primary if already listed) */}
+              {teamMembers
+                .filter(m => m.id !== booking.staff?.id)
+                .map(member => (
+                  <div key={member.id} className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">{member.name}</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        value={teamPayments[member.id] ?? ""}
+                        onChange={(e) => setTeamPayments(prev => ({ ...prev, [member.id]: e.target.value }))}
+                        placeholder="0.00"
+                        className="pl-9"
+                        inputMode="decimal"
+                      />
+                    </div>
+                  </div>
+                ))}
+              <p className="text-xs text-muted-foreground">
+                Enter the amount paid to each cleaner individually.
+              </p>
+            </div>
+          ) : (
+            // SINGLE CLEANER
+            <div className="space-y-2">
+              <Label className="font-semibold">
+                Actual Amount Paid{booking.staff?.name ? ` — ${booking.staff.name}` : ''}
+              </Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  value={primaryPayment}
+                  onChange={(e) => setPrimaryPayment(e.target.value)}
+                  placeholder={estimatedPay ? estimatedPay.toFixed(2) : "0.00"}
+                  className="pl-9 text-lg"
+                  inputMode="decimal"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter the final amount you paid to the cleaner for this job.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
