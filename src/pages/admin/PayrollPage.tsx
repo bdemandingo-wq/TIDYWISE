@@ -246,38 +246,44 @@ export default function PayrollPage() {
 
   // Wage calculation uses shared utility from lib/wageCalculation.ts
   // to ensure portal and payroll always match.
-  // Priority: cleaner_actual_payment (booking-level override) > pay_share (team assignment) > wage formula
+  //
+  // Priority (highest to lowest):
+  //  1. pay_share on team assignment — most specific per-person override (set via Adjust Pay on team bookings)
+  //  2. cleaner_actual_payment on booking — single-cleaner override
+  //  3. standard wage formula (hourly/flat/percentage)
+  //
+  // pay_share beats cleaner_actual_payment because team bookings save the primary cleaner's
+  // amount into cleaner_actual_payment, which must not overwrite a different team member's pay_share.
   const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
-    // 1. booking-level actual payment always wins (matches cleaner portal exactly)
-    if (booking.cleaner_actual_payment != null) {
-      const result = calculateBookingWage(booking, staffMember);
-      return {
-        calculatedPay: result.calculatedPay,
-        actualPay: Number(booking.cleaner_actual_payment),
-        wageType: result.wageType,
-        wageRate: result.wageRate,
-        hoursWorked: result.hoursWorked,
-      };
-    }
-    // 2. team-level pay_share override (set via "Adjust Pay" on team assignments)
+    const baseResult = calculateBookingWage(booking, staffMember);
+
+    // 1. per-person pay_share always wins (team assignment adjusted pay)
     if (payShareOverride != null) {
-      const result = calculateBookingWage(booking, staffMember);
       return {
         calculatedPay: Number(payShareOverride),
         actualPay: Number(payShareOverride),
         wageType: 'actual',
         wageRate: Number(payShareOverride),
-        hoursWorked: result.hoursWorked,
+        hoursWorked: baseResult.hoursWorked,
       };
     }
-    // 3. standard formula (hourly/flat/percentage) — same as cleaner portal
-    const result = calculateBookingWage(booking, staffMember);
+    // 2. booking-level cleaner_actual_payment (single cleaner adjusted pay)
+    if (booking.cleaner_actual_payment != null) {
+      return {
+        calculatedPay: baseResult.calculatedPay,
+        actualPay: Number(booking.cleaner_actual_payment),
+        wageType: baseResult.wageType,
+        wageRate: baseResult.wageRate,
+        hoursWorked: baseResult.hoursWorked,
+      };
+    }
+    // 3. standard formula — same as cleaner portal
     return {
-      calculatedPay: result.calculatedPay,
+      calculatedPay: baseResult.calculatedPay,
       actualPay: null,
-      wageType: result.wageType,
-      wageRate: result.wageRate,
-      hoursWorked: result.hoursWorked,
+      wageType: baseResult.wageType,
+      wageRate: baseResult.wageRate,
+      hoursWorked: baseResult.hoursWorked,
     };
   };
 
