@@ -2973,6 +2973,134 @@ export type Database = {
           },
         ]
       }
+      migration_import_rows: {
+        Row: {
+          created_at: string
+          created_record_id: string | null
+          duplicate_of: string | null
+          id: string
+          import_id: string
+          mapped_data: Json
+          organization_id: string
+          raw_data: Json
+          row_number: number
+          status: string
+          validation_errors: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_record_id?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_id: string
+          mapped_data?: Json
+          organization_id: string
+          raw_data?: Json
+          row_number: number
+          status?: string
+          validation_errors?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_record_id?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_id?: string
+          mapped_data?: Json
+          organization_id?: string
+          raw_data?: Json
+          row_number?: number
+          status?: string
+          validation_errors?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "migration_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "migration_import_rows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      migration_imports: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          data_type: string
+          duplicate_rows: number | null
+          error_log: Json | null
+          error_rows: number | null
+          field_mapping: Json | null
+          id: string
+          import_summary: Json | null
+          imported_rows: number | null
+          organization_id: string
+          original_filename: string | null
+          skipped_rows: number | null
+          source: string
+          started_at: string | null
+          status: string
+          total_rows: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          data_type: string
+          duplicate_rows?: number | null
+          error_log?: Json | null
+          error_rows?: number | null
+          field_mapping?: Json | null
+          id?: string
+          import_summary?: Json | null
+          imported_rows?: number | null
+          organization_id: string
+          original_filename?: string | null
+          skipped_rows?: number | null
+          source: string
+          started_at?: string | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          data_type?: string
+          duplicate_rows?: number | null
+          error_log?: Json | null
+          error_rows?: number | null
+          field_mapping?: Json | null
+          id?: string
+          import_summary?: Json | null
+          imported_rows?: number | null
+          organization_id?: string
+          original_filename?: string | null
+          skipped_rows?: number | null
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "migration_imports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offline_sync_queue: {
         Row: {
           action: string

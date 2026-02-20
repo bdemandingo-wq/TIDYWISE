@@ -501,7 +501,7 @@ export default function SettingsPage() {
           Use an explicit scroll container + non-shrinking triggers so labels stay readable.
         */}
         <div className="w-full max-w-5xl overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
+           <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
             <TabsTrigger className="shrink-0" value="pricing">Pricing</TabsTrigger>
@@ -512,6 +512,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
           </TabsList>
         </div>
@@ -991,6 +992,27 @@ export default function SettingsPage() {
         {/* Mobile Nav */}
         <TabsContent value="mobile-nav" className="space-y-6">
           <MobileBottomNavSettings />
+        </TabsContent>
+
+        {/* Import Data */}
+        <TabsContent value="import" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Import Data from Another Platform
+              </CardTitle>
+              <CardDescription>
+                Migrate your customers, staff, bookings, and services from BookingKoala or Jobber
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => navigate('/dashboard/import')} className="gap-2">
+                <Upload className="w-4 h-4" />
+                Open Import Wizard
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Security */}
