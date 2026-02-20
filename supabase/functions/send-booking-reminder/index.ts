@@ -292,142 +292,186 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // ============ AUTOMATED 24H REMINDERS ============
+    // ============ AUTOMATED MULTI-INTERVAL REMINDERS ============
     if (!smsSettings.sms_appointment_reminder) {
       return new Response(JSON.stringify({ success: true, message: "Reminders disabled", reminders: [] }), {
         status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const now = new Date();
-    // Window: bookings between 23h45m and 24h15m from now
-    const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000 + 45 * 60 * 1000);
-    const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000 + 15 * 60 * 1000);
-
-    const { data: bookings, error } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        customer:customers(*),
-        service:services(*),
-        staff:staff(*)
-      `)
+    // Fetch active reminder intervals for this org
+    const { data: intervals, error: intervalsError } = await supabase
+      .from("appointment_reminder_intervals")
+      .select("*")
       .eq("organization_id", organizationId)
-      .gte("scheduled_at", windowStart.toISOString())
-      .lte("scheduled_at", windowEnd.toISOString())
-      .in("status", ["pending", "confirmed"])
-      .not("customer_id", "is", null);
+      .eq("is_active", true)
+      .order("hours_before", { ascending: false });
 
-    if (error) {
-      console.error("[send-booking-reminder] Fetch bookings error:", error);
-      return new Response(JSON.stringify({ error: "Failed to fetch bookings" }), {
+    if (intervalsError) {
+      console.error("[send-booking-reminder] Intervals error:", intervalsError);
+      return new Response(JSON.stringify({ error: "Failed to fetch reminder intervals" }), {
         status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    console.log(`[send-booking-reminder] Found ${bookings?.length || 0} bookings for 24h reminder window`);
+    // Fall back to legacy 24h if no intervals configured
+    const activeIntervals = intervals?.length
+      ? intervals.map((i: any) => ({
+          hours_before: Number(i.hours_before),
+          label: i.label,
+          send_to_client: i.send_to_client,
+          send_to_cleaner: i.send_to_cleaner,
+        }))
+      : [{ hours_before: 24, label: "24 Hours Before", send_to_client: true, send_to_cleaner: true }];
 
+    const now = new Date();
     const sentReminders: string[] = [];
 
-    for (const booking of bookings || []) {
-      const scheduledDate = new Date(booking.scheduled_at);
-      const formattedDate = formatLocalDate(scheduledDate);
-      const formattedTime = formatLocalTime(scheduledDate);
-      const address = [booking.address, booking.city].filter(Boolean).join(", ");
-      const serviceName = booking.service?.name || "cleaning";
+    for (const interval of activeIntervals) {
+      const hoursMs = interval.hours_before * 60 * 60 * 1000;
+      // Window: 15 minutes around the target time
+      const windowStart = new Date(now.getTime() + hoursMs - 15 * 60 * 1000);
+      const windowEnd = new Date(now.getTime() + hoursMs + 15 * 60 * 1000);
 
-      // --- CLIENT REMINDER ---
-      if (booking.customer?.phone) {
-        const customerName = `${booking.customer.first_name || ""} ${booking.customer.last_name || ""}`.trim() || "there";
+      const reminderTypeClient = `client_${interval.hours_before}h`;
+      const reminderTypeCleaner = `cleaner_${interval.hours_before}h`;
 
-        const clientMsg =
-          `Hi ${customerName}! Your ${serviceName} appointment is confirmed for ${formattedDate} at ${formattedTime}.` +
-          `${address ? ` Address: ${address}.` : ""}` +
-          ` Reply to this message with any questions!`;
+      const { data: bookings, error } = await supabase
+        .from("bookings")
+        .select(`
+          *,
+          customer:customers(*),
+          service:services(*),
+          staff:staff(*)
+        `)
+        .eq("organization_id", organizationId)
+        .gte("scheduled_at", windowStart.toISOString())
+        .lte("scheduled_at", windowEnd.toISOString())
+        .in("status", ["pending", "confirmed"])
+        .not("customer_id", "is", null);
 
-        const clientResult = await sendAndLog(
-          booking.customer.phone,
-          clientMsg,
-          `${booking.customer.first_name || ""} ${booking.customer.last_name || ""}`.trim(),
-          booking.id,
-          "client_24h",
-        );
-
-        if (clientResult.success) {
-          sentReminders.push(`#${booking.booking_number} client`);
-        } else {
-          console.error(`[send-booking-reminder] Client SMS failed for #${booking.booking_number}: ${clientResult.error}`);
-        }
+      if (error) {
+        console.error(`[send-booking-reminder] Fetch bookings error for ${interval.label}:`, error);
+        continue;
       }
 
-      // --- CLEANER REMINDER ---
-      if (booking.staff?.phone) {
-        const cleanerName = booking.staff.name || "there";
-        const customerName = `${booking.customer?.first_name || ""} ${booking.customer?.last_name || ""}`.trim() || "Customer";
+      console.log(`[send-booking-reminder] Found ${bookings?.length || 0} bookings for ${interval.label} window`);
 
-        const cleanerMsg =
-          `📋 REMINDER: You have a job tomorrow!\n\n` +
-          `Hi ${cleanerName},\n\n` +
-          `Booking #${booking.booking_number}\n` +
-          `Service: ${serviceName}\n` +
-          `📅 ${formattedDate} at ${formattedTime}\n` +
-          `${address ? `📍 ${address}\n` : ""}` +
-          `Customer: ${customerName}\n` +
-          `${booking.customer?.phone ? `Phone: ${booking.customer.phone}\n` : ""}` +
-          `\n- ${companyName}`;
+      for (const booking of bookings || []) {
+        const scheduledDate = new Date(booking.scheduled_at);
+        const formattedDate = formatLocalDate(scheduledDate);
+        const formattedTime = formatLocalTime(scheduledDate);
+        const address = [booking.address, booking.city].filter(Boolean).join(", ");
+        const serviceName = booking.service?.name || "cleaning";
 
-        const cleanerResult = await sendAndLog(
-          booking.staff.phone,
-          cleanerMsg,
-          cleanerName,
-          booking.id,
-          "cleaner_24h",
-        );
+        // --- CLIENT REMINDER ---
+        if (interval.send_to_client && booking.customer?.phone) {
+          const customerName = `${booking.customer.first_name || ""} ${booking.customer.last_name || ""}`.trim() || "there";
 
-        if (cleanerResult.success) {
-          sentReminders.push(`#${booking.booking_number} cleaner`);
-        } else {
-          console.error(`[send-booking-reminder] Cleaner SMS failed for #${booking.booking_number}: ${cleanerResult.error}`);
+          let clientMsg: string;
+          if (interval.hours_before >= 48) {
+            clientMsg =
+              `Hi ${customerName}! Friendly reminder — your ${serviceName} appointment with ${companyName} is coming up on ${formattedDate} at ${formattedTime}.` +
+              `${address ? ` Address: ${address}.` : ""}` +
+              ` Reply with any questions!`;
+          } else if (interval.hours_before <= 2) {
+            clientMsg =
+              `Hi ${customerName}! Your ${serviceName} with ${companyName} is starting soon — today at ${formattedTime}.` +
+              `${address ? ` Address: ${address}.` : ""}` +
+              ` See you shortly!`;
+          } else {
+            clientMsg =
+              `Hi ${customerName}! Your ${serviceName} appointment is confirmed for ${formattedDate} at ${formattedTime}.` +
+              `${address ? ` Address: ${address}.` : ""}` +
+              ` Reply to this message with any questions!`;
+          }
+
+          const clientResult = await sendAndLog(
+            booking.customer.phone,
+            clientMsg,
+            `${booking.customer.first_name || ""} ${booking.customer.last_name || ""}`.trim(),
+            booking.id,
+            reminderTypeClient,
+          );
+
+          if (clientResult.success) {
+            sentReminders.push(`#${booking.booking_number} client ${interval.label}`);
+          } else {
+            console.error(`[send-booking-reminder] Client SMS failed for #${booking.booking_number} (${interval.label}): ${clientResult.error}`);
+          }
         }
-      }
 
-      // Also check team assignments for additional cleaners
-      try {
-        const { data: teamAssignments } = await supabase
-          .from("booking_team_assignments")
-          .select("staff_id, staff:staff(*)")
-          .eq("booking_id", booking.id)
-          .neq("staff_id", booking.staff_id || "");
+        // --- CLEANER REMINDER ---
+        if (interval.send_to_cleaner && booking.staff?.phone) {
+          const cleanerName = booking.staff.name || "there";
+          const customerName = `${booking.customer?.first_name || ""} ${booking.customer?.last_name || ""}`.trim() || "Customer";
 
-        for (const assignment of teamAssignments || []) {
-          const teamStaff = (assignment as any).staff;
-          if (!teamStaff?.phone) continue;
-
-          const teamCleanerMsg =
-            `📋 REMINDER: You have a job tomorrow!\n\n` +
-            `Hi ${teamStaff.name || "there"},\n\n` +
+          const timeLabel = interval.hours_before >= 24 ? "upcoming" : "today";
+          const cleanerMsg =
+            `📋 REMINDER: You have a${interval.hours_before <= 2 ? " job starting soon" : ` ${timeLabel} job`}!\n\n` +
+            `Hi ${cleanerName},\n\n` +
             `Booking #${booking.booking_number}\n` +
             `Service: ${serviceName}\n` +
             `📅 ${formattedDate} at ${formattedTime}\n` +
             `${address ? `📍 ${address}\n` : ""}` +
-            `Customer: ${booking.customer?.first_name || "Customer"}\n` +
+            `Customer: ${customerName}\n` +
+            `${booking.customer?.phone ? `Phone: ${booking.customer.phone}\n` : ""}` +
             `\n- ${companyName}`;
 
-          // Use a unique reminder_type per team member
-          const teamResult = await sendAndLog(
-            teamStaff.phone,
-            teamCleanerMsg,
-            teamStaff.name || "Team member",
+          const cleanerResult = await sendAndLog(
+            booking.staff.phone,
+            cleanerMsg,
+            cleanerName,
             booking.id,
-            `cleaner_24h_${teamStaff.id}`,
+            reminderTypeCleaner,
           );
 
-          if (teamResult.success) {
-            sentReminders.push(`#${booking.booking_number} team:${teamStaff.name}`);
+          if (cleanerResult.success) {
+            sentReminders.push(`#${booking.booking_number} cleaner ${interval.label}`);
+          } else {
+            console.error(`[send-booking-reminder] Cleaner SMS failed for #${booking.booking_number} (${interval.label}): ${cleanerResult.error}`);
           }
         }
-      } catch (teamError) {
-        console.error(`[send-booking-reminder] Team assignment error for #${booking.booking_number}:`, teamError);
+
+        // Also check team assignments for additional cleaners
+        if (interval.send_to_cleaner) {
+          try {
+            const { data: teamAssignments } = await supabase
+              .from("booking_team_assignments")
+              .select("staff_id, staff:staff(*)")
+              .eq("booking_id", booking.id)
+              .neq("staff_id", booking.staff_id || "");
+
+            for (const assignment of teamAssignments || []) {
+              const teamStaff = (assignment as any).staff;
+              if (!teamStaff?.phone) continue;
+
+              const teamCleanerMsg =
+                `📋 REMINDER: You have a job ${interval.hours_before <= 2 ? "starting soon" : interval.hours_before >= 24 ? "tomorrow" : "today"}!\n\n` +
+                `Hi ${teamStaff.name || "there"},\n\n` +
+                `Booking #${booking.booking_number}\n` +
+                `Service: ${serviceName}\n` +
+                `📅 ${formattedDate} at ${formattedTime}\n` +
+                `${address ? `📍 ${address}\n` : ""}` +
+                `Customer: ${booking.customer?.first_name || "Customer"}\n` +
+                `\n- ${companyName}`;
+
+              const teamResult = await sendAndLog(
+                teamStaff.phone,
+                teamCleanerMsg,
+                teamStaff.name || "Team member",
+                booking.id,
+                `${reminderTypeCleaner}_${teamStaff.id}`,
+              );
+
+              if (teamResult.success) {
+                sentReminders.push(`#${booking.booking_number} team:${teamStaff.name} ${interval.label}`);
+              }
+            }
+          } catch (teamError) {
+            console.error(`[send-booking-reminder] Team assignment error for #${booking.booking_number}:`, teamError);
+          }
+        }
       }
     }
 

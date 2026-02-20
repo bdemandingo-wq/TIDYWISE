@@ -211,6 +211,50 @@ export type Database = {
           },
         ]
       }
+      appointment_reminder_intervals: {
+        Row: {
+          created_at: string
+          hours_before: number
+          id: string
+          is_active: boolean
+          label: string
+          organization_id: string
+          send_to_cleaner: boolean
+          send_to_client: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hours_before: number
+          id?: string
+          is_active?: boolean
+          label: string
+          organization_id: string
+          send_to_cleaner?: boolean
+          send_to_client?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hours_before?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          organization_id?: string
+          send_to_cleaner?: boolean
+          send_to_client?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_reminder_intervals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automated_campaigns: {
         Row: {
           body: string
