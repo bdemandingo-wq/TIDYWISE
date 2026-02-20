@@ -942,53 +942,32 @@ export default function BookingsPage() {
       return;
     }
 
+    if (!organization?.id) {
+      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      return;
+    }
+
     setNotifyingOpenJob(booking.id);
 
     try {
-      // Get all active staff with emails
-      const { data: activeStaff, error: staffError } = await supabase
-        .from('staff')
-        .select('email, hourly_rate, base_wage')
-        .eq('is_active', true)
-        .not('email', 'is', null);
-
-      if (staffError) throw staffError;
-
-      if (!activeStaff || activeStaff.length === 0) {
-        toast({ title: "No Cleaners", description: "No active cleaners found to notify.", variant: "destructive" });
-        return;
-      }
-
-      const staffEmails = activeStaff.map(s => s.email).filter(Boolean);
-
-      // Calculate average potential earnings based on typical staff wage
-      const avgHourlyRate = activeStaff.reduce((sum, s) => sum + (s.hourly_rate || 0), 0) / activeStaff.length || 25;
-      const potentialEarnings = (booking.duration / 60) * avgHourlyRate;
-
       const scheduledDate = new Date(booking.scheduled_at);
       const fullAddress = [booking.address, booking.city, booking.state, booking.zip_code]
         .filter(Boolean)
         .join(', ');
 
-      // Fetch business settings for company name
-      const { data: settings } = await supabase
-        .from('business_settings')
-        .select('company_name')
-        .single();
-
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
-          staffEmails,
           jobDetails: {
+            booking_id: booking.id,
             booking_number: booking.booking_number,
             service_name: booking.service?.name || 'Cleaning Service',
             scheduled_date: format(scheduledDate, 'MMMM d, yyyy'),
             scheduled_time: format(scheduledDate, 'h:mm a'),
             address: fullAddress || 'Address not provided',
             duration: booking.duration,
-            potential_earnings: potentialEarnings,
+            total_amount: booking.total_amount,
           },
-          companyName: settings?.company_name || 'Your Cleaning Company',
+          organizationId: organization.id,
         }
       });
 
@@ -996,7 +975,7 @@ export default function BookingsPage() {
 
       toast({ 
         title: "Cleaners Notified", 
-        description: `Sent notification to ${staffEmails.length} cleaner(s) about open job #${booking.booking_number}` 
+        description: `Sent notification to all active cleaners about open job #${booking.booking_number}` 
       });
     } catch (error: any) {
       console.error('Failed to notify cleaners:', error);
