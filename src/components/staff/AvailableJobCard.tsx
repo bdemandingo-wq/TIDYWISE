@@ -234,7 +234,7 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
               <p>You are about to claim job #{booking.booking_number}.</p>
               <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-700 dark:text-green-300">Your Pay</span>
+                  <span className="text-sm text-green-700 dark:text-green-300">Potential Pay</span>
                   <span className="font-bold text-xl text-green-700 dark:text-green-300">
                     ${earnings.amount.toFixed(2)}
                   </span>
