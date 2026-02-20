@@ -3,44 +3,37 @@
 
 type StripePromise = Promise<import('@stripe/stripe-js').Stripe | null>;
 
-const DEFAULT_STRIPE_PUBLISHABLE_KEY =
-  'pk_live_51NAFIvJv857o86nokonrv19sgQfuWLJpF2mrM37GiiBki4fmjwGqe1NQobcTJ6LrJ9YDk0vaKYgN7ALAxFJdSf2g00TDRZ9tNw';
+// REMOVED: No global default Stripe key. Each organization must provide its own
+// publishable key via org_stripe_settings. This prevents cross-org payment routing.
 
 let cachedKey: string | null = null;
 let cachedPromise: StripePromise | null = null;
 let stripeReactModule: typeof import('@stripe/react-stripe-js') | null = null;
 
-function safeGetStoredPublishableKey(): string | null {
-  try {
-    const key = localStorage.getItem('stripe_publishable_key');
-    return key && key.startsWith('pk_') ? key : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Lazily loads Stripe.js only when needed.
- * Keeps behavior the same, but avoids pulling Stripe into the initial bundle.
+ * A publishableKey MUST be provided — there is no global fallback.
+ * This enforces strict org isolation for payments.
  */
 export function getStripePromise(publishableKey?: string): StripePromise {
-  const resolvedKey = publishableKey || safeGetStoredPublishableKey() || DEFAULT_STRIPE_PUBLISHABLE_KEY;
+  if (!publishableKey) {
+    console.error('[stripe] No publishable key provided — cannot initialize Stripe without org-specific key');
+    return Promise.resolve(null);
+  }
 
-  if (cachedPromise && cachedKey === resolvedKey) return cachedPromise;
-  cachedKey = resolvedKey;
+  if (cachedPromise && cachedKey === publishableKey) return cachedPromise;
+  cachedKey = publishableKey;
 
-  cachedPromise = import('@stripe/stripe-js').then(({ loadStripe }) => loadStripe(resolvedKey));
+  cachedPromise = import('@stripe/stripe-js').then(({ loadStripe }) => loadStripe(publishableKey));
   return cachedPromise;
 }
 
 /**
  * Pre-load Stripe modules in the background to reduce perceived load time.
  * Call this when navigating to a payment-related screen (e.g. payment step of booking form).
+ * Note: This only preloads the JS module, NOT a Stripe instance (requires org key).
  */
 export function preloadStripeModules(): void {
-  // Start loading Stripe.js
-  getStripePromise();
-  
   // Start loading @stripe/react-stripe-js
   if (!stripeReactModule) {
     import('@stripe/react-stripe-js')

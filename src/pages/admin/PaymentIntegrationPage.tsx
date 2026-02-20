@@ -161,8 +161,8 @@ export default function PaymentIntegrationPage() {
 
       if (error) throw error;
 
-      // Also store publishable key in localStorage for frontend use
-      localStorage.setItem("stripe_publishable_key", validated.publishableKey);
+      // Publishable key is stored in org_stripe_settings (DB) — no localStorage needed
+      // The StripeCardForm fetches it per-org from create-setup-intent edge function
       
       toast.success("Stripe connected successfully! You can now accept payments.");
       
@@ -194,7 +194,7 @@ export default function PaymentIntegrationPage() {
 
       if (error) throw error;
 
-      localStorage.removeItem("stripe_publishable_key");
+      // No localStorage cleanup needed — keys are stored per-org in DB
       setExistingConnection(null);
       toast.success("Stripe disconnected successfully");
     } catch (error) {
