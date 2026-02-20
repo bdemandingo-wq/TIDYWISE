@@ -512,6 +512,7 @@ export function BookingFormProvider({
   useEffect(() => {
     if (customerTab === 'existing' && selectedCustomer && !booking) {
       setAddress(selectedCustomer.address || '');
+      setAptSuite((selectedCustomer as any).apt_suite || '');
       setCity(selectedCustomer.city || '');
       setState(selectedCustomer.state || '');
       setZipCode(selectedCustomer.zip_code || '');
