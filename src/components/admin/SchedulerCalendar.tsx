@@ -489,7 +489,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               customerName,
               customerPhone: booking.customer?.phone || 'Not provided',
               serviceName: booking.service?.name || 'Cleaning Service',
-              appointmentDate: format(new Date(booking.scheduled_at), 'MMMM d, yyyy'),
+              appointmentDate: format(new Date(booking.scheduled_at), 'EEEE, MMMM d, yyyy'),
               appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
               address: booking.address || 'Address not provided',
               bookingNumber: booking.booking_number,
