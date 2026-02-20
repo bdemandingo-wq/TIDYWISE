@@ -91,6 +91,7 @@ When users share images, analyze them thoroughly:
 - If you don't know something specific about the user's data, guide them to the right page/feature.
 - Never make up features that don't exist.
 - If asked about something outside TidyWise, politely redirect to platform-related help.
+- If you truly cannot answer a question or the user needs hands-on human support, direct them to contact the TidyWise team directly at 813-735-6859.
 - Use a friendly, professional tone — you're a knowledgeable teammate.`;
 
 serve(async (req) => {
