@@ -61,7 +61,8 @@ import {
   PlusCircle,
   RotateCcw,
   Heart,
-  Banknote
+  Banknote,
+  UserPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -169,6 +170,8 @@ export default function BookingsPage() {
   const [depositDialogBooking, setDepositDialogBooking] = useState<BookingWithDetails | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
   const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
+  const [assignCleanerBooking, setAssignCleanerBooking] = useState<BookingWithDetails | null>(null);
+  const [assigningCleaner, setAssigningCleaner] = useState(false);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -1889,6 +1892,7 @@ export default function BookingsPage() {
                                   <Clock className="w-4 h-4" /> Payment History
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Communication</DropdownMenuLabel>
                                 <DropdownMenuItem 
                                   className="gap-2 cursor-pointer text-blue-600" 
                                   onClick={() => handleSendReminder(booking)}
@@ -1916,11 +1920,11 @@ export default function BookingsPage() {
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem 
-                                  className="gap-2 cursor-pointer text-xs text-muted-foreground hover:text-primary" 
+                                  className="gap-2 cursor-pointer text-amber-600" 
                                   onClick={() => handleSendReviewRequest(booking)}
                                   disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
                                 >
-                                  {sendingReviewRequest === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3" />}
+                                  {sendingReviewRequest === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
                                   Send Review
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
@@ -1928,7 +1932,7 @@ export default function BookingsPage() {
                                   onClick={() => handleSendTipRequest(booking)}
                                   disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
                                 >
-                                  {sendingTipRequest === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Heart className="w-3 h-3" />}
+                                  {sendingTipRequest === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
                                   Send Tip Link
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
@@ -1939,8 +1943,17 @@ export default function BookingsPage() {
                                   }}
                                   disabled={!booking.customer?.phone}
                                 >
-                                  <Banknote className="w-3 h-3" />
+                                  <Banknote className="w-4 h-4" />
                                   Send Deposit Link
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Staff</DropdownMenuLabel>
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer text-indigo-600" 
+                                  onClick={() => setAssignCleanerBooking(booking)}
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                  Assign Cleaner
                                 </DropdownMenuItem>
                               </div>
                             </div>
@@ -2310,6 +2323,65 @@ export default function BookingsPage() {
                 </>
               ) : (
                 `Send $${depositAmount ? parseFloat(depositAmount).toFixed(2) : '0.00'} Deposit Link`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Assign Cleaner Dialog */}
+      <AlertDialog open={!!assignCleanerBooking} onOpenChange={(open) => !open && setAssignCleanerBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assign Cleaner</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select a cleaner to assign to Booking #{assignCleanerBooking?.booking_number} — {assignCleanerBooking?.customer?.first_name} {assignCleanerBooking?.customer?.last_name}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a cleaner..." />
+              </SelectTrigger>
+              <SelectContent>
+                {staffList.map((staff) => (
+                  <SelectItem key={staff.id} value={staff.id}>
+                    {staff.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setAssignCleanerBooking(null); setSelectedStaffId(''); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={assigningCleaner || !selectedStaffId}
+              onClick={async () => {
+                if (!assignCleanerBooking || !selectedStaffId) return;
+                setAssigningCleaner(true);
+                try {
+                  await updateBooking.mutateAsync({
+                    id: assignCleanerBooking.id,
+                    staff_id: selectedStaffId,
+                  });
+                  toast({ title: "Cleaner Assigned", description: `Cleaner assigned to booking #${assignCleanerBooking.booking_number}` });
+                  setAssignCleanerBooking(null);
+                  setSelectedStaffId('');
+                } catch (error) {
+                  toast({ title: "Error", description: "Failed to assign cleaner", variant: "destructive" });
+                } finally {
+                  setAssigningCleaner(false);
+                }
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {assigningCleaner ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign Cleaner'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
