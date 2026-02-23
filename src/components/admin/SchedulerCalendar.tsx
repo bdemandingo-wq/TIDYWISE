@@ -45,6 +45,8 @@ import { AddBookingDialog } from './AddBookingDialog';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { getDateInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -207,6 +209,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [dayBookingsPopup, setDayBookingsPopup] = useState<{ date: Date; bookings: BookingWithDetails[] } | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress } = useTestMode();
   const { organization } = useOrganization();
+  const orgTimezone = useOrgTimezone();
 
   const { data: allBookings = [], isLoading } = useBookings();
 
@@ -350,7 +353,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
   const getBookingsForDate = (date: Date): BookingWithDetails[] => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return bookings.filter(b => format(new Date(b.scheduled_at), 'yyyy-MM-dd') === dateStr);
+    return bookings.filter(b => getDateInTimezone(b.scheduled_at, orgTimezone) === dateStr);
   };
 
   const navigate = (direction: number) => {
@@ -489,8 +492,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               customerName,
               customerPhone: booking.customer?.phone || 'Not provided',
               serviceName: booking.service?.name || 'Cleaning Service',
-              appointmentDate: format(new Date(booking.scheduled_at), 'EEEE, MMMM d, yyyy'),
-              appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
+              appointmentDate: formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+              appointmentTime: formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
               address: booking.address || 'Address not provided',
               bookingNumber: booking.booking_number,
               organizationId: organization?.id,
@@ -631,7 +634,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                          {booking.service?.name} • {formatInTimezone(booking.scheduled_at, orgTimezone, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                       </button>
                     ))
@@ -851,10 +854,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="font-medium">
-                        {format(new Date(selectedBooking.scheduled_at), 'EEEE, MMMM d, yyyy')}
+                        {formatInTimezone(selectedBooking.scheduled_at, orgTimezone, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
                       <p className="text-muted-foreground">
-                        {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
+                        {formatInTimezone(selectedBooking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
                       </p>
                     </div>
                   </div>

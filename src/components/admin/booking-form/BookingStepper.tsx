@@ -36,6 +36,8 @@ import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails, useBookings } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';
 import { useBookingForm } from './BookingFormContext';
@@ -174,6 +176,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   
   // Get all bookings to check for future recurring bookings
   const { data: allBookings = [] } = useBookings();
+  const orgTimezone = useOrgTimezone();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -463,11 +466,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         .eq('organization_id', organizationId);
     }
 
-    // Parse 24h time format (HH:mm)
-    const [hours, minutes] = selectedTime.split(':').map(Number);
-
-    const scheduledAt = new Date(selectedDate!);
-    scheduledAt.setHours(hours, minutes, 0, 0);
+    // Convert selected date+time to UTC using the org timezone
+    // This ensures "9:00 AM" means 9:00 AM in the org's timezone (e.g. EST),
+    // not the browser's local timezone (e.g. PHT)
+    const scheduledAtISO = selectedDateTimeToUTCISO(selectedDate!, selectedTime, orgTimezone);
 
     // Handle "reclean" special case - it's not a real service UUID
     const isReclean = selectedServiceId === 'reclean';
@@ -476,7 +478,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       customer_id: customerId || null,
       service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
       staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
-      scheduled_at: scheduledAt.toISOString(),
+      scheduled_at: scheduledAtISO,
       duration: selectedService?.duration || 60,
       total_amount: totalAmount > 0 ? totalAmount : calculatedPrice,
       status: isDraft ? 'pending' as const : 'confirmed' as const,
@@ -571,19 +573,19 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       });
     }
     
-    // Time change (compare just the time portion)
-    const oldDate = new Date(booking.scheduled_at);
-    const oldTimeStr = `${oldDate.getHours().toString().padStart(2, '0')}:${oldDate.getMinutes().toString().padStart(2, '0')}`;
+    // Time change (compare just the time portion in org timezone)
+    const oldTimeStr = getTimeInTimezone(booking.scheduled_at, orgTimezone);
     if (selectedTime !== oldTimeStr) {
       const [newH, newM] = selectedTime.split(':').map(Number);
       const newPeriod = newH >= 12 ? 'PM' : 'AM';
       const newDisplayH = newH === 0 ? 12 : newH > 12 ? newH - 12 : newH;
-      const oldPeriod = oldDate.getHours() >= 12 ? 'PM' : 'AM';
-      const oldDisplayH = oldDate.getHours() === 0 ? 12 : oldDate.getHours() > 12 ? oldDate.getHours() - 12 : oldDate.getHours();
+      const [oldH, oldM] = oldTimeStr.split(':').map(Number);
+      const oldPeriod = oldH >= 12 ? 'PM' : 'AM';
+      const oldDisplayH = oldH === 0 ? 12 : oldH > 12 ? oldH - 12 : oldH;
       
       changes.push({
         field: 'Time',
-        oldValue: `${oldDisplayH}:${oldDate.getMinutes().toString().padStart(2, '0')} ${oldPeriod}`,
+        oldValue: `${oldDisplayH}:${oldM.toString().padStart(2, '0')} ${oldPeriod}`,
         newValue: `${newDisplayH}:${newM.toString().padStart(2, '0')} ${newPeriod}`,
         key: 'scheduled_time'
       });
@@ -762,10 +764,12 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 updateData.total_amount = bookingData.total_amount;
               }
               if (change.key === 'scheduled_time') {
-                const futureDate = new Date(futureBooking.scheduled_at);
-                const [hours, minutes] = selectedTime.split(':').map(Number);
-                futureDate.setHours(hours, minutes, 0, 0);
-                updateData.scheduled_at = futureDate.toISOString();
+                // Construct a new scheduled_at using the future booking's date but the new time, in org timezone
+                const futureDateStr = formatInTimezone(futureBooking.scheduled_at, orgTimezone, { year: 'numeric', month: '2-digit', day: '2-digit' });
+                // Parse MM/DD/YYYY from Intl format
+                const dateParts = futureDateStr.split('/');
+                const futureDate = new Date(parseInt(dateParts[2]), parseInt(dateParts[0]) - 1, parseInt(dateParts[1]));
+                updateData.scheduled_at = selectedDateTimeToUTCISO(futureDate, selectedTime, orgTimezone);
               }
               if (change.key === 'service_id') {
                 updateData.service_id = bookingData.service_id;

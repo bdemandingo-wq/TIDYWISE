@@ -5,6 +5,8 @@ import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { getLocalDateInTimezone, getTimeInTimezone } from '@/lib/timezoneUtils';
 
 interface CardInfo {
   hasCard: boolean;
@@ -178,6 +180,7 @@ export function BookingFormProvider({
   const { data: staff = [] } = useStaff();
   const { organizationId } = useOrgId();
   const { session } = useAuth();
+  const orgTimezone = useOrgTimezone();
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
@@ -424,12 +427,11 @@ export function BookingFormProvider({
     if (booking.staff) {
       setSelectedStaffId(booking.staff.id);
     }
-    const scheduledDate = new Date(booking.scheduled_at);
+    // Parse the scheduled_at in the org timezone so the date/time shown matches what was intended
+    const scheduledDate = getLocalDateInTimezone(booking.scheduled_at, orgTimezone);
     setSelectedDate(scheduledDate);
-    const hours = scheduledDate.getHours();
-    const minutes = scheduledDate.getMinutes();
-    // Use 24h format (HH:mm)
-    setSelectedTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+    const timeStr = getTimeInTimezone(booking.scheduled_at, orgTimezone);
+    setSelectedTime(timeStr);
     setNotes(booking.notes || '');
     setTotalAmount(booking.total_amount || 0);
     setAddress(booking.address || '');
