@@ -813,6 +813,7 @@ export type Database = {
           organization_id: string | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
+          recurring_days_of_week: number[] | null
           scheduled_at: string
           service_id: string | null
           square_footage: string | null
@@ -857,6 +858,7 @@ export type Database = {
           organization_id?: string | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          recurring_days_of_week?: number[] | null
           scheduled_at: string
           service_id?: string | null
           square_footage?: string | null
@@ -901,6 +903,7 @@ export type Database = {
           organization_id?: string | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          recurring_days_of_week?: number[] | null
           scheduled_at?: string
           service_id?: string | null
           square_footage?: string | null
@@ -1835,6 +1838,7 @@ export type Database = {
       custom_frequencies: {
         Row: {
           created_at: string
+          days_of_week: number[] | null
           id: string
           interval_days: number
           is_active: boolean
@@ -1844,6 +1848,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          days_of_week?: number[] | null
           id?: string
           interval_days: number
           is_active?: boolean
@@ -1853,6 +1858,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          days_of_week?: number[] | null
           id?: string
           interval_days?: number
           is_active?: boolean
