@@ -154,22 +154,21 @@ function DroppableDay({ id, disabled, className, children }: DroppableDayProps) 
   );
 }
 
-function TrashDropZone({ visible }: { visible: boolean }) {
+function TrashDropZone() {
   const { isOver, setNodeRef } = useDroppable({ id: 'trash-zone' });
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed transition-all duration-300',
-        visible ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none h-0 py-0 overflow-hidden',
+        'flex items-center justify-center h-8 w-8 rounded-md border transition-all duration-200',
         isOver
           ? 'border-destructive bg-destructive/10 text-destructive scale-110'
-          : 'border-muted-foreground/30 text-muted-foreground'
+          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
       )}
+      title="Drag a booking here to delete"
     >
-      <Trash2 className={cn('w-5 h-5 transition-transform', isOver && 'animate-bounce')} />
-      <span className="text-sm font-medium">Drop here to delete</span>
+      <Trash2 className={cn('w-4 h-4 transition-transform', isOver && 'animate-bounce')} />
     </div>
   );
 }
@@ -634,6 +633,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
             </Button>
+            <TrashDropZone />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -705,7 +705,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               <Plus className="w-4 h-4" />
               Add Booking
             </Button>
-            <TrashDropZone visible={!!activeBooking} />
           </div>
         </div>
 
