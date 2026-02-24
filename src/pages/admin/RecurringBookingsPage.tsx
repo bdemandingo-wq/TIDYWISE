@@ -79,7 +79,8 @@ const TIME_SLOTS = Array.from({ length: 19 }, (_, i) => {
 function computeNextDate(
   booking: RecurringBooking,
   latestBookingDate: Date | null,
-  existingBookingDates?: Set<string>
+  existingBookingDates?: Set<string>,
+  customFrequencies?: { id: string; name: string; interval_days: number; days_of_week: number[] | null }[]
 ): Date | null {
   if (booking.frequency === 'anyday') return null;
 
@@ -95,7 +96,7 @@ function computeNextDate(
     anchor = startOfDay(new Date(booking.created_at));
   }
 
-  const intervalAdder = getIntervalAdder(booking.frequency);
+  const intervalAdder = getIntervalAdder(booking.frequency, customFrequencies);
   const preferredDay = booking.preferred_day;
 
   // Advance from anchor by interval, then align to preferred day
@@ -139,13 +140,21 @@ function computeNextDate(
   return nextDate;
 }
 
-function getIntervalAdder(frequency: string): (d: Date) => Date {
+function getIntervalAdder(frequency: string, customFrequencies?: { id: string; name: string; interval_days: number; days_of_week: number[] | null }[]): (d: Date) => Date {
   switch (frequency) {
     case 'weekly': return (d) => addWeeks(d, 1);
     case 'biweekly': return (d) => addWeeks(d, 2);
     case 'triweekly': return (d) => addWeeks(d, 3);
     case 'monthly': return (d) => addMonths(d, 1);
-    default: return (d) => addMonths(d, 1);
+    default: {
+      // Check if it's a custom frequency (stored as "custom_<id>")
+      if (frequency.startsWith('custom_') && customFrequencies) {
+        const cfId = frequency.replace('custom_', '');
+        const cf = customFrequencies.find(f => f.id === cfId);
+        if (cf) return (d) => addDays(d, cf.interval_days);
+      }
+      return (d) => addMonths(d, 1);
+    }
   }
 }
 
@@ -162,6 +171,23 @@ export default function RecurringBookingsPage() {
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
   const { data: staff = [] } = useStaff();
+
+  // Fetch org-specific custom frequencies
+  const { data: customFrequencies = [] } = useQuery({
+    queryKey: ['custom-frequencies', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('custom_frequencies')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('interval_days', { ascending: true });
+      if (error) throw error;
+      return data as { id: string; name: string; interval_days: number; is_active: boolean; days_of_week: number[] | null }[];
+    },
+    enabled: !!organization?.id,
+  });
 
   const { data: recurringBookings = [], isLoading } = useQuery({
     queryKey: ['recurring-bookings', organization?.id],
@@ -320,7 +346,7 @@ export default function RecurringBookingsPage() {
     const key = `${recurring.customer_id}__${recurring.service_id}`;
     const latestDate = latestBookingMap.get(key) || null;
     const existingDates = existingDatesMap.get(key);
-    const nextDate = computeNextDate(recurring, latestDate, existingDates);
+    const nextDate = computeNextDate(recurring, latestDate, existingDates, customFrequencies);
 
     if (!nextDate) {
       toast.error('Could not compute next date');
@@ -435,7 +461,11 @@ export default function RecurringBookingsPage() {
                       </div>
                     </TableCell>
                     <TableCell>{booking.service?.name || '-'}</TableCell>
-                    <TableCell className="capitalize">{booking.frequency}</TableCell>
+                    <TableCell className="capitalize">
+                      {booking.frequency.startsWith('custom_')
+                        ? customFrequencies.find(cf => cf.id === booking.frequency.replace('custom_', ''))?.name || booking.frequency
+                        : booking.frequency}
+                    </TableCell>
                     <TableCell>
                       {booking.preferred_day !== null && (
                         <span>{DAYS_OF_WEEK[booking.preferred_day]}</span>
@@ -455,7 +485,7 @@ export default function RecurringBookingsPage() {
                         const key = `${booking.customer_id}__${booking.service_id}`;
                         const latestDate = latestBookingMap.get(key) || null;
                         const existingDates = existingDatesMap.get(key);
-                        const nextDate = computeNextDate(booking, latestDate, existingDates);
+                        const nextDate = computeNextDate(booking, latestDate, existingDates, customFrequencies);
                         return nextDate ? (
                           format(nextDate, 'MMM d, yyyy')
                         ) : (
@@ -527,6 +557,7 @@ export default function RecurringBookingsPage() {
         customers={customers}
         services={services}
         staff={staff}
+        customFrequencies={customFrequencies}
         onSave={(data) => {
           if (editingBooking) {
             updateMutation.mutate({ id: editingBooking.id, ...data });
@@ -546,6 +577,7 @@ function RecurringBookingDialog({
   customers,
   services,
   staff,
+  customFrequencies,
   onSave,
 }: {
   open: boolean;
@@ -554,6 +586,7 @@ function RecurringBookingDialog({
   customers: any[];
   services: any[];
   staff: any[];
+  customFrequencies: { id: string; name: string; interval_days: number; is_active: boolean; days_of_week: number[] | null }[];
   onSave: (data: any) => void;
 }) {
   const [formData, setFormData] = useState({
@@ -663,6 +696,15 @@ function RecurringBookingDialog({
                 <SelectItem value="triweekly">Tri-Weekly</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
                 <SelectItem value="anyday">Any Day (Airbnb/On-Demand)</SelectItem>
+                {customFrequencies.length > 0 && (
+                  <>
+                    {customFrequencies.map((cf) => (
+                      <SelectItem key={cf.id} value={`custom_${cf.id}`}>
+                        {cf.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
