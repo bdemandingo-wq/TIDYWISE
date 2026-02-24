@@ -365,13 +365,31 @@ export function ServiceStep() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Frequency</Label>
               <Select 
-                value={showCustomInput ? '__custom__' : (frequency === 'custom' && customFrequencyDays && !showCustomInput ? `custom_${customFrequencyDays}` : frequency)} 
+                value={(() => {
+                  if (showCustomInput) return '__custom__';
+                  if (frequency === 'custom' && customFrequencyDays && !showCustomInput) {
+                    // Check if this matches a days-of-week preset
+                    const dowPreset = customFrequencies.find(cf => cf.days_of_week && cf.days_of_week.length > 0 && cf.interval_days === 7);
+                    if (dowPreset) return `custom_days_${dowPreset.id}`;
+                    return `custom_${customFrequencyDays}`;
+                  }
+                  return frequency;
+                })()}
                 onValueChange={(val) => {
                   if (val === '__custom__') {
                     setShowCustomInput(true);
                     setFrequency('custom');
+                  } else if (val.startsWith('custom_days_')) {
+                    // Day-of-week preset
+                    const presetId = val.replace('custom_days_', '');
+                    const preset = customFrequencies.find(cf => cf.id === presetId);
+                    if (preset) {
+                      setFrequency('custom');
+                      setCustomFrequencyDays(preset.interval_days);
+                      setShowCustomInput(false);
+                    }
                   } else if (val.startsWith('custom_')) {
-                    // Custom preset from DB
+                    // Interval preset from DB
                     const days = parseInt(val.replace('custom_', ''));
                     setFrequency('custom');
                     setCustomFrequencyDays(days);
