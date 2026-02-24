@@ -49,6 +49,8 @@ export function ServiceStep() {
     setFrequency,
     customFrequencyDays,
     setCustomFrequencyDays,
+    recurringDaysOfWeek,
+    setRecurringDaysOfWeek,
     selectedExtras,
     toggleExtra,
     extrasTotal,
@@ -62,7 +64,6 @@ export function ServiceStep() {
     setPetOption,
     conditionTotal,
     petTotal,
-    selectedService,
     calculatedPrice,
     selectedChecklistId,
     setSelectedChecklistId,
@@ -367,36 +368,46 @@ export function ServiceStep() {
               <Select 
                 value={(() => {
                   if (showCustomInput) return '__custom__';
-                  if (frequency === 'custom' && customFrequencyDays && !showCustomInput) {
-                    // Check if this matches a days-of-week preset
-                    const dowPreset = customFrequencies.find(cf => cf.days_of_week && cf.days_of_week.length > 0 && cf.interval_days === 7);
-                    if (dowPreset) return `custom_days_${dowPreset.id}`;
-                    return `custom_${customFrequencyDays}`;
+                  if (frequency !== 'custom') return frequency;
+
+                  if (recurringDaysOfWeek && recurringDaysOfWeek.length > 0) {
+                    const matchedPreset = customFrequencies.find((cf) => {
+                      const days = cf.days_of_week || [];
+                      if (days.length !== recurringDaysOfWeek.length) return false;
+                      const a = [...days].sort((x, y) => x - y);
+                      const b = [...recurringDaysOfWeek].sort((x, y) => x - y);
+                      return a.every((day, idx) => day === b[idx]);
+                    });
+                    return matchedPreset ? `custom_days_${matchedPreset.id}` : '__custom__';
                   }
-                  return frequency;
+
+                  if (customFrequencyDays) return `custom_${customFrequencyDays}`;
+                  return '__custom__';
                 })()}
                 onValueChange={(val) => {
                   if (val === '__custom__') {
                     setShowCustomInput(true);
                     setFrequency('custom');
+                    setRecurringDaysOfWeek(null);
                   } else if (val.startsWith('custom_days_')) {
-                    // Day-of-week preset
                     const presetId = val.replace('custom_days_', '');
                     const preset = customFrequencies.find(cf => cf.id === presetId);
                     if (preset) {
                       setFrequency('custom');
-                      setCustomFrequencyDays(preset.interval_days);
+                      setCustomFrequencyDays(7);
+                      setRecurringDaysOfWeek(preset.days_of_week || null);
                       setShowCustomInput(false);
                     }
                   } else if (val.startsWith('custom_')) {
-                    // Interval preset from DB
                     const days = parseInt(val.replace('custom_', ''));
                     setFrequency('custom');
                     setCustomFrequencyDays(days);
+                    setRecurringDaysOfWeek(null);
                     setShowCustomInput(false);
                   } else {
                     setFrequency(val);
                     setCustomFrequencyDays(null);
+                    setRecurringDaysOfWeek(null);
                     setShowCustomInput(false);
                   }
                 }}
@@ -446,7 +457,10 @@ export function ServiceStep() {
                     min="1"
                     placeholder="e.g. 4"
                     value={customFrequencyDays ?? ''}
-                    onChange={(e) => setCustomFrequencyDays(e.target.value ? parseInt(e.target.value) : null)}
+                    onChange={(e) => {
+                      setCustomFrequencyDays(e.target.value ? parseInt(e.target.value) : null);
+                      setRecurringDaysOfWeek(null);
+                    }}
                     className="w-20 h-9"
                   />
                   <Label className="text-sm whitespace-nowrap">days</Label>

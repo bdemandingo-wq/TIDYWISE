@@ -53,6 +53,7 @@ interface BookingFormState {
   bathrooms: string;
   frequency: string;
   customFrequencyDays: number | null;
+  recurringDaysOfWeek: number[] | null;
   selectedExtras: string[];
   
   // New pricing fields
@@ -124,6 +125,7 @@ interface BookingFormContextType extends BookingFormState {
   setBathrooms: (bathrooms: string) => void;
   setFrequency: (frequency: string) => void;
   setCustomFrequencyDays: (days: number | null) => void;
+  setRecurringDaysOfWeek: (days: number[] | null) => void;
   toggleExtra: (extraId: string) => void;
   setPricingMode: (mode: 'sqft' | 'bedroom') => void;
   setHomeCondition: (condition: number) => void;
@@ -146,8 +148,6 @@ interface BookingFormContextType extends BookingFormState {
   setCardInfo: (info: CardInfo | null) => void;
   setAppliedDiscount: (discount: AppliedDiscount | null) => void;
   setSelectedChecklistId: (id: string | null) => void;
-  
-  // Actions
   loadCardInfo: (email: string) => Promise<void>;
   resetForm: () => void;
   prefillFromBooking: (booking: BookingWithDetails) => void;
@@ -204,8 +204,8 @@ export function BookingFormProvider({
   const [bathrooms, setBathrooms] = useState('1');
   const [frequency, setFrequency] = useState('one_time');
   const [customFrequencyDays, setCustomFrequencyDays] = useState<number | null>(null);
+  const [recurringDaysOfWeek, setRecurringDaysOfWeek] = useState<number[] | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  
   // New pricing fields
   const [pricingMode, setPricingMode] = useState<'sqft' | 'bedroom'>('sqft');
   const [homeCondition, setHomeCondition] = useState(1);
@@ -399,8 +399,8 @@ export function BookingFormProvider({
     setZipCode('');
     setFrequency('one_time');
     setCustomFrequencyDays(null);
+    setRecurringDaysOfWeek(null);
     setBedrooms('1');
-    setBathrooms('1');
     setSquareFootage('');
     setSelectedExtras([]);
     setCardInfo(null);
@@ -441,8 +441,8 @@ export function BookingFormProvider({
     setZipCode(booking.zip_code || '');
     setFrequency(booking.frequency || 'one_time');
     setCustomFrequencyDays((booking as any).custom_frequency_days || null);
+    setRecurringDaysOfWeek((booking as any).recurring_days_of_week || null);
     setBedrooms(booking.bedrooms || '1');
-    setBathrooms(booking.bathrooms || '1');
     setSquareFootage(booking.square_footage || '');
     // Handle extras which can be array of objects or strings from Json type
     const rawExtras = booking.extras;
@@ -559,6 +559,7 @@ export function BookingFormProvider({
       bathrooms,
       frequency,
       customFrequencyDays,
+      recurringDaysOfWeek,
       selectedExtras,
       pricingMode,
       homeCondition,
@@ -581,7 +582,6 @@ export function BookingFormProvider({
       loadingCard,
       selectedChecklistId,
       
-      // Data
       customers,
       services,
       staff,
@@ -614,6 +614,7 @@ export function BookingFormProvider({
       setBathrooms,
       setFrequency,
       setCustomFrequencyDays,
+      setRecurringDaysOfWeek,
       toggleExtra,
       setPricingMode,
       setHomeCondition,
@@ -637,7 +638,6 @@ export function BookingFormProvider({
       setAppliedDiscount,
       setSelectedChecklistId,
       
-      // Actions
       loadCardInfo,
       resetForm,
       prefillFromBooking,

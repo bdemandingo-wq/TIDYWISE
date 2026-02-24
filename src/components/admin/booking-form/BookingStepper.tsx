@@ -251,6 +251,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     bathrooms,
     frequency,
     customFrequencyDays,
+    recurringDaysOfWeek,
     selectedExtras,
     selectedDate,
     selectedTime,
@@ -1221,7 +1222,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 {frequency === 'biweekly' && 'Bi-Weekly Recurring'}
                 {frequency === 'monthly' && 'Monthly Recurring'}
                 {frequency === 'triweekly' && 'Tri-Weekly Recurring'}
-                {frequency === 'custom' && customFrequencyDays && `Every ${customFrequencyDays} Day${customFrequencyDays !== 1 ? 's' : ''} Recurring`}
+                {frequency === 'custom' && (
+                  recurringDaysOfWeek && recurringDaysOfWeek.length > 0
+                    ? `${recurringDaysOfWeek
+                        .map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
+                        .join('/')} Recurring`
+                    : customFrequencyDays
+                      ? `Every ${customFrequencyDays} Day${customFrequencyDays !== 1 ? 's' : ''} Recurring`
+                      : 'Custom Recurring'
+                )}
               </Badge>
             )}
           </div>
