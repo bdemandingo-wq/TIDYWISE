@@ -492,6 +492,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       zip_code: zipCode || null,
       frequency: frequency,
       custom_frequency_days: customFrequencyDays,
+      recurring_days_of_week: frequency === 'custom' ? (recurringDaysOfWeek || null) : null,
       bedrooms: bedrooms,
       bathrooms: bathrooms,
       square_footage: squareFootage || null,
@@ -509,25 +510,61 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     const bookingsToCreate: any[] = [];
     const baseDate = new Date(baseBookingData.scheduled_at);
     const numBookings = 3;
-    
-    for (let i = 1; i <= numBookings; i++) {
-      let nextDate: Date;
-      if (frequency === 'custom' && customFrequencyDays) {
-        nextDate = new Date(baseDate);
-        nextDate.setDate(nextDate.getDate() + customFrequencyDays * i);
-      } else if (frequency === 'weekly') {
-        nextDate = addWeeks(baseDate, i);
-      } else if (frequency === 'biweekly') {
-        nextDate = addWeeks(baseDate, i * 2);
-      } else {
-        nextDate = addMonths(baseDate, i);
-      }
 
-      bookingsToCreate.push({
-        ...baseBookingData,
-        scheduled_at: nextDate.toISOString(),
-        payment_intent_id: null,
-      });
+    const weekdayMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+
+    const selectedWeekdays = (recurringDaysOfWeek || [])
+      .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+      .sort((a, b) => a - b);
+
+    if (frequency === 'custom' && selectedWeekdays.length > 0) {
+      let cursor = new Date(baseDate);
+      let safetyCounter = 0;
+
+      while (bookingsToCreate.length < numBookings && safetyCounter < 120) {
+        cursor = new Date(cursor);
+        cursor.setDate(cursor.getDate() + 1);
+        safetyCounter += 1;
+
+        const weekdayLabel = formatInTimezone(cursor, orgTimezone, { weekday: 'short' });
+        const weekdayIndex = weekdayMap[weekdayLabel as keyof typeof weekdayMap];
+
+        if (weekdayIndex !== undefined && selectedWeekdays.includes(weekdayIndex)) {
+          bookingsToCreate.push({
+            ...baseBookingData,
+            scheduled_at: cursor.toISOString(),
+            payment_intent_id: null,
+          });
+        }
+      }
+    } else {
+      for (let i = 1; i <= numBookings; i++) {
+        let nextDate: Date;
+        if (frequency === 'custom' && customFrequencyDays) {
+          nextDate = new Date(baseDate);
+          nextDate.setDate(nextDate.getDate() + customFrequencyDays * i);
+        } else if (frequency === 'weekly') {
+          nextDate = addWeeks(baseDate, i);
+        } else if (frequency === 'biweekly') {
+          nextDate = addWeeks(baseDate, i * 2);
+        } else {
+          nextDate = addMonths(baseDate, i);
+        }
+
+        bookingsToCreate.push({
+          ...baseBookingData,
+          scheduled_at: nextDate.toISOString(),
+          payment_intent_id: null,
+        });
+      }
     }
 
     for (const bookingData of bookingsToCreate) {
@@ -891,8 +928,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
         if (!isDraft && frequency !== 'one_time') {
           await createRecurringBookings(finalBookingData);
-          const freqLabel = frequency === 'custom' && customFrequencyDays 
-            ? `every ${customFrequencyDays} days` 
+          const freqLabel = frequency === 'custom'
+            ? (recurringDaysOfWeek && recurringDaysOfWeek.length > 0
+              ? recurringDaysOfWeek
+                  .map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
+                  .join('/')
+              : customFrequencyDays
+                ? `every ${customFrequencyDays} days`
+                : 'custom schedule')
             : frequency;
           toast.success(`Booking created with ${freqLabel} recurring schedule`);
         } else {
