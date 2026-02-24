@@ -366,7 +366,7 @@
   }
 
   .animate-page-enter {
-    animation: pageEnter 0.4s ease-out forwards;
+    animation: pageEnter 0.4s ease-out;
   }
 
   .animate-stagger-in {
