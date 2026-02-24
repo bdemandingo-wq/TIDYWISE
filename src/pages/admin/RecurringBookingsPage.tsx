@@ -69,19 +69,35 @@ const TIME_SLOTS = Array.from({ length: 19 }, (_, i) => {
 });
 
 function computeNextDate(booking: RecurringBooking): Date | null {
-  const today = startOfDay(new Date());
+  if (booking.frequency === 'anyday') return null;
+
+  // Use the last generated date as base; fall back to today
+  const base = booking.next_scheduled_at
+    ? startOfDay(new Date(booking.next_scheduled_at))
+    : startOfDay(new Date());
+
   const selectedDays = (booking.recurring_days_of_week || []).filter(
     (d) => Number.isInteger(d) && d >= 0 && d <= 6
   );
 
-  if (booking.frequency === 'anyday') return null;
+  // If we already have a stored next_scheduled_at that's in the future, use it
+  if (booking.next_scheduled_at) {
+    const stored = new Date(booking.next_scheduled_at);
+    if (!isBefore(stored, new Date())) {
+      return stored;
+    }
+    // Stored date is in the past — compute next from it
+  }
 
-  // If multi-day schedule, find the soonest upcoming weekday
+  // Multi-day schedule: find the soonest upcoming weekday after base
   if (selectedDays.length > 0) {
     let nearest: Date | null = null;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const searchStart = startOfDay(isBefore(base, tomorrow) ? tomorrow : base);
+
     for (const dayIndex of selectedDays) {
-      let cursor = new Date(today);
-      // Find next occurrence of this weekday (today or later)
+      let cursor = new Date(searchStart);
       let safety = 0;
       while (cursor.getDay() !== dayIndex && safety < 8) {
         cursor.setDate(cursor.getDate() + 1);
@@ -94,8 +110,8 @@ function computeNextDate(booking: RecurringBooking): Date | null {
     return nearest;
   }
 
-  // Single-day frequency logic
-  let nextDate = new Date(today);
+  // Single-frequency: advance from base by the correct interval
+  let nextDate = new Date(base);
   if (booking.frequency === 'weekly') {
     nextDate = addWeeks(nextDate, 1);
   } else if (booking.frequency === 'biweekly') {
@@ -105,11 +121,14 @@ function computeNextDate(booking: RecurringBooking): Date | null {
   } else {
     nextDate = addMonths(nextDate, 1);
   }
+
+  // Ensure it lands on the preferred day
   if (booking.preferred_day !== null) {
     while (nextDate.getDay() !== booking.preferred_day) {
       nextDate = addDays(nextDate, 1);
     }
   }
+
   return nextDate;
 }
 
