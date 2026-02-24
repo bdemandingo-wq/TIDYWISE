@@ -4060,6 +4060,7 @@ export type Database = {
           organization_id: string | null
           preferred_day: number | null
           preferred_time: string | null
+          recurring_days_of_week: number[] | null
           service_id: string | null
           square_footage: string | null
           staff_id: string | null
@@ -4085,6 +4086,7 @@ export type Database = {
           organization_id?: string | null
           preferred_day?: number | null
           preferred_time?: string | null
+          recurring_days_of_week?: number[] | null
           service_id?: string | null
           square_footage?: string | null
           staff_id?: string | null
@@ -4110,6 +4112,7 @@ export type Database = {
           organization_id?: string | null
           preferred_day?: number | null
           preferred_time?: string | null
+          recurring_days_of_week?: number[] | null
           service_id?: string | null
           square_footage?: string | null
           staff_id?: string | null

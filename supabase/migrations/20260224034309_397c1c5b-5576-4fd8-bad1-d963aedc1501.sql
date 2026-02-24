@@ -1,0 +1,1 @@
+ALTER TABLE public.recurring_bookings ADD COLUMN recurring_days_of_week integer[] DEFAULT NULL;

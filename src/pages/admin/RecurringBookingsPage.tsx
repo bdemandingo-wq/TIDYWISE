@@ -51,6 +51,7 @@ interface RecurringBooking {
   total_amount: number;
   is_active: boolean;
   next_scheduled_at: string | null;
+  recurring_days_of_week: number[] | null;
   created_at: string;
   customer?: { first_name: string; last_name: string; email: string };
   service?: { name: string };
@@ -163,41 +164,28 @@ export default function RecurringBookingsPage() {
       return;
     }
 
-    // For "anyday" frequency (Airbnb), don't auto-schedule - user books manually
     if (recurring.frequency === 'anyday') {
       toast.info('Airbnb/On-Demand bookings are scheduled manually per request');
       return;
     }
 
-    let nextDate = new Date();
-    if (recurring.frequency === 'weekly') {
-      nextDate = addWeeks(nextDate, 1);
-    } else if (recurring.frequency === 'biweekly') {
-      nextDate = addWeeks(nextDate, 2);
-    } else if (recurring.frequency === 'triweekly') {
-      nextDate = addWeeks(nextDate, 3);
-    } else {
-      nextDate = addMonths(nextDate, 1);
-    }
+    const selectedDays = (recurring.recurring_days_of_week || []).filter(
+      (d) => Number.isInteger(d) && d >= 0 && d <= 6
+    );
 
-    // Adjust to preferred day
-    if (recurring.preferred_day !== null) {
-      while (nextDate.getDay() !== recurring.preferred_day) {
-        nextDate = addDays(nextDate, 1);
+    const applyTime = (date: Date) => {
+      if (recurring.preferred_time) {
+        const [time, period] = recurring.preferred_time.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let hour24 = hours;
+        if (period === 'PM' && hours !== 12) hour24 += 12;
+        if (period === 'AM' && hours === 12) hour24 = 0;
+        date.setHours(hour24, minutes, 0, 0);
       }
-    }
+      return date;
+    };
 
-    const scheduledAt = new Date(nextDate);
-    if (recurring.preferred_time) {
-      const [time, period] = recurring.preferred_time.split(' ');
-      const [hours, minutes] = time.split(':').map(Number);
-      let hour24 = hours;
-      if (period === 'PM' && hours !== 12) hour24 += 12;
-      if (period === 'AM' && hours === 12) hour24 = 0;
-      scheduledAt.setHours(hour24, minutes, 0, 0);
-    }
-
-    const { error } = await supabase.from('bookings').insert({
+    const baseBooking = {
       customer_id: recurring.customer_id,
       service_id: recurring.service_id,
       staff_id: recurring.staff_id,
@@ -206,25 +194,69 @@ export default function RecurringBookingsPage() {
       state: recurring.state,
       zip_code: recurring.zip_code,
       total_amount: recurring.total_amount,
-      scheduled_at: scheduledAt.toISOString(),
       duration: 180,
-      status: 'pending',
-      payment_status: 'pending',
+      status: 'pending' as const,
+      payment_status: 'pending' as const,
       frequency: recurring.frequency,
       organization_id: organization.id,
-    });
+      recurring_days_of_week: recurring.recurring_days_of_week,
+    };
+
+    const bookingsToInsert: any[] = [];
+
+    if (selectedDays.length > 0) {
+      // Generate next occurrence for EACH selected weekday
+      const today = new Date();
+      for (const dayIndex of selectedDays) {
+        let cursor = new Date(today);
+        cursor.setDate(cursor.getDate() + 1); // start from tomorrow
+        let safety = 0;
+        while (cursor.getDay() !== dayIndex && safety < 8) {
+          cursor.setDate(cursor.getDate() + 1);
+          safety++;
+        }
+        bookingsToInsert.push({
+          ...baseBooking,
+          scheduled_at: applyTime(new Date(cursor)).toISOString(),
+        });
+      }
+    } else {
+      // Original single-booking logic
+      let nextDate = new Date();
+      if (recurring.frequency === 'weekly') {
+        nextDate = addWeeks(nextDate, 1);
+      } else if (recurring.frequency === 'biweekly') {
+        nextDate = addWeeks(nextDate, 2);
+      } else if (recurring.frequency === 'triweekly') {
+        nextDate = addWeeks(nextDate, 3);
+      } else {
+        nextDate = addMonths(nextDate, 1);
+      }
+      if (recurring.preferred_day !== null) {
+        while (nextDate.getDay() !== recurring.preferred_day) {
+          nextDate = addDays(nextDate, 1);
+        }
+      }
+      bookingsToInsert.push({
+        ...baseBooking,
+        scheduled_at: applyTime(new Date(nextDate)).toISOString(),
+      });
+    }
+
+    const { error } = await supabase.from('bookings').insert(bookingsToInsert);
 
     if (error) {
-      toast.error('Failed to generate booking');
+      toast.error('Failed to generate booking(s)');
     } else {
+      const lastDate = bookingsToInsert[bookingsToInsert.length - 1].scheduled_at;
       await supabase.from('recurring_bookings').update({
         last_generated_at: new Date().toISOString(),
-        next_scheduled_at: scheduledAt.toISOString(),
+        next_scheduled_at: lastDate,
       }).eq('id', recurring.id);
       
       queryClient.invalidateQueries({ queryKey: ['recurring-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      toast.success('Next booking generated');
+      toast.success(`${bookingsToInsert.length} booking(s) generated`);
     }
   };
 
