@@ -2244,6 +2244,24 @@ export type Database = {
           },
         ]
       }
+      facebook_lead_webhook_events: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
       help_videos: {
         Row: {
           created_at: string
