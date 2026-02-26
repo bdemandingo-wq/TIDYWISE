@@ -73,6 +73,38 @@ const handler = async (req: Request): Promise<Response> => {
         // Create domain in Resend
         const { status, data } = await resendFetch("/domains", "POST", { name: domain });
 
+        if (status === 403 && data?.message?.includes("registered already")) {
+          // Domain already exists in Resend — look it up and sync locally
+          console.log("[manage-resend-domain] Domain already registered in Resend, fetching existing...");
+          const listRes = await resendFetch("/domains", "GET");
+          const existing = listRes.data?.data?.find((d: { name: string }) => d.name === domain);
+          if (!existing) throw new Error("Domain registered in Resend but could not be retrieved. Please try again.");
+
+          // Get full details
+          const detailRes = await resendFetch(`/domains/${existing.id}`, "GET");
+          const detail = detailRes.status === 200 ? detailRes.data : existing;
+
+          const { error: upsertError } = await supabase
+            .from("organization_email_domains")
+            .upsert({
+              organization_id: organizationId,
+              domain_name: domain,
+              resend_domain_id: existing.id,
+              status: detail.status || existing.status || "pending",
+              dns_records: detail.records || null,
+            }, { onConflict: "organization_id,domain_name" });
+
+          if (upsertError) throw upsertError;
+
+          result = {
+            success: true,
+            domainId: existing.id,
+            status: detail.status || existing.status,
+            records: detail.records || null,
+          };
+          break;
+        }
+
         if (status !== 200 && status !== 201) {
           console.error("[manage-resend-domain] Resend error:", data);
           throw new Error(data?.message || "Failed to add domain to email service");
