@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle, Gift, Zap } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle, Gift } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +37,7 @@ import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilityS
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
-import { ZapierWebhookCard } from '@/components/admin/ZapierWebhookCard';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
@@ -514,7 +514,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
-            <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
+            
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
           </TabsList>
         </div>
@@ -1083,10 +1083,6 @@ export default function SettingsPage() {
           <AccountDeletionCard />
         </TabsContent>
 
-        {/* Integrations */}
-        <TabsContent value="integrations" className="space-y-6">
-          <ZapierWebhookCard organizationId={organization?.id || null} />
-        </TabsContent>
       </Tabs>
     </AdminLayout>
   );

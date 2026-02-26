@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod@3.25.76";
-import { fireZapierWebhook } from "../_shared/fire-zapier-webhook.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,14 +143,6 @@ const handler = async (req: Request): Promise<Response> => {
       customerId = newCustomer.id;
       console.log("[external-booking-webhook] Created new customer:", customerId);
 
-      // Fire Zapier webhook for new customer
-      fireZapierWebhook(organizationId, 'new_customer', {
-        customer_id: customerId,
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        email: payload.email,
-        phone: payload.phone || null,
-      });
     }
 
     // Find service by name if provided
@@ -284,17 +276,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("[external-booking-webhook] Created booking:", booking.id, "Number:", booking.booking_number);
 
-    // Fire Zapier webhook for new booking
-    fireZapierWebhook(organizationId, 'new_booking', {
-      booking_id: booking.id,
-      booking_number: booking.booking_number,
-      customer_name: `${payload.first_name} ${payload.last_name}`,
-      customer_email: payload.email,
-      service_name: payload.service_name || null,
-      scheduled_at: payload.scheduled_at,
-      total_amount: payload.total_amount || 0,
-      address: payload.address || null,
-    });
 
     // Create a lead entry for this customer automatically
     try {
