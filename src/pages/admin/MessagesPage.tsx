@@ -36,7 +36,10 @@ import {
   PanelLeft,
   Check,
   Mail,
+  Link,
+  Paperclip,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -99,6 +102,12 @@ export default function MessagesPage() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [emailSending, setEmailSending] = useState(false);
+  const [emailAttachments, setEmailAttachments] = useState<{ name: string; content: string; type: string }[]>([]);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const emailBodyRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -485,6 +494,7 @@ export default function MessagesPage() {
           to: emailTo.trim(),
           subject: emailSubject.trim(),
           body: emailBody.trim(),
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
         }
       });
 
@@ -496,11 +506,61 @@ export default function MessagesPage() {
       setEmailTo('');
       setEmailSubject('');
       setEmailBody('');
+      setEmailAttachments([]);
     } catch (err: any) {
       toast.error(err.message || 'Failed to send email');
     } finally {
       setEmailSending(false);
     }
+  };
+
+  const handleInsertLink = () => {
+    if (!linkUrl.trim()) return;
+    const display = linkText.trim() || linkUrl.trim();
+    const linkHtml = `<a href="${linkUrl.trim()}">${display}</a>`;
+    
+    const textarea = emailBodyRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newBody = emailBody.slice(0, start) + linkHtml + emailBody.slice(end);
+      setEmailBody(newBody);
+    } else {
+      setEmailBody(prev => prev + linkHtml);
+    }
+    
+    setLinkUrl('');
+    setLinkText('');
+    setLinkPopoverOpen(false);
+  };
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    Array.from(files).forEach(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`File "${file.name}" is too large (max 10MB)`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        setEmailAttachments(prev => [...prev, { 
+          name: file.name, 
+          content: base64, 
+          type: file.type 
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setEmailAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const getInitials = (name: string | null, phone: string) => {
@@ -849,20 +909,85 @@ export default function MessagesPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <Label>Message</Label>
-                    {organizationId && (
-                      <MessageTemplatesPicker
-                        organizationId={organizationId}
-                        onSelect={(content) => setEmailBody(content)}
-                      />
-                    )}
+                    <div className="flex items-center gap-1">
+                      {organizationId && (
+                        <MessageTemplatesPicker
+                          organizationId={organizationId}
+                          onSelect={(content) => setEmailBody(content)}
+                        />
+                      )}
+                      <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link">
+                            <Link className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 space-y-3" align="end">
+                          <p className="text-sm font-medium">Insert Link</p>
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="https://example.com"
+                              value={linkUrl}
+                              onChange={(e) => setLinkUrl(e.target.value)}
+                            />
+                            <Input
+                              placeholder="Display text (optional)"
+                              value={linkText}
+                              onChange={(e) => setLinkText(e.target.value)}
+                            />
+                          </div>
+                          <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>
+                            Insert
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                   <Textarea
+                    ref={emailBodyRef}
                     placeholder="Type your email message..."
                     value={emailBody}
                     onChange={(e) => setEmailBody(e.target.value)}
                     rows={6}
                     className="resize-none"
                   />
+                </div>
+                {/* Attachments */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileAttach}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    Attach File
+                  </Button>
+                  {emailAttachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {emailAttachments.map((att, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
+                          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <span className="truncate flex-1">{att.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 shrink-0"
+                            onClick={() => removeAttachment(i)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>
