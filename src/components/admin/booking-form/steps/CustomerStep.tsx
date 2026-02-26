@@ -19,6 +19,7 @@ interface LastBookingInfo {
   zip_code: string | null;
   bedrooms: string | null;
   bathrooms: string | null;
+  square_footage: string | null;
   service_name: string | null;
   service_id: string | null;
   total_amount: number | null;
@@ -42,6 +43,7 @@ export function CustomerStep() {
     setBathrooms,
     setSelectedServiceId,
     setTotalAmount,
+    setSquareFootage,
   } = useBookingForm();
 
   const { organizationId } = useOrgId();
@@ -59,7 +61,7 @@ export function CustomerStep() {
       setLoadingLast(true);
       const { data } = await supabase
         .from('bookings')
-        .select('address, city, state, zip_code, bedrooms, bathrooms, service_id, total_amount, scheduled_at, services:service_id(name)')
+        .select('address, city, state, zip_code, bedrooms, bathrooms, square_footage, service_id, total_amount, scheduled_at, services:service_id(name)')
         .eq('customer_id', selectedCustomerId)
         .eq('organization_id', organizationId)
         .in('status', ['completed', 'confirmed'])
@@ -75,6 +77,7 @@ export function CustomerStep() {
           zip_code: data.zip_code,
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
+          square_footage: data.square_footage,
           service_name: (data.services as any)?.name || null,
           service_id: data.service_id,
           total_amount: data.total_amount,
@@ -97,6 +100,7 @@ export function CustomerStep() {
     if (lastBooking.zip_code) setZipCode(lastBooking.zip_code);
     if (lastBooking.bedrooms) setBedrooms(lastBooking.bedrooms);
     if (lastBooking.bathrooms) setBathrooms(lastBooking.bathrooms);
+    if (lastBooking.square_footage) setSquareFootage(lastBooking.square_footage);
     if (lastBooking.service_id) setSelectedServiceId(lastBooking.service_id);
     if (lastBooking.total_amount) setTotalAmount(lastBooking.total_amount);
     toast.success('Auto-filled from last booking');
