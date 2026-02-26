@@ -3392,6 +3392,7 @@ export type Database = {
           id: string
           organization_id: string
           reply_to_email: string | null
+          resend_api_key: string | null
           updated_at: string
         }
         Insert: {
@@ -3402,6 +3403,7 @@ export type Database = {
           id?: string
           organization_id: string
           reply_to_email?: string | null
+          resend_api_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -3412,6 +3414,7 @@ export type Database = {
           id?: string
           organization_id?: string
           reply_to_email?: string | null
+          resend_api_key?: string | null
           updated_at?: string
         }
         Relationships: [

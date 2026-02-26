@@ -9,6 +9,7 @@ export interface OrgEmailSettings {
   from_email: string;
   reply_to_email: string | null;
   email_footer: string | null;
+  resend_api_key: string | null;
 }
 
 export interface OrgEmailSettingsResult {
@@ -50,7 +51,7 @@ export async function getOrgEmailSettings(organizationId: string): Promise<OrgEm
   // Query the organization_email_settings table ONLY - this is the single source of truth
   const { data: emailSettings, error: settingsError } = await supabase
     .from('organization_email_settings')
-    .select('from_name, from_email, reply_to_email, email_footer')
+    .select('from_name, from_email, reply_to_email, email_footer, resend_api_key')
     .eq('organization_id', organizationId)
     .maybeSingle();
 
@@ -88,7 +89,8 @@ export async function getOrgEmailSettings(organizationId: string): Promise<OrgEm
       from_name: emailSettings.from_name,
       from_email: emailSettings.from_email,
       reply_to_email: emailSettings.reply_to_email,
-      email_footer: emailSettings.email_footer
+      email_footer: emailSettings.email_footer,
+      resend_api_key: emailSettings.resend_api_key,
     }
   };
 }

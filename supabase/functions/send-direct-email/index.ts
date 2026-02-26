@@ -15,11 +15,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
+    const globalResendApiKey = Deno.env.get("RESEND_API_KEY");
 
     // Verify auth
     const authHeader = req.headers.get("Authorization");
@@ -55,6 +51,12 @@ serve(async (req) => {
     const settings = emailResult.settings;
     const from = formatEmailFrom(settings);
     const replyTo = getReplyTo(settings);
+
+    // Use org-specific Resend API key if available, otherwise fall back to global
+    const resendApiKey = settings.resend_api_key || globalResendApiKey;
+    if (!resendApiKey) {
+      throw new Error("No Resend API key configured. Please add one in Email Settings or contact support.");
+    }
 
     // Send via Resend
     const resendRes = await fetch("https://api.resend.com/emails", {

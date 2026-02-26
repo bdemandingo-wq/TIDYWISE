@@ -16,6 +16,7 @@ interface EmailSettings {
   from_email: string;
   reply_to_email: string;
   email_footer: string;
+  resend_api_key: string;
 }
 
 const defaultEmailSettings: EmailSettings = {
@@ -23,6 +24,7 @@ const defaultEmailSettings: EmailSettings = {
   from_email: '',
   reply_to_email: '',
   email_footer: '',
+  resend_api_key: '',
 };
 
 export function EmailSettingsCard() {
@@ -54,6 +56,7 @@ export function EmailSettingsCard() {
           from_email: data.from_email || '',
           reply_to_email: data.reply_to_email || '',
           email_footer: data.email_footer || '',
+          resend_api_key: data.resend_api_key || '',
         });
       }
     } catch (error) {
@@ -89,6 +92,7 @@ export function EmailSettingsCard() {
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
+        resend_api_key: settings.resend_api_key.trim() || null,
       };
 
       if (settings.id) {
@@ -209,6 +213,24 @@ export function EmailSettingsCard() {
           />
           <p className="text-xs text-muted-foreground">
             Added to the bottom of all emails. Great for address, disclaimers, etc.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="resendApiKey">Resend API Key (optional)</Label>
+          <Input
+            id="resendApiKey"
+            type="password"
+            placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            value={settings.resend_api_key}
+            onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Your organization's own Resend API key. Get one at{' '}
+            <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
+              resend.com/api-keys
+            </a>
+            . The domain in your "From Email" must be verified in this Resend account.
           </p>
         </div>
 
