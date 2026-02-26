@@ -28,24 +28,23 @@ export function SwipeableRow({ children, rightAction, className }: Props) {
     if (!action) return;
     active.current = true;
     startX.current = e.clientX;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!action || !active.current || startX.current == null) return;
     const dx = e.clientX - startX.current;
-    // Right action reveals by swiping left
     const next = Math.max(-maxReveal, Math.min(0, dx));
-    // If mostly vertical scrolling, ignore
     setX(next);
   };
 
   const reset = () => setX(0);
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!action || !active.current) return;
     active.current = false;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     if (Math.abs(x) >= threshold) {
-      // snap open
       setX(-maxReveal);
       hapticImpact('light');
     } else {
