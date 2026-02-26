@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2 } from 'lucide-react';
 // Simple address input - no Google Places integration
 import {
   DropdownMenu,
@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
 
 
 
@@ -87,6 +88,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [showFunnel, setShowFunnel] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
   
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
@@ -271,7 +273,27 @@ export default function LeadsPage() {
       title="Leads"
       subtitle={`${leads.length} total leads`}
       actions={
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === 'pipeline' ? 'default' : 'ghost'}
+              size="sm"
+              className="gap-1.5 rounded-none"
+              onClick={() => setViewMode('pipeline')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Pipeline
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              className="gap-1.5 rounded-none"
+              onClick={() => setViewMode('table')}
+            >
+              <Table2 className="w-4 h-4" />
+              Table
+            </Button>
+          </div>
           <Button 
             variant={showFunnel ? "default" : "outline"} 
             className="gap-2" 
@@ -458,7 +480,27 @@ export default function LeadsPage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Pipeline View */}
+      {viewMode === 'pipeline' && (
+        <LeadPipelineBoard
+          leads={filteredLeads}
+          onStatusChange={(leadId, newStatus) => updateMutation.mutate({ id: leadId, status: newStatus })}
+          onEdit={(lead) => {
+            setEditingLead(lead);
+            setDialogOpen(true);
+          }}
+          onDelete={(id) => {
+            if (confirm('Delete this lead?')) deleteMutation.mutate(id);
+          }}
+          onConvert={convertToCustomer}
+          maskName={maskName}
+          maskEmail={maskEmail}
+          maskPhone={maskPhone}
+        />
+      )}
+
+      {/* Table View */}
+      {viewMode === 'table' && (
       <Card>
         <CardContent className="p-0 overflow-x-auto" data-no-swipe>
           <Table>
@@ -581,6 +623,7 @@ export default function LeadsPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
 
       {/* Add/Edit Dialog */}
       <LeadDialog
