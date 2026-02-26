@@ -493,7 +493,7 @@ export default function MessagesPage() {
           organizationId,
           to: emailTo.trim(),
           subject: emailSubject.trim(),
-          body: emailBody.trim(),
+          body: convertLinksToHtml(emailBody.trim()),
           attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
         }
       });
@@ -517,21 +517,27 @@ export default function MessagesPage() {
   const handleInsertLink = () => {
     if (!linkUrl.trim()) return;
     const display = linkText.trim() || linkUrl.trim();
-    const linkHtml = `<a href="${linkUrl.trim()}">${display}</a>`;
+    // Use markdown-style syntax: [Display Text](url) — converted to HTML on send
+    const linkMarkdown = `[${display}](${linkUrl.trim()})`;
     
     const textarea = emailBodyRef.current;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const newBody = emailBody.slice(0, start) + linkHtml + emailBody.slice(end);
+      const newBody = emailBody.slice(0, start) + linkMarkdown + emailBody.slice(end);
       setEmailBody(newBody);
     } else {
-      setEmailBody(prev => prev + linkHtml);
+      setEmailBody(prev => prev + linkMarkdown);
     }
     
     setLinkUrl('');
     setLinkText('');
     setLinkPopoverOpen(false);
+  };
+
+  /** Convert markdown-style links [text](url) to HTML <a> tags */
+  const convertLinksToHtml = (text: string): string => {
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
