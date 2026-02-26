@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           if (!existing) {
             console.error("[manage-resend-domain] Domain not found in list. Available:", domainList.map((d: { name: string }) => d.name));
-            throw new Error("Domain is registered in Resend but not visible with current API key. Check that your Resend API key has domain access.");
+            throw new Error(`${domain} is registered under a different Resend account. Remove it there first, or use a domain already in your account (${domainList.map((d: { name: string }) => d.name).join(", ") || "none"}).`);
           }
 
           // Get full details
