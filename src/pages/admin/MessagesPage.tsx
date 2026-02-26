@@ -847,7 +847,15 @@ export default function MessagesPage() {
                   />
                 </div>
                 <div>
-                  <Label>Message</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>Message</Label>
+                    {organizationId && (
+                      <MessageTemplatesPicker
+                        organizationId={organizationId}
+                        onSelect={(content) => setEmailBody(content)}
+                      />
+                    )}
+                  </div>
                   <Textarea
                     placeholder="Type your email message..."
                     value={emailBody}
