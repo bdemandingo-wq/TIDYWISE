@@ -80,6 +80,7 @@ interface Contact {
 
 type ConversationTab = 'all' | 'clients' | 'cleaners';
 type UnreadFilter = 'all' | 'unread';
+type DateFilter = 'all' | 'today' | 'week' | 'month';
 
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
@@ -114,6 +115,9 @@ export default function MessagesPage() {
   const [linkText, setLinkText] = useState('');
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [unreadFilter, setUnreadFilter] = useState<UnreadFilter>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [contentSearchResults, setContentSearchResults] = useState<Set<string> | null>(null);
+  const [searchingContent, setSearchingContent] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -487,16 +491,63 @@ export default function MessagesPage() {
     }
   };
 
+  // Content search: search message bodies server-side when query is 3+ chars
+  useEffect(() => {
+    if (searchQuery.length < 3 || !organizationId) {
+      setContentSearchResults(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingContent(true);
+      const { data } = await supabase
+        .from('sms_messages')
+        .select('conversation_id')
+        .eq('organization_id', organizationId)
+        .ilike('content', `%${searchQuery}%`)
+        .limit(100);
+
+      if (data) {
+        setContentSearchResults(new Set(data.map(m => m.conversation_id)));
+      }
+      setSearchingContent(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, organizationId]);
+
   const filteredConversations = conversations.filter(conv => {
-    const matchesSearch = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    // Name/phone match
+    const matchesNamePhone = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.customer_phone.includes(searchQuery);
     
-    const matchesUnread = unreadFilter === 'all' || conv.unread_count > 0;
+    // Content match (server-side results)
+    const matchesContent = contentSearchResults?.has(conv.id) ?? false;
     
-    if (activeTab === 'all') return matchesSearch && matchesUnread;
-    if (activeTab === 'clients') return matchesSearch && matchesUnread && conv.conversation_type !== 'cleaner';
-    if (activeTab === 'cleaners') return matchesSearch && matchesUnread && conv.conversation_type === 'cleaner';
-    return matchesSearch && matchesUnread;
+    const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
+    
+    const matchesUnread = unreadFilter === 'all' || conv.unread_count > 0;
+
+    // Date filter
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const lastMsg = new Date(conv.last_message_at);
+      const now = new Date();
+      if (dateFilter === 'today') {
+        matchesDate = lastMsg.toDateString() === now.toDateString();
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        matchesDate = lastMsg >= weekAgo;
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        matchesDate = lastMsg >= monthAgo;
+      }
+    }
+    
+    if (activeTab === 'all') return matchesSearch && matchesUnread && matchesDate;
+    if (activeTab === 'clients') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type !== 'cleaner';
+    if (activeTab === 'cleaners') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type === 'cleaner';
+    return matchesSearch && matchesUnread && matchesDate;
   });
 
   const handleSendEmail = async () => {
@@ -625,11 +676,14 @@ export default function MessagesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search conversations..."
+              placeholder="Search names, phones, or messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-8"
             />
+            {searchingContent && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            )}
           </div>
           <Button
             variant={unreadFilter === 'unread' ? 'default' : 'outline'}
@@ -640,6 +694,20 @@ export default function MessagesPage() {
           >
             <Filter className="h-4 w-4" />
           </Button>
+        </div>
+        {/* Date filter chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {(['all', 'today', 'week', 'month'] as DateFilter[]).map((df) => (
+            <Button
+              key={df}
+              variant={dateFilter === df ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-[11px] px-2 shrink-0 rounded-full"
+              onClick={() => setDateFilter(df)}
+            >
+              {df === 'all' ? 'All time' : df === 'today' ? 'Today' : df === 'week' ? 'This week' : 'This month'}
+            </Button>
+          ))}
         </div>
       </div>
       
