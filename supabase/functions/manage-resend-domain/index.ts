@@ -77,8 +77,17 @@ const handler = async (req: Request): Promise<Response> => {
           // Domain already exists in Resend — look it up and sync locally
           console.log("[manage-resend-domain] Domain already registered in Resend, fetching existing...");
           const listRes = await resendFetch("/domains", "GET");
-          const existing = listRes.data?.data?.find((d: { name: string }) => d.name === domain);
-          if (!existing) throw new Error("Domain registered in Resend but could not be retrieved. Please try again.");
+          console.log("[manage-resend-domain] List response:", JSON.stringify(listRes.data));
+          
+          // Resend returns { data: [...] } — handle both shapes
+          const domainList = Array.isArray(listRes.data?.data) ? listRes.data.data 
+                           : Array.isArray(listRes.data) ? listRes.data : [];
+          const existing = domainList.find((d: { name: string }) => d.name === domain);
+          
+          if (!existing) {
+            console.error("[manage-resend-domain] Domain not found in list. Available:", domainList.map((d: { name: string }) => d.name));
+            throw new Error("Domain is registered in Resend but not visible with current API key. Check that your Resend API key has domain access.");
+          }
 
           // Get full details
           const detailRes = await resendFetch(`/domains/${existing.id}`, "GET");
