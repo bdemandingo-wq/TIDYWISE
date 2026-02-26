@@ -28,7 +28,8 @@ import {
   Sparkles,
   AlertCircle,
   GripVertical,
-  Users
+  Users,
+  Mail
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -169,6 +170,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingQuoteSms, setSendingQuoteSms] = useState(false);
+  const [sendingConfirmationEmail, setSendingConfirmationEmail] = useState(false);
+  const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
   const [steps, setSteps] = useState<StepItem[]>(DEFAULT_STEPS);
   const [showRecurringDialog, setShowRecurringDialog] = useState(false);
   const [pendingBookingData, setPendingBookingData] = useState<any>(null);
@@ -382,6 +385,122 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       toast.error(error.message || 'Failed to send quote via SMS');
     } finally {
       setSendingQuoteSms(false);
+    }
+  };
+
+  // Send confirmation email handler
+  const handleSendConfirmationEmail = async () => {
+    const email = customerTab === 'existing' && selectedCustomer ? selectedCustomer.email : newCustomer.email;
+    if (!email) {
+      toast.error('Customer email is required to send a confirmation email');
+      return;
+    }
+    if (!organizationId) {
+      toast.error('Organization context is missing');
+      return;
+    }
+
+    const quoteAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+    
+    setSendingConfirmationEmail(true);
+    try {
+      const scheduledDate = new Date(selectedDate!);
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      scheduledDate.setHours(hours, minutes, 0, 0);
+
+      const { error } = await supabase.functions.invoke('send-booking-email', {
+        body: {
+          customerName,
+          customerEmail: email,
+          customerPhone: customerPhone || '',
+          serviceName: selectedService?.name || 'Cleaning Service',
+          homeSize: `${bedrooms || '?'} bed / ${bathrooms || '?'} bath`,
+          appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
+          appointmentTime: format(scheduledDate, 'h:mm a'),
+          address: address || '',
+          city: city || '',
+          state: state || '',
+          zipCode: zipCode || '',
+          extras: selectedExtras || [],
+          totalPrice: quoteAmount,
+          confirmationNumber: `BK-${Date.now().toString(36).toUpperCase()}`,
+          organizationId,
+        },
+      });
+
+      if (error) throw error;
+      toast.success('Confirmation email sent to customer');
+    } catch (error: any) {
+      console.error('Confirmation email error:', error);
+      const msg = error?.message || '';
+      if (msg.includes('Email settings not configured') || msg.includes('not verified')) {
+        toast.error('Email not configured. Go to Settings → Email to set up your email domain.');
+      } else {
+        toast.error(msg || 'Failed to send confirmation email');
+      }
+    } finally {
+      setSendingConfirmationEmail(false);
+    }
+  };
+
+  // Send quote email handler
+  const handleSendQuoteEmail = async () => {
+    const email = customerTab === 'existing' && selectedCustomer ? selectedCustomer.email : newCustomer.email;
+    if (!email) {
+      toast.error('Customer email is required to send a quote email');
+      return;
+    }
+    if (!organizationId) {
+      toast.error('Organization context is missing');
+      return;
+    }
+
+    const quoteAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+    if (quoteAmount <= 0) {
+      toast.error('Please configure service and pricing first');
+      return;
+    }
+
+    setSendingQuoteEmail(true);
+    try {
+      const fullAddr = [address, city, state, zipCode].filter(Boolean).join(', ');
+      const extrasTextList = selectedExtras && selectedExtras.length > 0 ? selectedExtras.join(', ') : 'None';
+
+      const quoteHtml = `
+        <h2>Your Cleaning Quote</h2>
+        <p>Hi ${customerName},</p>
+        <p>Thank you for your interest! Here's your personalized quote:</p>
+        <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Service</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${selectedService?.name || 'Cleaning Service'}</td></tr>
+          ${fullAddr ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Address</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${fullAddr}</td></tr>` : ''}
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Home Size</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${bedrooms || '?'} bed / ${bathrooms || '?'} bath</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Extras</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${extrasTextList}</td></tr>
+          <tr><td style="padding:8px;color:#666;">Estimated Total</td><td style="padding:8px;font-weight:bold;font-size:18px;color:#22c55e;">$${quoteAmount.toFixed(2)}</td></tr>
+        </table>
+        <p>This quote is valid for 7 days. Reply to this email to confirm your booking or if you have any questions!</p>
+      `;
+
+      const { error } = await supabase.functions.invoke('send-direct-email', {
+        body: {
+          organizationId,
+          to: email,
+          subject: `Your Cleaning Quote - $${quoteAmount.toFixed(2)}`,
+          body: quoteHtml,
+        },
+      });
+
+      if (error) throw error;
+      toast.success('Quote email sent to customer');
+    } catch (error: any) {
+      console.error('Quote email error:', error);
+      const msg = error?.message || '';
+      if (msg.includes('Email settings not configured') || msg.includes('not verified') || msg.includes('No Resend API key')) {
+        toast.error('Email not configured. Go to Settings → Email to set up your email domain.');
+      } else {
+        toast.error(msg || 'Failed to send quote email');
+      }
+    } finally {
+      setSendingQuoteEmail(false);
     }
   };
 
@@ -1183,6 +1302,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                     <MessageSquare className="mr-2 h-4 w-4" />
                   )}
                   Send Quote SMS
+                </Button>
+
+                {/* Send Confirmation Email button */}
+                <Button 
+                  variant="outline" 
+                  onClick={handleSendConfirmationEmail} 
+                  disabled={sendingConfirmationEmail}
+                  className="h-11"
+                  title="Send confirmation email to customer"
+                >
+                  {sendingConfirmationEmail ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-4 w-4" />
+                  )}
+                  Send Confirmation Email
+                </Button>
+
+                {/* Send Quote Email button */}
+                <Button 
+                  variant="outline" 
+                  onClick={handleSendQuoteEmail} 
+                  disabled={sendingQuoteEmail}
+                  className="h-11"
+                  title="Send quote email to customer"
+                >
+                  {sendingQuoteEmail ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-4 w-4" />
+                  )}
+                  Send Quote Email
                 </Button>
 
                 {booking && (
