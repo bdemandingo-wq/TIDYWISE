@@ -2725,6 +2725,7 @@ export type Database = {
           city: string | null
           created_at: string
           email: string
+          estimated_value: number | null
           id: string
           message: string | null
           name: string
@@ -2744,6 +2745,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           email: string
+          estimated_value?: number | null
           id?: string
           message?: string | null
           name: string
@@ -2763,6 +2765,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string
+          estimated_value?: number | null
           id?: string
           message?: string | null
           name?: string

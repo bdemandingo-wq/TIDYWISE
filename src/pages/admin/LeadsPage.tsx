@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2 } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays } from 'lucide-react';
 // Simple address input - no Google Places integration
 import {
   DropdownMenu,
@@ -39,7 +39,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
@@ -58,6 +58,7 @@ interface Lead {
   service_interest: string | null;
   message: string | null;
   notes: string | null;
+  estimated_value: number | null;
   source: string;
   status: string;
   created_at: string;
@@ -89,6 +90,7 @@ export default function LeadsPage() {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [showFunnel, setShowFunnel] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
+  const [monthFilter, setMonthFilter] = useState('all');
   
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
@@ -185,15 +187,31 @@ export default function LeadsPage() {
     toast.success('Lead converted to customer');
   };
 
+  const monthOptions = useMemo(() => {
+    const options = [{ value: 'all', label: 'All Months' }];
+    for (let i = 0; i < 12; i++) {
+      const d = subMonths(new Date(), i);
+      options.push({ value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') });
+    }
+    return options;
+  }, []);
+
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lead.email.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
-      return matchesSearch && matchesStatus && matchesSource;
+      let matchesMonth = true;
+      if (monthFilter !== 'all') {
+        const [year, month] = monthFilter.split('-').map(Number);
+        const monthStart = startOfMonth(new Date(year, month - 1));
+        const monthEnd = endOfMonth(new Date(year, month - 1));
+        matchesMonth = isWithinInterval(new Date(lead.created_at), { start: monthStart, end: monthEnd });
+      }
+      return matchesSearch && matchesStatus && matchesSource && matchesMonth;
     });
-  }, [leads, searchTerm, statusFilter, sourceFilter]);
+  }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter]);
 
   const stats = {
     total: leads.length,
@@ -469,11 +487,22 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
-        {(statusFilter !== 'all' || sourceFilter !== 'all') && (
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-[180px]">
+            <CalendarDays className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {monthOptions.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(statusFilter !== 'all' || sourceFilter !== 'all' || monthFilter !== 'all') && (
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => { setStatusFilter('all'); setSourceFilter('all'); }}
+            onClick={() => { setStatusFilter('all'); setSourceFilter('all'); setMonthFilter('all'); }}
           >
             Clear Filters
           </Button>
@@ -655,7 +684,7 @@ function LeadDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
-  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; message?: string; notes?: string; source: string; status: string }) => void;
+  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => void;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -668,6 +697,7 @@ function LeadDialog({
       state: lead?.state || '',
       zip_code: lead?.zip_code || '',
       service_interest: lead?.service_interest || '',
+      estimated_value: lead?.estimated_value != null ? String(lead.estimated_value) : '',
       message: lead?.message || '',
       notes: lead?.notes || '',
       source: lead?.source || 'website',
@@ -684,6 +714,7 @@ function LeadDialog({
     state: lead?.state || '',
     zip_code: lead?.zip_code || '',
     service_interest: lead?.service_interest || '',
+    estimated_value: lead?.estimated_value != null ? String(lead.estimated_value) : '',
     message: lead?.message || '',
     notes: lead?.notes || '',
     source: lead?.source || 'website',
@@ -692,7 +723,11 @@ function LeadDialog({
 
   const handleSubmit = () => {
     if (!formData.name || !formData.email) return;
-    onSave(formData);
+    const { estimated_value, ...rest } = formData;
+    onSave({
+      ...rest,
+      estimated_value: estimated_value ? parseFloat(estimated_value) : null,
+    });
   };
 
   return (
@@ -751,6 +786,17 @@ function LeadDialog({
             <Input
               value={formData.service_interest}
               onChange={(e) => setFormData({ ...formData, service_interest: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Estimated Value ($)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.estimated_value}
+              onChange={(e) => setFormData({ ...formData, estimated_value: e.target.value })}
+              placeholder="0.00"
             />
           </div>
           <div>

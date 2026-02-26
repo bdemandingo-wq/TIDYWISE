@@ -1,0 +1,1 @@
+ALTER TABLE public.leads ADD COLUMN estimated_value numeric DEFAULT null;

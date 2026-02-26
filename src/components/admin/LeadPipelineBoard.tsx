@@ -23,6 +23,7 @@ interface Lead {
   service_interest: string | null;
   message: string | null;
   notes: string | null;
+  estimated_value: number | null;
   source: string;
   status: string;
   created_at: string;
@@ -123,6 +124,9 @@ export function LeadPipelineBoard({
                     {columnLeads.length}
                   </Badge>
                 </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  ${columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0).toLocaleString()}
+                </span>
               </div>
             </div>
 
@@ -246,6 +250,13 @@ function LeadCard({
           <Badge variant="outline" className="text-xs h-5 font-normal">
             {lead.service_interest}
           </Badge>
+        )}
+
+        {/* Estimated Value */}
+        {lead.estimated_value != null && lead.estimated_value > 0 && (
+          <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+            ${lead.estimated_value.toLocaleString()}
+          </p>
         )}
 
         {/* Notes preview */}
