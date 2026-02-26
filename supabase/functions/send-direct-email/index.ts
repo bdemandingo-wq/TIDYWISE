@@ -26,7 +26,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { organizationId, to, subject, body } = await req.json();
+    const { organizationId, to, subject, body, attachments } = await req.json();
 
     if (!organizationId || !to || !subject || !body) {
       throw new Error("Missing required fields: organizationId, to, subject, body");
@@ -58,6 +58,24 @@ serve(async (req) => {
       throw new Error("No Resend API key configured. Please add one in Email Settings or contact support.");
     }
 
+    // Build email payload
+    const emailPayload: Record<string, unknown> = {
+      from,
+      to: [to],
+      reply_to: replyTo,
+      subject,
+      html: body + (settings.email_footer ? `<br/><br/><p style="color:#666;font-size:12px;">${settings.email_footer}</p>` : ""),
+    };
+
+    // Add attachments if provided
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      emailPayload.attachments = attachments.map((att: { name: string; content: string; type: string }) => ({
+        filename: att.name,
+        content: att.content,
+        content_type: att.type,
+      }));
+    }
+
     // Send via Resend
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -65,13 +83,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        reply_to: replyTo,
-        subject,
-        html: body + (settings.email_footer ? `<br/><br/><p style="color:#666;font-size:12px;">${settings.email_footer}</p>` : ""),
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     const resendData = await resendRes.json();
