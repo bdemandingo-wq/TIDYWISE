@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -10,16 +9,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function resendFetch(path: string, method: string, body?: unknown) {
+async function resendFetch(apiKey: string, path: string, method: string, body?: unknown) {
   const res = await fetch(`https://api.resend.com${path}`, {
     method,
     headers: {
-      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  return { status: res.status, data: await res.json() };
+
+  const raw = await res.text();
+  let data: any = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    data = raw ? { message: raw } : null;
+  }
+
+  return { status: res.status, data };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,8 +36,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY not configured");
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Backend configuration is missing");
     }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -58,6 +66,22 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Only organization admins can manage email domains");
     }
 
+    const { data: emailSettings, error: emailSettingsError } = await supabase
+      .from("organization_email_settings")
+      .select("resend_api_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (emailSettingsError) {
+      console.error("[manage-resend-domain] Failed to load org email settings:", emailSettingsError);
+      throw new Error("Failed to load organization email settings");
+    }
+
+    const resendApiKey = emailSettings?.resend_api_key?.trim();
+    if (!resendApiKey) {
+      throw new Error("No Resend API key configured for this organization. Add it in Settings → Emails.");
+    }
+
     let result: unknown;
 
     switch (action) {
@@ -71,12 +95,12 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[manage-resend-domain] Adding domain: ${domain} for org: ${organizationId}`);
 
         // Create domain in Resend
-        const { status, data } = await resendFetch("/domains", "POST", { name: domain });
+        const { status, data } = await resendFetch(resendApiKey, "/domains", "POST", { name: domain });
 
         if (status === 403 && data?.message?.includes("registered already")) {
           // Domain already exists in Resend — look it up and sync locally
           console.log("[manage-resend-domain] Domain already registered in Resend, fetching existing...");
-          const listRes = await resendFetch("/domains", "GET");
+          const listRes = await resendFetch(resendApiKey, "/domains", "GET");
           console.log("[manage-resend-domain] List response:", JSON.stringify(listRes.data));
           
           // Resend returns { data: [...] } — handle both shapes
@@ -90,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           // Get full details
-          const detailRes = await resendFetch(`/domains/${existing.id}`, "GET");
+          const detailRes = await resendFetch(resendApiKey, `/domains/${existing.id}`, "GET");
           const detail = detailRes.status === 200 ? detailRes.data : existing;
 
           const { error: upsertError } = await supabase
@@ -149,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[manage-resend-domain] Verifying domain: ${resendDomainId}`);
 
         // Trigger verification in Resend
-        const { status, data } = await resendFetch(`/domains/${resendDomainId}/verify`, "POST");
+        const { status, data } = await resendFetch(resendApiKey, `/domains/${resendDomainId}/verify`, "POST");
 
         if (status !== 200) {
           console.error("[manage-resend-domain] Verify error:", data);
@@ -166,7 +190,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[manage-resend-domain] Checking domain status: ${resendDomainId}`);
 
         // Get domain status from Resend
-        const { status, data } = await resendFetch(`/domains/${resendDomainId}`, "GET");
+        const { status, data } = await resendFetch(resendApiKey, `/domains/${resendDomainId}`, "GET");
 
         if (status !== 200) {
           console.error("[manage-resend-domain] Check error:", data);
@@ -197,7 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[manage-resend-domain] Removing domain: ${resendDomainId}`);
 
         // Delete from Resend
-        await resendFetch(`/domains/${resendDomainId}`, "DELETE");
+        await resendFetch(resendApiKey, `/domains/${resendDomainId}`, "DELETE");
 
         // Delete from database
         await supabase
