@@ -579,3 +579,16 @@
     min-width: unset;
   }
 }
+
+/* Placeholder for contentEditable email compose */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+[contenteditable] a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  cursor: default;
+}

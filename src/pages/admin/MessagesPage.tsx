@@ -106,7 +106,7 @@ export default function MessagesPage() {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
-  const emailBodyRef = useRef<HTMLTextAreaElement>(null);
+  const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -493,7 +493,7 @@ export default function MessagesPage() {
           organizationId,
           to: emailTo.trim(),
           subject: emailSubject.trim(),
-          body: convertLinksToHtml(emailBody.trim()),
+          body: getEmailHtmlBody(),
           attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
         }
       });
@@ -507,6 +507,7 @@ export default function MessagesPage() {
       setEmailSubject('');
       setEmailBody('');
       setEmailAttachments([]);
+      if (emailBodyRef.current) emailBodyRef.current.innerHTML = '';
     } catch (err: any) {
       toast.error(err.message || 'Failed to send email');
     } finally {
@@ -517,17 +518,15 @@ export default function MessagesPage() {
   const handleInsertLink = () => {
     if (!linkUrl.trim()) return;
     const display = linkText.trim() || linkUrl.trim();
-    // Use markdown-style syntax: [Display Text](url) — converted to HTML on send
-    const linkMarkdown = `[${display}](${linkUrl.trim()})`;
     
-    const textarea = emailBodyRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newBody = emailBody.slice(0, start) + linkMarkdown + emailBody.slice(end);
-      setEmailBody(newBody);
-    } else {
-      setEmailBody(prev => prev + linkMarkdown);
+    const editor = emailBodyRef.current;
+    if (editor) {
+      editor.focus();
+      // Insert a styled anchor element at cursor
+      const linkEl = `<a href="${linkUrl.trim()}" style="color: hsl(var(--primary)); text-decoration: underline;" contenteditable="false">${display}</a>&nbsp;`;
+      document.execCommand('insertHTML', false, linkEl);
+      // Sync state
+      setEmailBody(editor.innerHTML);
     }
     
     setLinkUrl('');
@@ -535,9 +534,18 @@ export default function MessagesPage() {
     setLinkPopoverOpen(false);
   };
 
-  /** Convert markdown-style links [text](url) to HTML <a> tags */
-  const convertLinksToHtml = (text: string): string => {
-    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  /** Extract the HTML content from the editable div for sending */
+  const getEmailHtmlBody = (): string => {
+    if (!emailBodyRef.current) return emailBody;
+    // Get the innerHTML which already has proper <a> tags
+    let html = emailBodyRef.current.innerHTML;
+    // Remove contenteditable="false" from links for the final email
+    html = html.replace(/\s*contenteditable="false"/g, '');
+    // Convert line breaks
+    html = html.replace(/<div><br><\/div>/g, '<br>');
+    html = html.replace(/<div>/g, '<br>');
+    html = html.replace(/<\/div>/g, '');
+    return html;
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -919,7 +927,10 @@ export default function MessagesPage() {
                       {organizationId && (
                         <MessageTemplatesPicker
                           organizationId={organizationId}
-                          onSelect={(content) => setEmailBody(content)}
+                          onSelect={(content) => {
+                            setEmailBody(content);
+                            if (emailBodyRef.current) emailBodyRef.current.innerText = content;
+                          }}
                         />
                       )}
                       <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
@@ -949,14 +960,19 @@ export default function MessagesPage() {
                       </Popover>
                     </div>
                   </div>
-                  <Textarea
+                  <div
                     ref={emailBodyRef}
-                    placeholder="Type your email message..."
-                    value={emailBody}
-                    onChange={(e) => setEmailBody(e.target.value)}
-                    rows={6}
-                    className="resize-none"
-                  />
+                    contentEditable
+                    onInput={() => {
+                      if (emailBodyRef.current) {
+                        setEmailBody(emailBodyRef.current.innerHTML);
+                      }
+                    }}
+                    className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
+                    style={{ maxHeight: '200px' }}
+                    data-placeholder="Type your email message..."
+                     suppressContentEditableWarning
+                   />
                 </div>
                 {/* Attachments */}
                 <div>
