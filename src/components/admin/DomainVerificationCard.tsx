@@ -255,7 +255,7 @@ export function DomainVerificationCard() {
                 </div>
 
                 {/* DNS Records */}
-                {d.dns_records && d.dns_records.length > 0 && d.status !== 'verified' && (
+                {d.dns_records && d.dns_records.length > 0 && (
                   <div className="space-y-3">
                     <div className="rounded-md border border-border bg-muted/50 p-3 space-y-2">
                       <p className="text-sm font-semibold">How to verify your domain:</p>

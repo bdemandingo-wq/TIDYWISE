@@ -35,6 +35,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Check,
+  Mail,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -92,6 +93,11 @@ export default function MessagesPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
   const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -467,6 +473,35 @@ export default function MessagesPage() {
     return matchesSearch;
   });
 
+  const handleSendEmail = async () => {
+    if (!emailTo.trim() || !emailSubject.trim() || !emailBody.trim() || !organizationId) return;
+
+    setEmailSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-direct-email', {
+        body: {
+          organizationId,
+          to: emailTo.trim(),
+          subject: emailSubject.trim(),
+          body: emailBody.trim(),
+        }
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Email sent successfully');
+      setEmailOpen(false);
+      setEmailTo('');
+      setEmailSubject('');
+      setEmailBody('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -652,7 +687,7 @@ export default function MessagesPage() {
   return (
     <AdminLayout 
       title="Messages" 
-      subtitle="Text your customers via OpenPhone"
+      subtitle="Text & email your customers"
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={fetchConversations}>
@@ -779,6 +814,59 @@ export default function MessagesPage() {
                   Start Conversation
                 </Button>
               </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Mail className="h-4 w-4 mr-2" />
+                Send Email
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle>Compose Email</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>To</Label>
+                  <Input
+                    type="email"
+                    placeholder="recipient@example.com"
+                    value={emailTo}
+                    onChange={(e) => setEmailTo(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Subject</Label>
+                  <Input
+                    placeholder="Email subject"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Message</Label>
+                  <Textarea
+                    placeholder="Type your email message..."
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    rows={6}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()}
+                  className="gap-2"
+                >
+                  {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Send Email
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
