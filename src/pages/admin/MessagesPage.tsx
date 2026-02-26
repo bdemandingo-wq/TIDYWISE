@@ -898,7 +898,7 @@ export default function MessagesPage() {
                 Send Email
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[520px]">
+            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Compose Email</DialogTitle>
               </DialogHeader>
@@ -973,8 +973,8 @@ export default function MessagesPage() {
                       const text = e.clipboardData.getData('text/plain');
                       document.execCommand('insertText', false, text);
                     }}
-                    className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
-                    style={{ maxHeight: '200px' }}
+                    className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
+                    style={{ maxHeight: '200px', WebkitOverflowScrolling: 'touch' }}
                     data-placeholder="Type your email message..."
                      suppressContentEditableWarning
                    />

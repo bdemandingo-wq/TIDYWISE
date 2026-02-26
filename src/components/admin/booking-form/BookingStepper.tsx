@@ -1259,91 +1259,95 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between pt-6 mt-6 border-t border-border/50">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className="h-11"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            {currentStep === steps.length - 1 ? (
-              <>
-                <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                  <Checkbox
-                    id="sendConfirmationSms"
-                    checked={sendConfirmationSms}
-                    onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
-                  />
-                  <Label
-                    htmlFor="sendConfirmationSms"
-                    className="text-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                    Send confirmation text
-                  </Label>
-                </div>
-
-                {/* Send Quote via SMS button */}
-                <Button 
-                  variant="outline" 
-                  onClick={handleSendQuoteSms} 
-                  disabled={sendingQuoteSms || !customerPhone}
-                  className="h-11"
-                  title={!customerPhone ? 'Customer phone required' : 'Send quote to customer'}
+        <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-border/50">
+          {currentStep === steps.length - 1 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
+                <Checkbox
+                  id="sendConfirmationSms"
+                  checked={sendConfirmationSms}
+                  onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
+                />
+                <Label
+                  htmlFor="sendConfirmationSms"
+                  className="text-sm cursor-pointer flex items-center gap-1.5"
                 >
-                  {sendingQuoteSms ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                  )}
-                  Send Quote SMS
-                </Button>
+                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                  Send confirmation text
+                </Label>
+              </div>
 
-                {/* Send Confirmation Email button */}
-                <Button 
-                  variant="outline" 
-                  onClick={handleSendConfirmationEmail} 
-                  disabled={sendingConfirmationEmail}
-                  className="h-11"
-                  title="Send confirmation email to customer"
-                >
-                  {sendingConfirmationEmail ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Mail className="mr-2 h-4 w-4" />
-                  )}
-                  Send Confirmation Email
-                </Button>
-
-                {/* Send Quote Email button */}
-                <Button 
-                  variant="outline" 
-                  onClick={handleSendQuoteEmail} 
-                  disabled={sendingQuoteEmail}
-                  className="h-11"
-                  title="Send quote email to customer"
-                >
-                  {sendingQuoteEmail ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Mail className="mr-2 h-4 w-4" />
-                  )}
-                  Send Quote Email
-                </Button>
-
-                {booking && (
-                  <Button variant="outline" onClick={handleDuplicate} className="h-11">
-                    <Copy className="mr-2 h-4 w-4" />
-                    Duplicate
-                  </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSendQuoteSms} 
+                disabled={sendingQuoteSms || !customerPhone}
+                className="h-9"
+                title={!customerPhone ? 'Customer phone required' : 'Send quote to customer'}
+              >
+                {sendingQuoteSms ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                 )}
+                Quote SMS
+              </Button>
 
-                <div className="relative group">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSendConfirmationEmail} 
+                disabled={sendingConfirmationEmail}
+                className="h-9"
+                title="Send confirmation email to customer"
+              >
+                {sendingConfirmationEmail ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Confirmation Email
+              </Button>
+
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSendQuoteEmail} 
+                disabled={sendingQuoteEmail}
+                className="h-9"
+                title="Send quote email to customer"
+              >
+                {sendingQuoteEmail ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Quote Email
+              </Button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={currentStep === 0}
+              className="h-11"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+
+            <div className="flex items-center gap-2">
+              {currentStep === steps.length - 1 ? (
+                <>
+                  {booking && (
+                    <Button variant="outline" onClick={handleDuplicate} className="h-11">
+                      <Copy className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">Duplicate</span>
+                    </Button>
+                  )}
+
                   <Button 
                     variant="secondary" 
                     onClick={() => handleSubmit(true)} 
@@ -1352,28 +1356,25 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   >
                     {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     <Save className="mr-2 h-4 w-4" />
-                    Save Draft
+                    <span className="hidden sm:inline">Save Draft</span>
                   </Button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-popover border rounded-lg shadow-lg text-xs text-muted-foreground z-50">
-                    Drafts appear in your Bookings list with "pending payment" status
-                  </div>
-                </div>
 
-                <Button 
-                  onClick={() => handleSubmit(false)} 
-                  disabled={submitting || savingDraft}
-                  className="h-11 px-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
-                >
-                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {booking ? 'Update Booking' : 'Create Booking'}
+                  <Button 
+                    onClick={() => handleSubmit(false)} 
+                    disabled={submitting || savingDraft}
+                    className="h-11 px-4 sm:px-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
+                  >
+                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {booking ? 'Update' : 'Create'}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={handleNext} className="h-11 px-6">
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
-              </>
-            ) : (
-              <Button onClick={handleNext} className="h-11 px-6">
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
