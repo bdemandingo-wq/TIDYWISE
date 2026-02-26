@@ -256,9 +256,19 @@ export function DomainVerificationCard() {
 
                 {/* DNS Records */}
                 {d.dns_records && d.dns_records.length > 0 && d.status !== 'verified' && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-border bg-muted/50 p-3 space-y-2">
+                      <p className="text-sm font-semibold">How to verify your domain:</p>
+                      <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                        <li>Log in to your domain registrar (GoDaddy, Namecheap, Cloudflare, Google Domains, etc.)</li>
+                        <li>Go to <strong>DNS Settings</strong> or <strong>DNS Management</strong> for <strong>{d.domain_name}</strong></li>
+                        <li>Add each record from the table below — use the copy button to copy the values</li>
+                        <li>Save your changes, then click the <strong>Verify</strong> button above</li>
+                        <li>DNS changes can take up to 72 hours to propagate</li>
+                      </ol>
+                    </div>
                     <p className="text-sm font-medium text-muted-foreground">
-                      Add these DNS records at your domain registrar:
+                      DNS records to add:
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs border-collapse">
