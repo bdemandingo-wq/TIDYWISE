@@ -89,6 +89,76 @@ async function fetchOpenPhoneContactName(
   }
 }
 
+/**
+ * Normalize a phone number to its last 10 digits for comparison.
+ * Handles formats like +15106465090, (510) 646-5090, 5106465090, etc.
+ */
+function normalizePhoneDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  // If 11 digits starting with 1 (US country code), strip it
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return digits.substring(1);
+  }
+  return digits;
+}
+
+/**
+ * Find a contact name by searching customers, leads, and staff tables
+ * using normalized phone number matching.
+ */
+async function findLocalContactName(
+  supabase: any,
+  organizationId: string,
+  phone: string
+): Promise<{ name: string | null; customerId: string | null }> {
+  const normalizedPhone = normalizePhoneDigits(phone);
+  
+  // Fetch all org customers/leads/staff with phones in parallel
+  const [customersRes, leadsRes, staffRes] = await Promise.all([
+    supabase
+      .from('customers')
+      .select('id, first_name, last_name, phone')
+      .eq('organization_id', organizationId)
+      .not('phone', 'is', null),
+    supabase
+      .from('leads')
+      .select('id, name, phone')
+      .eq('organization_id', organizationId)
+      .not('phone', 'is', null),
+    supabase
+      .from('staff')
+      .select('id, name, phone')
+      .eq('organization_id', organizationId)
+      .not('phone', 'is', null),
+  ]);
+
+  // Check customers
+  const customer = customersRes.data?.find((c: any) =>
+    c.phone && normalizePhoneDigits(c.phone) === normalizedPhone
+  );
+  if (customer) {
+    return { name: `${customer.first_name} ${customer.last_name}`.trim(), customerId: customer.id };
+  }
+
+  // Check leads
+  const lead = leadsRes.data?.find((l: any) =>
+    l.phone && normalizePhoneDigits(l.phone) === normalizedPhone
+  );
+  if (lead) {
+    return { name: lead.name, customerId: null };
+  }
+
+  // Check staff
+  const staffMember = staffRes.data?.find((s: any) =>
+    s.phone && normalizePhoneDigits(s.phone) === normalizedPhone
+  );
+  if (staffMember) {
+    return { name: staffMember.name, customerId: null };
+  }
+
+  return { name: null, customerId: null };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -466,17 +536,12 @@ const handler = async (req: Request): Promise<Response> => {
       needsContactLookup = !existingConversation.customer_name;
       console.log(`[openphone-webhook] Found existing conversation: ${conversationId}, has name: ${!needsContactLookup}`);
     } else {
-      // Try to find customer by phone in our customers table
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('id, first_name, last_name')
-        .eq('organization_id', organizationId)
-        .eq('phone', customerPhone)
-        .maybeSingle();
-
-      let customerName = customer ? `${customer.first_name} ${customer.last_name}` : null;
+      // Try to find contact using normalized phone matching across customers, leads, staff
+      const localContact = await findLocalContactName(supabase, organizationId, customerPhone);
+      let customerName = localContact.name;
+      let customerId = localContact.customerId;
       
-      // If no local customer found and we have API key, try OpenPhone
+      // If no local match found, try OpenPhone contacts API
       if (!customerName && openphoneApiKey) {
         customerName = await fetchOpenPhoneContactName(customerPhone, openphoneApiKey);
       }
@@ -490,7 +555,7 @@ const handler = async (req: Request): Promise<Response> => {
           organization_id: organizationId,
           customer_phone: customerPhone,
           customer_name: customerName,
-          customer_id: customer?.id || null,
+          customer_id: customerId,
         })
         .select('id')
         .single();
@@ -504,16 +569,27 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       conversationId = newConversation.id;
-      console.log(`[openphone-webhook] Created new conversation: ${conversationId}`);
+      console.log(`[openphone-webhook] Created new conversation: ${conversationId}, name: ${customerName || 'unknown'}`);
     }
 
-    // If existing conversation has no name, try to fetch from OpenPhone
-    if (needsContactLookup && openphoneApiKey && existingConversation) {
-      const contactName = await fetchOpenPhoneContactName(customerPhone, openphoneApiKey);
+    // If existing conversation has no name, try local DB + OpenPhone
+    if (needsContactLookup && existingConversation) {
+      // First try normalized local matching
+      const localContact = await findLocalContactName(supabase, organizationId, customerPhone);
+      let contactName = localContact.name;
+      
+      // Fallback to OpenPhone API
+      if (!contactName && openphoneApiKey) {
+        contactName = await fetchOpenPhoneContactName(customerPhone, openphoneApiKey);
+      }
+      
       if (contactName) {
         await supabase
           .from('sms_conversations')
-          .update({ customer_name: contactName })
+          .update({ 
+            customer_name: contactName,
+            ...(localContact.customerId ? { customer_id: localContact.customerId } : {})
+          })
           .eq('id', conversationId);
         console.log(`[openphone-webhook] Updated conversation with contact name: ${contactName}`);
       }
