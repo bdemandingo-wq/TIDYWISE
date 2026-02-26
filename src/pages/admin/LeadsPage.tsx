@@ -181,10 +181,51 @@ export default function LeadsPage() {
       return;
     }
 
-    await supabase.from('leads').update({ status: 'converted' }).eq('id', lead.id);
+    // Try to auto-populate estimated_value from matching customer bookings
+    let estimatedValue: number | null = null;
+
+    // Look up the newly created customer (or existing match) by email in this org
+    const { data: matchedCustomer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('organization_id', organization.id)
+      .ilike('email', lead.email)
+      .limit(1)
+      .maybeSingle();
+
+    if (matchedCustomer) {
+      // Get the average or latest booking total for this customer
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('total_amount')
+        .eq('customer_id', matchedCustomer.id)
+        .eq('organization_id', organization.id)
+        .in('status', ['completed', 'confirmed'])
+        .order('scheduled_at', { ascending: false })
+        .limit(10);
+
+      if (bookings && bookings.length > 0) {
+        // Use the average booking value as estimated value
+        const total = bookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        estimatedValue = Math.round(total / bookings.length);
+      }
+    }
+
+    await supabase
+      .from('leads')
+      .update({ 
+        status: 'converted',
+        ...(estimatedValue != null ? { estimated_value: estimatedValue } : {}),
+      })
+      .eq('id', lead.id);
+
     queryClient.invalidateQueries({ queryKey: ['leads'] });
     queryClient.invalidateQueries({ queryKey: ['customers'] });
-    toast.success('Lead converted to customer');
+    toast.success(
+      estimatedValue 
+        ? `Lead converted to customer — estimated value: $${estimatedValue.toLocaleString()}`
+        : 'Lead converted to customer'
+    );
   };
 
   const monthOptions = useMemo(() => {
