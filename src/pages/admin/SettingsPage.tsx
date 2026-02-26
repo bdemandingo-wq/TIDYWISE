@@ -37,6 +37,8 @@ import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilityS
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
+import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -509,6 +511,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="loyalty">Loyalty</TabsTrigger>
             <TabsTrigger className="shrink-0" value="notifications">Notifications</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sms">SMS</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="emails">Emails</TabsTrigger>
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
@@ -742,6 +745,12 @@ export default function SettingsPage() {
         <TabsContent value="sms" className="space-y-6">
           <SMSSettingsCard />
           <OpenPhoneDebugTools />
+        </TabsContent>
+
+        {/* Email & Domain Settings */}
+        <TabsContent value="emails" className="space-y-6">
+          <EmailSettingsCard />
+          <DomainVerificationCard />
         </TabsContent>
 
         {/* Reviews Settings */}

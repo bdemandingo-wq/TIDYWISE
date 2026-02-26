@@ -3342,6 +3342,47 @@ export type Database = {
           },
         ]
       }
+      organization_email_domains: {
+        Row: {
+          created_at: string
+          dns_records: Json | null
+          domain_name: string
+          id: string
+          organization_id: string
+          resend_domain_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dns_records?: Json | null
+          domain_name: string
+          id?: string
+          organization_id: string
+          resend_domain_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dns_records?: Json | null
+          domain_name?: string
+          id?: string
+          organization_id?: string
+          resend_domain_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_email_domains_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_email_settings: {
         Row: {
           created_at: string
