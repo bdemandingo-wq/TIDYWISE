@@ -968,6 +968,11 @@ export default function MessagesPage() {
                         setEmailBody(emailBodyRef.current.innerHTML);
                       }
                     }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const text = e.clipboardData.getData('text/plain');
+                      document.execCommand('insertText', false, text);
+                    }}
                     className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
                     style={{ maxHeight: '200px' }}
                     data-placeholder="Type your email message..."
