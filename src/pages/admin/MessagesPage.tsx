@@ -42,6 +42,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MessageTemplatesPicker } from '@/components/admin/MessageTemplatesPicker';
 
 interface Conversation {
   id: string;
@@ -1048,6 +1049,12 @@ export default function MessagesPage() {
               {/* Message Input */}
               <div className="p-4 border-t">
                 <div className="flex gap-2">
+                  {organizationId && (
+                    <MessageTemplatesPicker
+                      organizationId={organizationId}
+                      onSelect={(content) => setNewMessage(content)}
+                    />
+                  )}
                   <Textarea
                     placeholder="Type a message..."
                     value={newMessage}
