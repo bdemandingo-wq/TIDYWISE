@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <article className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Effective date: {new Date().toLocaleDateString()}</p>
+          <p className="mt-2 text-sm text-muted-foreground">Effective date: February 1, 2025</p>
 
           <div className="prose prose-sm mt-8 max-w-none text-foreground dark:prose-invert">
             <p>
@@ -37,24 +37,12 @@ export default function PrivacyPolicyPage() {
             <h2>Information We Collect</h2>
             <p>We collect the following categories of information, primarily to provide app functionality:</p>
             <ul>
-              <li>
-                <strong>Name</strong>
-              </li>
-              <li>
-                <strong>Email</strong>
-              </li>
-              <li>
-                <strong>Phone Number</strong>
-              </li>
-              <li>
-                <strong>Physical Address</strong>
-              </li>
-              <li>
-                <strong>Precise Location</strong> (for features like GPS check-ins and location-aware workflows, when enabled)
-              </li>
-              <li>
-                <strong>Payment Information</strong> (processed for purchases and billing)
-              </li>
+              <li><strong>Name</strong></li>
+              <li><strong>Email</strong></li>
+              <li><strong>Phone Number</strong></li>
+              <li><strong>Physical Address</strong></li>
+              <li><strong>Precise Location</strong> (for features like GPS check-ins and location-aware workflows, when enabled)</li>
+              <li><strong>Payment Information</strong> (processed for purchases and billing)</li>
             </ul>
 
             <p>
@@ -69,6 +57,16 @@ export default function PrivacyPolicyPage() {
               <li>Communicate with you about your account, bookings, receipts, and support requests.</li>
               <li>Improve, maintain, and secure the Services.</li>
               <li>Comply with legal obligations and enforce our terms.</li>
+            </ul>
+
+            <h2>Third-Party Services & SDKs</h2>
+            <p>We use the following third-party services that may collect or process data on our behalf:</p>
+            <ul>
+              <li><strong>Stripe</strong> — Payment processing. Stripe collects payment card details, billing address, and transaction information. See <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">Stripe's Privacy Policy</a>.</li>
+              <li><strong>Supabase</strong> — Backend infrastructure including authentication, database, and file storage. See <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer">Supabase's Privacy Policy</a>.</li>
+              <li><strong>OpenPhone</strong> — Business phone and SMS messaging. See <a href="https://www.openphone.com/privacy" target="_blank" rel="noopener noreferrer">OpenPhone's Privacy Policy</a>.</li>
+              <li><strong>Resend</strong> — Transactional email delivery. See <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">Resend's Privacy Policy</a>.</li>
+              <li><strong>Apple Push Notification service (APNs)</strong> — Push notifications on iOS devices.</li>
             </ul>
 
             <h2>Data Sharing</h2>
@@ -102,6 +100,18 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
+            <h2>Account Deletion</h2>
+            <p>
+              You may request deletion of your account and associated data at any time. To delete your account:
+            </p>
+            <ul>
+              <li>Navigate to <strong>Settings → Security</strong> in the app and select <strong>"Delete My Account"</strong>.</li>
+              <li>Alternatively, email us at <strong>support@jointidywise.com</strong> with the subject line "Account Deletion Request".</li>
+            </ul>
+            <p>
+              Upon receiving a deletion request, we will delete or anonymize your personal data within 30 days, unless we are required to retain it for legal or compliance purposes.
+            </p>
+
             <h2>Children's Privacy</h2>
             <p>The Services are not directed to children under 13, and we do not knowingly collect information from them.</p>
 
@@ -113,7 +123,7 @@ export default function PrivacyPolicyPage() {
 
             <h2>Contact Us</h2>
             <p>
-              If you have questions about this Privacy Policy, please contact us at <strong>support@tidywisecleaning.com</strong>.
+              If you have questions about this Privacy Policy, please contact us at <strong>support@jointidywise.com</strong>.
             </p>
           </div>
         </article>
