@@ -210,7 +210,7 @@ export default function InvoicingSoftware() {
             Stop Chasing Late Payments
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Join thousands of cleaning businesses getting paid faster with automated invoicing.
+            Get paid faster with automated invoicing for your cleaning business.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />

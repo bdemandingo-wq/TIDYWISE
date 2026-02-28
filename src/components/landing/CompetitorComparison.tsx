@@ -176,7 +176,7 @@ export function CompetitorComparison() {
             Try TIDYWISE Free — No Credit Card Required
           </Button>
           <p className="text-sm text-muted-foreground mt-3">
-            Join 500+ cleaning businesses already using TIDYWISE
+            Trusted by cleaning businesses using TIDYWISE
           </p>
         </div>
       </div>

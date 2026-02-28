@@ -224,7 +224,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               Ready to try the best cleaning business software?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
-              Join 20,000+ cleaning businesses using TIDYWISE. Start your 2-month free trial today—no credit card required.
+              Try TIDYWISE for your cleaning business. Start your 2-month free trial today—no credit card required.
             </p>
             <Button size="lg" asChild>
               <Link to="/auth">Start Free Trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
@@ -236,7 +236,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
         <div className="max-w-4xl mx-auto text-center text-sm text-muted-foreground">
-          © 2026 TIDYWISE. The #1 cleaning business software alternative to Booking Koala & Jobber.
+          © 2026 TIDYWISE. A cleaning business software alternative to Booking Koala & Jobber.
         </div>
       </footer>
     </div>

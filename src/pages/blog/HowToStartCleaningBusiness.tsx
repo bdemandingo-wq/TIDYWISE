@@ -375,7 +375,7 @@ export default function HowToStartCleaningBusiness() {
               Launch your cleaning business today
             </h2>
             <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join thousands of cleaning companies using TIDYWISE to manage bookings, staff, and customers—all in one place.
+              Try TIDYWISE to manage bookings, staff, and customers—all in one place.
             </p>
             <Button size="lg" variant="secondary" asChild>
               <Link to="/auth">

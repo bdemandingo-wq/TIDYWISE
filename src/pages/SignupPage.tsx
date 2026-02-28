@@ -243,7 +243,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Seo title="Start Free Trial | TidyWise - #1 Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonicalPath="/signup" />
+      <Seo title="Start Free Trial | TidyWise – Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonicalPath="/signup" />
       <div className="w-full max-w-md">
         {/* Back to home link */}
         <Link 

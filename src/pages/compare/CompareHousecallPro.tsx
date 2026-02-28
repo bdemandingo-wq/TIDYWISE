@@ -303,7 +303,7 @@ export default function CompareHousecallPro() {
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">
-            © 2026 TidyWise. The #1 Housecall Pro alternative for cleaning businesses.
+            © 2026 TidyWise. A Housecall Pro alternative for cleaning businesses.
           </p>
           <div className="flex flex-wrap justify-center gap-6 mt-4">
             <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>

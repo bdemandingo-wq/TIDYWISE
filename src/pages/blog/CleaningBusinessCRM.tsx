@@ -165,7 +165,7 @@ export default function CleaningBusinessCRM() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="Best CRM for Cleaning Business (2026) | #1 Maid Service Software"
+        title="Best CRM for Cleaning Business (2026) | Maid Service Software"
         description="Find the best CRM for your cleaning business. Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, customer management & automation. Start your 60-day free trial today."
         canonicalPath="/blog/crm-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
@@ -239,7 +239,7 @@ export default function CleaningBusinessCRM() {
               <div>
                 <h2 className="text-xl font-bold text-foreground mb-3">🏆 Best CRM for Cleaning Business 2026: Quick Answer</h2>
                 <p className="text-muted-foreground mb-4">
-                  <strong>TIDYWISE</strong> is the #1 rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$50/month with unlimited users</strong> and a 60-day free trial (no credit card required).
+                  <strong>TIDYWISE</strong> is a top-rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$50/month with unlimited users</strong> and a 60-day free trial (no credit card required).
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild size="lg">
@@ -566,7 +566,7 @@ export default function CleaningBusinessCRM() {
               Ready to Grow Your Cleaning Business?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Join 500+ cleaning companies using TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 60-day free trial today—no credit card required.
+              Try TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 60-day free trial today—no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
@@ -678,7 +678,7 @@ export default function CleaningBusinessCRM() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <p className="font-bold text-foreground mb-3">TIDYWISE</p>
-              <p className="text-sm text-muted-foreground">The #1 CRM for cleaning business owners. Simplify scheduling, invoicing, and customer management.</p>
+              <p className="text-sm text-muted-foreground">A CRM built for cleaning business owners. Simplify scheduling, invoicing, and customer management.</p>
             </div>
             <div>
               <p className="font-semibold text-foreground mb-3">Product</p>
@@ -707,7 +707,7 @@ export default function CleaningBusinessCRM() {
             </div>
           </div>
           <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            © 2026 TIDYWISE. The #1 CRM for cleaning business owners.
+            © 2026 TIDYWISE. A CRM for cleaning business owners.
           </div>
         </div>
       </footer>

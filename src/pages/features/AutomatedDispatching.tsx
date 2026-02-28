@@ -209,7 +209,7 @@ export default function AutomatedDispatching() {
             Stop Wasting Time on Manual Scheduling
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Join thousands of cleaning businesses using automated dispatching. Start your free trial today.
+            Try automated dispatching for your cleaning business. Start your free trial today.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />

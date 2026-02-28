@@ -142,7 +142,7 @@ export default function DynamicBlogPost() {
               Ready to streamline your cleaning business?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-              Join thousands of cleaning professionals who use TIDYWISE to manage bookings, staff, and payments.
+              Try TIDYWISE to manage bookings, staff, and payments for your cleaning business.
             </p>
             <Button size="lg" asChild>
               <Link to="/auth">Start Your Free Trial</Link>
