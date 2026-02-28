@@ -201,7 +201,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <Seo 
-        title="TIDYWISE - #1 Cleaning Business Software | Booking Koala & Jobber Alternative"
+        title="TIDYWISE – Cleaning Business Software | Booking Koala & Jobber Alternative"
         description="Best cleaning business software for maid services. Smart scheduling, automated payroll, CRM, GPS tracking & online booking. Better than Booking Koala & Jobber. Start free."
         canonicalPath="/"
         ogImage="/images/tidywise-og.png"
@@ -361,7 +361,7 @@ export default function LandingPage() {
               {/* Trust badge */}
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 backdrop-blur-sm rounded-full text-primary text-sm font-medium mb-5 border border-primary/20 animate-pulse-glow">
                 <Sparkles className="h-4 w-4" />
-                <span>#1 Rated Cleaning Business Software</span>
+                <span>All-in-One Cleaning Business Software</span>
                 <ChevronRight className="h-4 w-4" />
               </div>
               
@@ -433,7 +433,7 @@ export default function LandingPage() {
                       <Star key={i} className="h-4 w-4 fill-warning text-warning" />
                     ))}
                   </div>
-                  <p className="text-sm text-muted-foreground">500+ cleaning businesses trust us</p>
+                  <p className="text-sm text-muted-foreground">Trusted by cleaning businesses</p>
                 </div>
               </div>
             </div>
@@ -639,12 +639,12 @@ export default function LandingPage() {
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-3xl blur-xl" />
               <div className="relative grid grid-cols-2 gap-4">
-                {[
-                  { value: '500+', label: 'Active businesses', delay: '0s' },
-                  { value: '20K+', label: 'Cleans completed', delay: '0.1s' },
-                  { value: '50+', label: 'Countries', delay: '0.2s' },
-                  { value: '4.9', label: 'Average rating', delay: '0.3s' },
-                ].map((stat, i) => (
+                 {[
+                   { value: '24/7', label: 'Online booking', delay: '0s' },
+                   { value: '60', label: 'Day free trial', delay: '0.1s' },
+                   { value: '$50', label: 'Per month', delay: '0.2s' },
+                   { value: '∞', label: 'Unlimited bookings', delay: '0.3s' },
+                 ].map((stat, i) => (
                   <Card 
                     key={i}
                     variant="glass" 
@@ -680,7 +680,7 @@ export default function LandingPage() {
               <span className="text-gradient-hero">everywhere</span>
             </h2>
             <p className="text-lg text-muted-foreground">
-              Join thousands of cleaning companies already using TIDYWISE
+              Join cleaning companies that trust TIDYWISE to manage their operations.
             </p>
           </div>
 
@@ -730,7 +730,7 @@ export default function LandingPage() {
             Ready to grow your cleaning business?
           </h2>
           <p className="text-lg sm:text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-            Join thousands of cleaning companies that trust TIDYWISE to manage their operations.
+            Join cleaning companies that trust TIDYWISE to manage their operations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 

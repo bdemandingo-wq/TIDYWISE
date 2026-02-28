@@ -191,7 +191,7 @@ export default function PricingPage() {
         {/* Bottom CTA */}
         <section className="py-16 px-4 sm:px-6 lg:px-8 text-center border-t border-border">
           <h2 className="text-2xl font-bold text-foreground mb-3">Ready to streamline your cleaning business?</h2>
-          <p className="text-muted-foreground mb-6">Join hundreds of cleaning companies already using TIDYWISE.</p>
+          <p className="text-muted-foreground mb-6">Join cleaning companies already using TIDYWISE.</p>
           <Button size="lg" className="gap-2" asChild>
             <Link to="/signup">
               Start Your 60-Day Free Trial <ArrowRight className="h-4 w-4" />

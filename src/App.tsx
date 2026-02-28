@@ -150,7 +150,7 @@ const App = () => (
                         <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}
-                        <Route path="/" element={<LandingPage />} />
+                        <Route path="/" element={<LoginPage />} />
                         <Route path="/auth" element={<AuthPage />} />
 
                       {/* Public Routes - Lazy Loaded */}
@@ -160,7 +160,7 @@ const App = () => (
                       <Route path="/tip/:token" element={<TipPage />} />
                       <Route path="/deposit/:token" element={<DepositPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-                      <Route path="/pricing" element={<PricingPage />} />
+                      <Route path="/pricing" element={<LoginPage />} />
                       <Route path="/onboarding" element={<OnboardingPage />} />
                       <Route path="/review/:token" element={<ReviewPage />} />
                       <Route path="/blog" element={<BlogIndex />} />
