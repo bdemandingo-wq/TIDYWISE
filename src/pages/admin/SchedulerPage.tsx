@@ -74,10 +74,10 @@ export default function SchedulerPage() {
     }
   };
 
-  // Same color palette as SchedulerCalendar for consistency
+  // Must match SchedulerCalendar palette exactly
   const STAFF_COLOR_PALETTE = [
-    '#3b82f6', '#22c55e', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6',
-    '#f97316', '#ef4444', '#06b6d4', '#a855f7', '#eab308', '#6366f1'
+    '#1d4ed8', '#15803d', '#7c3aed', '#c2410c', '#be185d', '#0e7490',
+    '#b91c1c', '#4338ca', '#0f766e', '#a21caf', '#ca8a04', '#0369a1'
   ];
   
   // Create color map using custom colors when available, fallback to palette

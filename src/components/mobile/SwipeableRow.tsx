@@ -64,7 +64,7 @@ export function SwipeableRow({ children, rightAction, className }: Props) {
             reset();
           }}
           className={cn(
-            'absolute inset-y-0 right-0 w-24',
+            'absolute inset-y-0 right-0 w-24 z-10',
             'flex items-center justify-center text-sm font-semibold',
             action.variant === 'destructive'
               ? 'bg-destructive text-destructive-foreground'
