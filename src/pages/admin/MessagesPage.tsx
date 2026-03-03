@@ -1040,53 +1040,52 @@ export default function MessagesPage() {
               <div className="space-y-4 pt-2">
                 <div className="relative">
                   <Label>To</Label>
-                  <Popover open={emailToDropdownOpen} onOpenChange={setEmailToDropdownOpen}>
-                    <PopoverTrigger asChild>
-                      <Input
-                        type="email"
-                        placeholder="Search or type email..."
-                        value={emailToSearch}
-                        onChange={(e) => {
-                          setEmailToSearch(e.target.value);
-                          setEmailTo(e.target.value);
-                          setEmailToDropdownOpen(true);
-                        }}
-                        onFocus={() => setEmailToDropdownOpen(true)}
-                      />
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                      <ScrollArea className="max-h-48">
-                        {emailContacts
-                          .filter(c => 
-                            !emailToSearch || 
-                            c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
-                            c.name.toLowerCase().includes(emailToSearch.toLowerCase())
-                          )
-                          .slice(0, 20)
-                          .map(c => (
-                            <button
-                              key={c.email}
-                              className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
-                              onClick={() => {
-                                setEmailTo(c.email);
-                                setEmailToSearch(c.email);
-                                setEmailToDropdownOpen(false);
-                              }}
-                            >
-                              <div className="font-medium">{c.name || 'No name'}</div>
-                              <div className="text-muted-foreground text-xs">{c.email}</div>
-                            </button>
-                          ))}
-                        {emailContacts.filter(c => 
-                          !emailToSearch || 
+                  <Input
+                    type="email"
+                    placeholder="Search or type email..."
+                    value={emailToSearch}
+                    onChange={(e) => {
+                      setEmailToSearch(e.target.value);
+                      setEmailTo(e.target.value);
+                      setEmailToDropdownOpen(true);
+                    }}
+                    onFocus={() => setEmailToDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)}
+                  />
+                  {emailToDropdownOpen && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
+                      {emailContacts
+                        .filter(c =>
+                          !emailToSearch ||
                           c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
                           c.name.toLowerCase().includes(emailToSearch.toLowerCase())
-                        ).length === 0 && (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">No matching contacts</div>
-                        )}
-                      </ScrollArea>
-                    </PopoverContent>
-                  </Popover>
+                        )
+                        .slice(0, 30)
+                        .map(c => (
+                          <button
+                            key={c.email}
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setEmailTo(c.email);
+                              setEmailToSearch(c.email);
+                              setEmailToDropdownOpen(false);
+                            }}
+                          >
+                            <div className="font-medium">{c.name || 'No name'}</div>
+                            <div className="text-muted-foreground text-xs">{c.email}</div>
+                          </button>
+                        ))}
+                      {emailContacts.filter(c =>
+                        !emailToSearch ||
+                        c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
+                        c.name.toLowerCase().includes(emailToSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">No matching contacts</div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Subject</Label>
