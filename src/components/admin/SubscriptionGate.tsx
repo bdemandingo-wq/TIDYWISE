@@ -59,44 +59,44 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
     return <>{children}</>;
   }
 
-  // On native: show website link instead of trial/payment dialog
-  if (!canShowPaymentFlows) {
-    return (
-      <Card className="border-dashed border-2 border-muted-foreground/20">
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+  // Render blurred content with overlay
+  const overlay = (
+    <div className="relative">
+      {/* Blurred content behind */}
+      <div className="pointer-events-none select-none" style={{ filter: 'blur(6px)', opacity: 0.5 }} aria-hidden="true">
+        {children}
+      </div>
+
+      {/* Overlay */}
+      <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60 backdrop-blur-sm rounded-lg">
+        <div className="flex flex-col items-center text-center px-6 py-10 max-w-md">
           <div className="p-4 rounded-full bg-muted mb-4">
             <Lock className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
-          <p className="text-muted-foreground mb-4 max-w-sm">
-            {feature} requires an active subscription. Manage your subscription at jointidywise.lovable.app
+          <h3 className="text-xl font-bold mb-2">Premium Feature</h3>
+          <p className="text-muted-foreground mb-2 text-sm">
+            <span className="font-semibold text-foreground">{feature}</span> is available with an active subscription.
           </p>
-          <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
-            <ExternalLink className="h-4 w-4" />
-            Manage Subscription on Web
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="border-dashed border-2 border-muted-foreground/20">
-      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="p-4 rounded-full bg-muted mb-4">
-          <Lock className="h-8 w-8 text-muted-foreground" />
+          <p className="text-muted-foreground mb-6 text-xs">
+            You can still manage bookings, customers, leads, and staff on the free plan.
+          </p>
+          {canShowPaymentFlows ? (
+            <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Subscribe to Unlock
+            </Button>
+          ) : (
+            <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
+              <ExternalLink className="h-4 w-4" />
+              Subscribe on Web
+            </Button>
+          )}
         </div>
-        <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
-        <p className="text-muted-foreground mb-4 max-w-sm">
-          {feature} requires an active subscription. Start your free 2-month trial to unlock all features.
-        </p>
-        <Button onClick={() => setShowSubscriptionDialog(true)} className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          Start Free Trial
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
+
+  return overlay;
 }
 
 export function useSubscriptionCheck() {
