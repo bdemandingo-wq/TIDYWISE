@@ -283,7 +283,7 @@ export default function PortalRequestPage() {
             </div>
 
             {/* Address Selection */}
-            {locations.length > 1 && (
+            {locations.length >= 1 && (
               <div className="space-y-2">
                 <Label>Address *</Label>
                 <Select value={selectedLocation} onValueChange={setSelectedLocation}>
