@@ -107,8 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
       `Date: ${notification.appointmentDate}\n` +
       `Time: ${notification.appointmentTime}\n` +
       `Address: ${notification.address}\n\n` +
-      `Customer: ${notification.customerName}\n` +
-      `Phone: ${notification.customerPhone}\n\n` +
+      `Customer: ${notification.customerName}\n\n` +
       `- ${companyName}`;
 
     // Format cleaner phone

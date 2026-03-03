@@ -415,7 +415,6 @@ const handler = async (req: Request): Promise<Response> => {
             `📅 ${formattedDate} at ${formattedTime}\n` +
             `${address ? `📍 ${address}\n` : ""}` +
             `Customer: ${customerName}\n` +
-            `${booking.customer?.phone ? `Phone: ${booking.customer.phone}\n` : ""}` +
             `\n- ${companyName}`;
 
           const cleanerResult = await sendAndLog(

@@ -155,17 +155,27 @@ serve(async (req) => {
 
     const companyName = bizSettings?.company_name || "Your Business";
 
+    // Fetch org timezone to avoid UTC offset in Deno runtime
+    const { data: tzSettings } = await supabase
+      .from("business_settings")
+      .select("timezone")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    const orgTimezone = tzSettings?.timezone || "America/New_York";
+
     const dateObj = new Date(requestedDate);
-    const formattedDate = dateObj.toLocaleDateString("en-US", {
+    const formattedDate = new Intl.DateTimeFormat("en-US", {
+      timeZone: orgTimezone,
       weekday: "short",
       month: "short",
       day: "numeric",
-    });
-    const formattedTime = dateObj.toLocaleTimeString("en-US", {
+    }).format(dateObj);
+    const formattedTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: orgTimezone,
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-    });
+    }).format(dateObj);
 
     let message = `📋 New Booking Request!\n\nCustomer: ${customerName}\nDate: ${formattedDate} at ${formattedTime}`;
     if (serviceName) message += `\nService: ${serviceName}`;

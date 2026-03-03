@@ -1,4 +1,4 @@
-import { ReactNode, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, Suspense, lazy, useState } from 'react';
 import AdminHelpChat from './AdminHelpChat';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
@@ -6,8 +6,7 @@ import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { hapticImpact } from '@/lib/haptics';
+import { useLocation } from 'react-router-dom';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
 
@@ -29,71 +28,13 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
   const { canShowPaymentFlows } = usePlatform();
   const location = useLocation();
-  const navigate = useNavigate();
+  
   
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
 
-  const crmTabOrder = useMemo(
-    () => ['/dashboard', '/dashboard/customers', '/dashboard/leads', '/dashboard/messages', '/dashboard/settings'],
-    []
-  );
-
-  // Swipe between primary CRM tabs (mobile only)
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
-  const swipeHandled = useRef(false);
-
-  useEffect(() => {
-    swipeHandled.current = false;
-    swipeStart.current = null;
-  }, [location.pathname]);
-
-  const isInsideScrollableContainer = (target: EventTarget | null): boolean => {
-    let el = target as HTMLElement | null;
-    while (el && el !== document.body) {
-      const overflowX = window.getComputedStyle(el).overflowX;
-      if ((overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth) {
-        return true;
-      }
-      // Also check for table wrappers or explicitly scrollable containers
-      if (el.tagName === 'TABLE' || el.closest('table') || el.closest('[data-no-swipe]')) {
-        return true;
-      }
-      el = el.parentElement;
-    }
-    return false;
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (window.matchMedia('(min-width: 768px)').matches) return;
-    // Don't intercept swipes inside horizontally scrollable containers (tables, etc.)
-    if (isInsideScrollableContainer(e.target)) return;
-    const t = e.touches[0];
-    swipeStart.current = { x: t.clientX, y: t.clientY };
-    swipeHandled.current = false;
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (window.matchMedia('(min-width: 768px)').matches) return;
-    if (!swipeStart.current || swipeHandled.current) return;
-    const t = e.touches[0];
-    const dx = t.clientX - swipeStart.current.x;
-    const dy = t.clientY - swipeStart.current.y;
-
-    // Require a clear horizontal swipe
-    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
-    swipeHandled.current = true;
-
-    const currentIndex = crmTabOrder.findIndex((p) => location.pathname === p);
-    if (currentIndex === -1) return;
-
-    const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
-    const next = crmTabOrder[Math.max(0, Math.min(crmTabOrder.length - 1, nextIndex))];
-    if (next && next !== location.pathname) {
-      hapticImpact('light');
-      navigate(next);
-    }
-  };
+  // Swipe-to-navigate disabled: it used hardcoded routes that didn't match
+  // custom mobile nav configurations, causing random page switches on touch.
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -110,8 +51,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         */}
         <main
           className="p-2 md:p-4 pt-2 md:pt-4 pb-24 md:pb-4 animate-page-enter overflow-y-auto"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
         >
           {children}
         </main>
