@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1217,6 +1218,7 @@ export default function MessagesPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Messages">
       <div className="flex h-[calc(100vh-12rem)] border rounded-lg overflow-hidden bg-card relative">
         {/* Conversation List - Hidden on mobile, shown in sheet */}
         {isMobile ? (
@@ -1459,6 +1461,7 @@ export default function MessagesPage() {
           ) : null}
         </div>
       </div>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
