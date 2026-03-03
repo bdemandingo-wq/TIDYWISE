@@ -79,9 +79,9 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const bookingDate = new Date(b.scheduled_at);
-      return bookingDate >= dateRange.start && 
+      return bookingDate >= dateRange.start &&
              bookingDate <= dateRange.end &&
-             b.status !== 'cancelled';
+             b.status === 'completed';
     });
   }, [bookings, dateRange]);
 

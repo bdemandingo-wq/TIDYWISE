@@ -765,11 +765,15 @@ export default function MessagesPage() {
             {filteredConversations.map((conv) => (
               <SwipeableRow
                 key={conv.id}
-                rightAction={{
-                  label: 'Delete',
-                  variant: 'destructive',
-                  onAction: () => handleDeleteConversation(conv.id),
-                }}
+                rightAction={
+                  isMobile
+                    ? undefined
+                    : {
+                        label: 'Delete',
+                        variant: 'destructive',
+                        onAction: () => handleDeleteConversation(conv.id),
+                      }
+                }
               >
               <div
                 className={cn(

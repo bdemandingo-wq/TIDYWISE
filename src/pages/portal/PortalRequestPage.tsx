@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { format, setHours, setMinutes } from "date-fns";
+import { format } from "date-fns";
 import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import { Seo } from "@/components/Seo";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { selectedDateTimeToUTCISO } from "@/lib/timezoneUtils";
 
 interface Service {
   id: string;
@@ -69,6 +70,7 @@ export default function PortalRequestPage() {
   const [notes, setNotes] = useState(searchParams.get("notes") || "");
   const [isTurnover, setIsTurnover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [orgTimezone, setOrgTimezone] = useState<string>("America/New_York");
   const isReschedule = searchParams.get("reschedule") === "true";
 
   const isAirbnb = customer?.property_type === 'airbnb';
@@ -105,8 +107,19 @@ export default function PortalRequestPage() {
       else if (locs.length === 1) setSelectedLocation(locs[0].id);
     };
 
+    const fetchTimezone = async () => {
+      const { data } = await supabase
+        .from("business_settings")
+        .select("timezone")
+        .eq("organization_id", user.organization_id)
+        .maybeSingle();
+
+      if (data?.timezone) setOrgTimezone(data.timezone);
+    };
+
     fetchServices();
     fetchLocations();
+    fetchTimezone();
   }, [user]);
 
   const handleSubmit = async () => {
@@ -128,9 +141,9 @@ export default function PortalRequestPage() {
 
     setSubmitting(true);
 
-    // Combine date and time
-    const [hours, minutes] = selectedTime.split(":").map(Number);
-    const dateWithTime = setMinutes(setHours(selectedDate, hours), minutes);
+    // Interpret the selected date/time in the organization's timezone
+    const requestedDateISO = selectedDateTimeToUTCISO(selectedDate, selectedTime, orgTimezone);
+    const dateWithTime = new Date(requestedDateISO);
 
     try {
       // Build notes with address info
@@ -146,7 +159,7 @@ export default function PortalRequestPage() {
         p_client_user_id: user.id,
         p_customer_id: user.customer_id,
         p_organization_id: user.organization_id,
-        p_requested_date: dateWithTime.toISOString(),
+        p_requested_date: requestedDateISO,
         p_service_id: selectedService || null,
         p_notes: combinedNotes,
       });
@@ -159,7 +172,7 @@ export default function PortalRequestPage() {
         body: {
           organizationId: user.organization_id,
           customerName: `${customer.first_name} ${customer.last_name}`,
-          requestedDate: dateWithTime.toISOString(),
+          requestedDate: requestedDateISO,
           serviceName,
           notes: notes.trim() || undefined,
         },

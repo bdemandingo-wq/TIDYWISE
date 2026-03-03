@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrgId } from '@/hooks/useOrgId';
+import { supabase } from '@/lib/supabase';
 
 interface ProfitMarginReportProps {
   bookings: BookingWithDetails[];
@@ -37,25 +40,62 @@ interface BookingProfit {
 }
 
 export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
+  const { organizationId } = useOrgId();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date()),
   });
   const { isTestMode, maskName, maskAmount } = useTestMode();
 
+  const completedBookingIds = useMemo(() => {
+    return bookings
+      .filter((b) => b.status === 'completed')
+      .map((b) => b.id);
+  }, [bookings]);
+
+  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+    queryKey: ['profit-margin-team-pay', organizationId, completedBookingIds.join(',')],
+    queryFn: async () => {
+      if (!organizationId || completedBookingIds.length === 0) return new Map<string, number>();
+
+      // Fetch pay_share totals per booking (only when pay_share is explicitly set)
+      const { data, error } = await supabase
+        .from('booking_team_assignments')
+        .select('booking_id, pay_share')
+        .eq('organization_id', organizationId)
+        .in('booking_id', completedBookingIds);
+      if (error) throw error;
+
+      const map = new Map<string, number>();
+      for (const row of data || []) {
+        const pay = Number((row as any).pay_share);
+        if (!Number.isFinite(pay) || pay <= 0) continue;
+        map.set(String((row as any).booking_id), (map.get(String((row as any).booking_id)) || 0) + pay);
+      }
+      return map;
+    },
+    enabled: !!organizationId && completedBookingIds.length > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+
   const profitData = useMemo(() => {
     return bookings
       .map((booking): BookingProfit => {
         const revenue = Number(booking.total_amount || 0);
         const bookingAny = booking as any;
-        
+
+        // Team cleanings: if pay_share totals exist, use them as labor cost
+        const teamPay = teamPaysByBooking.get(booking.id);
+
         let cleanerPay = 0;
-        if (bookingAny.cleaner_actual_payment) {
+        if (teamPay != null && teamPay > 0) {
+          cleanerPay = teamPay;
+        } else if (bookingAny.cleaner_actual_payment != null) {
           cleanerPay = Number(bookingAny.cleaner_actual_payment);
         } else if (bookingAny.cleaner_wage) {
           const wage = Number(bookingAny.cleaner_wage);
           const wageType = bookingAny.cleaner_wage_type || 'hourly';
-          
+
           if (wageType === 'flat') {
             cleanerPay = wage;
           } else if (wageType === 'percentage') {
@@ -65,14 +105,14 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             cleanerPay = wage * hours;
           }
         }
-        
+
         const profit = revenue - cleanerPay;
         const marginPercent = revenue > 0 ? (profit / revenue) * 100 : 0;
-        
+
         return {
           id: booking.id,
           bookingNumber: booking.booking_number,
-          customerName: booking.customer 
+          customerName: booking.customer
             ? `${booking.customer.first_name} ${booking.customer.last_name}`
             : 'Unknown',
           serviceName: booking.service?.name || 'Refund',
@@ -84,10 +124,10 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
           status: booking.status,
         };
       })
-      .filter(b => {
+      .filter((b) => {
         if (b.status !== 'completed') return false;
         if (!dateRange?.from) return true;
-        
+
         const interval = {
           start: dateRange.from,
           end: dateRange.to || dateRange.from,
@@ -95,7 +135,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
         return isWithinInterval(b.scheduledAt, interval);
       })
       .sort((a, b) => b.marginPercent - a.marginPercent);
-  }, [bookings, dateRange]);
+  }, [bookings, dateRange, teamPaysByBooking]);
 
   const summaryStats = useMemo(() => {
     const totalRevenue = profitData.reduce((sum, b) => sum + b.revenue, 0);

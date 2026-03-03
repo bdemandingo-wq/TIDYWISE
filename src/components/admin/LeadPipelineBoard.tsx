@@ -2,14 +2,15 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Lead {
   id: string;
@@ -48,22 +49,26 @@ interface LeadPipelineBoardProps {
   maskPhone: (phone: string) => string;
 }
 
-export function LeadPipelineBoard({ 
-  leads, 
-  onStatusChange, 
-  onEdit, 
-  onDelete, 
+export function LeadPipelineBoard({
+  leads,
+  onStatusChange,
+  onEdit,
+  onDelete,
   onConvert,
   maskName,
   maskEmail,
   maskPhone,
 }: LeadPipelineBoardProps) {
+  const isMobile = useIsMobile();
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
-  const getColumnLeads = useCallback((status: string) => {
-    return leads.filter(l => l.status === status);
-  }, [leads]);
+  const getColumnLeads = useCallback(
+    (status: string) => {
+      return leads.filter((l) => l.status === status);
+    },
+    [leads]
+  );
 
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     setDraggedLeadId(leadId);
@@ -160,6 +165,7 @@ export function LeadPipelineBoard({
                   maskName={maskName}
                   maskEmail={maskEmail}
                   maskPhone={maskPhone}
+                  showDelete={!isMobile}
                 />
               ))}
             </div>
@@ -181,6 +187,7 @@ function LeadCard({
   maskName,
   maskEmail,
   maskPhone,
+  showDelete,
 }: {
   lead: Lead;
   isDragging: boolean;
@@ -192,6 +199,7 @@ function LeadCard({
   maskName: (name: string) => string;
   maskEmail: (email: string) => string;
   maskPhone: (phone: string) => string;
+  showDelete: boolean;
 }) {
   return (
     <Card
@@ -224,14 +232,16 @@ function LeadCard({
                   <UserPlus className="w-3.5 h-3.5" /> Convert to Customer
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                className="gap-2 text-destructive"
-                onClick={() => {
-                  if (confirm('Delete this lead?')) onDelete(lead.id);
-                }}
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </DropdownMenuItem>
+              {showDelete && (
+                <DropdownMenuItem
+                  className="gap-2 text-destructive"
+                  onClick={() => {
+                    if (confirm('Delete this lead?')) onDelete(lead.id);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

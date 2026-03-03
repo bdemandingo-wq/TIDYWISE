@@ -107,7 +107,7 @@ export default function ReportsPage() {
     });
   }, [bookings, dateRange]);
 
-  const { serviceStats, staffStats, monthlyData, totalStats, recurringCleansCount, recurringCleansRevenue } = useMemo(() => {
+  const { serviceStats, serviceStatsAllTime, staffStats, monthlyData, totalStats, recurringCleansCount, recurringCleansRevenue } = useMemo(() => {
     // Build a set of recurring customer IDs for quick lookup
     const recurringCustomerIds = new Set<string>();
     customers.forEach((c: any) => {
@@ -117,18 +117,22 @@ export default function ReportsPage() {
       if (rb.is_active && rb.customer_id) recurringCustomerIds.add(rb.customer_id);
     });
 
-    // Service breakdown - include all bookings for revenue tracking
+    // Service breakdown (date range)
     const serviceMap = new Map<string, { name: string; count: number; revenue: number; color: string }>();
+
+    // Service breakdown (all time)
+    const serviceAllTimeMap = new Map<string, { name: string; count: number; revenue: number; color: string }>();
+
     let recurringCleansCount = 0;
     let recurringCleansRevenue = 0;
 
     filteredBookings.forEach((booking, index) => {
       const serviceId = booking.service?.id || 'refund';
-      const existing = serviceMap.get(serviceId) || { 
-        name: booking.service?.name || 'Refund', 
+      const existing = serviceMap.get(serviceId) || {
+        name: booking.service?.name || 'Refund',
         count: 0,
         revenue: 0,
-        color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444'
+        color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444',
       };
       existing.count += 1;
       existing.revenue += Number(booking.total_amount || 0);
@@ -141,7 +145,24 @@ export default function ReportsPage() {
         recurringCleansRevenue += Number(booking.total_amount || 0);
       }
     });
+
+    // All-time revenue by service (completed only)
+    const allTimeCompleted = bookings.filter((b: any) => b.status === 'completed');
+    allTimeCompleted.forEach((booking: any, index: number) => {
+      const serviceId = booking.service?.id || 'refund';
+      const existing = serviceAllTimeMap.get(serviceId) || {
+        name: booking.service?.name || 'Refund',
+        count: 0,
+        revenue: 0,
+        color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444',
+      };
+      existing.count += 1;
+      existing.revenue += Number(booking.total_amount || 0);
+      serviceAllTimeMap.set(serviceId, existing);
+    });
+
     const serviceStats = Array.from(serviceMap.values());
+    const serviceStatsAllTime = Array.from(serviceAllTimeMap.values());
 
     // Staff performance - include ALL staff members and show upcoming cleans
     const now = new Date();
@@ -194,14 +215,16 @@ export default function ReportsPage() {
       }
     }
 
-    const totalRevenue = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
-    const completedBookings = filteredBookings.filter(b => b.status === 'completed');
-    const avgBookingValue = filteredBookings.length > 0 ? totalRevenue / filteredBookings.length : 0;
+    const completedInRange = filteredBookings.filter((b: any) => b.status === 'completed');
+    const totalRevenue = completedInRange.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    const completedBookings = completedInRange;
+    const avgBookingValue = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
     const totalBookings = filteredBookings.length;
     const conversionRate = totalBookings > 0 ? Math.round((completedBookings.length / totalBookings) * 100) : 0;
 
     return {
       serviceStats,
+      serviceStatsAllTime,
       staffStats,
       monthlyData,
       totalStats: {
@@ -360,9 +383,9 @@ export default function ReportsPage() {
 
             {/* Revenue by Service Pie Chart */}
             <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
-              <h3 className="font-semibold mb-4">Revenue by Service</h3>
+              <h3 className="font-semibold mb-4">Revenue by Service (All time)</h3>
               <div className="h-[300px]">
-                {serviceStats.length === 0 ? (
+                {serviceStatsAllTime.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     No service data available
                   </div>
@@ -370,7 +393,7 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={serviceStats}
+                        data={serviceStatsAllTime}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -380,13 +403,11 @@ export default function ReportsPage() {
                         label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                         labelLine={false}
                       >
-                        {serviceStats.map((entry, index) => (
+                        {serviceStatsAllTime.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                      />
+                      <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -52,6 +53,7 @@ interface BookingPayrollDetail {
   wage_rate: number;
   calculated_pay: number;
   actual_pay: number | null;
+  staff_id: string;
   staff_name: string;
 }
 
@@ -60,6 +62,7 @@ export default function PayrollPage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
   const { organizationId } = useOrgId();
   const { user } = useAuth();
@@ -343,6 +346,7 @@ export default function PayrollPage() {
             wage_rate: wageInfo.wageRate,
             calculated_pay: wageInfo.calculatedPay,
             actual_pay: wageInfo.actualPay,
+            staff_id: a.staff_id,
             staff_name: member?.name || staffMember?.name || 'Unassigned',
           });
         }
@@ -360,12 +364,18 @@ export default function PayrollPage() {
           wage_rate: wageInfo.wageRate,
           calculated_pay: wageInfo.calculatedPay,
           actual_pay: wageInfo.actualPay,
+          staff_id: b.staff_id,
           staff_name: staffMember?.name || 'Unassigned',
         });
       }
     }
     return details;
   }, [bookings, staff, teamAssignments]);
+
+  const filteredBookingPayrollDetails = useMemo(() => {
+    if (staffFilterId === 'all') return bookingPayrollDetails;
+    return bookingPayrollDetails.filter((d) => d.staff_id === staffFilterId);
+  }, [bookingPayrollDetails, staffFilterId]);
 
   // Calculate payroll data - include ALL staff, even those without bookings
   // Correctly accounts for both primary staff and team member assignments
@@ -445,7 +455,7 @@ export default function PayrollPage() {
 
   const exportDetailedCSV = () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment'];
-    const rows = bookingPayrollDetails.map((b) => [
+    const rows = filteredBookingPayrollDetails.map((b) => [
       format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
       `#${b.booking_number}`,
       b.staff_name,
@@ -711,6 +721,21 @@ export default function PayrollPage() {
               </Button>
             </CardHeader>
             <CardContent>
+              <div className="flex flex-wrap items-center gap-2 pb-3">
+                <Select value={staffFilterId} onValueChange={setStaffFilterId}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Filter by cleaner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All cleaners</SelectItem>
+                    {staff.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -725,7 +750,7 @@ export default function PayrollPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bookingPayrollDetails.map((b) => (
+                  {filteredBookingPayrollDetails.map((b) => (
                     <TableRow key={b.id}>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(b.scheduled_at), 'MMM d, yyyy')}

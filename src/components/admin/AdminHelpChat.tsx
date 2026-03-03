@@ -272,7 +272,7 @@ export default function AdminHelpChat() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
+          className="fixed bottom-24 md:bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
           aria-label="Open help chat"
         >
           <MessageCircleQuestion className="h-6 w-6" />
@@ -290,7 +290,7 @@ export default function AdminHelpChat() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 flex w-[400px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl" style={{ height: "min(600px, calc(100vh - 6rem))" }}>
+        <div className="fixed bottom-24 md:bottom-6 right-6 z-50 flex w-[400px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl" style={{ height: "min(600px, calc(100vh - 6rem))" }}>
           {/* Header */}
           <div className="flex items-center gap-2 border-b px-4 py-3">
             {view === "history" && (

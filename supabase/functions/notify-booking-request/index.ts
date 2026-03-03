@@ -175,6 +175,7 @@ serve(async (req) => {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZoneName: "short",
     }).format(dateObj);
 
     let message = `📋 New Booking Request!\n\nCustomer: ${customerName}\nDate: ${formattedDate} at ${formattedTime}`;
