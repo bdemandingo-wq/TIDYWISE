@@ -117,34 +117,38 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       };
     }
 
+    // pay_share stores the actual dollar amount for this cleaner's pay on this booking
+    // If set and > 0, use it directly as the pay amount
+    const payShareAmount = booking.team_pay_share;
+    if (payShareAmount && payShareAmount > 0) {
+      return {
+        amount: payShareAmount,
+        type: 'Assigned Pay',
+        isExact: true,
+      };
+    }
+
     const hours = getActualHours();
     const hasActualTime = !!(booking.cleaner_checkin_at && booking.cleaner_checkout_at);
-    // pay_share stored as percentage (e.g. 100 = 100%) or as multiplier (e.g. 1 = 100%)
-    // Normalize: values > 1 are percentages, values <= 1 are already multipliers
-    const rawShare = booking.team_pay_share;
-    const teamShare = rawShare && rawShare > 0
-      ? (rawShare > 1 ? rawShare / 100 : rawShare)
-      : 1;
-    const shareLabel = teamShare < 1 ? ` (${Math.round(teamShare * 100)}% share)` : '';
 
     // If booking has specific cleaner wage set
     if (booking.cleaner_wage && booking.cleaner_wage_type) {
       if (booking.cleaner_wage_type === 'percentage') {
         return {
-          amount: ((booking.total_amount * booking.cleaner_wage) / 100) * teamShare,
-          type: `${booking.cleaner_wage}% of job${shareLabel}`,
+          amount: (booking.total_amount * booking.cleaner_wage) / 100,
+          type: `${booking.cleaner_wage}% of job`,
           isExact: true,
         };
       } else if (booking.cleaner_wage_type === 'flat') {
         return {
-          amount: booking.cleaner_wage * teamShare,
-          type: `Flat rate${shareLabel}`,
+          amount: booking.cleaner_wage,
+          type: 'Flat rate',
           isExact: true,
         };
       } else {
         return {
-          amount: booking.cleaner_wage * hours * teamShare,
-          type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs${shareLabel}`,
+          amount: booking.cleaner_wage * hours,
+          type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs`,
           isExact: hasActualTime,
         };
       }
@@ -153,8 +157,8 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     // Fall back to staff's default rates - check percentage first
     if (staffInfo.percentage_rate && staffInfo.percentage_rate > 0) {
       return {
-        amount: ((booking.total_amount * staffInfo.percentage_rate) / 100) * teamShare,
-        type: `${staffInfo.percentage_rate}% of job${shareLabel}`,
+        amount: (booking.total_amount * staffInfo.percentage_rate) / 100,
+        type: `${staffInfo.percentage_rate}% of job`,
         isExact: true,
       };
     }
@@ -162,8 +166,8 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     // Then check hourly rate
     if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
       return {
-        amount: staffInfo.hourly_rate * hours * teamShare,
-        type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs${shareLabel}`,
+        amount: staffInfo.hourly_rate * hours,
+        type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs`,
         isExact: hasActualTime,
       };
     }
