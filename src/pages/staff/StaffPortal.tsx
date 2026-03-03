@@ -105,6 +105,8 @@ export default function StaffPortal() {
         .limit(1);
       setHasSetAvailability(hours && hours.length > 0);
     };
+
+    fetchStaffRecord();
   }, [user]);
 
   // Real-time subscription for new unassigned bookings
