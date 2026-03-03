@@ -290,6 +290,8 @@ export default function HelpPage() {
                       src={video.loom_url}
                       frameBorder="0"
                       allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
                       className="absolute inset-0 w-full h-full"
                     />
                   </div>
