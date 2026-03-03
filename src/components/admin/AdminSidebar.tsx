@@ -29,6 +29,7 @@ import {
   Brain,
   Trash2,
   Globe,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -78,6 +79,7 @@ const defaultNavigation = [
   { name: 'Services', href: '/dashboard/services', icon: Briefcase },
   { name: 'Staff', href: '/dashboard/staff', icon: UserCircle },
   { name: 'Checklists', href: '/dashboard/checklists', icon: CheckSquare },
+  { name: 'Booking Photos', href: '/dashboard/booking-photos', icon: Camera },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
   { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
   { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign },
@@ -93,7 +95,7 @@ const defaultNavigation = [
 const iconMap: Record<string, typeof Home> = {
   Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
   Briefcase, UserCircle, CheckSquare, Package, DollarSign, Receipt, BarChart3,
-  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain, Globe, Zap,
+  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain, Globe, Zap, Camera,
 };
 
 interface NavItem {
