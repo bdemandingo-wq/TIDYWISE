@@ -199,7 +199,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Total Job Amount', 'Your Earnings'];
+    const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Your Earnings'];
     const rows = allEntries.map(({ booking, payShare }) => {
       const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
       return [
@@ -208,7 +208,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         booking.service?.name || 'N/A',
         booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'N/A',
         hoursWorked.toFixed(2),
-        booking.total_amount.toFixed(2),
         calculatedPay.toFixed(2),
       ];
     });
@@ -350,7 +349,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                     <TableHead>Service</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="text-right">Duration</TableHead>
-                    <TableHead className="text-right">Job Total</TableHead>
+                    
                     <TableHead className="text-right">Your Earnings</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -370,7 +369,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                             : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">{hoursWorked.toFixed(1)}h</TableCell>
-                        <TableCell className="text-right">${booking.total_amount.toFixed(2)}</TableCell>
+                        
                         <TableCell className="text-right font-medium text-green-600">
                           ${calculatedPay.toFixed(2)}
                         </TableCell>
