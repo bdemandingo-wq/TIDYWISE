@@ -306,13 +306,20 @@ serve(async (req) => {
           `https://nominatim.openstreetmap.org/search?${params.toString()}`,
           { headers: { 'Accept': 'application/json', 'User-Agent': 'TidywiseApp/1.0' } }
         );
-        const results = await response.json();
-        if (results && results.length > 0) {
-          console.log('Structured geocode success');
-          return new Response(
-            JSON.stringify({ success: true, lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          const results = await response.json();
+          if (results && results.length > 0) {
+            console.log('Structured geocode success');
+            return new Response(
+              JSON.stringify({ success: true, lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          console.warn('Structured search returned non-JSON:', response.status, contentType);
+          // Wait briefly before retrying to respect rate limits
+          await new Promise(r => setTimeout(r, 1100));
         }
       } catch (e) { console.error('Structured search error:', e); }
     }
@@ -324,6 +331,12 @@ serve(async (req) => {
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=us`,
           { headers: { 'Accept': 'application/json', 'User-Agent': 'TidywiseApp/1.0' } }
         );
+        const ct = response.headers.get('content-type') || '';
+        if (!response.ok || !ct.includes('application/json')) {
+          console.warn('Non-JSON response for query:', query, response.status);
+          await new Promise(r => setTimeout(r, 1100));
+          continue;
+        }
         const results = await response.json();
         if (results && results.length > 0) {
           console.log('Geocode success for:', query);
@@ -332,6 +345,8 @@ serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+        // Nominatim rate limit: 1 request/sec
+        await new Promise(r => setTimeout(r, 1100));
       } catch (fetchError) {
         console.error('Fetch error for query:', query, fetchError);
       }
@@ -346,13 +361,16 @@ serve(async (req) => {
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1&countrycodes=us`,
           { headers: { 'Accept': 'application/json', 'User-Agent': 'TidywiseApp/1.0' } }
         );
-        const results = await response.json();
-        if (results && results.length > 0) {
-          console.log('City-level fallback success');
-          return new Response(
-            JSON.stringify({ success: true, lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name, approximate: true }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        const ct = response.headers.get('content-type') || '';
+        if (response.ok && ct.includes('application/json')) {
+          const results = await response.json();
+          if (results && results.length > 0) {
+            console.log('City-level fallback success');
+            return new Response(
+              JSON.stringify({ success: true, lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name, approximate: true }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       } catch (e) { console.error('Fallback error:', e); }
     }
