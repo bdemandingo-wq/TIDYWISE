@@ -107,6 +107,9 @@ export default function MessagesPage() {
   const [isListCollapsed, setIsListCollapsed] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState('');
+  const [emailContacts, setEmailContacts] = useState<{ email: string; name: string }[]>([]);
+  const [emailToSearch, setEmailToSearch] = useState('');
+  const [emailToDropdownOpen, setEmailToDropdownOpen] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [emailSending, setEmailSending] = useState(false);
@@ -571,6 +574,7 @@ export default function MessagesPage() {
       toast.success('Email sent successfully');
       setEmailOpen(false);
       setEmailTo('');
+      setEmailToSearch('');
       setEmailSubject('');
       setEmailBody('');
       setEmailAttachments([]);
@@ -1001,13 +1005,31 @@ export default function MessagesPage() {
           </Dialog>
           <Dialog open={emailOpen} onOpenChange={async (open) => {
               setEmailOpen(open);
-              if (open && !emailTo && selectedConversation?.customer_id && organizationId) {
+              if (open && organizationId) {
                 const { data } = await supabase
                   .from('customers')
-                  .select('email')
-                  .eq('id', selectedConversation.customer_id)
-                  .maybeSingle();
-                if (data?.email) setEmailTo(data.email);
+                  .select('email, first_name, last_name')
+                  .eq('organization_id', organizationId)
+                  .not('email', 'is', null)
+                  .order('first_name');
+                setEmailContacts(
+                  (data || [])
+                    .filter(c => c.email)
+                    .map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }))
+                );
+                // Auto-select from active conversation
+                if (!emailTo && selectedConversation?.customer_id) {
+                  const match = (data || []).find(c => c.email);
+                  const { data: convCustomer } = await supabase
+                    .from('customers')
+                    .select('email')
+                    .eq('id', selectedConversation.customer_id)
+                    .maybeSingle();
+                  if (convCustomer?.email) {
+                    setEmailTo(convCustomer.email);
+                    setEmailToSearch(convCustomer.email);
+                  }
+                }
               }
             }}>
             <DialogTrigger asChild>
@@ -1027,14 +1049,55 @@ export default function MessagesPage() {
                 </Button>
               </div>
               <div className="space-y-4 pt-2">
-                <div>
+                <div className="relative">
                   <Label>To</Label>
-                  <Input
-                    type="email"
-                    placeholder="recipient@example.com"
-                    value={emailTo}
-                    onChange={(e) => setEmailTo(e.target.value)}
-                  />
+                  <Popover open={emailToDropdownOpen} onOpenChange={setEmailToDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <Input
+                        type="email"
+                        placeholder="Search or type email..."
+                        value={emailToSearch}
+                        onChange={(e) => {
+                          setEmailToSearch(e.target.value);
+                          setEmailTo(e.target.value);
+                          setEmailToDropdownOpen(true);
+                        }}
+                        onFocus={() => setEmailToDropdownOpen(true)}
+                      />
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      <ScrollArea className="max-h-48">
+                        {emailContacts
+                          .filter(c => 
+                            !emailToSearch || 
+                            c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
+                            c.name.toLowerCase().includes(emailToSearch.toLowerCase())
+                          )
+                          .slice(0, 20)
+                          .map(c => (
+                            <button
+                              key={c.email}
+                              className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
+                              onClick={() => {
+                                setEmailTo(c.email);
+                                setEmailToSearch(c.email);
+                                setEmailToDropdownOpen(false);
+                              }}
+                            >
+                              <div className="font-medium">{c.name || 'No name'}</div>
+                              <div className="text-muted-foreground text-xs">{c.email}</div>
+                            </button>
+                          ))}
+                        {emailContacts.filter(c => 
+                          !emailToSearch || 
+                          c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
+                          c.name.toLowerCase().includes(emailToSearch.toLowerCase())
+                        ).length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No matching contacts</div>
+                        )}
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label>Subject</Label>
