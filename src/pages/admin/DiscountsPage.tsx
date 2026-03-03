@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,6 +116,7 @@ export default function DiscountsPage() {
       title="Discounts & Coupons"
       subtitle="Create and manage promotional codes for your customers"
     >
+      <SubscriptionGate feature="Discounts & Coupons">
       {settings?.demo_mode_enabled && (
         <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2">
           <Tag className="w-5 h-5 text-yellow-600" />
@@ -320,6 +322,7 @@ export default function DiscountsPage() {
           )}
         </CardContent>
       </Card>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

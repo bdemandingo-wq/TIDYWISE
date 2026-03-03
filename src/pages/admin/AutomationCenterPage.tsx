@@ -1,4 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Seo } from '@/components/Seo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -138,6 +139,7 @@ export default function AutomationCenterPage() {
   return (
     <AdminLayout title="Automation Center">
       <Seo title="Automation Center" description="Manage your automated workflows and learn about platform features." />
+      <SubscriptionGate feature="Automation Center">
       <div className="space-y-6">
         <Tabs defaultValue="automations" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
@@ -250,6 +252,7 @@ export default function AutomationCenterPage() {
           </TabsContent>
         </Tabs>
       </div>
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

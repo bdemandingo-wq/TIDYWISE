@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -185,6 +186,7 @@ export default function InventoryPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Inventory">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>
@@ -375,6 +377,7 @@ export default function InventoryPage() {
         categories={customCategories}
         organizationId={organization?.id || ''}
       />
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
