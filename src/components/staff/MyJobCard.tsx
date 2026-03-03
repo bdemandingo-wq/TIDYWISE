@@ -119,7 +119,12 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
     const hours = getActualHours();
     const hasActualTime = !!(booking.cleaner_checkin_at && booking.cleaner_checkout_at);
-    const teamShare = booking.team_pay_share && booking.team_pay_share > 0 ? booking.team_pay_share / 100 : 1;
+    // pay_share stored as percentage (e.g. 100 = 100%) or as multiplier (e.g. 1 = 100%)
+    // Normalize: values > 1 are percentages, values <= 1 are already multipliers
+    const rawShare = booking.team_pay_share;
+    const teamShare = rawShare && rawShare > 0
+      ? (rawShare > 1 ? rawShare / 100 : rawShare)
+      : 1;
     const shareLabel = teamShare < 1 ? ` (${Math.round(teamShare * 100)}% share)` : '';
 
     // If booking has specific cleaner wage set
