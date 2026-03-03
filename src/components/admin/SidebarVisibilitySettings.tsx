@@ -90,6 +90,8 @@ export function SidebarVisibilitySettings() {
       } else {
         setHiddenItems([]);
         setInitialHiddenItems([]);
+        localStorage.removeItem('tidywise_nav_hidden');
+        window.dispatchEvent(new Event('navHiddenChanged'));
       }
     };
     
