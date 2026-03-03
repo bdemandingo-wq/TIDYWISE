@@ -55,7 +55,13 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
     );
   }
 
-  if (subscription?.subscribed) {
+  // Only allow access if user has a PAID Stripe subscription (not trial)
+  // product_id "org_trial" means they're on the free 60-day trial — block premium features
+  const hasPaidSubscription = subscription?.subscribed && 
+    !subscription?.trial_active && 
+    subscription?.product_id !== 'org_trial';
+
+  if (hasPaidSubscription) {
     return <>{children}</>;
   }
 
@@ -103,19 +109,22 @@ export function useSubscriptionCheck() {
   const { subscription, setShowSubscriptionDialog } = useAuth();
   const { canShowPaymentFlows, billingUrl } = usePlatform();
 
+  const hasPaidSubscription = subscription?.subscribed && 
+    !subscription?.trial_active && 
+    subscription?.product_id !== 'org_trial' &&
+    !subscription?.payment_failed;
+
   const requireSubscription = (callback: () => void, feature?: string) => {
-    if (subscription?.subscribed && !subscription?.payment_failed) {
+    if (hasPaidSubscription) {
       callback();
     } else if (canShowPaymentFlows) {
-      // Only show subscription dialog on web
       setShowSubscriptionDialog(true);
     } else {
-      // On native, redirect to web for subscription management
       window.open(billingUrl, '_blank');
     }
   };
 
-  const isSubscribed = (subscription?.subscribed && !subscription?.payment_failed) ?? false;
+  const isSubscribed = hasPaidSubscription ?? false;
 
   return { requireSubscription, isSubscribed };
 }

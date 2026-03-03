@@ -16,6 +16,7 @@ interface SubscriptionStatus {
   subscription_end: string | null;
   payment_failed?: boolean;
   message?: string;
+  product_id?: string | null;
 }
 
 interface AuthContextType {
