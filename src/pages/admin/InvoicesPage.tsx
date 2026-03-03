@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -313,6 +314,7 @@ export default function InvoicesPage() {
         </Button>
       }
     >
+      <SubscriptionGate feature="Invoices">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
         <Card>
@@ -552,6 +554,7 @@ export default function InvoicesPage() {
         onOpenChange={setViewDialogOpen}
         invoice={viewingInvoice}
       />
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
