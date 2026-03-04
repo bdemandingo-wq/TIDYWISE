@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
@@ -155,6 +155,9 @@ export default function BookingsPage() {
   const [sendingCleanerNotification, setSendingCleanerNotification] = useState<string | null>(null);
   const [bulkNotifyingCleaners, setBulkNotifyingCleaners] = useState(false);
   const [notifyingOpenJob, setNotifyingOpenJob] = useState<string | null>(null);
+  const [cleanerPickerOpen, setCleanerPickerOpen] = useState(false);
+  const [cleanerPickerBooking, setCleanerPickerBooking] = useState<BookingWithDetails | null>(null);
+  const [selectedCleanerIds, setSelectedCleanerIds] = useState<Set<string>>(new Set());
   const [sendingReviewRequest, setSendingReviewRequest] = useState<string | null>(null);
   const [sendingTipRequest, setSendingTipRequest] = useState<string | null>(null);
   const [bulkNotifyingWeek, setBulkNotifyingWeek] = useState(false);
@@ -938,18 +941,29 @@ export default function BookingsPage() {
     }
   };
 
-  // Notify all active cleaners about an open/unassigned job
-  const handleNotifyCleanersOpenJob = async (booking: BookingWithDetails) => {
+  // Open the cleaner picker dialog for an open job
+  const handleOpenCleanerPicker = (booking: BookingWithDetails) => {
     if (booking.staff) {
       toast({ title: "Already Assigned", description: "This job is already assigned to a cleaner.", variant: "destructive" });
       return;
     }
-
     if (!organization?.id) {
       toast({ title: "Error", description: "Organization context required", variant: "destructive" });
       return;
     }
+    // Pre-select all active staff
+    const allActiveIds = new Set(staffList.filter(s => s.is_active).map(s => s.id));
+    setSelectedCleanerIds(allActiveIds);
+    setCleanerPickerBooking(booking);
+    setCleanerPickerOpen(true);
+  };
 
+  // Notify selected cleaners about an open/unassigned job
+  const handleNotifySelectedCleaners = async () => {
+    const booking = cleanerPickerBooking;
+    if (!booking || !organization?.id || selectedCleanerIds.size === 0) return;
+
+    setCleanerPickerOpen(false);
     setNotifyingOpenJob(booking.id);
 
     try {
@@ -972,6 +986,7 @@ export default function BookingsPage() {
             total_amount: booking.total_amount,
           },
           organizationId: organization.id,
+          staffIds: Array.from(selectedCleanerIds),
         }
       });
 
@@ -979,13 +994,14 @@ export default function BookingsPage() {
 
       toast({ 
         title: "Cleaners Notified", 
-        description: `Sent notification to all active cleaners about open job #${booking.booking_number}` 
+        description: `Sent notification to ${selectedCleanerIds.size} cleaner(s) about open job #${booking.booking_number}` 
       });
     } catch (error: any) {
       console.error('Failed to notify cleaners:', error);
       toast({ title: "Error", description: error.message || "Failed to notify cleaners", variant: "destructive" });
     } finally {
       setNotifyingOpenJob(null);
+      setCleanerPickerBooking(null);
     }
   };
 
@@ -1913,11 +1929,11 @@ export default function BookingsPage() {
                                 {!booking.staff && (
                                   <DropdownMenuItem 
                                     className="gap-2 cursor-pointer text-green-600" 
-                                    onClick={() => handleNotifyCleanersOpenJob(booking)}
+                                    onClick={() => handleOpenCleanerPicker(booking)}
                                     disabled={notifyingOpenJob === booking.id}
                                   >
                                     {notifyingOpenJob === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-                                    Notify All Cleaners
+                                    Notify Cleaners
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem 
@@ -2384,6 +2400,62 @@ export default function BookingsPage() {
               ) : (
                 'Assign Cleaner'
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Cleaner Picker Dialog */}
+      <AlertDialog open={cleanerPickerOpen} onOpenChange={setCleanerPickerOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Select Cleaners to Notify</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose which cleaners should receive the notification for job #{cleanerPickerBooking?.booking_number}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-64 overflow-y-auto space-y-2 py-2">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <Checkbox
+                checked={selectedCleanerIds.size === staffList.filter(s => s.is_active).length && selectedCleanerIds.size > 0}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedCleanerIds(new Set(staffList.filter(s => s.is_active).map(s => s.id)));
+                  } else {
+                    setSelectedCleanerIds(new Set());
+                  }
+                }}
+              />
+              <Label className="text-sm font-medium cursor-pointer">Select All</Label>
+            </div>
+            {staffList.filter(s => s.is_active).map((staff) => (
+              <div key={staff.id} className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedCleanerIds.has(staff.id)}
+                  onCheckedChange={(checked) => {
+                    setSelectedCleanerIds(prev => {
+                      const next = new Set(prev);
+                      if (checked) next.add(staff.id);
+                      else next.delete(staff.id);
+                      return next;
+                    });
+                  }}
+                />
+                <Label className="text-sm cursor-pointer flex-1">{staff.name}</Label>
+                {!staff.phone && <Badge variant="outline" className="text-xs text-muted-foreground">No phone</Badge>}
+              </div>
+            ))}
+            {staffList.filter(s => s.is_active).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No active cleaners found.</p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleNotifySelectedCleaners}
+              disabled={selectedCleanerIds.size === 0}
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Notify {selectedCleanerIds.size} Cleaner{selectedCleanerIds.size !== 1 ? 's' : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
