@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const OPENPHONE_API_KEY = Deno.env.get("OPENPHONE_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,15 +45,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Notifying cleaners for org ${organizationId} about job #${jobDetails.booking_number}`);
 
-    // Fetch org-specific OpenPhone settings
+    // Fetch org-specific OpenPhone settings from the correct table
     const { data: phoneSettings } = await supabase
-      .from("org_phone_settings")
-      .select("openphone_number_id, openphone_api_key")
+      .from("organization_sms_settings")
+      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
       .eq("organization_id", organizationId)
       .maybeSingle();
 
-    const orgOpenPhoneApiKey = phoneSettings?.openphone_api_key || OPENPHONE_API_KEY;
-    const orgPhoneNumberId = phoneSettings?.openphone_number_id;
+    if (!phoneSettings?.sms_enabled) {
+      console.log("SMS disabled for this org — skipping SMS, in-app notifications still created");
+    }
+
+    const orgOpenPhoneApiKey = phoneSettings?.openphone_api_key;
+    const orgPhoneNumberId = phoneSettings?.openphone_phone_number_id;
 
     // Get company name from business settings
     let companyName = providedCompanyName || "Your Cleaning Company";
@@ -151,11 +154,13 @@ const handler = async (req: Request): Promise<Response> => {
             `Log in to the Staff Portal to claim it. - ${companyName}`;
 
           try {
+            // OpenPhone expects the raw API key without "Bearer" prefix
+            const authHeader = orgOpenPhoneApiKey.trim().replace(/^Bearer\s+/i, '');
             const response = await fetch("https://api.openphone.com/v1/messages", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: orgOpenPhoneApiKey,
+                Authorization: authHeader,
               },
               body: JSON.stringify({
                 from: orgPhoneNumberId,
