@@ -182,6 +182,12 @@ const handler = async (req: Request): Promise<Response> => {
     const payload = await req.json() as OpenPhoneWebhookPayload;
     console.log("[openphone-webhook] Received payload:", JSON.stringify(payload, null, 2));
 
+    // Detect if this is a call event vs a message event
+    // Call events should NOT be treated as SMS messages
+    const eventType = payload.type || '';
+    const isCallEvent = eventType.startsWith('call.');
+    const objectType = (payload.data?.object as any)?.object || '';
+
     // Process incoming messages, outgoing messages, and delivery status updates
     // OpenPhone event types vary; rely on payload direction when available.
     // Common types we see:
@@ -190,17 +196,22 @@ const handler = async (req: Request): Promise<Response> => {
     // - message.delivered (delivery updates)
     const rawObjectDirection = payload.data?.object?.direction?.toLowerCase?.() || '';
 
+    // IMPORTANT: Only use direction for SMS detection if it's NOT a call event
     const isInbound =
-      payload.type === 'message.received' ||
-      rawObjectDirection === 'inbound' ||
-      rawObjectDirection === 'incoming';
+      !isCallEvent && (
+        payload.type === 'message.received' ||
+        rawObjectDirection === 'inbound' ||
+        rawObjectDirection === 'incoming'
+      );
 
     const isOutbound =
-      payload.type === 'message.sent' ||
-      payload.type === 'message.created' ||
-      payload.type === 'message.completed' ||
-      rawObjectDirection === 'outbound' ||
-      rawObjectDirection === 'outgoing';
+      !isCallEvent && (
+        payload.type === 'message.sent' ||
+        payload.type === 'message.created' ||
+        payload.type === 'message.completed' ||
+        rawObjectDirection === 'outbound' ||
+        rawObjectDirection === 'outgoing'
+      );
 
     const isDeliveryUpdate = payload.type === 'message.delivered';
 
@@ -209,7 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
       (payload.data?.object as any)?.status === 'missed';
 
     console.log(
-      `[openphone-webhook] Event type: ${payload.type}, direction: ${rawObjectDirection || 'n/a'}, isInbound: ${isInbound}, isOutbound: ${isOutbound}, isDeliveryUpdate: ${isDeliveryUpdate}, isMissedCall: ${isMissedCall}`
+      `[openphone-webhook] Event type: ${payload.type}, objectType: ${objectType}, direction: ${rawObjectDirection || 'n/a'}, isCallEvent: ${isCallEvent}, isInbound: ${isInbound}, isOutbound: ${isOutbound}, isDeliveryUpdate: ${isDeliveryUpdate}, isMissedCall: ${isMissedCall}`
     );
 
     // Handle delivery status updates (read receipts)
