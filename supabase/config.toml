@@ -191,3 +191,6 @@ verify_jwt = false
 
 [functions.facebook-lead-webhook]
 verify_jwt = false
+
+[functions.backfill-openphone-messages]
+verify_jwt = false

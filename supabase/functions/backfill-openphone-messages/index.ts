@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAdminAuth, createUnauthorizedResponse } from "../_shared/verify-admin-auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 function normalizePhoneDigits(phone: string): string {
@@ -69,6 +70,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify admin auth
+    const authResult = await verifyAdminAuth(req.headers.get('Authorization'), { requireAdmin: true });
+    if (!authResult.success) {
+      return createUnauthorizedResponse(authResult.error || 'Unauthorized', corsHeaders);
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -83,10 +90,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { organizationId } = await req.json();
 
-    if (!organizationId) {
+    // Verify the org matches the authenticated user's org
+    if (!organizationId || organizationId !== authResult.organizationId) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing organizationId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Organization mismatch" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
