@@ -55,19 +55,38 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     queryFn: async () => {
       if (!organizationId || completedBookingIds.length === 0) return new Map<string, number>();
 
-      // Fetch pay_share totals per booking (only when pay_share is explicitly set)
+      // Fetch all team assignments with staff wage info
       const { data, error } = await supabase
         .from('booking_team_assignments')
-        .select('booking_id, pay_share')
+        .select('booking_id, pay_share, staff_id, staff:staff(hourly_rate, base_wage)')
         .eq('organization_id', organizationId)
         .in('booking_id', completedBookingIds);
       if (error) throw error;
 
-      const map = new Map<string, number>();
+      // Build a map of booking_id -> has team assignments
+      const bookingTeamMap = new Map<string, any[]>();
       for (const row of data || []) {
-        const pay = Number((row as any).pay_share);
-        if (!Number.isFinite(pay) || pay <= 0) continue;
-        map.set(String((row as any).booking_id), (map.get(String((row as any).booking_id)) || 0) + pay);
+        const bid = String((row as any).booking_id);
+        if (!bookingTeamMap.has(bid)) bookingTeamMap.set(bid, []);
+        bookingTeamMap.get(bid)!.push(row);
+      }
+
+      // For each booking with team assignments, sum up labor cost
+      const map = new Map<string, number>();
+      for (const [bid, members] of bookingTeamMap) {
+        let totalPay = 0;
+        let hasAnyPay = false;
+        for (const m of members) {
+          const payShare = Number((m as any).pay_share);
+          if (Number.isFinite(payShare) && payShare > 0) {
+            totalPay += payShare;
+            hasAnyPay = true;
+          }
+        }
+        // Only set if we found pay data for at least one member
+        if (hasAnyPay) {
+          map.set(bid, totalPay);
+        }
       }
       return map;
     },

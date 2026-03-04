@@ -33,16 +33,32 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
 
       const { data, error } = await supabase
         .from('booking_team_assignments')
-        .select('booking_id, pay_share')
+        .select('booking_id, pay_share, staff_id')
         .eq('organization_id', organizationId)
         .in('booking_id', completedBookingIds);
       if (error) throw error;
 
-      const map = new Map<string, number>();
+      const bookingTeamMap = new Map<string, any[]>();
       for (const row of data || []) {
-        const pay = Number((row as any).pay_share);
-        if (!Number.isFinite(pay) || pay <= 0) continue;
-        map.set(String((row as any).booking_id), (map.get(String((row as any).booking_id)) || 0) + pay);
+        const bid = String((row as any).booking_id);
+        if (!bookingTeamMap.has(bid)) bookingTeamMap.set(bid, []);
+        bookingTeamMap.get(bid)!.push(row);
+      }
+
+      const map = new Map<string, number>();
+      for (const [bid, members] of bookingTeamMap) {
+        let totalPay = 0;
+        let hasAnyPay = false;
+        for (const m of members) {
+          const payShare = Number((m as any).pay_share);
+          if (Number.isFinite(payShare) && payShare > 0) {
+            totalPay += payShare;
+            hasAnyPay = true;
+          }
+        }
+        if (hasAnyPay) {
+          map.set(bid, totalPay);
+        }
       }
       return map;
     },
