@@ -23,6 +23,7 @@ interface NotifyCleanersRequest {
   };
   companyName: string;
   organizationId: string;
+  staffIds?: string[]; // Optional filter — if provided, only notify these staff
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -33,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { jobDetails, companyName: providedCompanyName, organizationId }: NotifyCleanersRequest = await req.json();
+    const { jobDetails, companyName: providedCompanyName, organizationId, staffIds }: NotifyCleanersRequest = await req.json();
 
     // organizationId is required — block if missing to prevent cross-org leakage
     if (!organizationId) {
@@ -72,11 +73,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // CRITICAL: Filter staff by organization_id — never notify staff from other orgs
-    const { data: staffMembers, error: staffError } = await supabase
+    let staffQuery = supabase
       .from("staff")
       .select("id, name, email, phone, hourly_rate, percentage_rate")
       .eq("organization_id", organizationId)
       .eq("is_active", true);
+
+    // If specific staff IDs were provided, filter to only those
+    if (staffIds && staffIds.length > 0) {
+      staffQuery = staffQuery.in("id", staffIds);
+    }
+
+    const { data: staffMembers, error: staffError } = await staffQuery;
 
     if (staffError) {
       console.error("Error fetching staff:", staffError);
