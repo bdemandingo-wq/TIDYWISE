@@ -205,7 +205,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       return [
         format(new Date(booking.scheduled_at), 'yyyy-MM-dd'),
         booking.booking_number,
-        booking.service?.name || 'N/A',
+        booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service'),
         booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'N/A',
         hoursWorked.toFixed(2),
         calculatedPay.toFixed(2),
@@ -362,7 +362,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                         <TableCell>
                           <Badge variant="outline">#{booking.booking_number}</Badge>
                         </TableCell>
-                        <TableCell>{booking.service?.name || 'N/A'}</TableCell>
+                        <TableCell>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</TableCell>
                         <TableCell>
                           {booking.customer
                             ? `${booking.customer.first_name} ${booking.customer.last_name}`

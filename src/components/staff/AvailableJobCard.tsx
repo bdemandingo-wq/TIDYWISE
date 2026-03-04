@@ -122,7 +122,7 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
-              <p className="text-sm text-muted-foreground">{booking.service?.name}</p>
+              <p className="text-sm text-muted-foreground">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</p>
             </div>
             <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
               Open

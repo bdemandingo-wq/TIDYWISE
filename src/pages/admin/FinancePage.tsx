@@ -126,7 +126,7 @@ export default function FinancePage() {
         id: b.id,
         booking_number: b.booking_number,
         customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
-        service_name: b.service?.name || 'Unknown',
+        service_name: b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
         scheduled_at: b.scheduled_at,
         gross_amount: grossAmount,
         processing_fee: Math.round(processingFee * 100) / 100,

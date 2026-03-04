@@ -428,7 +428,7 @@ export function BulkEditCleanerWages() {
                           ? `${booking.customer.first_name} ${booking.customer.last_name}`
                           : 'Unknown'}
                       </TableCell>
-                      <TableCell>{booking.service?.name || 'Unknown'}</TableCell>
+                      <TableCell>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</TableCell>
                       <TableCell>
                         {booking.staff?.name || (
                           <span className="text-muted-foreground italic">Unassigned</span>

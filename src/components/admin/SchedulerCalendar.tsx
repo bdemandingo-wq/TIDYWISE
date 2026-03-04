@@ -530,7 +530,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               cleanerPhone: staffMember.phone,
               customerName,
               customerPhone: booking.customer?.phone || 'Not provided',
-              serviceName: booking.service?.name || 'Cleaning Service',
+              serviceName: booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Cleaning Service'),
               appointmentDate: formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
               appointmentTime: formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
               address: booking.address || 'Address not provided',
@@ -674,7 +674,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          {booking.service?.name} • {formatInTimezone(booking.scheduled_at, orgTimezone, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                          {booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')} • {formatInTimezone(booking.scheduled_at, orgTimezone, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                       </button>
                     ))
@@ -863,7 +863,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold">
-                    {selectedBooking.service?.name || 'Cleaning Service'}
+                    {selectedBooking.service?.name || (selectedBooking.total_amount === 0 ? 'Re-clean' : 'Service')}
                   </span>
                   <Badge className={cn('capitalize', statusColors[selectedBooking.status])}>
                     {statusLabels[selectedBooking.status] || selectedBooking.status}

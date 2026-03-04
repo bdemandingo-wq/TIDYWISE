@@ -49,7 +49,7 @@ export function JobHistoryCard({ booking }: Props) {
                 <CheckCircle className="w-4 h-4 text-green-500" />
               )}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{booking.service?.name}</p>
+            <p className="text-sm text-muted-foreground">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</p>
           </div>
           {getStatusBadge(booking.status)}
         </div>

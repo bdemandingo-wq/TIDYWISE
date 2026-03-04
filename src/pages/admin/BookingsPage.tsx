@@ -1221,7 +1221,7 @@ export default function BookingsPage() {
         const rows = filteredBookings.map(b => [
           b.booking_number,
           b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
-          b.service?.name || 'Unknown',
+          b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
           format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
           format(new Date(b.scheduled_at), 'h:mm a'),
           b.staff?.name || 'Unassigned',
@@ -1650,7 +1650,7 @@ export default function BookingsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{booking.service?.name || 'Unknown'}</span>
+                        <span className="font-medium">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

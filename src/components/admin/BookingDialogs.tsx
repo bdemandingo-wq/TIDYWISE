@@ -182,7 +182,7 @@ export function BookingDetailsDialog({
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Service</dt>
-                <dd className="text-sm font-medium">{booking.service?.name || "Unknown"}</dd>
+                <dd className="text-sm font-medium">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Scheduled</dt>
