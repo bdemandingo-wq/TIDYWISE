@@ -9,59 +9,8 @@ const corsHeaders = {
 
 function normalizePhoneDigits(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return digits.substring(1);
-  }
+  if (digits.length === 11 && digits.startsWith('1')) return digits.substring(1);
   return digits;
-}
-
-async function findLocalContactName(
-  supabase: any,
-  organizationId: string,
-  phone: string
-): Promise<{ name: string | null; customerId: string | null }> {
-  const normalizedPhone = normalizePhoneDigits(phone);
-
-  const [customersRes, leadsRes, staffRes] = await Promise.all([
-    supabase
-      .from('customers')
-      .select('id, first_name, last_name, phone')
-      .eq('organization_id', organizationId)
-      .not('phone', 'is', null),
-    supabase
-      .from('leads')
-      .select('id, name, phone')
-      .eq('organization_id', organizationId)
-      .not('phone', 'is', null),
-    supabase
-      .from('staff')
-      .select('id, name, phone')
-      .eq('organization_id', organizationId)
-      .not('phone', 'is', null),
-  ]);
-
-  const customer = customersRes.data?.find((c: any) =>
-    c.phone && normalizePhoneDigits(c.phone) === normalizedPhone
-  );
-  if (customer) {
-    return { name: `${customer.first_name} ${customer.last_name}`.trim(), customerId: customer.id };
-  }
-
-  const lead = leadsRes.data?.find((l: any) =>
-    l.phone && normalizePhoneDigits(l.phone) === normalizedPhone
-  );
-  if (lead) {
-    return { name: lead.name, customerId: null };
-  }
-
-  const staffMember = staffRes.data?.find((s: any) =>
-    s.phone && normalizePhoneDigits(s.phone) === normalizedPhone
-  );
-  if (staffMember) {
-    return { name: staffMember.name, customerId: null };
-  }
-
-  return { name: null, customerId: null };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -70,37 +19,29 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Verify admin auth
     const authResult = await verifyAdminAuth(req.headers.get('Authorization'), { requireAdmin: true });
     if (!authResult.success) {
       return createUnauthorizedResponse(authResult.error || 'Unauthorized', corsHeaders);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: false, error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { organizationId, pageToken: resumeToken } = await req.json();
 
-    const { organizationId } = await req.json();
-
-    // Verify the org matches the authenticated user's org
     if (!organizationId || organizationId !== authResult.organizationId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Organization mismatch" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: false, error: "Organization mismatch" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log(`[backfill] Starting backfill for org: ${organizationId}`);
+    console.log(`[backfill] Starting for org: ${organizationId}, resumeToken: ${resumeToken || 'none'}`);
 
-    // Get SMS settings for the organization
+    // Get SMS settings
     const { data: smsSettings } = await supabase
       .from('organization_sms_settings')
       .select('openphone_api_key, openphone_phone_number_id')
@@ -108,238 +49,214 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (!smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
-      return new Response(
-        JSON.stringify({ success: false, error: "OpenPhone not configured for this organization" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: false, error: "OpenPhone not configured" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const apiKey = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
     let phoneNumberId = smsSettings.openphone_phone_number_id;
+    const pnMatch = phoneNumberId.match(/(PN[A-Za-z0-9]+)/);
+    if (pnMatch) phoneNumberId = pnMatch[1];
 
-    // Extract phone number ID if a full URL was provided
-    if (phoneNumberId.includes('/') || phoneNumberId.includes('openphone')) {
-      const pnMatch = phoneNumberId.match(/(PN[A-Za-z0-9]+)/);
-      if (pnMatch) phoneNumberId = pnMatch[1];
+    // Load existing openphone_message_ids to skip duplicates
+    const existingIds = new Set<string>();
+    let offset = 0;
+    while (true) {
+      const { data: batch } = await supabase
+        .from('sms_messages')
+        .select('openphone_message_id')
+        .eq('organization_id', organizationId)
+        .not('openphone_message_id', 'is', null)
+        .range(offset, offset + 999);
+      if (!batch || batch.length === 0) break;
+      for (const m of batch) if (m.openphone_message_id) existingIds.add(m.openphone_message_id);
+      if (batch.length < 1000) break;
+      offset += 1000;
+    }
+    console.log(`[backfill] ${existingIds.size} existing messages in DB`);
+
+    // Load local contacts for name resolution (one query, cached)
+    const [customersRes, leadsRes, staffRes] = await Promise.all([
+      supabase.from('customers').select('id, first_name, last_name, phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('leads').select('id, name, phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('staff').select('id, name, phone').eq('organization_id', organizationId).not('phone', 'is', null),
+    ]);
+
+    const contactLookup = new Map<string, { name: string; customerId: string | null }>();
+    for (const c of customersRes.data || []) {
+      if (c.phone) contactLookup.set(normalizePhoneDigits(c.phone), { name: `${c.first_name} ${c.last_name}`.trim(), customerId: c.id });
+    }
+    for (const l of leadsRes.data || []) {
+      if (l.phone) {
+        const key = normalizePhoneDigits(l.phone);
+        if (!contactLookup.has(key)) contactLookup.set(key, { name: l.name, customerId: null });
+      }
+    }
+    for (const s of staffRes.data || []) {
+      if (s.phone) {
+        const key = normalizePhoneDigits(s.phone);
+        if (!contactLookup.has(key)) contactLookup.set(key, { name: s.name, customerId: null });
+      }
     }
 
-    console.log(`[backfill] Using phoneNumberId: ${phoneNumberId}`);
-
-    // Step 1: List all conversations from OpenPhone to get participant phone numbers
+    // Fetch conversations from OpenPhone (limited pages to stay within timeout)
+    const MAX_CONV_PAGES = 5; // ~500 conversations max per run
     const allConversations: any[] = [];
-    let nextPageToken: string | null = null;
+    let nextPageToken: string | null = resumeToken || null;
     let pageCount = 0;
+    let isFirstPage = !resumeToken;
 
     do {
       const url = new URL('https://api.openphone.com/v1/conversations');
       url.searchParams.set('phoneNumbers', phoneNumberId);
       url.searchParams.set('maxResults', '100');
-      if (nextPageToken) {
-        url.searchParams.set('pageToken', nextPageToken);
-      }
-
-      console.log(`[backfill] Fetching conversations page ${pageCount + 1}...`);
+      if (nextPageToken) url.searchParams.set('pageToken', nextPageToken);
 
       const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[backfill] OpenPhone conversations API error: ${response.status} - ${errorText}`);
-        return new Response(
-          JSON.stringify({ success: false, error: `OpenPhone API error: ${response.status}` }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        console.error(`[backfill] Conversations API error: ${response.status} - ${errorText}`);
+        return new Response(JSON.stringify({ success: false, error: `OpenPhone API error: ${response.status}` }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const data = await response.json();
-      const conversations = data.data || [];
-      allConversations.push(...conversations);
+      allConversations.push(...(data.data || []));
       nextPageToken = data.nextPageToken || null;
       pageCount++;
+    } while (nextPageToken && pageCount < MAX_CONV_PAGES);
 
-      console.log(`[backfill] Conversations page ${pageCount}: got ${conversations.length} (total: ${allConversations.length})`);
-
-      if (pageCount >= 20) break;
-    } while (nextPageToken);
-
-    console.log(`[backfill] Total conversations from OpenPhone: ${allConversations.length}`);
-
-    // Get existing openphone_message_ids to avoid duplicates
-    const existingIds = new Set<string>();
-    const { data: existingMessages } = await supabase
-      .from('sms_messages')
-      .select('openphone_message_id')
-      .eq('organization_id', organizationId)
-      .not('openphone_message_id', 'is', null);
-
-    if (existingMessages) {
-      for (const msg of existingMessages) {
-        if (msg.openphone_message_id) existingIds.add(msg.openphone_message_id);
-      }
-    }
-
-    console.log(`[backfill] Existing messages in DB: ${existingIds.size}`);
+    console.log(`[backfill] Fetched ${allConversations.length} conversations (${pageCount} pages)`);
 
     let totalInserted = 0;
     let totalSkipped = 0;
     let totalErrors = 0;
 
-    // Step 2: For each conversation, fetch messages using the participants array
+    // Process each conversation - fetch messages & batch insert
     for (const conv of allConversations) {
       const participants: string[] = conv.participants || [];
       if (participants.length === 0) continue;
 
-      // Fetch messages for this conversation's participants
+      // Fetch up to 2 pages of messages per conversation (100 msgs)
       let msgPageToken: string | null = null;
-      let msgPageCount = 0;
+      let msgPage = 0;
+      const convMessages: any[] = [];
 
       do {
         const msgUrl = new URL('https://api.openphone.com/v1/messages');
         msgUrl.searchParams.set('phoneNumberId', phoneNumberId);
-        // Add each participant
-        for (const p of participants) {
-          msgUrl.searchParams.append('participants', p);
-        }
+        for (const p of participants) msgUrl.searchParams.append('participants', p);
         msgUrl.searchParams.set('maxResults', '50');
-        if (msgPageToken) {
-          msgUrl.searchParams.set('pageToken', msgPageToken);
-        }
+        if (msgPageToken) msgUrl.searchParams.set('pageToken', msgPageToken);
 
         const msgResponse = await fetch(msgUrl.toString(), {
-          headers: {
-            'Authorization': apiKey,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
         });
 
         if (!msgResponse.ok) {
-          const errText = await msgResponse.text();
-          console.error(`[backfill] Messages API error for ${participants.join(',')}: ${msgResponse.status} - ${errText}`);
+          console.error(`[backfill] Messages API error for ${participants.join(',')}: ${msgResponse.status}`);
+          await msgResponse.text(); // consume body
           totalErrors++;
           break;
         }
 
         const msgData = await msgResponse.json();
-        const messages = msgData.data || [];
+        convMessages.push(...(msgData.data || []));
         msgPageToken = msgData.nextPageToken || null;
-        msgPageCount++;
+        msgPage++;
+      } while (msgPageToken && msgPage < 2);
 
-        // Process messages
-        for (const msg of messages) {
-          // Skip non-SMS or empty
-          if (msg.object !== 'message' || !msg.body) continue;
-          if (existingIds.has(msg.id)) {
-            totalSkipped++;
-            continue;
-          }
+      // Filter to new SMS messages only
+      const newMessages = convMessages.filter(msg =>
+        msg.object === 'message' && msg.body && !existingIds.has(msg.id)
+      );
 
-          const direction = msg.direction === 'incoming' || msg.direction === 'inbound' ? 'inbound' : 'outbound';
-          const rawCustomerPhone = direction === 'inbound' ? msg.from : msg.to;
-          let customerPhone: string;
-          if (Array.isArray(rawCustomerPhone)) {
-            customerPhone = rawCustomerPhone[0] || '';
-          } else if (typeof rawCustomerPhone === 'string' && rawCustomerPhone.includes(',')) {
-            customerPhone = rawCustomerPhone.split(',')[0].trim();
-          } else {
-            customerPhone = rawCustomerPhone || '';
-          }
+      if (newMessages.length === 0) {
+        totalSkipped += convMessages.length;
+        continue;
+      }
 
-          if (!customerPhone) {
-            totalErrors++;
-            continue;
-          }
+      // Determine the customer phone for this conversation
+      // Use first participant that isn't our phone number
+      const firstMsg = newMessages[0];
+      const direction0 = firstMsg.direction === 'incoming' || firstMsg.direction === 'inbound' ? 'inbound' : 'outbound';
+      const rawPhone = direction0 === 'inbound' ? firstMsg.from : firstMsg.to;
+      let customerPhone: string;
+      if (Array.isArray(rawPhone)) customerPhone = rawPhone[0] || '';
+      else if (typeof rawPhone === 'string' && rawPhone.includes(',')) customerPhone = rawPhone.split(',')[0].trim();
+      else customerPhone = rawPhone || '';
 
-          // Find or create conversation in DB
-          let { data: dbConversation } = await supabase
-            .from('sms_conversations')
-            .select('id, customer_name')
-            .eq('organization_id', organizationId)
-            .eq('customer_phone', customerPhone)
-            .maybeSingle();
+      if (!customerPhone) { totalErrors++; continue; }
 
-          if (!dbConversation) {
-            const localContact = await findLocalContactName(supabase, organizationId, customerPhone);
+      // Find or create DB conversation
+      let { data: dbConv } = await supabase
+        .from('sms_conversations')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('customer_phone', customerPhone)
+        .maybeSingle();
 
-            const { data: newConv, error: convError } = await supabase
-              .from('sms_conversations')
-              .insert({
-                organization_id: organizationId,
-                customer_phone: customerPhone,
-                customer_name: localContact.name,
-                customer_id: localContact.customerId,
-                last_message_at: msg.createdAt || new Date().toISOString(),
-                conversation_type: 'client',
-              })
-              .select('id, customer_name')
-              .single();
+      if (!dbConv) {
+        const contact = contactLookup.get(normalizePhoneDigits(customerPhone));
+        const { data: newConv, error: convErr } = await supabase
+          .from('sms_conversations')
+          .insert({
+            organization_id: organizationId,
+            customer_phone: customerPhone,
+            customer_name: contact?.name || null,
+            customer_id: contact?.customerId || null,
+            last_message_at: newMessages[0].createdAt || new Date().toISOString(),
+            conversation_type: 'client',
+          })
+          .select('id')
+          .single();
 
-            if (convError) {
-              console.error(`[backfill] Error creating conversation for ${customerPhone}:`, convError);
-              totalErrors++;
-              continue;
-            }
-            dbConversation = newConv;
-          }
+        if (convErr) { console.error(`[backfill] Conv create error:`, convErr); totalErrors++; continue; }
+        dbConv = newConv;
+      }
 
-          // Insert message
-          const { error: insertError } = await supabase
-            .from('sms_messages')
-            .insert({
-              conversation_id: dbConversation!.id,
-              organization_id: organizationId,
-              direction: direction,
-              content: msg.body,
-              status: direction === 'inbound' ? 'received' : 'sent',
-              openphone_message_id: msg.id,
-              sent_at: msg.createdAt || new Date().toISOString(),
-            });
+      // Batch insert messages
+      const rows = newMessages.map(msg => {
+        const dir = msg.direction === 'incoming' || msg.direction === 'inbound' ? 'inbound' : 'outbound';
+        return {
+          conversation_id: dbConv!.id,
+          organization_id: organizationId,
+          direction: dir,
+          content: msg.body,
+          status: dir === 'inbound' ? 'received' : 'sent',
+          openphone_message_id: msg.id,
+          sent_at: msg.createdAt || new Date().toISOString(),
+        };
+      });
 
-          if (insertError) {
-            if (insertError.code === '23505') {
-              totalSkipped++;
-            } else {
-              console.error(`[backfill] Error inserting message ${msg.id}:`, insertError);
-              totalErrors++;
-            }
-            continue;
-          }
-
-          existingIds.add(msg.id);
-          totalInserted++;
-        }
-
-        // Limit pages per conversation
-        if (msgPageCount >= 10) break;
-      } while (msgPageToken);
-    }
-
-    // Update conversation timestamps
-    const { data: convos } = await supabase
-      .from('sms_conversations')
-      .select('id')
-      .eq('organization_id', organizationId);
-
-    if (convos) {
-      for (const conv of convos) {
-        const { data: latestMsg } = await supabase
+      // Insert in batches of 50
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i + 50);
+        const { error: insertErr, data: inserted } = await supabase
           .from('sms_messages')
-          .select('sent_at')
-          .eq('conversation_id', conv.id)
-          .order('sent_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .upsert(batch, { onConflict: 'openphone_message_id', ignoreDuplicates: true })
+          .select('id');
 
-        if (latestMsg) {
-          await supabase
-            .from('sms_conversations')
-            .update({ last_message_at: latestMsg.sent_at })
-            .eq('id', conv.id);
+        if (insertErr) {
+          console.error(`[backfill] Batch insert error:`, insertErr);
+          totalErrors += batch.length;
+        } else {
+          const count = inserted?.length || batch.length;
+          totalInserted += count;
+          for (const msg of batch) existingIds.add(msg.openphone_message_id);
         }
+      }
+
+      // Update conversation timestamp to latest message
+      const latestTime = newMessages.reduce((max, m) => {
+        const t = m.createdAt || '';
+        return t > max ? t : max;
+      }, '');
+      if (latestTime) {
+        await supabase.from('sms_conversations').update({ last_message_at: latestTime }).eq('id', dbConv!.id);
       }
     }
 
@@ -349,21 +266,19 @@ const handler = async (req: Request): Promise<Response> => {
       inserted: totalInserted,
       skipped: totalSkipped,
       errors: totalErrors,
+      nextPageToken: nextPageToken || null, // null means complete
+      hasMore: !!nextPageToken,
     };
 
     console.log(`[backfill] Complete:`, summary);
 
-    return new Response(
-      JSON.stringify(summary),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify(summary),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[backfill] Error:", errorMessage);
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 };
 

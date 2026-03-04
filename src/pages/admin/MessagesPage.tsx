@@ -132,19 +132,36 @@ export default function MessagesPage() {
   const handleSyncMessages = async () => {
     if (!organizationId || syncing) return;
     setSyncing(true);
+    let totalInserted = 0;
+    let pageToken: string | null = null;
+    let runCount = 0;
+    const MAX_RUNS = 10; // Safety limit
+
     try {
-      const { data, error } = await supabase.functions.invoke('backfill-openphone-messages', {
-        body: { organizationId },
-      });
-      if (error) throw error;
-      if (data?.success) {
-        toast.success(`Synced ${data.inserted} new messages (${data.skipped} already existed)`);
-        await fetchConversations();
-        if (selectedConversation) {
-          await fetchMessages(selectedConversation.id);
+      do {
+        runCount++;
+        toast.info(`Syncing messages${runCount > 1 ? ` (batch ${runCount})` : ''}...`);
+        
+        const { data, error } = await supabase.functions.invoke('backfill-openphone-messages', {
+          body: { organizationId, pageToken },
+        });
+        if (error) throw error;
+        if (!data?.success) {
+          toast.error(data?.error || 'Failed to sync messages');
+          break;
         }
-      } else {
-        toast.error(data?.error || 'Failed to sync messages');
+
+        totalInserted += data.inserted || 0;
+        pageToken = data.nextPageToken || null;
+
+        // If there's more data, continue automatically
+        if (!data.hasMore) break;
+      } while (pageToken && runCount < MAX_RUNS);
+
+      toast.success(`Synced ${totalInserted} new messages`);
+      await fetchConversations();
+      if (selectedConversation) {
+        await fetchMessages(selectedConversation.id);
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to sync messages');
