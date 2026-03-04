@@ -52,7 +52,7 @@ import { MessageTemplatesPicker } from '@/components/admin/MessageTemplatesPicke
 import { EmailTemplateLibrary } from '@/components/admin/EmailTemplateLibrary';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
-import { BookOpen, Filter, Download } from 'lucide-react';
+import { BookOpen, Filter } from 'lucide-react';
 
 interface Conversation {
   id: string;
@@ -123,56 +123,12 @@ export default function MessagesPage() {
   const [contentSearchResults, setContentSearchResults] = useState<Set<string> | null>(null);
   const [searchingContent, setSearchingContent] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const handleSyncMessages = async () => {
-    if (!organizationId || syncing) return;
-    setSyncing(true);
-    let totalInserted = 0;
-    let pageToken: string | null = null;
-    let runCount = 0;
-    const MAX_RUNS = 50; // Each run processes ~50 conversations
-
-    try {
-      toast.info('Starting message sync...');
-      do {
-        runCount++;
-        
-        const { data, error } = await supabase.functions.invoke('backfill-openphone-messages', {
-          body: { organizationId, pageToken },
-        });
-        if (error) throw error;
-        if (!data?.success) {
-          toast.error(data?.error || 'Failed to sync messages');
-          break;
-        }
-
-        totalInserted += data.inserted || 0;
-        pageToken = data.nextPageToken || null;
-
-        // Show progress every batch
-        if (data.inserted > 0) {
-          toast.info(`Synced ${totalInserted} messages so far (batch ${runCount})...`);
-        }
-
-        if (!data.hasMore) break;
-      } while (pageToken && runCount < MAX_RUNS);
-
-      toast.success(`Done! Synced ${totalInserted} new messages in ${runCount} batch${runCount > 1 ? 'es' : ''}`);
-      await fetchConversations();
-      if (selectedConversation) {
-        await fetchMessages(selectedConversation.id);
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to sync messages');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   // Pull-to-refresh for conversations
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
@@ -912,9 +868,7 @@ export default function MessagesPage() {
       subtitle="Text & email your customers"
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleSyncMessages} disabled={syncing} title="Sync messages from OpenPhone">
-            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          </Button>
+          
           <Button variant="outline" size="icon" onClick={fetchConversations}>
             <RefreshCw className="h-4 w-4" />
           </Button>
