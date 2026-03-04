@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, RotateCcw, Loader2 } from 'lucide-react';
 import { CustomerSearchInput } from '@/components/admin/CustomerSearchInput';
+import { EditCustomerDialog } from '@/components/admin/EditCustomerDialog';
 import { useBookingForm } from '../BookingFormContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -49,6 +50,7 @@ export function CustomerStep() {
   const { organizationId } = useOrgId();
   const [lastBooking, setLastBooking] = useState<LastBookingInfo | null>(null);
   const [loadingLast, setLoadingLast] = useState(false);
+  const [editCustomerId, setEditCustomerId] = useState<string | null>(null);
 
   // Fetch last booking when customer changes
   useEffect(() => {
@@ -141,6 +143,7 @@ export function CustomerStep() {
                 customers={customers || []}
                 selectedCustomerId={selectedCustomerId}
                 onSelectCustomer={setSelectedCustomerId}
+                onEditCustomer={(id) => setEditCustomerId(id)}
                 placeholder="Type to search customers..."
               />
 
@@ -228,6 +231,11 @@ export function CustomerStep() {
           </Tabs>
         </CardContent>
       </Card>
+      <EditCustomerDialog
+        open={!!editCustomerId}
+        onOpenChange={(open) => { if (!open) setEditCustomerId(null); }}
+        customer={(customers || []).find(c => c.id === editCustomerId) || null}
+      />
     </div>
   );
 }

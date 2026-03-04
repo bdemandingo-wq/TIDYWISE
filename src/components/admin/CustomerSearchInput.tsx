@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Search, User, X } from 'lucide-react';
+import { Search, User, X, Pencil } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -15,6 +15,7 @@ interface CustomerSearchInputProps {
   customers: Customer[];
   selectedCustomerId: string;
   onSelectCustomer: (customerId: string) => void;
+  onEditCustomer?: (customerId: string) => void;
   placeholder?: string;
   className?: string;
 }
@@ -23,6 +24,7 @@ export function CustomerSearchInput({
   customers,
   selectedCustomerId,
   onSelectCustomer,
+  onEditCustomer,
   placeholder = "Search customers...",
   className
 }: CustomerSearchInputProps) {
@@ -121,6 +123,16 @@ export function CustomerSearchInput({
               {selectedCustomer.email}
             </p>
           </div>
+          {onEditCustomer && (
+            <button
+              type="button"
+              onClick={() => onEditCustomer(selectedCustomer.id)}
+              className="p-1 hover:bg-background rounded-full transition-colors"
+              title="Edit customer"
+            >
+              <Pencil className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleClearSelection}
