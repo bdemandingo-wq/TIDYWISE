@@ -38,7 +38,7 @@ interface StaffWithPayroll {
   ytdEarnings: number;
   requiresTaxFiling: boolean;
   upcomingBookings: number;
-  completedCleans: number;
+  assignedCleans: number;
   avgPayPerClean: number;
 }
 
@@ -184,12 +184,12 @@ export default function PayrollPage() {
       if (!organizationId) return [];
       const toEndOfDay = new Date(dateRange.to);
       toEndOfDay.setHours(23, 59, 59, 999);
-      // Get all team assignments for bookings in the date range
+      // Get all team assignments for bookings in the date range (exclude cancelled)
       const { data: bookingIds } = await supabase
         .from('bookings')
         .select('id')
         .eq('organization_id', organizationId)
-        .eq('status', 'completed')
+        .neq('status', 'cancelled')
         .gte('scheduled_at', dateRange.from.toISOString())
         .lte('scheduled_at', toEndOfDay.toISOString());
       if (!bookingIds?.length) return [];
@@ -295,8 +295,8 @@ export default function PayrollPage() {
     const entries: { booking: any; pay: number; hours: number }[] = [];
     const staffMember = staff.find((s) => s.id === staffId);
 
-    // Primary staff bookings (staff_id on booking)
-    const primaryBookings = bookingList.filter((b: any) => b.staff_id === staffId && b.status === 'completed');
+    // Primary staff bookings (staff_id on booking) — all non-cancelled
+    const primaryBookings = bookingList.filter((b: any) => b.staff_id === staffId && b.status !== 'cancelled');
     for (const b of primaryBookings) {
       // Check if there's a team assignment for this staff on this booking
       const assignment = assignmentList.find((a: any) => a.booking_id === b.id && a.staff_id === staffId);
@@ -309,7 +309,7 @@ export default function PayrollPage() {
     // Team member bookings (not primary, assigned via booking_team_assignments)
     const teamEntries = assignmentList.filter((a: any) => a.staff_id === staffId && !primaryBookings.find((b: any) => b.id === a.booking_id));
     for (const a of teamEntries) {
-      const booking = bookingList.find((b: any) => b.id === a.booking_id && b.status === 'completed');
+      const booking = bookingList.find((b: any) => b.id === a.booking_id && b.status !== 'cancelled');
       if (!booking) continue;
       const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
       const wageInfo = calcWage(booking, staffMember, payShareOverride);
@@ -322,9 +322,9 @@ export default function PayrollPage() {
   // Detailed booking payroll breakdown
   const bookingPayrollDetails: BookingPayrollDetail[] = useMemo(() => {
     const details: BookingPayrollDetail[] = [];
-    const completedBookings = bookings.filter((b: any) => b.status === 'completed' && b.staff_id);
+    const assignedBookings = bookings.filter((b: any) => b.status !== 'cancelled' && b.staff_id);
 
-    for (const b of completedBookings) {
+    for (const b of assignedBookings) {
       const staffMember = staff.find((s) => s.id === b.staff_id);
       // Find team assignments for this booking
       const assignments = teamAssignments.filter((a: any) => a.booking_id === b.id);
@@ -401,8 +401,8 @@ export default function PayrollPage() {
       const upcomingBookings = upcomingPrimary + upcomingTeam;
 
       const requiresTaxFiling = s.tax_classification === '1099' && ytdEarnings >= 600;
-      const completedCleans = entries.length;
-      const avgPayPerClean = completedCleans > 0 ? totalPay / completedCleans : 0;
+      const assignedCleans = entries.length;
+      const avgPayPerClean = assignedCleans > 0 ? totalPay / assignedCleans : 0;
 
       return {
         id: s.id,
@@ -416,7 +416,7 @@ export default function PayrollPage() {
         ytdEarnings: Math.round(ytdEarnings * 100) / 100,
         requiresTaxFiling,
         upcomingBookings,
-        completedCleans,
+        assignedCleans,
         avgPayPerClean: Math.round(avgPayPerClean * 100) / 100,
       };
     });
@@ -425,19 +425,19 @@ export default function PayrollPage() {
   // Summary stats
   const totalPayroll = payrollData.reduce((sum, s) => sum + s.totalPay, 0);
   const totalHours = payrollData.reduce((sum, s) => sum + s.totalHours, 0);
-  const totalCleans = payrollData.reduce((sum, s) => sum + s.completedCleans, 0);
+  const totalCleans = payrollData.reduce((sum, s) => sum + s.assignedCleans, 0);
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
 
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours Worked', 'Cleans Completed', 'Period Pay', 'Avg Pay/Clean', 'YTD Earnings'];
+    const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours', 'Assigned Cleans', 'Period Pay', 'Avg Pay/Clean', 'YTD Earnings'];
     const rows = payrollData.map((s) => [
       s.name,
       s.email,
       s.tax_classification === 'w2' ? 'W-2 Employee' : '1099 Contractor',
       s.base_wage || s.hourly_rate || 0,
       s.totalHours,
-      s.completedCleans,
+      s.assignedCleans,
       s.totalPay,
       s.avgPayPerClean,
       s.ytdEarnings,
@@ -547,10 +547,10 @@ export default function PayrollPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-500/10">
-                <Briefcase className="w-5 h-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Cleans Completed</p>
+                 <Briefcase className="w-5 h-5 text-green-500" />
+               </div>
+               <div>
+                 <p className="text-sm text-muted-foreground">Assigned Cleans</p>
                 <p className="text-2xl font-bold">{isTestMode ? 'XX' : totalCleans}</p>
               </div>
             </div>
@@ -655,7 +655,7 @@ export default function PayrollPage() {
                       <TableCell>
                         {isTestMode ? '$XX.XX/hr' : `$${(staff.base_wage || staff.hourly_rate || 0).toFixed(2)}/hr`}
                       </TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X' : staff.completedCleans}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X' : staff.assignedCleans}</TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.X' : staff.totalHours}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
                         {isTestMode ? '$XXX.XX' : `$${staff.totalPay.toFixed(2)}`}
@@ -775,7 +775,7 @@ export default function PayrollPage() {
                   {bookingPayrollDetails.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No completed bookings with assigned staff for this period
+                        No bookings with assigned staff for this period
                       </TableCell>
                     </TableRow>
                   )}
