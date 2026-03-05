@@ -88,10 +88,13 @@ export function BulkEditCleanerWages() {
     const customerName = booking.customer
       ? `${booking.customer.first_name} ${booking.customer.last_name}`.toLowerCase()
       : '';
+    const cleanerName = booking.staff?.name?.toLowerCase() || '';
     const bookingNum = booking.booking_number.toString();
+    const term = searchTerm.toLowerCase();
     return (
-      customerName.includes(searchTerm.toLowerCase()) ||
-      bookingNum.includes(searchTerm)
+      customerName.includes(term) ||
+      cleanerName.includes(term) ||
+      bookingNum.includes(term)
     );
   });
 
@@ -365,7 +368,7 @@ export function BulkEditCleanerWages() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by customer name or booking #..."
+          placeholder="Search by customer name, cleaner name, or booking #..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
