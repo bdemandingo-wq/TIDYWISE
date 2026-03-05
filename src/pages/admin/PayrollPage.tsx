@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek } from 'date-fns';
-import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check } from 'lucide-react';
+import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, AlertCircle, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -40,6 +40,7 @@ interface StaffWithPayroll {
   upcomingBookings: number;
   assignedCleans: number;
   avgPayPerClean: number;
+  missingPayCount: number;
 }
 
 interface BookingPayrollDetail {
@@ -55,6 +56,8 @@ interface BookingPayrollDetail {
   actual_pay: number | null;
   staff_id: string;
   staff_name: string;
+  missingPay: boolean;
+  missingHours: boolean;
 }
 
 export default function PayrollPage() {
@@ -62,6 +65,7 @@ export default function PayrollPage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const [showMissingPayOnly, setShowMissingPayOnly] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
   const { organizationId } = useOrgId();
@@ -298,28 +302,26 @@ export default function PayrollPage() {
 
   // Helper: get all pay entries for a staff member across primary + team roles
   const getStaffPayEntries = (staffId: string, bookingList: any[], assignmentList: any[]) => {
-    const entries: { booking: any; pay: number; hours: number }[] = [];
+    const entries: { booking: any; pay: number; hours: number; missingPay: boolean }[] = [];
     const staffMember = staff.find((s) => s.id === staffId);
 
-    // Primary staff bookings (staff_id on booking) — all non-cancelled
     const primaryBookings = bookingList.filter((b: any) => b.staff_id === staffId && b.status !== 'cancelled');
     for (const b of primaryBookings) {
-      // Check if there's a team assignment for this staff on this booking
       const assignment = assignmentList.find((a: any) => a.booking_id === b.id && a.staff_id === staffId);
-      // If assignment exists and has a pay_share set, use it; otherwise use booking-level wage calc
       const payShareOverride = assignment?.pay_share != null ? Number(assignment.pay_share) : null;
       const wageInfo = calcWage(b, staffMember, payShareOverride);
-      entries.push({ booking: b, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
+      const missingPay = wageInfo.calculatedPay === 0 && b.cleaner_pay_expected == null && b.cleaner_actual_payment == null;
+      entries.push({ booking: b, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked, missingPay });
     }
 
-    // Team member bookings (not primary, assigned via booking_team_assignments)
     const teamEntries = assignmentList.filter((a: any) => a.staff_id === staffId && !primaryBookings.find((b: any) => b.id === a.booking_id));
     for (const a of teamEntries) {
       const booking = bookingList.find((b: any) => b.id === a.booking_id && b.status !== 'cancelled');
       if (!booking) continue;
       const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
       const wageInfo = calcWage(booking, staffMember, payShareOverride);
-      entries.push({ booking, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
+      const missingPay = wageInfo.calculatedPay === 0 && booking.cleaner_pay_expected == null && booking.cleaner_actual_payment == null;
+      entries.push({ booking, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked, missingPay });
     }
 
     return entries;
@@ -341,6 +343,8 @@ export default function PayrollPage() {
           const member = staff.find((s) => s.id === a.staff_id);
           const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
           const wageInfo = calcWage(b, member, payShareOverride);
+          const isMissingPay = wageInfo.calculatedPay === 0 && b.cleaner_pay_expected == null;
+          const isMissingHours = (b.cleaner_wage_type || wageInfo.wageType) === 'hourly' && !b.cleaner_override_hours && !b.cleaner_checkin_at;
           details.push({
             id: `${b.id}-${a.staff_id}`,
             booking_number: b.booking_number,
@@ -354,11 +358,15 @@ export default function PayrollPage() {
             actual_pay: wageInfo.actualPay,
             staff_id: a.staff_id,
             staff_name: member?.name || staffMember?.name || 'Unassigned',
+            missingPay: isMissingPay,
+            missingHours: isMissingHours,
           });
         }
       } else {
         // Single cleaner
         const wageInfo = calcWage(b, staffMember);
+        const isMissingPay = wageInfo.calculatedPay === 0 && b.cleaner_pay_expected == null;
+        const isMissingHours = (b.cleaner_wage_type || wageInfo.wageType) === 'hourly' && !b.cleaner_override_hours && !b.cleaner_checkin_at;
         details.push({
           id: b.id,
           booking_number: b.booking_number,
@@ -372,6 +380,8 @@ export default function PayrollPage() {
           actual_pay: wageInfo.actualPay,
           staff_id: b.staff_id,
           staff_name: staffMember?.name || 'Unassigned',
+          missingPay: isMissingPay,
+          missingHours: isMissingHours,
         });
       }
     }
@@ -379,9 +389,15 @@ export default function PayrollPage() {
   }, [bookings, staff, teamAssignments]);
 
   const filteredBookingPayrollDetails = useMemo(() => {
-    if (staffFilterId === 'all') return bookingPayrollDetails;
-    return bookingPayrollDetails.filter((d) => d.staff_id === staffFilterId);
-  }, [bookingPayrollDetails, staffFilterId]);
+    let filtered = bookingPayrollDetails;
+    if (staffFilterId !== 'all') {
+      filtered = filtered.filter((d) => d.staff_id === staffFilterId);
+    }
+    if (showMissingPayOnly) {
+      filtered = filtered.filter((d) => d.missingPay || d.missingHours);
+    }
+    return filtered;
+  }, [bookingPayrollDetails, staffFilterId, showMissingPayOnly]);
 
   // Calculate payroll data - include ALL staff, even those without bookings
   // Correctly accounts for both primary staff and team member assignments
@@ -409,6 +425,7 @@ export default function PayrollPage() {
       const requiresTaxFiling = s.tax_classification === '1099' && ytdEarnings >= 600;
       const assignedCleans = entries.length;
       const avgPayPerClean = assignedCleans > 0 ? totalPay / assignedCleans : 0;
+      const missingPayCount = entries.filter(e => e.missingPay).length;
 
       return {
         id: s.id,
@@ -424,6 +441,7 @@ export default function PayrollPage() {
         upcomingBookings,
         assignedCleans,
         avgPayPerClean: Math.round(avgPayPerClean * 100) / 100,
+        missingPayCount,
       };
     });
   }, [staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments]);
@@ -434,6 +452,7 @@ export default function PayrollPage() {
   const totalCleans = payrollData.reduce((sum, s) => sum + s.assignedCleans, 0);
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
+  const totalMissingPay = bookingPayrollDetails.filter(d => d.missingPay).length;
 
   const exportCSV = () => {
     const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours', 'Assigned Cleans', 'Period Pay', 'Avg Pay/Clean', 'YTD Earnings'];
@@ -613,6 +632,32 @@ export default function PayrollPage() {
         </Card>
       )}
 
+      {/* Missing Pay Alert Banner */}
+      {totalMissingPay > 0 && (
+        <Card className="mb-6 border-destructive/50 bg-destructive/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive">Missing Pay Data</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {totalMissingPay} booking(s) have assigned staff but no pay rate set.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setShowMissingPayOnly(true)}
+              >
+                <ExternalLink className="w-3 h-3 mr-1" />
+                View
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs for Summary and Details */}
       <Tabs defaultValue="summary" className="space-y-4">
         <TabsList>
@@ -661,7 +706,16 @@ export default function PayrollPage() {
                       <TableCell>
                         {isTestMode ? '$XX.XX/hr' : `$${(staff.base_wage || staff.hourly_rate || 0).toFixed(2)}/hr`}
                       </TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X' : staff.assignedCleans}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {isTestMode ? 'X' : staff.assignedCleans}
+                          {staff.missingPayCount > 0 && (
+                            <Badge variant="destructive" className="text-[10px] px-1 py-0 ml-1">
+                              {staff.missingPayCount} missing
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.X' : staff.totalHours}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
                         {isTestMode ? '$XXX.XX' : `$${staff.totalPay.toFixed(2)}`}
@@ -741,6 +795,15 @@ export default function PayrollPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant={showMissingPayOnly ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowMissingPayOnly(!showMissingPayOnly)}
+                  className="gap-1"
+                >
+                  <AlertCircle className="w-3 h-3" />
+                  Missing Pay {totalMissingPay > 0 && `(${totalMissingPay})`}
+                </Button>
               </div>
               <Table>
                 <TableHeader>
@@ -757,14 +820,21 @@ export default function PayrollPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredBookingPayrollDetails.map((b) => (
-                    <TableRow key={b.id}>
+                    <TableRow key={b.id} className={b.missingPay ? 'bg-destructive/5' : ''}>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(b.scheduled_at), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>#{b.booking_number}</TableCell>
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>
                       <TableCell>{maskName(b.customer_name)}</TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {b.missingHours && (
+                            <span className="inline-block" aria-label="Hours estimated from duration"><AlertCircle className="w-3 h-3 text-amber-500" /></span>
+                          )}
+                          {isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
                           {b.wage_type}
@@ -773,15 +843,23 @@ export default function PayrollPage() {
                       <TableCell className="text-right">
                         {isTestMode ? '$XX.XX' : (b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate.toFixed(2)}`)}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {isTestMode ? '$XXX.XX' : `$${b.calculated_pay.toFixed(2)}`}
+                      <TableCell className="text-right font-medium">
+                        {b.missingPay ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Missing Pay
+                          </Badge>
+                        ) : (
+                          <span className="text-green-600">
+                            {isTestMode ? '$XXX.XX' : `$${b.calculated_pay.toFixed(2)}`}
+                          </span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
-                  {bookingPayrollDetails.length === 0 && (
+                  {filteredBookingPayrollDetails.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No bookings with assigned staff for this period
+                        {showMissingPayOnly ? 'No bookings with missing pay 🎉' : 'No bookings with assigned staff for this period'}
                       </TableCell>
                     </TableRow>
                   )}
