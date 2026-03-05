@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek } from 'date-fns';
-import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, AlertCircle, ExternalLink } from 'lucide-react';
+import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, AlertCircle, ExternalLink, TrendingUp, TrendingDown, Percent, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -454,6 +454,51 @@ export default function PayrollPage() {
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const totalMissingPay = bookingPayrollDetails.filter(d => d.missingPay).length;
 
+  // --- Financial Intelligence ---
+  const nonCancelledBookings = bookings.filter((b: any) => b.status !== 'cancelled');
+  const totalRevenue = nonCancelledBookings.reduce((sum: number, b: any) => sum + (Number(b.total_amount) || 0), 0);
+  const totalProfit = totalRevenue - totalPayroll;
+  const profitMarginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  const laborCostPct = totalRevenue > 0 ? (totalPayroll / totalRevenue) * 100 : 0;
+  const isLowMargin = profitMarginPct < 30 && totalRevenue > 0;
+
+  // Per-booking profitability for the financial overview tab
+  const bookingProfitability = useMemo(() => {
+    return nonCancelledBookings
+      .filter((b: any) => b.staff_id)
+      .map((b: any) => {
+        const revenue = Number(b.total_amount) || 0;
+        // Sum all labor costs for this booking (team or single)
+        const assignments = teamAssignments.filter((a: any) => a.booking_id === b.id);
+        let laborCost = 0;
+        if (assignments.length > 0) {
+          for (const a of assignments) {
+            const member = staff.find((s) => s.id === a.staff_id);
+            const payShare = a.pay_share != null ? Number(a.pay_share) : null;
+            const wageInfo = calcWage(b, member, payShare);
+            laborCost += wageInfo.calculatedPay;
+          }
+        } else {
+          const staffMember = staff.find((s) => s.id === b.staff_id);
+          const wageInfo = calcWage(b, staffMember);
+          laborCost = wageInfo.calculatedPay;
+        }
+        const profit = revenue - laborCost;
+        const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+        return {
+          id: b.id,
+          booking_number: b.booking_number,
+          customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
+          scheduled_at: b.scheduled_at,
+          revenue,
+          laborCost,
+          profit,
+          margin,
+        };
+      })
+      .sort((a, b) => a.margin - b.margin);
+  }, [nonCancelledBookings, teamAssignments, staff]);
+
   const exportCSV = () => {
     const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours', 'Assigned Cleans', 'Period Pay', 'Avg Pay/Clean', 'YTD Earnings'];
     const rows = payrollData.map((s) => [
@@ -541,7 +586,7 @@ export default function PayrollPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -558,8 +603,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Clock className="w-5 h-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Clock className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Hours</p>
@@ -571,8 +616,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                 <Briefcase className="w-5 h-5 text-green-500" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                 <Briefcase className="w-5 h-5 text-primary" />
                </div>
                <div>
                  <p className="text-sm text-muted-foreground">Assigned Cleans</p>
@@ -584,8 +629,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/10">
-                <Calculator className="w-5 h-5 text-purple-500" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Calculator className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg Pay/Clean</p>
@@ -599,11 +644,11 @@ export default function PayrollPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "p-2 rounded-lg",
-                contractorsNeedingFiling > 0 ? "bg-amber-500/10" : "bg-muted"
+                contractorsNeedingFiling > 0 ? "bg-destructive/10" : "bg-muted"
               )}>
                 <AlertTriangle className={cn(
                   "w-5 h-5",
-                  contractorsNeedingFiling > 0 ? "text-amber-500" : "text-muted-foreground"
+                  contractorsNeedingFiling > 0 ? "text-destructive" : "text-muted-foreground"
                 )} />
               </div>
               <div>
@@ -614,6 +659,85 @@ export default function PayrollPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Financial Intelligence Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-chart-1/10">
+                <BarChart3 className="w-5 h-5 text-chart-1" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Net Revenue</p>
+                <p className="text-xl font-bold">{isTestMode ? '$X,XXX' : `$${totalRevenue.toFixed(2)}`}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-lg", totalProfit >= 0 ? "bg-chart-2/10" : "bg-destructive/10")}>
+                {totalProfit >= 0 ? <TrendingUp className="w-5 h-5 text-chart-2" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Profit</p>
+                <p className={cn("text-xl font-bold", totalProfit >= 0 ? "text-chart-2" : "text-destructive")}>
+                  {isTestMode ? '$X,XXX' : `$${totalProfit.toFixed(2)}`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-lg", isLowMargin ? "bg-destructive/10" : "bg-chart-3/10")}>
+                <Percent className={cn("w-5 h-5", isLowMargin ? "text-destructive" : "text-chart-3")} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Profit Margin</p>
+                <p className={cn("text-xl font-bold", isLowMargin ? "text-destructive" : "text-chart-3")}>
+                  {isTestMode ? 'XX%' : `${profitMarginPct.toFixed(1)}%`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-lg", laborCostPct > 70 ? "bg-destructive/10" : "bg-chart-4/10")}>
+                <DollarSign className={cn("w-5 h-5", laborCostPct > 70 ? "text-destructive" : "text-chart-4")} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Labor Cost %</p>
+                <p className={cn("text-xl font-bold", laborCostPct > 70 ? "text-destructive" : "text-chart-4")}>
+                  {isTestMode ? 'XX%' : `${laborCostPct.toFixed(1)}%`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Margin Warning Banner */}
+      {isLowMargin && (
+        <Card className="mb-6 border-destructive/50 bg-destructive/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <TrendingDown className="w-5 h-5 text-destructive mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-destructive">Low Profit Margin Warning</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Your profit margin is {profitMarginPct.toFixed(1)}% — below the recommended 30% threshold. Review labor costs or adjust pricing.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 1099 Alert Banner */}
       {contractorsNeedingFiling > 0 && (
@@ -663,6 +787,7 @@ export default function PayrollPage() {
         <TabsList>
           <TabsTrigger value="summary">Staff Summary</TabsTrigger>
           <TabsTrigger value="details">Booking Details</TabsTrigger>
+          <TabsTrigger value="profitability">Job Profitability</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary">
@@ -860,6 +985,61 @@ export default function PayrollPage() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         {showMissingPayOnly ? 'No bookings with missing pay 🎉' : 'No bookings with assigned staff for this period'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="profitability">
+          <Card>
+            <CardHeader>
+              <CardTitle>Job Profitability Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Booking #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Labor Cost</TableHead>
+                    <TableHead className="text-right">Profit</TableHead>
+                    <TableHead className="text-right">Margin</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bookingProfitability.map((b) => (
+                    <TableRow key={b.id} className={b.margin < 0 ? 'bg-destructive/5' : b.margin < 30 ? 'bg-amber-50 dark:bg-amber-950/10' : ''}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(b.scheduled_at), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>#{b.booking_number}</TableCell>
+                      <TableCell>{maskName(b.customer_name)}</TableCell>
+                      <TableCell className="text-right">
+                        {isTestMode ? '$XXX' : `$${b.revenue.toFixed(2)}`}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {isTestMode ? '$XXX' : `$${b.laborCost.toFixed(2)}`}
+                      </TableCell>
+                      <TableCell className={cn("text-right font-medium", b.profit >= 0 ? "text-chart-2" : "text-destructive")}>
+                        {isTestMode ? '$XXX' : `$${b.profit.toFixed(2)}`}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={b.margin < 0 ? 'destructive' : b.margin < 30 ? 'secondary' : 'default'}>
+                          {isTestMode ? 'XX%' : `${b.margin.toFixed(0)}%`}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {bookingProfitability.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No bookings with assigned staff for this period
                       </TableCell>
                     </TableRow>
                   )}
