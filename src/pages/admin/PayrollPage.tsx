@@ -247,16 +247,12 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
-  // Wage calculation uses shared utility from lib/wageCalculation.ts
-  // to ensure portal and payroll always match.
-  //
+  // Wage calculation: booking.cleaner_pay_expected is the single source of truth.
   // Priority (highest to lowest):
-  //  1. pay_share on team assignment — most specific per-person override (set via Adjust Pay on team bookings)
-  //  2. cleaner_actual_payment on booking — single-cleaner override
-  //  3. standard wage formula (hourly/flat/percentage)
-  //
-  // pay_share beats cleaner_actual_payment because team bookings save the primary cleaner's
-  // amount into cleaner_actual_payment, which must not overwrite a different team member's pay_share.
+  //  1. pay_share on team assignment — per-person override (team bookings)
+  //  2. booking.cleaner_pay_expected — snapshot computed on save
+  //  3. booking.cleaner_actual_payment — admin override
+  //  4. standard wage formula via calculateBookingWage (fallback to staff defaults)
   const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
     const baseResult = calculateBookingWage(booking, staffMember);
 
@@ -265,12 +261,22 @@ export default function PayrollPage() {
       return {
         calculatedPay: Number(payShareOverride),
         actualPay: Number(payShareOverride),
-        wageType: 'actual',
-        wageRate: Number(payShareOverride),
+        wageType: booking.cleaner_wage_type || 'actual',
+        wageRate: booking.cleaner_wage || Number(payShareOverride),
         hoursWorked: baseResult.hoursWorked,
       };
     }
-    // 2. booking-level cleaner_actual_payment (single cleaner adjusted pay)
+    // 2. booking-level cleaner_pay_expected snapshot (single source of truth)
+    if (booking.cleaner_pay_expected != null && Number(booking.cleaner_pay_expected) > 0) {
+      return {
+        calculatedPay: Number(booking.cleaner_pay_expected),
+        actualPay: Number(booking.cleaner_pay_expected),
+        wageType: booking.cleaner_wage_type || 'hourly',
+        wageRate: booking.cleaner_wage || Number(booking.cleaner_pay_expected),
+        hoursWorked: booking.cleaner_override_hours || baseResult.hoursWorked,
+      };
+    }
+    // 3. booking-level cleaner_actual_payment (admin override)
     if (booking.cleaner_actual_payment != null) {
       return {
         calculatedPay: Number(booking.cleaner_actual_payment),
@@ -280,7 +286,7 @@ export default function PayrollPage() {
         hoursWorked: baseResult.hoursWorked,
       };
     }
-    // 3. standard formula — same as cleaner portal
+    // 4. standard formula — fallback to staff defaults
     return {
       calculatedPay: baseResult.calculatedPay,
       actualPay: null,
@@ -341,9 +347,9 @@ export default function PayrollPage() {
             customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
             scheduled_at: b.scheduled_at,
             duration: b.duration,
-            hours_worked: wageInfo.hoursWorked,
-            wage_type: wageInfo.wageType,
-            wage_rate: wageInfo.wageRate,
+            hours_worked: b.cleaner_override_hours || wageInfo.hoursWorked,
+            wage_type: b.cleaner_wage_type || wageInfo.wageType,
+            wage_rate: b.cleaner_wage || wageInfo.wageRate,
             calculated_pay: wageInfo.calculatedPay,
             actual_pay: wageInfo.actualPay,
             staff_id: a.staff_id,
@@ -359,9 +365,9 @@ export default function PayrollPage() {
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
           scheduled_at: b.scheduled_at,
           duration: b.duration,
-          hours_worked: wageInfo.hoursWorked,
-          wage_type: wageInfo.wageType,
-          wage_rate: wageInfo.wageRate,
+          hours_worked: b.cleaner_override_hours || wageInfo.hoursWorked,
+          wage_type: b.cleaner_wage_type || wageInfo.wageType,
+          wage_rate: b.cleaner_wage || wageInfo.wageRate,
           calculated_pay: wageInfo.calculatedPay,
           actual_pay: wageInfo.actualPay,
           staff_id: b.staff_id,

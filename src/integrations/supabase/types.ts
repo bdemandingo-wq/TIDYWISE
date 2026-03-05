@@ -794,6 +794,7 @@ export type Database = {
           cleaner_checkin_lng: number | null
           cleaner_checkout_at: string | null
           cleaner_override_hours: number | null
+          cleaner_pay_expected: number | null
           cleaner_wage: number | null
           cleaner_wage_type: string | null
           created_at: string
@@ -811,6 +812,8 @@ export type Database = {
           location_id: string | null
           notes: string | null
           organization_id: string | null
+          pay_last_saved_at: string | null
+          pay_locked: boolean | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           recurring_days_of_week: number[] | null
@@ -839,6 +842,7 @@ export type Database = {
           cleaner_checkin_lng?: number | null
           cleaner_checkout_at?: string | null
           cleaner_override_hours?: number | null
+          cleaner_pay_expected?: number | null
           cleaner_wage?: number | null
           cleaner_wage_type?: string | null
           created_at?: string
@@ -856,6 +860,8 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          pay_last_saved_at?: string | null
+          pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           recurring_days_of_week?: number[] | null
@@ -884,6 +890,7 @@ export type Database = {
           cleaner_checkin_lng?: number | null
           cleaner_checkout_at?: string | null
           cleaner_override_hours?: number | null
+          cleaner_pay_expected?: number | null
           cleaner_wage?: number | null
           cleaner_wage_type?: string | null
           created_at?: string
@@ -901,6 +908,8 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          pay_last_saved_at?: string | null
+          pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           recurring_days_of_week?: number[] | null

@@ -594,6 +594,23 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     // Handle "reclean" special case - it's not a real service UUID
     const isReclean = selectedServiceId === 'reclean';
     
+    // Compute cleaner_pay_expected as the snapshot value
+    const parsedWage = cleanerWage ? parseFloat(cleanerWage) : null;
+    const parsedHours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null;
+    let cleanerPayExpected: number | null = null;
+    if (parsedWage && parsedWage > 0) {
+      if (cleanerWageType === 'flat') {
+        cleanerPayExpected = parsedWage;
+      } else if (cleanerWageType === 'percentage') {
+        const baseAmount = totalAmount > 0 ? totalAmount : calculatedPrice;
+        cleanerPayExpected = Math.round((baseAmount * parsedWage) / 100 * 100) / 100;
+      } else {
+        // hourly
+        const hours = parsedHours || ((selectedService?.duration || 60) / 60);
+        cleanerPayExpected = Math.round(parsedWage * hours * 100) / 100;
+      }
+    }
+
     return {
       customer_id: customerId || null,
       service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
@@ -617,9 +634,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       square_footage: squareFootage || null,
       extras: selectedExtras,
       is_draft: isDraft,
-      cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
+      cleaner_wage: parsedWage,
       cleaner_wage_type: cleanerWageType,
-      cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
+      cleaner_override_hours: parsedHours,
+      cleaner_pay_expected: cleanerPayExpected,
+      pay_last_saved_at: cleanerPayExpected != null ? new Date().toISOString() : null,
     };
   };
 
@@ -829,11 +848,12 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           }
         } else if (bookingData.staff_id) {
           // Single staff → one primary assignment
-          // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
+          // Store the computed expected pay (not just the rate) so payroll reads correct values
+          // Use null when no wage is set so booking-level fields remain the source of truth
           await supabase.from('booking_team_assignments').insert({
             booking_id: booking.id,
             staff_id: bookingData.staff_id,
-            pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
+            pay_share: (bookingData as any).cleaner_pay_expected ?? null,
             is_primary: true,
             organization_id: organizationId,
           });
@@ -990,11 +1010,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             }
           } else if (bookingData.staff_id) {
             // Single staff → one primary assignment only
-            // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
+            // Store computed expected pay so payroll reads the correct total, not just the rate
             await supabase.from('booking_team_assignments').insert({
               booking_id: newBooking.id,
               staff_id: bookingData.staff_id,
-              pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
+              pay_share: (bookingData as any).cleaner_pay_expected ?? null,
               is_primary: true,
               organization_id: organizationId,
             });
