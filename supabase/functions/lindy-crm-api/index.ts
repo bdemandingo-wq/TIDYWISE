@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate via API key
     const LINDY_API_KEY = Deno.env.get("LINDY_API_KEY");
     if (!LINDY_API_KEY) {
       console.error("LINDY_API_KEY not configured");
@@ -46,7 +45,6 @@ serve(async (req) => {
       );
     }
 
-    // Use service role for full access
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -75,7 +73,7 @@ serve(async (req) => {
         const { limit = 50, offset = 0, search } = params;
         let query = supabase
           .from("customers")
-          .select("id, first_name, last_name, email, phone, address, city, state, zip_code, is_recurring, source, created_at, notes")
+          .select("id, first_name, last_name, email, phone, address, city, state, zip_code, is_recurring, customer_status, marketing_status, created_at, notes")
           .eq("organization_id", organization_id)
           .order("created_at", { ascending: false })
           .range(offset, offset + limit - 1);
@@ -116,7 +114,7 @@ serve(async (req) => {
             customer_id, staff_id, service_id,
             customers(first_name, last_name, email, phone),
             services(name),
-            staff(first_name, last_name)
+            staff(name)
           `)
           .eq("organization_id", organization_id)
           .order("scheduled_at", { ascending: false })
@@ -143,7 +141,7 @@ serve(async (req) => {
             *,
             customers(first_name, last_name, email, phone),
             services(name, price, duration),
-            staff(first_name, last_name, email, phone)
+            staff(name, email, phone)
           `)
           .eq("id", booking_id)
           .eq("organization_id", organization_id)
@@ -157,10 +155,10 @@ serve(async (req) => {
       case "get_staff": {
         const { data, error } = await supabase
           .from("staff")
-          .select("id, first_name, last_name, email, phone, role, is_active, hourly_rate, created_at")
+          .select("id, name, email, phone, is_active, hourly_rate, created_at")
           .eq("organization_id", organization_id)
           .eq("is_active", true)
-          .order("first_name");
+          .order("name");
 
         if (error) throw error;
         result = { staff: data, count: data?.length || 0 };
@@ -184,7 +182,7 @@ serve(async (req) => {
         const { limit = 50, status } = params;
         let query = supabase
           .from("leads")
-          .select("id, first_name, last_name, email, phone, source, status, notes, created_at")
+          .select("id, name, email, phone, source, status, notes, service_interest, estimated_value, created_at")
           .eq("organization_id", organization_id)
           .order("created_at", { ascending: false })
           .limit(limit);
@@ -213,7 +211,7 @@ serve(async (req) => {
         const { limit = 50, status } = params;
         let query = supabase
           .from("invoices")
-          .select("id, invoice_number, customer_id, amount, status, due_date, created_at, customers(first_name, last_name, email)")
+          .select("id, invoice_number, customer_id, total_amount, subtotal, tax_amount, status, due_date, created_at, customers(first_name, last_name, email)")
           .eq("organization_id", organization_id)
           .order("created_at", { ascending: false })
           .limit(limit);
@@ -229,23 +227,22 @@ serve(async (req) => {
       // ============ WRITE OPERATIONS ============
 
       case "create_customer": {
-        const { first_name, last_name, email, phone, address, city, state, zip_code, notes, source } = params;
-        if (!first_name) throw new Error("Missing first_name");
+        const { first_name, last_name, email, phone, address, city, state, zip_code, notes } = params;
+        if (!first_name || !email) throw new Error("Missing first_name or email");
 
         const { data, error } = await supabase
           .from("customers")
           .insert({
             organization_id,
             first_name: String(first_name).slice(0, 100),
-            last_name: last_name ? String(last_name).slice(0, 100) : null,
-            email: email ? String(email).slice(0, 255) : null,
+            last_name: last_name ? String(last_name).slice(0, 100) : "",
+            email: String(email).slice(0, 255),
             phone: phone ? String(phone).slice(0, 20) : null,
             address: address ? String(address).slice(0, 255) : null,
             city: city ? String(city).slice(0, 100) : null,
             state: state ? String(state).slice(0, 50) : null,
             zip_code: zip_code ? String(zip_code).slice(0, 10) : null,
             notes: notes ? String(notes).slice(0, 2000) : null,
-            source: source ? String(source).slice(0, 50) : "lindy",
           })
           .select()
           .single();
@@ -259,7 +256,7 @@ serve(async (req) => {
         const { customer_id, ...updates } = params;
         if (!customer_id) throw new Error("Missing customer_id");
 
-        const allowedFields = ["first_name", "last_name", "email", "phone", "address", "city", "state", "zip_code", "notes"];
+        const allowedFields = ["first_name", "last_name", "email", "phone", "address", "city", "state", "zip_code", "notes", "customer_status", "marketing_status"];
         const sanitizedUpdates: Record<string, any> = {};
         for (const key of allowedFields) {
           if (updates[key] !== undefined) {
@@ -333,19 +330,19 @@ serve(async (req) => {
       }
 
       case "create_lead": {
-        const { first_name, last_name, email, phone, source, notes } = params;
-        if (!first_name) throw new Error("Missing first_name");
+        const { name, email, phone, source, notes, service_interest } = params;
+        if (!name || !email) throw new Error("Missing name or email");
 
         const { data, error } = await supabase
           .from("leads")
           .insert({
             organization_id,
-            first_name: String(first_name).slice(0, 100),
-            last_name: last_name ? String(last_name).slice(0, 100) : null,
-            email: email ? String(email).slice(0, 255) : null,
+            name: String(name).slice(0, 200),
+            email: String(email).slice(0, 255),
             phone: phone ? String(phone).slice(0, 20) : null,
             source: source ? String(source).slice(0, 50) : "lindy",
             notes: notes ? String(notes).slice(0, 2000) : null,
+            service_interest: service_interest ? String(service_interest).slice(0, 100) : null,
             status: "new",
           })
           .select()
@@ -360,7 +357,7 @@ serve(async (req) => {
         const { lead_id, ...updates } = params;
         if (!lead_id) throw new Error("Missing lead_id");
 
-        const allowedFields = ["first_name", "last_name", "email", "phone", "status", "notes", "source"];
+        const allowedFields = ["name", "email", "phone", "status", "notes", "source", "service_interest"];
         const sanitizedUpdates: Record<string, any> = {};
         for (const key of allowedFields) {
           if (updates[key] !== undefined) {
@@ -389,7 +386,6 @@ serve(async (req) => {
 
         const searchTerm = String(searchQuery).slice(0, 100);
 
-        // Search customers
         const { data: customers } = await supabase
           .from("customers")
           .select("id, first_name, last_name, email, phone")
@@ -397,12 +393,11 @@ serve(async (req) => {
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
           .limit(limit);
 
-        // Search leads
         const { data: leads } = await supabase
           .from("leads")
-          .select("id, first_name, last_name, email, phone, status")
+          .select("id, name, email, phone, status")
           .eq("organization_id", organization_id)
-          .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+          .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
           .limit(limit);
 
         result = { customers: customers || [], leads: leads || [] };
@@ -426,11 +421,11 @@ serve(async (req) => {
             "search - Search customers & leads (params: query, limit)",
           ],
           write_actions: [
-            "create_customer - Create customer (params: first_name, last_name, email, phone, address, city, state, zip_code, notes, source)",
+            "create_customer - Create customer (params: first_name, last_name, email, phone, address, city, state, zip_code, notes)",
             "update_customer - Update customer (params: customer_id, + fields to update)",
             "create_booking - Create booking (params: customer_id, scheduled_at, service_id, staff_id, duration, address, notes, total_amount)",
             "update_booking - Update booking (params: booking_id, + fields to update)",
-            "create_lead - Create lead (params: first_name, last_name, email, phone, source, notes)",
+            "create_lead - Create lead (params: name, email, phone, source, notes, service_interest)",
             "update_lead - Update lead (params: lead_id, + fields to update)",
           ],
           note: "All requests require api_key and organization_id in the body.",
