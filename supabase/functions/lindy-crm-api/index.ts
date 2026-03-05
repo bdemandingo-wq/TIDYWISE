@@ -1114,84 +1114,662 @@ serve(async (req) => {
         break;
       }
 
+      // ============ CAMPAIGNS ============
+
+      case "get_campaigns": {
+        const { type, active_only } = params;
+        let query = supabase
+          .from("automated_campaigns")
+          .select("id, name, subject, body, type, is_active, days_inactive, last_run_at, created_at")
+          .eq("organization_id", organization_id)
+          .order("created_at", { ascending: false });
+
+        if (type) query = query.eq("type", type);
+        if (active_only) query = query.eq("is_active", true);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { campaigns: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "update_campaign": {
+        const { campaign_id, ...updates } = params;
+        if (!campaign_id) throw new Error("Missing campaign_id");
+
+        const allowedFields = ["name", "subject", "body", "type", "is_active", "days_inactive"];
+        const sanitizedUpdates: Record<string, any> = {};
+        for (const key of allowedFields) {
+          if (updates[key] !== undefined) sanitizedUpdates[key] = updates[key];
+        }
+
+        const { data, error } = await supabase
+          .from("automated_campaigns")
+          .update(sanitizedUpdates)
+          .eq("id", campaign_id)
+          .eq("organization_id", organization_id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = { campaign: data, message: "Campaign updated successfully" };
+        break;
+      }
+
+      case "get_campaign_history": {
+        const { campaign_id, limit = 50 } = params;
+
+        const emailQuery = supabase
+          .from("campaign_emails")
+          .select("id, email, status, sent_at, opened_at, clicked_at, customer_id")
+          .eq("organization_id", organization_id)
+          .order("sent_at", { ascending: false })
+          .limit(limit);
+        if (campaign_id) emailQuery.eq("campaign_id", campaign_id);
+
+        const smsQuery = supabase
+          .from("campaign_sms_sends")
+          .select("id, phone_number, message_content, status, sent_at, converted, campaign_type, customer_id")
+          .eq("organization_id", organization_id)
+          .order("sent_at", { ascending: false })
+          .limit(limit);
+        if (campaign_id) smsQuery.eq("campaign_id", campaign_id);
+
+        const [emailRes, smsRes] = await Promise.all([emailQuery, smsQuery]);
+        result = { email_sends: emailRes.data || [], sms_sends: smsRes.data || [] };
+        break;
+      }
+
+      // ============ CHECKLISTS ============
+
+      case "get_checklist_templates": {
+        const { data, error } = await supabase
+          .from("checklist_templates")
+          .select("id, name, description, is_active, is_default, service_id, created_at, checklist_items(id, title, description, requires_photo, sort_order)")
+          .eq("organization_id", organization_id)
+          .order("name");
+
+        if (error) throw error;
+        result = { templates: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "get_booking_checklist": {
+        const { booking_id } = params;
+        if (!booking_id) throw new Error("Missing booking_id");
+
+        const { data, error } = await supabase
+          .from("booking_checklists")
+          .select("id, booking_id, staff_id, completed_at, created_at, booking_checklist_items(id, title, is_completed, completed_at, notes, photo_url)")
+          .eq("organization_id", organization_id)
+          .eq("booking_id", booking_id);
+
+        if (error) throw error;
+        result = { checklists: data, count: data?.length || 0 };
+        break;
+      }
+
+      // ============ CLIENT FEEDBACK ============
+
+      case "get_client_feedback": {
+        const { limit = 50, unresolved_only } = params;
+        let query = supabase
+          .from("client_feedback")
+          .select("id, customer_name, feedback_date, issue_description, resolution, is_resolved, followup_needed, created_at")
+          .eq("organization_id", organization_id)
+          .order("feedback_date", { ascending: false })
+          .limit(limit);
+
+        if (unresolved_only) query = query.eq("is_resolved", false);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { feedback: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "create_client_feedback": {
+        const { customer_name, issue_description, followup_needed } = params;
+        if (!customer_name) throw new Error("Missing customer_name");
+
+        const { data, error } = await supabase
+          .from("client_feedback")
+          .insert({
+            organization_id,
+            customer_name: String(customer_name).slice(0, 200),
+            issue_description: issue_description ? String(issue_description).slice(0, 2000) : null,
+            followup_needed: followup_needed || false,
+            is_resolved: false,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = { feedback: data, message: "Feedback recorded" };
+        break;
+      }
+
+      case "update_client_feedback": {
+        const { feedback_id, ...updates } = params;
+        if (!feedback_id) throw new Error("Missing feedback_id");
+
+        const allowedFields = ["is_resolved", "resolution", "followup_needed", "issue_description"];
+        const sanitizedUpdates: Record<string, any> = {};
+        for (const key of allowedFields) {
+          if (updates[key] !== undefined) sanitizedUpdates[key] = updates[key];
+        }
+
+        const { data, error } = await supabase
+          .from("client_feedback")
+          .update(sanitizedUpdates)
+          .eq("id", feedback_id)
+          .eq("organization_id", organization_id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = { feedback: data, message: "Feedback updated" };
+        break;
+      }
+
+      // ============ LOYALTY ============
+
+      case "get_customer_loyalty": {
+        const { customer_id } = params;
+        if (!customer_id) throw new Error("Missing customer_id");
+
+        const [loyaltyRes, transactionsRes] = await Promise.all([
+          supabase.from("customer_loyalty").select("id, points, lifetime_points, tier, created_at, updated_at").eq("customer_id", customer_id).maybeSingle(),
+          supabase.from("loyalty_transactions").select("id, points, transaction_type, description, booking_id, created_at").eq("customer_id", customer_id).eq("organization_id", organization_id).order("created_at", { ascending: false }).limit(50),
+        ]);
+
+        result = { loyalty: loyaltyRes.data || null, transactions: transactionsRes.data || [] };
+        break;
+      }
+
+      case "adjust_loyalty_points": {
+        const { customer_id, points, transaction_type, description } = params;
+        if (!customer_id || !points || !transaction_type) throw new Error("Missing customer_id, points, or transaction_type");
+
+        const { data: txn, error: txnError } = await supabase
+          .from("loyalty_transactions")
+          .insert({ customer_id, organization_id, points, transaction_type, description: description || `Manual ${transaction_type}` })
+          .select().single();
+        if (txnError) throw txnError;
+
+        const { data: loyalty } = await supabase.from("customer_loyalty").select("points, lifetime_points").eq("customer_id", customer_id).single();
+        if (loyalty) {
+          const newPoints = (loyalty.points || 0) + points;
+          const newLifetime = transaction_type === "earned" ? (loyalty.lifetime_points || 0) + points : loyalty.lifetime_points;
+          await supabase.from("customer_loyalty").update({ points: newPoints, lifetime_points: newLifetime }).eq("customer_id", customer_id);
+        }
+
+        result = { transaction: txn, message: "Loyalty points adjusted" };
+        break;
+      }
+
+      // ============ LOCATIONS ============
+
+      case "get_locations": {
+        const { customer_id } = params;
+        let query = supabase
+          .from("locations")
+          .select("id, name, address, apt_suite, city, state, zip_code, is_primary, is_active, customer_id, created_at")
+          .eq("organization_id", organization_id)
+          .order("is_primary", { ascending: false });
+
+        if (customer_id) query = query.eq("customer_id", customer_id);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { locations: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "create_location": {
+        const { customer_id, name, address, apt_suite, city, state, zip_code, is_primary } = params;
+        if (!name || !address) throw new Error("Missing name or address");
+
+        const { data, error } = await supabase
+          .from("locations")
+          .insert({ organization_id, customer_id: customer_id || null, name: String(name).slice(0, 100), address: String(address).slice(0, 255), apt_suite: apt_suite || null, city: city || null, state: state || null, zip_code: zip_code || null, is_primary: is_primary || false })
+          .select().single();
+
+        if (error) throw error;
+        result = { location: data, message: "Location created" };
+        break;
+      }
+
+      // ============ INVENTORY ============
+
+      case "get_inventory": {
+        const { category, low_stock_only } = params;
+        let query = supabase
+          .from("inventory_items")
+          .select("id, name, description, quantity, min_quantity, unit, category, cost_per_unit, supplier, last_restocked_at, created_at")
+          .eq("organization_id", organization_id)
+          .order("name");
+
+        if (category) query = query.eq("category", category);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        const lowStockItems = (data || []).filter((i: any) => i.min_quantity && i.quantity <= i.min_quantity);
+        result = { items: data, count: data?.length || 0, low_stock_count: lowStockItems.length };
+        break;
+      }
+
+      case "create_inventory_item": {
+        const { name, description, quantity, min_quantity, unit, category, cost_per_unit, supplier } = params;
+        if (!name) throw new Error("Missing name");
+
+        const { data, error } = await supabase
+          .from("inventory_items")
+          .insert({ organization_id, name: String(name).slice(0, 100), description: description || null, quantity: quantity || 0, min_quantity: min_quantity || null, unit: unit || null, category: category || null, cost_per_unit: cost_per_unit || null, supplier: supplier || null })
+          .select().single();
+
+        if (error) throw error;
+        result = { item: data, message: "Inventory item created" };
+        break;
+      }
+
+      case "update_inventory_item": {
+        const { item_id, ...updates } = params;
+        if (!item_id) throw new Error("Missing item_id");
+
+        const allowedFields = ["name", "description", "quantity", "min_quantity", "unit", "category", "cost_per_unit", "supplier"];
+        const sanitizedUpdates: Record<string, any> = {};
+        for (const key of allowedFields) {
+          if (updates[key] !== undefined) sanitizedUpdates[key] = updates[key];
+        }
+
+        const { data, error } = await supabase.from("inventory_items").update(sanitizedUpdates).eq("id", item_id).eq("organization_id", organization_id).select().single();
+        if (error) throw error;
+        result = { item: data, message: "Inventory item updated" };
+        break;
+      }
+
+      case "delete_inventory_item": {
+        const { item_id } = params;
+        if (!item_id) throw new Error("Missing item_id");
+        const { error } = await supabase.from("inventory_items").delete().eq("id", item_id).eq("organization_id", organization_id);
+        if (error) throw error;
+        result = { message: "Inventory item deleted" };
+        break;
+      }
+
+      // ============ BUSINESS INTELLIGENCE ============
+
+      case "get_business_intelligence": {
+        const { data, error } = await supabase.from("business_intelligence").select("*").eq("organization_id", organization_id).maybeSingle();
+        if (error) throw error;
+        result = { intelligence: data };
+        break;
+      }
+
+      // ============ SMS CONVERSATIONS & MESSAGES ============
+
+      case "get_sms_conversations": {
+        const { limit = 50 } = params;
+        const { data, error } = await supabase
+          .from("sms_conversations")
+          .select("id, customer_phone, customer_name, customer_id, conversation_type, unread_count, last_message_at, created_at")
+          .eq("organization_id", organization_id)
+          .order("last_message_at", { ascending: false })
+          .limit(limit);
+
+        if (error) throw error;
+        result = { conversations: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "get_sms_messages": {
+        const { conversation_id, limit = 100 } = params;
+        if (!conversation_id) throw new Error("Missing conversation_id");
+
+        const { data, error } = await supabase
+          .from("sms_messages")
+          .select("id, content, direction, delivery_status, sent_at, delivered_at, created_at")
+          .eq("conversation_id", conversation_id)
+          .eq("organization_id", organization_id)
+          .order("sent_at", { ascending: true })
+          .limit(limit);
+
+        if (error) throw error;
+        result = { messages: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "get_sms_templates": {
+        const { data, error } = await supabase.from("sms_templates").select("id, name, content, created_at").eq("organization_id", organization_id).order("name");
+        if (error) throw error;
+        result = { templates: data, count: data?.length || 0 };
+        break;
+      }
+
+      // ============ CLIENT PORTAL ============
+
+      case "get_client_portal_users": {
+        const { data, error } = await supabase
+          .from("client_portal_users")
+          .select("id, username, customer_id, is_active, must_change_password, last_login_at, created_at, customers(first_name, last_name, email, phone)")
+          .eq("organization_id", organization_id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        result = { portal_users: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "get_client_booking_requests": {
+        const { status } = params;
+        let query = supabase
+          .from("client_booking_requests")
+          .select("id, client_user_id, customer_id, requested_date, service_id, notes, status, admin_response_note, created_at, customers(first_name, last_name, email), services(name)")
+          .eq("organization_id", organization_id)
+          .order("created_at", { ascending: false });
+
+        if (status) query = query.eq("status", status);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { requests: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "respond_to_booking_request": {
+        const { request_id, status, admin_response_note } = params;
+        if (!request_id || !status) throw new Error("Missing request_id or status");
+
+        const { data, error } = await supabase
+          .from("client_booking_requests")
+          .update({ status, admin_response_note: admin_response_note || null, responded_at: new Date().toISOString() })
+          .eq("id", request_id)
+          .eq("organization_id", organization_id)
+          .select().single();
+
+        if (error) throw error;
+        result = { request: data, message: "Booking request updated" };
+        break;
+      }
+
+      // ============ NOTIFICATIONS ============
+
+      case "get_admin_notifications": {
+        const { unread_only } = params;
+        let query = supabase
+          .from("admin_booking_request_notifications")
+          .select("id, booking_request_id, is_read, created_at")
+          .eq("organization_id", organization_id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (unread_only) query = query.eq("is_read", false);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { notifications: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "get_cleaner_notifications": {
+        const { staff_id, unread_only } = params;
+        if (!staff_id) throw new Error("Missing staff_id");
+
+        let query = supabase
+          .from("cleaner_notifications")
+          .select("id, title, message, type, is_read, booking_id, created_at")
+          .eq("organization_id", organization_id)
+          .eq("staff_id", staff_id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (unread_only) query = query.eq("is_read", false);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { notifications: data, count: data?.length || 0 };
+        break;
+      }
+
+      // ============ STAFF DOCUMENTS ============
+
+      case "get_staff_documents": {
+        const { staff_id } = params;
+        if (!staff_id) throw new Error("Missing staff_id");
+
+        const { data, error } = await supabase
+          .from("staff_documents")
+          .select("id, document_type, file_name, file_path, uploaded_at")
+          .eq("staff_id", staff_id)
+          .eq("organization_id", organization_id)
+          .order("uploaded_at", { ascending: false });
+
+        if (error) throw error;
+        result = { documents: data, count: data?.length || 0 };
+        break;
+      }
+
+      // ============ APPOINTMENT REMINDERS ============
+
+      case "get_reminder_settings": {
+        const { data, error } = await supabase
+          .from("appointment_reminder_intervals")
+          .select("id, label, hours_before, is_active, send_to_client, send_to_cleaner, created_at")
+          .eq("organization_id", organization_id)
+          .order("hours_before", { ascending: false });
+
+        if (error) throw error;
+        result = { reminders: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "update_reminder_setting": {
+        const { reminder_id, is_active, send_to_client, send_to_cleaner } = params;
+        if (!reminder_id) throw new Error("Missing reminder_id");
+
+        const updates: Record<string, any> = {};
+        if (is_active !== undefined) updates.is_active = is_active;
+        if (send_to_client !== undefined) updates.send_to_client = send_to_client;
+        if (send_to_cleaner !== undefined) updates.send_to_cleaner = send_to_cleaner;
+
+        const { data, error } = await supabase.from("appointment_reminder_intervals").update(updates).eq("id", reminder_id).eq("organization_id", organization_id).select().single();
+        if (error) throw error;
+        result = { reminder: data, message: "Reminder setting updated" };
+        break;
+      }
+
+      // ============ AUTOMATION TOGGLES ============
+
+      case "get_automations": {
+        const { data, error } = await supabase
+          .from("organization_automations")
+          .select("id, automation_type, is_enabled, description, created_at")
+          .eq("organization_id", organization_id)
+          .order("automation_type");
+
+        if (error) throw error;
+        result = { automations: data, count: data?.length || 0 };
+        break;
+      }
+
+      case "toggle_automation": {
+        const { automation_type, is_enabled } = params;
+        if (!automation_type || is_enabled === undefined) throw new Error("Missing automation_type or is_enabled");
+
+        const { data, error } = await supabase
+          .from("organization_automations")
+          .update({ is_enabled })
+          .eq("organization_id", organization_id)
+          .eq("automation_type", automation_type)
+          .select().single();
+
+        if (error) throw error;
+        result = { automation: data, message: `Automation ${is_enabled ? "enabled" : "disabled"}` };
+        break;
+      }
+
+      // ============ BOOKING REMINDERS LOG ============
+
+      case "get_booking_reminder_log": {
+        const { booking_id, limit = 50 } = params;
+        let query = supabase
+          .from("booking_reminder_log")
+          .select("id, booking_id, reminder_type, recipient_phone, sent_at")
+          .eq("organization_id", organization_id)
+          .order("sent_at", { ascending: false })
+          .limit(limit);
+
+        if (booking_id) query = query.eq("booking_id", booking_id);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        result = { reminders: data, count: data?.length || 0 };
+        break;
+      }
+
+      // ============ SEND EMAIL ============
+
+      case "send_email": {
+        const { to_email, subject, body, customer_id } = params;
+        if (!to_email || !subject || !body) throw new Error("Missing to_email, subject, or body");
+
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-direct-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: to_email, subject, body, customer_id: customer_id || null, organization_id }),
+        });
+
+        const emailResult = await response.json();
+        result = { email_result: emailResult, message: "Email send attempted" };
+        break;
+      }
+
       // ============ AVAILABLE ACTIONS ============
 
       case "list_actions": {
         result = {
           customers: [
-            "get_customers - List/search customers (params: limit, offset, search, status)",
-            "get_customer - Get single customer (params: customer_id)",
-            "create_customer - Create customer (params: first_name, last_name, email, phone, address, city, state, zip_code, notes)",
-            "update_customer - Update customer (params: customer_id, + fields)",
-            "delete_customer - Delete customer (params: customer_id)",
-            "get_customer_history - Full customer history with bookings, invoices, loyalty (params: customer_id)",
+            "get_customers - List/search (params: limit, offset, search, status)",
+            "get_customer - Single customer (params: customer_id)",
+            "create_customer - Create (params: first_name, last_name, email, phone, address, city, state, zip_code, notes)",
+            "update_customer - Update (params: customer_id, + fields)",
+            "delete_customer - Delete (params: customer_id)",
+            "get_customer_history - Full history: bookings, invoices, loyalty, total spent (params: customer_id)",
           ],
           bookings: [
-            "get_bookings - List bookings (params: limit, offset, status, customer_id, staff_id, from_date, to_date)",
-            "get_booking - Get single booking (params: booking_id)",
-            "create_booking - Create booking (params: customer_id, scheduled_at, service_id, staff_id, duration, address, city, state, zip_code, notes, total_amount, frequency, extras)",
-            "update_booking - Update booking (params: booking_id, + fields)",
-            "cancel_booking - Cancel a booking (params: booking_id)",
-            "complete_booking - Mark booking completed (params: booking_id, payment_status)",
-            "get_additional_charges - Get extra charges on a booking (params: booking_id)",
-            "add_additional_charge - Add extra charge (params: booking_id, charge_name, charge_amount, description)",
-            "get_booking_photos - Get photos for a booking (params: booking_id)",
+            "get_bookings - List (params: limit, offset, status, customer_id, staff_id, from_date, to_date)",
+            "get_booking - Single booking (params: booking_id)",
+            "create_booking - Create (params: customer_id, scheduled_at, service_id, staff_id, duration, address, city, state, zip_code, notes, total_amount, frequency, extras)",
+            "update_booking - Update (params: booking_id, + fields)",
+            "cancel_booking - Cancel (params: booking_id)",
+            "complete_booking - Mark completed (params: booking_id, payment_status)",
+            "get_additional_charges - Extra charges (params: booking_id)",
+            "add_additional_charge - Add charge (params: booking_id, charge_name, charge_amount, description)",
+            "get_booking_photos - Photos (params: booking_id)",
+            "get_booking_checklist - Checklist (params: booking_id)",
+            "get_booking_reminder_log - Reminder history (params: booking_id, limit)",
           ],
           leads: [
-            "get_leads - List/search leads (params: limit, offset, status, source, search)",
-            "create_lead - Create lead (params: name, email, phone, source, notes, service_interest, estimated_value)",
-            "update_lead - Update lead (params: lead_id, + fields)",
-            "delete_lead - Delete lead (params: lead_id)",
-            "convert_lead_to_customer - Convert lead to customer (params: lead_id)",
+            "get_leads - List/search (params: limit, offset, status, source, search)",
+            "create_lead - Create (params: name, email, phone, source, notes, service_interest, estimated_value)",
+            "update_lead - Update (params: lead_id, + fields)",
+            "delete_lead - Delete (params: lead_id)",
+            "convert_lead_to_customer - Convert to customer (params: lead_id)",
           ],
           staff: [
-            "get_staff - List staff (params: include_inactive)",
-            "get_staff_member - Get staff details (params: staff_id)",
-            "get_staff_schedule - Get staff bookings in date range (params: staff_id, from_date, to_date)",
+            "get_staff - List (params: include_inactive)",
+            "get_staff_member - Details (params: staff_id)",
+            "get_staff_schedule - Schedule (params: staff_id, from_date, to_date)",
+            "get_staff_documents - Documents (params: staff_id)",
+            "get_cleaner_notifications - Notifications (params: staff_id, unread_only)",
           ],
-          services: [
-            "get_services - List services (params: include_inactive)",
-          ],
+          services: ["get_services - List (params: include_inactive)"],
           invoices: [
-            "get_invoices - List invoices (params: limit, offset, status, customer_id)",
-            "get_invoice - Get single invoice (params: invoice_id)",
+            "get_invoices - List (params: limit, offset, status, customer_id)",
+            "get_invoice - Single (params: invoice_id)",
           ],
           quotes: [
-            "get_quotes - List quotes (params: limit, offset, status, customer_id)",
-            "create_quote - Create quote (params: customer_id, lead_id, service_id, total_amount, subtotal, notes, valid_until, address, bedrooms, bathrooms, square_footage, extras)",
-            "update_quote - Update quote (params: quote_id, + fields)",
+            "get_quotes - List (params: limit, offset, status, customer_id)",
+            "create_quote - Create (params: customer_id, lead_id, service_id, total_amount, subtotal, notes, valid_until, address, bedrooms, bathrooms, square_footage, extras)",
+            "update_quote - Update (params: quote_id, + fields)",
           ],
           expenses: [
-            "get_expenses - List expenses (params: limit, offset, category, from_date, to_date)",
-            "create_expense - Create expense (params: description, amount, category, vendor, expense_date)",
-            "update_expense - Update expense (params: expense_id, + fields)",
-            "delete_expense - Delete expense (params: expense_id)",
+            "get_expenses - List (params: limit, offset, category, from_date, to_date)",
+            "create_expense - Create (params: description, amount, category, vendor, expense_date)",
+            "update_expense - Update (params: expense_id, + fields)",
+            "delete_expense - Delete (params: expense_id)",
           ],
           recurring: [
-            "get_recurring_bookings - List recurring bookings (params: customer_id, active_only)",
-            "update_recurring_booking - Update recurring booking (params: recurring_booking_id, + fields)",
+            "get_recurring_bookings - List (params: customer_id, active_only)",
+            "update_recurring_booking - Update (params: recurring_booking_id, + fields)",
           ],
-          tasks: [
-            "get_tasks - List tasks/notes (params: type, completed)",
+          campaigns: [
+            "get_campaigns - List (params: type, active_only)",
+            "update_campaign - Update (params: campaign_id, + fields)",
+            "get_campaign_history - Email & SMS history (params: campaign_id, limit)",
           ],
-          messages: [
-            "get_team_messages - List team messages (params: limit, channel)",
+          checklists: [
+            "get_checklist_templates - All templates with items",
+            "get_booking_checklist - Checklist for booking (params: booking_id)",
           ],
-          settings: [
-            "get_settings - Get business settings",
-            "update_settings - Update business settings (params: company_name, company_email, company_phone, etc.)",
+          feedback: [
+            "get_client_feedback - List (params: limit, unresolved_only)",
+            "create_client_feedback - Record (params: customer_name, issue_description, followup_needed)",
+            "update_client_feedback - Update (params: feedback_id, is_resolved, resolution, followup_needed)",
+          ],
+          loyalty: [
+            "get_customer_loyalty - Points, tier & transactions (params: customer_id)",
+            "adjust_loyalty_points - Add/remove points (params: customer_id, points, transaction_type, description)",
+          ],
+          locations: [
+            "get_locations - List (params: customer_id)",
+            "create_location - Create (params: customer_id, name, address, apt_suite, city, state, zip_code, is_primary)",
+          ],
+          inventory: [
+            "get_inventory - List (params: category, low_stock_only)",
+            "create_inventory_item - Create (params: name, description, quantity, min_quantity, unit, category, cost_per_unit, supplier)",
+            "update_inventory_item - Update (params: item_id, + fields)",
+            "delete_inventory_item - Delete (params: item_id)",
+          ],
+          sms: [
+            "get_sms_conversations - List conversations (params: limit)",
+            "get_sms_messages - Messages in conversation (params: conversation_id, limit)",
+            "get_sms_templates - List templates",
+            "send_sms - Send SMS (params: phone_number, message)",
+            "send_review_request - Send review request (params: customer_id, booking_id)",
+          ],
+          email: ["send_email - Send email (params: to_email, subject, body, customer_id)"],
+          client_portal: [
+            "get_client_portal_users - List portal users",
+            "get_client_booking_requests - Booking requests (params: status)",
+            "respond_to_booking_request - Approve/deny (params: request_id, status, admin_response_note)",
+          ],
+          notifications: [
+            "get_admin_notifications - Admin alerts (params: unread_only)",
+            "get_cleaner_notifications - Staff alerts (params: staff_id, unread_only)",
+          ],
+          automations: [
+            "get_automations - List automation toggles",
+            "toggle_automation - Enable/disable (params: automation_type, is_enabled)",
+            "get_reminder_settings - Reminder config",
+            "update_reminder_setting - Update (params: reminder_id, is_active, send_to_client, send_to_cleaner)",
           ],
           analytics: [
             "get_dashboard_stats - Today's stats, monthly revenue, totals",
-            "get_revenue_report - Revenue for date range (params: from_date, to_date)",
+            "get_revenue_report - Revenue report (params: from_date, to_date)",
+            "get_business_intelligence - AI insights & recommendations",
           ],
-          communication: [
-            "send_sms - Send SMS via OpenPhone (params: phone_number, message)",
-            "send_review_request - Send review request SMS (params: customer_id, booking_id)",
+          tasks: ["get_tasks - List tasks/notes (params: type, completed)"],
+          messages: ["get_team_messages - Team messages (params: limit, channel)"],
+          settings: [
+            "get_settings - Business settings",
+            "update_settings - Update (params: company_name, company_email, etc.)",
           ],
           other: [
             "search - Cross-search customers, leads & bookings (params: query, limit)",
-            "get_discounts - List all discounts",
+            "get_discounts - List discounts",
           ],
           note: "All requests require api_key and organization_id in the body.",
         };
@@ -1200,7 +1778,7 @@ serve(async (req) => {
 
       default:
         return new Response(
-          JSON.stringify({ error: `Unknown action: ${action}. Use action 'list_actions' to see available operations.` }),
+          JSON.stringify({ error: `Unknown action: ${action}. Use 'list_actions' to see available operations.` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
