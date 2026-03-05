@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.backfill-openphone-messages]
 verify_jwt = false
+
+[functions.lindy-crm-api]
+verify_jwt = false
