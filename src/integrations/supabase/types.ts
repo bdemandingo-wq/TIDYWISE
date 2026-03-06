@@ -3822,6 +3822,65 @@ export type Database = {
           },
         ]
       }
+      payroll_settings: {
+        Row: {
+          created_at: string
+          id: string
+          include_taxes_in_pay_base: boolean
+          include_tips_in_pay_base: boolean
+          labor_percent_warning_threshold: number
+          margin_percent_good_threshold: number
+          organization_id: string
+          payroll_week_start_day: string
+          processing_fee_mode: string
+          processing_fee_percent: number
+          updated_at: string
+          vendor_cost_flat: number | null
+          vendor_cost_mode: string
+          vendor_cost_percent: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          include_taxes_in_pay_base?: boolean
+          include_tips_in_pay_base?: boolean
+          labor_percent_warning_threshold?: number
+          margin_percent_good_threshold?: number
+          organization_id: string
+          payroll_week_start_day?: string
+          processing_fee_mode?: string
+          processing_fee_percent?: number
+          updated_at?: string
+          vendor_cost_flat?: number | null
+          vendor_cost_mode?: string
+          vendor_cost_percent?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          include_taxes_in_pay_base?: boolean
+          include_tips_in_pay_base?: boolean
+          labor_percent_warning_threshold?: number
+          margin_percent_good_threshold?: number
+          organization_id?: string
+          payroll_week_start_day?: string
+          processing_fee_mode?: string
+          processing_fee_percent?: number
+          updated_at?: string
+          vendor_cost_flat?: number | null
+          vendor_cost_mode?: string
+          vendor_cost_percent?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pnl_settings: {
         Row: {
           annual_revenue_goal: number | null
