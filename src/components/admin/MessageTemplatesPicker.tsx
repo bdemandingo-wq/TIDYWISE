@@ -74,7 +74,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect, showSubject =
       if (editingTemplate) {
         const { error } = await supabase
           .from('sms_templates')
-          .update({ name: name.trim(), content: content.trim() })
+          .update({ name: name.trim(), content: content.trim(), subject: subject.trim() || null })
           .eq('id', editingTemplate.id);
         if (error) throw error;
         toast.success('Template updated');
