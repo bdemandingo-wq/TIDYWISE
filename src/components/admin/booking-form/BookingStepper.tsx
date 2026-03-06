@@ -1149,9 +1149,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             } else {
               toast.warning('No email address available for confirmation email');
             }
-          }
         }
       }
+
+          // Auto-send quote SMS if checked
+          if (sendQuoteSms) {
+            if (customerPhone) {
+              try {
+                await handleSendQuoteSms();
+              } catch (quoteError: any) {
+                console.error('Auto quote SMS error:', quoteError);
+                toast.error('Failed to send quote SMS');
+              }
+            } else {
+              toast.warning('No phone number available for quote SMS');
+            }
+          }
+
+          // Auto-send quote email if checked
+          if (sendQuoteEmail) {
+            const customerEmail = customerTab === 'existing' && selectedCustomer ? selectedCustomer.email : newCustomer.email;
+            if (customerEmail) {
+              try {
+                await handleSendQuoteEmail();
+              } catch (quoteError: any) {
+                console.error('Auto quote email error:', quoteError);
+                toast.error('Failed to send quote email');
+              }
+            } else {
+              toast.warning('No email address available for quote email');
+            }
+          }
+        }
 
       onClose();
       resetForm();
