@@ -1147,6 +1147,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             }
           }
         }
+      }
 
       onClose();
       resetForm();
