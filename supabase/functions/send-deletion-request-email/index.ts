@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logToSystem } from "../_shared/system-logger.ts";
+import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, email, organizationName, reason } = await req.json();
+    const { name, email, organizationName, reason, organizationId } = await req.json();
 
     if (!name || !email) {
       return new Response(JSON.stringify({ error: "Name and email are required" }), {
@@ -21,21 +23,66 @@ serve(async (req) => {
       });
     }
 
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      console.error("[DELETION-EMAIL] RESEND_API_KEY not configured");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Resolve organizationId: use provided one, or look up from user's email via org_memberships
+    let resolvedOrgId = organizationId;
+    if (!resolvedOrgId) {
+      // Try to find org from user's auth email
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      const matchedUser = authUsers?.users?.find(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+      if (matchedUser) {
+        const { data: membership } = await supabase
+          .from("org_memberships")
+          .select("organization_id")
+          .eq("user_id", matchedUser.id)
+          .limit(1)
+          .maybeSingle();
+        resolvedOrgId = membership?.organization_id;
+      }
+    }
+
+    if (!resolvedOrgId) {
+      console.error("[DELETION-EMAIL] Could not resolve organization for email:", email);
+      return new Response(JSON.stringify({ error: "Could not determine organization. Please contact support." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get org-scoped email settings (single source of truth)
+    const emailSettingsResult = await getOrgEmailSettings(resolvedOrgId);
+    if (!emailSettingsResult.success || !emailSettingsResult.settings) {
+      console.error("[DELETION-EMAIL] Failed to get email settings:", emailSettingsResult.error);
+      return new Response(JSON.stringify({ error: emailSettingsResult.error || "Email settings not configured" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const settings = emailSettingsResult.settings;
+    const resendApiKey = settings.resend_api_key || Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      console.error("[DELETION-EMAIL] No Resend API key configured");
       return new Response(JSON.stringify({ error: "Email service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const senderFrom = formatEmailFrom(settings);
+    const companyName = settings.from_name;
+
     const emailBody = `
 Account Deletion Request
 
 Name: ${name}
 Email: ${email}
-Organization: ${organizationName || "N/A"}
+Organization: ${organizationName || companyName}
 Reason: ${reason || "Not provided"}
 Submitted: ${new Date().toISOString()}
 
@@ -46,11 +93,12 @@ Please verify the user's identity and process this deletion request within 7 bus
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "TidyWise <noreply@tidywisecleaning.com>",
-        to: ["Support@tidywisecleaning.com"],
+        from: senderFrom,
+        to: [settings.from_email],
+        reply_to: getReplyTo(settings),
         subject: `Account Deletion Request - ${email}`,
         text: emailBody,
       }),
@@ -64,7 +112,7 @@ Please verify the user's identity and process this deletion request within 7 bus
     await logToSystem({
       level: "info",
       source: "send-deletion-request-email",
-      message: `Account deletion request submitted by ${email}`,
+      message: `Account deletion request submitted by ${email} for org ${resolvedOrgId}`,
     });
 
     return new Response(JSON.stringify({ success: true }), {
