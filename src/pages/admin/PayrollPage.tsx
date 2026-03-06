@@ -952,7 +952,7 @@ export default function PayrollPage() {
                 variant="outline"
                 size="sm"
                 className="shrink-0"
-                onClick={() => { setShowMissingPayOnly(true); setActivePayrollTab('details'); }}
+                onClick={() => { setShowMissingPayOnly(true); setStaffFilterId('all'); setActivePayrollTab('details'); }}
               >
                 <ExternalLink className="w-3 h-3 mr-1" />
                 View
