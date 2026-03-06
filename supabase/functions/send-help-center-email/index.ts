@@ -80,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${emailSettings.resend_api_key || RESEND_API_KEY}`,
       },
       body: JSON.stringify({
         from: senderFrom,
