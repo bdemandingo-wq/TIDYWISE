@@ -43,9 +43,7 @@ function resolveEarnings(
   if (payShare != null && Number(payShare) > 0) {
     return { calculatedPay: Number(payShare), hoursWorked: base.hoursWorked };
   }
-  if (booking.cleaner_actual_payment != null) {
-    return { calculatedPay: Number(booking.cleaner_actual_payment), hoursWorked: base.hoursWorked };
-  }
+  // calculateBookingWage already prioritizes cleaner_pay_expected → cleaner_actual_payment → fallback
   return { calculatedPay: base.calculatedPay, hoursWorked: base.hoursWorked };
 }
 
@@ -87,8 +85,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, total_amount,
-          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          id, booking_number, scheduled_at, duration, status, total_amount, subtotal, discount_amount,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_wage, cleaner_wage_type,
           cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
           staff_id,
           service:services(name),
@@ -122,8 +120,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       const { data: bookings, error: bErr } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, total_amount,
-          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          id, booking_number, scheduled_at, duration, status, total_amount, subtotal, discount_amount,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_wage, cleaner_wage_type,
           cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
           staff_id,
           service:services(name),
@@ -179,8 +177,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       let query = supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, total_amount,
-          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          id, booking_number, scheduled_at, duration, status, total_amount, subtotal, discount_amount,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_wage, cleaner_wage_type,
           cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
           service:services(name),
           customer:customers(first_name, last_name)

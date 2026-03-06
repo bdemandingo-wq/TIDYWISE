@@ -4,6 +4,7 @@ import { calculateBookingWage, getActualHours, type WageBooking, type WageStaff 
 
 const makeBooking = (overrides: Partial<WageBooking> = {}): WageBooking => ({
   cleaner_actual_payment: null,
+  cleaner_pay_expected: null,
   cleaner_wage: null,
   cleaner_wage_type: null,
   cleaner_checkin_at: null,
@@ -67,12 +68,27 @@ describe('calculateBookingWage', () => {
     expect(result.wageType).toBe('actual');
   });
 
-  it('ignores actual_payment of 0', () => {
+  it('respects actual_payment of 0 as explicit override', () => {
     const booking = makeBooking({ cleaner_actual_payment: 0, cleaner_wage: 30, cleaner_wage_type: 'hourly' });
     const result = calculateBookingWage(booking);
-    // Should NOT use 0 as actual, should calculate from hourly
-    expect(result.calculatedPay).toBeGreaterThan(0);
+    // $0 is a valid explicit admin override — should be respected
+    expect(result.calculatedPay).toBe(0);
+    expect(result.wageType).toBe('actual');
+  });
+
+  it('uses cleaner_pay_expected as single source of truth', () => {
+    const booking = makeBooking({ cleaner_pay_expected: 150, cleaner_wage: 30, cleaner_wage_type: 'hourly' });
+    const result = calculateBookingWage(booking, makeStaff());
+    expect(result.calculatedPay).toBe(150);
     expect(result.wageType).toBe('hourly');
+    expect(result.wageRate).toBe(30);
+    expect(result.isMissingPay).toBe(false);
+  });
+
+  it('flags missing pay when no snapshot exists', () => {
+    const booking = makeBooking({ cleaner_wage: null, cleaner_pay_expected: null });
+    const result = calculateBookingWage(booking, makeStaff());
+    expect(result.isMissingPay).toBe(true);
   });
 
   it('calculates hourly pay from timestamps', () => {

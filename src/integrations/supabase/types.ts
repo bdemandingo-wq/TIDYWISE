@@ -812,7 +812,10 @@ export type Database = {
           location_id: string | null
           notes: string | null
           organization_id: string | null
+          pay_base_amount: number | null
+          pay_base_mode: string | null
           pay_last_saved_at: string | null
+          pay_last_saved_by: string | null
           pay_locked: boolean | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
@@ -860,7 +863,10 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          pay_base_amount?: number | null
+          pay_base_mode?: string | null
           pay_last_saved_at?: string | null
+          pay_last_saved_by?: string | null
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -908,7 +914,10 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          pay_base_amount?: number | null
+          pay_base_mode?: string | null
           pay_last_saved_at?: string | null
+          pay_last_saved_by?: string | null
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]

@@ -68,10 +68,14 @@ const handler = async (req: Request): Promise<Response> => {
         const hoursWorked = booking.cleaner_override_hours || (booking.duration / 60);
         let pay = 0;
 
-        if (booking.cleaner_actual_payment != null) {
-          // Explicit pay set (including $0) — use it directly
+        // SINGLE SOURCE OF TRUTH: cleaner_pay_expected
+        if (booking.cleaner_pay_expected != null) {
+          pay = Number(booking.cleaner_pay_expected);
+        } else if (booking.cleaner_actual_payment != null) {
+          // Legacy fallback
           pay = Number(booking.cleaner_actual_payment);
         } else {
+          // Final fallback: compute from rate/type
           const wageType = booking.cleaner_wage_type || 'hourly';
           const wageRate = booking.cleaner_wage || staff.base_wage || staff.hourly_rate || 0;
 
