@@ -1106,9 +1106,11 @@ export default function MessagesPage() {
                       {organizationId && (
                         <MessageTemplatesPicker
                           organizationId={organizationId}
-                          onSelect={(content) => {
+                          showSubject
+                          onSelect={(content, subject) => {
                             setEmailBody(content);
                             if (emailBodyRef.current) emailBodyRef.current.innerText = content;
+                            if (subject) setEmailSubject(subject);
                           }}
                         />
                       )}
