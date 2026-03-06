@@ -690,6 +690,16 @@ export function AdjustPaymentDialog({
           // CRITICAL: Also update cleaner_pay_expected so payroll uses the adjusted value
           cleaner_pay_expected: parsedAmount,
         });
+
+        // CRITICAL: Also update booking_team_assignments.pay_share if a single assignment exists
+        // because payroll may read pay_share and it would override the booking-level value
+        if (organizationId) {
+          await supabase
+            .from('booking_team_assignments')
+            .update({ pay_share: parsedAmount })
+            .eq('booking_id', booking.id)
+            .eq('organization_id', organizationId);
+        }
       }
 
       toast({ title: "Saved", description: "Cleaner payments adjusted successfully" });
