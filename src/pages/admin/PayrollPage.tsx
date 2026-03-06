@@ -422,12 +422,19 @@ export default function PayrollPage() {
     });
   }, [staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments]);
 
-  // Summary stats
-  const totalPayroll = payrollData.reduce((sum, s) => sum + s.totalPay, 0);
-  const totalHours = payrollData.reduce((sum, s) => sum + s.totalHours, 0);
-  const totalCleans = payrollData.reduce((sum, s) => sum + s.assignedCleans, 0);
+  // Summary stats — reflect filtered cleaner when selected in Booking Details
+  const effectivePayrollData = staffFilterId === 'all'
+    ? payrollData
+    : payrollData.filter((s) => s.id === staffFilterId);
+  const totalPayroll = effectivePayrollData.reduce((sum, s) => sum + s.totalPay, 0);
+  const totalHours = effectivePayrollData.reduce((sum, s) => sum + s.totalHours, 0);
+  const totalCleans = effectivePayrollData.reduce((sum, s) => sum + s.assignedCleans, 0);
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
+
+  // Filtered booking details totals for the footer row
+  const filteredTotalHours = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.hours_worked, 0);
+  const filteredTotalPay = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.calculated_pay, 0);
 
   const exportCSV = () => {
     const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours', 'Assigned Cleans', 'Period Pay', 'Avg Pay/Clean', 'YTD Earnings'];
@@ -772,6 +779,19 @@ export default function PayrollPage() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {filteredBookingPayrollDetails.length > 0 && (
+                    <TableRow className="bg-muted/50 font-semibold border-t-2">
+                      <TableCell colSpan={4} className="text-right">
+                        Totals ({filteredBookingPayrollDetails.length} booking{filteredBookingPayrollDetails.length !== 1 ? 's' : ''})
+                      </TableCell>
+                      <TableCell className="text-right">{isTestMode ? 'X.XX' : filteredTotalHours.toFixed(2)}</TableCell>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell className="text-right text-green-600">
+                        {isTestMode ? '$XXX.XX' : `$${filteredTotalPay.toFixed(2)}`}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {bookingPayrollDetails.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
