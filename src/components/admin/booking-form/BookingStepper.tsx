@@ -620,6 +620,19 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
       cleaner_wage_type: cleanerWageType,
       cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
+      // Compute and persist cleaner_pay_expected — SINGLE SOURCE OF TRUTH for payroll
+      cleaner_pay_expected: (() => {
+        const wage = cleanerWage ? parseFloat(cleanerWage) : null;
+        if (wage == null || wage === 0) return null;
+        if (cleanerWageType === 'flat') return wage;
+        if (cleanerWageType === 'percentage') {
+          const base = finalPrice > 0 ? finalPrice : (totalAmount > 0 ? totalAmount : calculatedPrice);
+          return Math.round((wage / 100) * base * 100) / 100;
+        }
+        // hourly
+        const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : ((selectedService?.duration || 60) / 60);
+        return Math.round(wage * hours * 100) / 100;
+      })(),
     };
   };
 
