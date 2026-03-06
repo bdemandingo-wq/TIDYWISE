@@ -432,16 +432,27 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to read the actual error body from edge function
+        let errorMsg = error?.message || 'Failed to send confirmation email';
+        try {
+          if (error?.context?.body) {
+            const body = await error.context.json();
+            errorMsg = body?.error || errorMsg;
+          }
+        } catch {}
+        console.error('Confirmation email error:', errorMsg);
+        if (errorMsg.includes('not verified') || errorMsg.includes('not configured')) {
+          toast.error('Email domain not verified. Go to Settings → Email to set up your email domain.');
+        } else {
+          toast.error(errorMsg);
+        }
+        return;
+      }
       toast.success('Confirmation email sent to customer');
     } catch (error: any) {
       console.error('Confirmation email error:', error);
-      const msg = error?.message || '';
-      if (msg.includes('Email settings not configured') || msg.includes('not verified')) {
-        toast.error('Email not configured. Go to Settings → Email to set up your email domain.');
-      } else {
-        toast.error(msg || 'Failed to send confirmation email');
-      }
+      toast.error('Failed to send confirmation email');
     } finally {
       setSendingConfirmationEmail(false);
     }
