@@ -29,6 +29,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect, showSubject =
   const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
+  const [subject, setSubject] = useState('');
   const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
