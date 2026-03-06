@@ -1039,11 +1039,6 @@ export default function PayrollPage() {
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
                         <div className="flex items-center justify-end gap-1.5">
-                          {b.isMissingPay && (
-                            <Badge variant="outline" className="border-amber-500 text-amber-600 text-xs px-1.5">
-                              <AlertTriangle className="w-3 h-3 mr-0.5" />No Snapshot
-                            </Badge>
-                          )}
                           {isTestMode ? '$XXX' : `$${b.calculated_pay.toFixed(2)}`}
                         </div>
                       </TableCell>
