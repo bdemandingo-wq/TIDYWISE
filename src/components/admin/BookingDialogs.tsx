@@ -360,6 +360,21 @@ export function EditBookingDialog({
       const scheduledAtIso = date && time ? new Date(`${date}T${time}:00`).toISOString() : booking.scheduled_at;
       const parsedAmount = Number(amount);
 
+      // Compute cleaner_pay_expected snapshot so payroll always reads the correct value
+      const computedExpectedPay = (() => {
+        // If admin entered an explicit actual payment, that IS the expected pay
+        if (cleanerActualPayment) return parseFloat(cleanerActualPayment);
+        // Otherwise compute from wage fields
+        const wage = cleanerWage ? parseFloat(cleanerWage) : null;
+        if (wage == null || isNaN(wage) || wage === 0) return null;
+        const totalAmt = Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount;
+        if (cleanerWageType === 'flat') return wage;
+        if (cleanerWageType === 'percentage') return Math.round((wage / 100) * totalAmt * 100) / 100;
+        // hourly
+        const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : (booking.duration / 60);
+        return Math.round(wage * hours * 100) / 100;
+      })();
+
       await updateBooking.mutateAsync({
         id: booking.id,
         status,
@@ -371,6 +386,8 @@ export function EditBookingDialog({
         cleaner_wage_type: cleanerWageType || null,
         cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
         cleaner_actual_payment: cleanerActualPayment ? parseFloat(cleanerActualPayment) : null,
+        // CRITICAL: Always persist the pay snapshot so payroll reads the correct value
+        cleaner_pay_expected: computedExpectedPay,
       });
 
       toast({ title: "Saved", description: "Booking updated" });
