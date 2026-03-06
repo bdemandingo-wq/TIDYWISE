@@ -122,13 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
         accentColor = settings.accent_color || accentColor;
       }
     }
-      console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
-    } else {
-      return new Response(JSON.stringify({ error: "Database connection not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    console.log("Using organization settings - sender:", senderEmail, "company:", companyName);
 
     const progressPercentage = nextTier && pointsToNextTier 
       ? Math.min(100, Math.round(((lifetimePoints % 500) / (pointsToNextTier + (lifetimePoints % 500))) * 100))
