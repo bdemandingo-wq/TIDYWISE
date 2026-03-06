@@ -1131,8 +1131,22 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               toast.warning('No phone number available for SMS');
             }
           }
+
+          // Auto-send confirmation email if checked
+          if (sendConfirmationEmail) {
+            const customerEmail = customerTab === 'existing' && selectedCustomer ? selectedCustomer.email : newCustomer.email;
+            if (customerEmail) {
+              try {
+                await handleSendConfirmationEmail();
+              } catch (emailError: any) {
+                console.error('Auto confirmation email error:', emailError);
+                toast.error('Failed to send confirmation email');
+              }
+            } else {
+              toast.warning('No email address available for confirmation email');
+            }
+          }
         }
-      }
 
       onClose();
       resetForm();
