@@ -590,6 +590,8 @@ export function BookingFormProvider({
       cleanerOverrideHours,
       sendConfirmationEmail,
       sendConfirmationSms,
+      sendQuoteSms,
+      sendQuoteEmail,
       cardInfo,
       loadingCard,
       selectedChecklistId,
