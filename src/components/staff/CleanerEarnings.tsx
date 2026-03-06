@@ -6,8 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, startOfYear, subMonths } from 'date-fns';
-import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText, Clock, CalendarDays } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -34,25 +34,15 @@ interface TeamAssignment {
   is_primary: boolean | null;
 }
 
-/**
- * Unified pay resolver — mirrors PayrollPage.calcWage exactly.
- * Priority:
- *  1. pay_share on team assignment (per-person adjusted pay for team bookings)
- *  2. cleaner_actual_payment on booking (single-cleaner adjusted pay)
- *  3. standard wage formula (hourly / flat / percentage)
- */
 function resolveEarnings(
   booking: Booking,
   staffInfo: WageStaff | undefined | null,
   payShare: number | null | undefined,
 ) {
   const base = calculateBookingWage(booking, staffInfo);
-
-  // pay_share only wins when > 0 (0 means "not set", not "zero pay")
   if (payShare != null && Number(payShare) > 0) {
     return { calculatedPay: Number(payShare), hoursWorked: base.hoursWorked };
   }
-  // cleaner_actual_payment is the adjusted pay set in the booking tab
   if (booking.cleaner_actual_payment != null) {
     return { calculatedPay: Number(booking.cleaner_actual_payment), hoursWorked: base.hoursWorked };
   }
@@ -65,7 +55,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     to: endOfMonth(new Date()),
   });
 
-  // Fetch staff member's wage info
   const { data: staffInfo } = useQuery({
     queryKey: ['cleaner-wage-info', staffId],
     queryFn: async () => {
@@ -80,13 +69,110 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // Build date range bounds
   const fromISO = dateRange?.from?.toISOString();
   const toEndOfDay = dateRange?.to ? new Date(dateRange.to) : null;
   if (toEndOfDay) toEndOfDay.setHours(23, 59, 59, 999);
   const toISO = toEndOfDay?.toISOString();
 
-  // 1. Fetch completed bookings where this staff is the PRIMARY cleaner
+  // Upcoming week bounds
+  const upcomingWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const upcomingWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+
+  // Fetch upcoming week bookings for this cleaner (all non-cancelled statuses)
+  const { data: upcomingBookings = [] } = useQuery({
+    queryKey: ['cleaner-upcoming-week', staffId],
+    queryFn: async () => {
+      const wEnd = new Date(upcomingWeekEnd);
+      wEnd.setHours(23, 59, 59, 999);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, booking_number, scheduled_at, duration, status, total_amount,
+          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
+          staff_id,
+          service:services(name),
+          customer:customers(first_name, last_name)
+        `)
+        .eq('staff_id', staffId)
+        .neq('status', 'cancelled')
+        .gte('scheduled_at', upcomingWeekStart.toISOString())
+        .lte('scheduled_at', wEnd.toISOString())
+        .order('scheduled_at', { ascending: true });
+      if (error) throw error;
+      return data as (Booking & { staff_id: string })[];
+    },
+    enabled: !!staffId,
+  });
+
+  // Team assignments for upcoming week
+  const { data: upcomingTeamAssignments = [] } = useQuery({
+    queryKey: ['cleaner-upcoming-team', staffId],
+    queryFn: async () => {
+      const wEnd = new Date(upcomingWeekEnd);
+      wEnd.setHours(23, 59, 59, 999);
+      // Find team assignments for this cleaner
+      const { data: assignments, error: aErr } = await supabase
+        .from('booking_team_assignments')
+        .select('booking_id, staff_id, pay_share, is_primary')
+        .eq('staff_id', staffId);
+      if (aErr) throw aErr;
+      if (!assignments?.length) return [];
+      const bookingIds = assignments.map((a) => a.booking_id);
+      const { data: bookings, error: bErr } = await supabase
+        .from('bookings')
+        .select(`
+          id, booking_number, scheduled_at, duration, status, total_amount,
+          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          cleaner_checkin_at, cleaner_checkout_at, cleaner_override_hours,
+          staff_id,
+          service:services(name),
+          customer:customers(first_name, last_name)
+        `)
+        .in('id', bookingIds)
+        .neq('status', 'cancelled')
+        .gte('scheduled_at', upcomingWeekStart.toISOString())
+        .lte('scheduled_at', wEnd.toISOString());
+      if (bErr) throw bErr;
+      return (bookings || []).map((b: any) => {
+        const a = assignments.find((x) => x.booking_id === b.id)!;
+        return { booking: b as Booking, payShare: a.pay_share };
+      });
+    },
+    enabled: !!staffId,
+  });
+
+  // Merge upcoming: primary + team (de-duped)
+  const upcomingWeekEntries = useMemo(() => {
+    const entries: { booking: Booking; payShare: number | null }[] = [];
+    const seen = new Set<string>();
+    for (const b of upcomingBookings) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      const ta = upcomingTeamAssignments.find((t) => t.booking.id === b.id);
+      entries.push({ booking: b, payShare: ta?.payShare ?? null });
+    }
+    for (const t of upcomingTeamAssignments) {
+      if (seen.has(t.booking.id)) continue;
+      seen.add(t.booking.id);
+      entries.push({ booking: t.booking, payShare: t.payShare });
+    }
+    entries.sort((a, b) => new Date(a.booking.scheduled_at).getTime() - new Date(b.booking.scheduled_at).getTime());
+    return entries;
+  }, [upcomingBookings, upcomingTeamAssignments]);
+
+  const upcomingWeekStats = useMemo(() => {
+    let totalPay = 0;
+    let totalHours = 0;
+    for (const { booking, payShare } of upcomingWeekEntries) {
+      const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
+      totalPay += calculatedPay;
+      totalHours += hoursWorked;
+    }
+    return { totalPay, totalHours, jobCount: upcomingWeekEntries.length };
+  }, [upcomingWeekEntries, staffInfo]);
+
+  // Completed bookings (historical)
   const { data: primaryBookings = [], isLoading: loadingPrimary } = useQuery({
     queryKey: ['cleaner-earnings-primary', staffId, dateRange],
     queryFn: async () => {
@@ -110,20 +196,15 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // 2. Fetch team assignments for this staff in the date range (catches team bookings where they aren't primary)
   const { data: teamAssignments = [], isLoading: loadingTeam } = useQuery({
     queryKey: ['cleaner-earnings-team', staffId, dateRange],
     queryFn: async () => {
-      // First find all booking ids in range where this staff appears as a team member
-      let bookingQuery = supabase
+      const { data: assignments, error: aErr } = await supabase
         .from('booking_team_assignments')
         .select('booking_id, staff_id, pay_share, is_primary')
         .eq('staff_id', staffId);
-      const { data: assignments, error: aErr } = await bookingQuery;
       if (aErr) throw aErr;
       if (!assignments?.length) return [];
-
-      // Fetch the actual bookings for those assignments that are completed + in date range
       const bookingIds = assignments.map((a) => a.booking_id);
       let bQuery = supabase
         .from('bookings')
@@ -141,8 +222,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
       if (toISO)   bQuery = bQuery.lte('scheduled_at', toISO);
       const { data: bookings, error: bErr } = await bQuery.order('scheduled_at', { ascending: false });
       if (bErr) throw bErr;
-
-      // Attach pay_share to each booking
       return (bookings || []).map((b: any) => {
         const a = assignments.find((x) => x.booking_id === b.id)!;
         return { booking: b as Booking, payShare: a.pay_share, isPrimary: a.is_primary };
@@ -151,34 +230,24 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  // Merge: primary bookings + team bookings (de-duplicate by booking id)
   const allEntries = useMemo(() => {
     const entries: { booking: Booking; payShare: number | null }[] = [];
     const seen = new Set<string>();
-
-    // Primary bookings: get their pay_share from team assignments if available
     for (const b of primaryBookings) {
       if (seen.has(b.id)) continue;
       seen.add(b.id);
       const ta = teamAssignments.find((t) => t.booking.id === b.id);
       entries.push({ booking: b, payShare: ta?.payShare ?? null });
     }
-
-    // Team bookings not already included as primary
     for (const t of teamAssignments) {
       if (seen.has(t.booking.id)) continue;
       seen.add(t.booking.id);
       entries.push({ booking: t.booking, payShare: t.payShare });
     }
-
-    // Sort descending by date
-    entries.sort((a, b) =>
-      new Date(b.booking.scheduled_at).getTime() - new Date(a.booking.scheduled_at).getTime()
-    );
+    entries.sort((a, b) => new Date(b.booking.scheduled_at).getTime() - new Date(a.booking.scheduled_at).getTime());
     return entries;
   }, [primaryBookings, teamAssignments]);
 
-  // Stats — uses same priority logic as PayrollPage
   const stats = useMemo(() => {
     let totalEarnings = 0;
     let totalHours = 0;
@@ -189,15 +258,13 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     }
     const totalJobs = allEntries.length;
     return {
-      totalEarnings,
-      totalJobs,
+      totalEarnings, totalJobs,
       avgPerJob: totalJobs > 0 ? totalEarnings / totalJobs : 0,
       totalHours,
       avgPerHour: totalHours > 0 ? totalEarnings / totalHours : 0,
     };
   }, [allEntries, staffInfo]);
 
-  // Export to CSV
   const exportToCSV = () => {
     const headers = ['Date', 'Booking #', 'Service', 'Customer', 'Actual Hours', 'Your Earnings'];
     const rows = allEntries.map(({ booking, payShare }) => {
@@ -218,7 +285,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     rows.push(['Total Earnings', stats.totalEarnings.toFixed(2)]);
     rows.push(['Average Per Job', stats.avgPerJob.toFixed(2)]);
     rows.push(['Average Per Hour', stats.avgPerHour.toFixed(2)]);
-
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -227,7 +293,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     link.click();
   };
 
-  // Quick date range presets
   const setPreset = (preset: 'month' | 'quarter' | 'ytd' | 'year') => {
     const now = new Date();
     let from: Date;
@@ -245,6 +310,58 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Upcoming Week Pay Card */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            Upcoming Week Pay
+          </CardTitle>
+          <CardDescription>
+            {format(upcomingWeekStart, 'MMM d')} – {format(upcomingWeekEnd, 'MMM d, yyyy')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Expected Pay</p>
+              <p className="text-2xl font-bold text-primary">${upcomingWeekStats.totalPay.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Jobs</p>
+              <p className="text-2xl font-bold">{upcomingWeekStats.jobCount}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Hours</p>
+              <p className="text-2xl font-bold">{upcomingWeekStats.totalHours.toFixed(1)}h</p>
+            </div>
+          </div>
+
+          {/* Upcoming jobs breakdown */}
+          {upcomingWeekEntries.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">This week's jobs:</p>
+              {upcomingWeekEntries.map(({ booking, payShare }) => {
+                const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
+                return (
+                  <div key={booking.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-background">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{format(new Date(booking.scheduled_at), 'EEE, MMM d')}</span>
+                      <span>•</span>
+                      <span>{booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-muted-foreground">{hoursWorked.toFixed(1)}h</span>
+                      <span className="font-medium text-green-600">${calculatedPay.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <Popover>
@@ -349,7 +466,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                     <TableHead>Service</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="text-right">Duration</TableHead>
-                    
                     <TableHead className="text-right">Your Earnings</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -369,7 +485,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                             : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">{hoursWorked.toFixed(1)}h</TableCell>
-                        
                         <TableCell className="text-right font-medium text-green-600">
                           ${calculatedPay.toFixed(2)}
                         </TableCell>
