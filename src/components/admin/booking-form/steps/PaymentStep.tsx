@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,8 @@ import {
   DollarSign,
   Phone,
   Tag,
-  X
+  X,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -30,9 +31,30 @@ import { useBookingForm } from '../BookingFormContext';
 import { useDiscounts } from '@/hooks/useDiscounts';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { preloadStripeModules } from '@/lib/stripe';
+import { useAuth } from '@/hooks/useAuth';
+
+/**
+ * Compute cleaner_pay_expected from current form values.
+ */
+function computeExpectedPay(
+  wageType: string,
+  wage: string,
+  overrideHours: string,
+  serviceDuration: number,
+  baseAmount: number,
+): number | null {
+  const w = wage ? parseFloat(wage) : null;
+  if (w == null || w === 0 || isNaN(w)) return null;
+  if (wageType === 'flat') return w;
+  if (wageType === 'percentage') return Math.round((w / 100) * baseAmount * 100) / 100;
+  // hourly
+  const hours = overrideHours ? parseFloat(overrideHours) : (serviceDuration / 60);
+  return Math.round(w * hours * 100) / 100;
+}
 
 export function PaymentStep() {
   const {
+    editingBookingId,
     notes,
     setNotes,
     cleanerWage,
@@ -63,6 +85,7 @@ export function PaymentStep() {
   } = useBookingForm();
 
   const { organizationId } = useOrgId();
+  const { user } = useAuth();
   const { validateCoupon, calculateDiscountAmount } = useDiscounts();
   const { settings: orgSettings } = useOrganizationSettings();
 
@@ -71,11 +94,76 @@ export function PaymentStep() {
   const [couponCode, setCouponCode] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+  
+  // Autosave state for cleaner pay
+  const [paySaveStatus, setPaySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pre-load Stripe modules when payment step is rendered
   useEffect(() => {
     preloadStripeModules();
   }, []);
+
+  // Compute expected pay from current form values
+  const computedExpectedPay = useMemo(() => {
+    const base = finalPrice > 0 ? finalPrice : (totalAmount > 0 ? totalAmount : calculatedPrice);
+    return computeExpectedPay(
+      cleanerWageType,
+      cleanerWage,
+      cleanerOverrideHours,
+      selectedService?.duration || 60,
+      base,
+    );
+  }, [cleanerWageType, cleanerWage, cleanerOverrideHours, selectedService, finalPrice, totalAmount, calculatedPrice]);
+
+  // Autosave cleaner pay to DB when editing an existing booking (debounced 500ms)
+  const autosavePayToDb = useCallback(async () => {
+    if (!editingBookingId) return; // Only autosave for existing bookings
+    
+    const base = finalPrice > 0 ? finalPrice : (totalAmount > 0 ? totalAmount : calculatedPrice);
+    const expectedPay = computeExpectedPay(
+      cleanerWageType,
+      cleanerWage,
+      cleanerOverrideHours,
+      selectedService?.duration || 60,
+      base,
+    );
+
+    setPaySaveStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
+          cleaner_wage_type: cleanerWageType,
+          cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
+          cleaner_pay_expected: expectedPay,
+          pay_last_saved_at: new Date().toISOString(),
+          pay_last_saved_by: user?.id || null,
+        })
+        .eq('id', editingBookingId);
+
+      if (error) throw error;
+      setPaySaveStatus('saved');
+      // Reset to idle after 3 seconds
+      setTimeout(() => setPaySaveStatus((prev) => prev === 'saved' ? 'idle' : prev), 3000);
+    } catch (err) {
+      console.error('Failed to autosave cleaner pay:', err);
+      setPaySaveStatus('error');
+    }
+  }, [editingBookingId, cleanerWage, cleanerWageType, cleanerOverrideHours, selectedService, finalPrice, totalAmount, calculatedPrice, user?.id]);
+
+  // Trigger debounced save when pay fields change
+  useEffect(() => {
+    if (!editingBookingId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      autosavePayToDb();
+    }, 500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [cleanerWage, cleanerWageType, cleanerOverrideHours, editingBookingId, autosavePayToDb]);
 
   // Get customer phone
   const customerPhone = customerTab === 'existing' && selectedCustomer 
@@ -368,18 +456,28 @@ export function PaymentStep() {
               </div>
             )}
 
+            {/* Save Status Indicator */}
+            {editingBookingId && paySaveStatus !== 'idle' && (
+              <div className="mt-3 flex items-center gap-2 text-xs">
+                {paySaveStatus === 'saving' && (
+                  <><Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Saving…</span></>
+                )}
+                {paySaveStatus === 'saved' && (
+                  <><CheckCircle className="h-3 w-3 text-emerald-600" /><span className="text-emerald-600">Saved ✓</span></>
+                )}
+                {paySaveStatus === 'error' && (
+                  <><AlertCircle className="h-3 w-3 text-destructive" /><span className="text-destructive">Error saving</span>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={autosavePayToDb}>Retry</Button>
+                  </>
+                )}
+              </div>
+            )}
+
             {cleanerWage && (
               <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
                 <p className="text-xs text-emerald-700 dark:text-emerald-300">Estimated Cleaner Pay</p>
                 <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
-                  ${(() => {
-                    const wage = parseFloat(cleanerWage);
-                    if (isNaN(wage)) return '0.00';
-                    if (cleanerWageType === 'flat') return wage.toFixed(2);
-                    if (cleanerWageType === 'percentage') return ((totalAmount * wage) / 100).toFixed(2);
-                    const hours = parseFloat(cleanerOverrideHours) || ((selectedService?.duration || 60) / 60);
-                    return (wage * hours).toFixed(2);
-                  })()}
+                  ${computedExpectedPay != null ? computedExpectedPay.toFixed(2) : '0.00'}
                 </p>
               </div>
             )}

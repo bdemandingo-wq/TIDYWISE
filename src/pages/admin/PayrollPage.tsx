@@ -64,6 +64,7 @@ interface BookingPayrollDetail {
   labor_percent: number;
   profit: number;
   margin_percent: number;
+  isMissingPay: boolean;
 }
 
 interface PayrollSettings {
@@ -426,6 +427,7 @@ export default function PayrollPage() {
             labor_percent: memberLaborPct,
             profit: financials.profit * (totalBookingLabor > 0 ? wageInfo.calculatedPay / totalBookingLabor : 1 / assignments.length),
             margin_percent: financials.marginPercent,
+            isMissingPay: wageInfo.isMissingPay,
           });
         }
       } else {
@@ -449,6 +451,7 @@ export default function PayrollPage() {
           labor_percent: financials.laborPercent,
           profit: financials.profit,
           margin_percent: financials.marginPercent,
+          isMissingPay: wageInfo.isMissingPay,
         });
       }
     }
@@ -462,7 +465,7 @@ export default function PayrollPage() {
     if (profitFilter === 'negative') filtered = filtered.filter((d) => d.profit < 0);
     if (profitFilter === 'high_labor') filtered = filtered.filter((d) => d.labor_percent > settings.labor_percent_warning_threshold);
     if (profitFilter === 'low_margin') filtered = filtered.filter((d) => d.margin_percent < settings.margin_percent_good_threshold && d.profit >= 0);
-    if (profitFilter === 'missing_pay') filtered = filtered.filter((d) => d.calculated_pay === 0);
+    if (profitFilter === 'missing_pay') filtered = filtered.filter((d) => d.isMissingPay || d.calculated_pay === 0);
     return filtered;
   }, [bookingPayrollDetails, staffFilterId, profitFilter, settings]);
 
@@ -521,7 +524,7 @@ export default function PayrollPage() {
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const negativeMarginCount = bookingPayrollDetails.filter(d => d.profit < 0).length;
-  const missingPayCount = bookingPayrollDetails.filter(d => d.calculated_pay === 0 && d.staff_id).length;
+  const missingPayCount = bookingPayrollDetails.filter(d => d.isMissingPay || (d.calculated_pay === 0 && d.staff_id)).length;
 
   // Filtered totals
   const filteredTotalHours = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.hours_worked, 0);
@@ -1031,7 +1034,14 @@ export default function PayrollPage() {
                       <TableCell>{maskName(b.customer_name)}</TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        {isTestMode ? '$XXX' : `$${b.calculated_pay.toFixed(2)}`}
+                        <div className="flex items-center justify-end gap-1.5">
+                          {b.isMissingPay && (
+                            <Badge variant="outline" className="border-amber-500 text-amber-600 text-xs px-1.5">
+                              <AlertTriangle className="w-3 h-3 mr-0.5" />No Snapshot
+                            </Badge>
+                          )}
+                          {isTestMode ? '$XXX' : `$${b.calculated_pay.toFixed(2)}`}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         {isTestMode ? '$XXX' : `$${b.revenue_net.toFixed(2)}`}

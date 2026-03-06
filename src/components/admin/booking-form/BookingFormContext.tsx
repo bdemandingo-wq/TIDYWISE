@@ -92,6 +92,9 @@ interface BookingFormState {
 }
 
 interface BookingFormContextType extends BookingFormState {
+  // Editing context
+  editingBookingId: string | null;
+  
   // Data
   customers: ReturnType<typeof useCustomers>['data'];
   services: ReturnType<typeof useServices>['data'];
@@ -544,6 +547,9 @@ export function BookingFormProvider({
 
   return (
     <BookingFormContext.Provider value={{
+      // Editing context
+      editingBookingId: booking?.id || null,
+      
       // State
       customerTab,
       selectedCustomerId,
