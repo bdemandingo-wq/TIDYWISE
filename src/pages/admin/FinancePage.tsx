@@ -145,11 +145,13 @@ export default function FinancePage() {
       const processingFee = (grossAmount * 0.029) + 0.30;
       const netAmount = grossAmount - processingFee;
       
-      // Calculate cleaner pay - use team pay first, then individual wage
+      // Calculate cleaner pay - use single source of truth: cleaner_pay_expected
       const teamPay = teamPaysByBooking.get(b.id);
       let cleanerPay = 0;
       if (teamPay != null && teamPay > 0) {
         cleanerPay = teamPay;
+      } else if (b.cleaner_pay_expected != null && Number(b.cleaner_pay_expected) > 0) {
+        cleanerPay = Number(b.cleaner_pay_expected);
       } else if (b.cleaner_actual_payment != null && Number(b.cleaner_actual_payment) > 0) {
         cleanerPay = Number(b.cleaner_actual_payment);
       } else if (b.cleaner_wage) {

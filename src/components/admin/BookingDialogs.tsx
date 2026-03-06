@@ -570,8 +570,9 @@ export function AdjustPaymentDialog({
   useEffect(() => {
     if (!open || !booking) return;
 
-    // Reset single payment from booking record
-    setSinglePayment(bookingAny?.cleaner_actual_payment != null ? String(bookingAny.cleaner_actual_payment) : "");
+    // Reset single payment - prefer cleaner_pay_expected (single source of truth), fall back to cleaner_actual_payment
+    const initialPay = bookingAny?.cleaner_pay_expected != null ? bookingAny.cleaner_pay_expected : bookingAny?.cleaner_actual_payment;
+    setSinglePayment(initialPay != null ? String(initialPay) : "");
     setTeamMembers([]);
     setTeamPayments({});
 
@@ -651,20 +652,26 @@ export function AdjustPaymentDialog({
             .eq('organization_id', organizationId);
         }
 
-        // Also save primary cleaner's pay to booking.cleaner_actual_payment for payroll parity
+        // Also save primary cleaner's pay to booking for payroll parity
         const primaryMember = teamMembers.find(m => m.is_primary);
         if (primaryMember) {
           const primaryAmount = teamPayments[primaryMember.id];
+          const parsedAmount = primaryAmount ? parseFloat(primaryAmount) : null;
           await updateBooking.mutateAsync({
             id: booking.id,
-            cleaner_actual_payment: primaryAmount ? parseFloat(primaryAmount) : null,
+            cleaner_actual_payment: parsedAmount,
+            // CRITICAL: Also update cleaner_pay_expected so payroll uses the adjusted value
+            cleaner_pay_expected: parsedAmount,
           });
         }
       } else {
         // Single cleaner — save directly on booking
+        const parsedAmount = singlePayment ? parseFloat(singlePayment) : null;
         await updateBooking.mutateAsync({
           id: booking.id,
-          cleaner_actual_payment: singlePayment ? parseFloat(singlePayment) : null,
+          cleaner_actual_payment: parsedAmount,
+          // CRITICAL: Also update cleaner_pay_expected so payroll uses the adjusted value
+          cleaner_pay_expected: parsedAmount,
         });
       }
 

@@ -170,9 +170,10 @@ export default function ReportsPage() {
       // Get all bookings for this staff member within date range
       const staffBookings = filteredBookings.filter(b => b.staff?.id === s.id);
       
-      // Calculate total payment from cleaner_actual_payment
+      // Calculate total payment using cleaner_pay_expected (single source of truth)
       const totalPayment = staffBookings.reduce((sum, b) => {
-        return sum + Number((b as any).cleaner_actual_payment || 0);
+        const bAny = b as any;
+        return sum + Number(bAny.cleaner_pay_expected || bAny.cleaner_actual_payment || 0);
       }, 0);
       
       // Count upcoming cleans (scheduled_at > now and not cancelled/completed)
