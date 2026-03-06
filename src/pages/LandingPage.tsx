@@ -782,6 +782,11 @@ export default function LandingPage() {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/delete-account" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Delete Account
+                  </Link>
+                </li>
+                <li>
                   <TermsOfServiceDialog>
                     <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</button>
                   </TermsOfServiceDialog>
