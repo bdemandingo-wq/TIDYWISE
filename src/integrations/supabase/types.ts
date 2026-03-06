@@ -4905,6 +4905,7 @@ export type Database = {
           id: string
           name: string
           organization_id: string
+          subject: string | null
           updated_at: string
         }
         Insert: {
@@ -4913,6 +4914,7 @@ export type Database = {
           id?: string
           name: string
           organization_id: string
+          subject?: string | null
           updated_at?: string
         }
         Update: {
@@ -4921,6 +4923,7 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string
+          subject?: string | null
           updated_at?: string
         }
         Relationships: [

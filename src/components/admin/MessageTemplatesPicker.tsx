@@ -13,20 +13,23 @@ interface SmsTemplate {
   id: string;
   name: string;
   content: string;
+  subject?: string | null;
 }
 
 interface MessageTemplatesPickerProps {
   organizationId: string;
-  onSelect: (content: string) => void;
+  onSelect: (content: string, subject?: string | null) => void;
+  showSubject?: boolean;
 }
 
-export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemplatesPickerProps) {
+export function MessageTemplatesPicker({ organizationId, onSelect, showSubject = false }: MessageTemplatesPickerProps) {
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
+  const [subject, setSubject] = useState('');
   const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,7 +41,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
     setLoading(true);
     const { data } = await supabase
       .from('sms_templates')
-      .select('id, name, content')
+      .select('id, name, content, subject')
       .eq('organization_id', organizationId)
       .order('name');
     setTemplates(data || []);
@@ -49,6 +52,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
     setEditingTemplate(null);
     setName('');
     setContent('');
+    setSubject('');
     setDialogOpen(true);
     setMenuOpen(false);
   };
@@ -58,6 +62,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
     setEditingTemplate(t);
     setName(t.name);
     setContent(t.content);
+    setSubject(t.subject || '');
     setDialogOpen(true);
     setMenuOpen(false);
   };
@@ -69,14 +74,14 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
       if (editingTemplate) {
         const { error } = await supabase
           .from('sms_templates')
-          .update({ name: name.trim(), content: content.trim() })
+          .update({ name: name.trim(), content: content.trim(), subject: subject.trim() || null })
           .eq('id', editingTemplate.id);
         if (error) throw error;
         toast.success('Template updated');
       } else {
         const { error } = await supabase
           .from('sms_templates')
-          .insert({ organization_id: organizationId, name: name.trim(), content: content.trim() });
+          .insert({ organization_id: organizationId, name: name.trim(), content: content.trim(), subject: subject.trim() || null });
         if (error) throw error;
         toast.success('Template created');
       }
@@ -103,7 +108,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
   };
 
   const handleSelect = (t: SmsTemplate) => {
-    onSelect(t.content);
+    onSelect(t.content, t.subject);
     setMenuOpen(false);
   };
 
@@ -184,6 +189,16 @@ export function MessageTemplatesPicker({ organizationId, onSelect }: MessageTemp
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
+            {showSubject && (
+              <div>
+                <Label>Subject (for emails)</Label>
+                <Input
+                  placeholder="e.g. Welcome to our service!"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                />
+              </div>
+            )}
             <div>
               <Label>Message Content</Label>
               <Textarea
