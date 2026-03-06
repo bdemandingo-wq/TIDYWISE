@@ -352,16 +352,14 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
-  // Wage calculation
+  // Wage calculation — cleaner_pay_expected is single source of truth
   const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
     const baseResult = calculateBookingWage(booking, staffMember);
     if (payShareOverride != null && Number(payShareOverride) > 0) {
-      return { calculatedPay: Number(payShareOverride), actualPay: Number(payShareOverride), wageType: 'actual', wageRate: Number(payShareOverride), hoursWorked: baseResult.hoursWorked };
+      return { calculatedPay: Number(payShareOverride), actualPay: Number(payShareOverride), wageType: 'actual', wageRate: Number(payShareOverride), hoursWorked: baseResult.hoursWorked, isMissingPay: false };
     }
-    if (booking.cleaner_actual_payment != null) {
-      return { calculatedPay: Number(booking.cleaner_actual_payment), actualPay: Number(booking.cleaner_actual_payment), wageType: 'actual', wageRate: Number(booking.cleaner_actual_payment), hoursWorked: baseResult.hoursWorked };
-    }
-    return { calculatedPay: baseResult.calculatedPay, actualPay: null, wageType: baseResult.wageType, wageRate: baseResult.wageRate, hoursWorked: baseResult.hoursWorked };
+    // Use the result from calculateBookingWage which already prioritizes cleaner_pay_expected
+    return { calculatedPay: baseResult.calculatedPay, actualPay: booking.cleaner_pay_expected != null ? Number(booking.cleaner_pay_expected) : null, wageType: baseResult.wageType, wageRate: baseResult.wageRate, hoursWorked: baseResult.hoursWorked, isMissingPay: baseResult.isMissingPay };
   };
 
   const getStaffPayEntries = (staffId: string, bookingList: any[], assignmentList: any[]) => {
@@ -523,7 +521,7 @@ export default function PayrollPage() {
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const negativeMarginCount = bookingPayrollDetails.filter(d => d.profit < 0).length;
-  const missingPayCount = bookingPayrollDetails.filter(d => d.calculated_pay === 0).length;
+  const missingPayCount = bookingPayrollDetails.filter(d => d.calculated_pay === 0 && d.staff_id).length;
 
   // Filtered totals
   const filteredTotalHours = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.hours_worked, 0);

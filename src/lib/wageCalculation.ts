@@ -3,11 +3,14 @@
  * - Admin Payroll page
  * - Cleaner Portal Earnings
  *
- * This ensures both views always show identical numbers.
+ * RULE: booking.cleaner_pay_expected is the SINGLE SOURCE OF TRUTH.
+ * Never recompute pay from hours/rate if cleaner_pay_expected exists.
+ * Only fall back to computation when cleaner_pay_expected is null.
  */
 
 export interface WageBooking {
   cleaner_actual_payment: number | null;
+  cleaner_pay_expected: number | null;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
   cleaner_checkin_at: string | null;
@@ -15,6 +18,9 @@ export interface WageBooking {
   cleaner_override_hours: number | null;
   duration: number;
   total_amount: number;
+  subtotal?: number | null;
+  discount_amount?: number | null;
+  pay_locked?: boolean | null;
 }
 
 export interface WageStaff {
@@ -28,6 +34,7 @@ export interface WageResult {
   hoursWorked: number;
   wageType: string;
   wageRate: number;
+  isMissingPay: boolean;
 }
 
 /**
@@ -44,41 +51,69 @@ export function getActualHours(booking: WageBooking, staff?: WageStaff | null): 
 }
 
 /**
+ * Compute pay from rate/type (used ONLY as fallback when cleaner_pay_expected is null).
+ */
+function computePayFromDefaults(booking: WageBooking, staff?: WageStaff | null): { pay: number; wageType: string; wageRate: number } {
+  const wageType = booking.cleaner_wage_type || 'hourly';
+  const wageRate = booking.cleaner_wage || staff?.base_wage || staff?.hourly_rate || 0;
+  const hoursWorked = getActualHours(booking, staff);
+
+  let pay = 0;
+  if (wageType === 'flat') {
+    pay = Number(wageRate);
+  } else if (wageType === 'percentage') {
+    const base = Number(booking.subtotal || booking.total_amount) - Number(booking.discount_amount || 0);
+    pay = (Number(wageRate) / 100) * base;
+  } else {
+    // hourly
+    pay = Number(wageRate) * hoursWorked;
+  }
+
+  return { pay: Math.round(pay * 100) / 100, wageType, wageRate: Number(wageRate) };
+}
+
+/**
  * Calculate the wage for a single booking.
- * Priority: actual_payment → wage_type calc (flat / percentage / hourly)
+ * 
+ * Priority:
+ * 1. cleaner_pay_expected (SINGLE SOURCE OF TRUTH — if set, use it)
+ * 2. cleaner_actual_payment (legacy override — treat as expected pay)
+ * 3. Fallback: compute from wage type/rate/hours (only when no snapshot exists)
  */
 export function calculateBookingWage(booking: WageBooking, staff?: WageStaff | null): WageResult {
   const hoursWorked = getActualHours(booking, staff);
+  const wageType = booking.cleaner_wage_type || 'hourly';
+  const wageRate = Number(booking.cleaner_wage || staff?.base_wage || staff?.hourly_rate || 0);
 
-  // If an explicit actual payment was recorded (not null), use it — including $0.
-  // null means "not set", 0 means the admin explicitly set pay to $0.
+  // 1. cleaner_pay_expected is the single source of truth
+  if (booking.cleaner_pay_expected != null) {
+    return {
+      calculatedPay: Number(booking.cleaner_pay_expected),
+      hoursWorked,
+      wageType,
+      wageRate,
+      isMissingPay: false,
+    };
+  }
+
+  // 2. Legacy: cleaner_actual_payment (explicit admin override, including $0)
   if (booking.cleaner_actual_payment != null) {
     return {
       calculatedPay: Number(booking.cleaner_actual_payment),
       hoursWorked,
       wageType: 'actual',
       wageRate: Number(booking.cleaner_actual_payment),
+      isMissingPay: false,
     };
   }
 
-  const wageType = booking.cleaner_wage_type || 'hourly';
-  const wageRate = booking.cleaner_wage || staff?.base_wage || staff?.hourly_rate || 0;
-
-  let calculatedPay = 0;
-
-  if (wageType === 'flat') {
-    calculatedPay = Number(wageRate);
-  } else if (wageType === 'percentage') {
-    calculatedPay = (Number(booking.total_amount) * Number(wageRate)) / 100;
-  } else {
-    // hourly
-    calculatedPay = Number(wageRate) * hoursWorked;
-  }
-
+  // 3. Fallback: compute from defaults (no pay snapshot exists)
+  const fallback = computePayFromDefaults(booking, staff);
   return {
-    calculatedPay: Math.round(calculatedPay * 100) / 100,
+    calculatedPay: fallback.pay,
     hoursWorked,
-    wageType,
-    wageRate: Number(wageRate),
+    wageType: fallback.wageType,
+    wageRate: fallback.wageRate,
+    isMissingPay: true, // Flag: this booking has no saved pay snapshot
   };
 }
