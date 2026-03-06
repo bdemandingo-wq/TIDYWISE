@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logToSystem } from "../_shared/system-logger.ts";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 
@@ -22,15 +23,39 @@ serve(async (req) => {
       });
     }
 
-    if (!organizationId) {
-      return new Response(JSON.stringify({ error: "Organization context is required" }), {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Resolve organizationId: use provided one, or look up from user's email via org_memberships
+    let resolvedOrgId = organizationId;
+    if (!resolvedOrgId) {
+      // Try to find org from user's auth email
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      const matchedUser = authUsers?.users?.find(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+      if (matchedUser) {
+        const { data: membership } = await supabase
+          .from("org_memberships")
+          .select("organization_id")
+          .eq("user_id", matchedUser.id)
+          .limit(1)
+          .maybeSingle();
+        resolvedOrgId = membership?.organization_id;
+      }
+    }
+
+    if (!resolvedOrgId) {
+      console.error("[DELETION-EMAIL] Could not resolve organization for email:", email);
+      return new Response(JSON.stringify({ error: "Could not determine organization. Please contact support." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Get org-scoped email settings (single source of truth)
-    const emailSettingsResult = await getOrgEmailSettings(organizationId);
+    const emailSettingsResult = await getOrgEmailSettings(resolvedOrgId);
     if (!emailSettingsResult.success || !emailSettingsResult.settings) {
       console.error("[DELETION-EMAIL] Failed to get email settings:", emailSettingsResult.error);
       return new Response(JSON.stringify({ error: emailSettingsResult.error || "Email settings not configured" }), {
@@ -87,7 +112,7 @@ Please verify the user's identity and process this deletion request within 7 bus
     await logToSystem({
       level: "info",
       source: "send-deletion-request-email",
-      message: `Account deletion request submitted by ${email} for org ${organizationId}`,
+      message: `Account deletion request submitted by ${email} for org ${resolvedOrgId}`,
     });
 
     return new Response(JSON.stringify({ success: true }), {
