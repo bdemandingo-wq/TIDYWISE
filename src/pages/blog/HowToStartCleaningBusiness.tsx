@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
+import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -396,6 +397,13 @@ export default function HowToStartCleaningBusiness() {
           </div>
         </div>
       </article>
+
+      {/* Related Articles */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-4xl mx-auto">
+          <RelatedArticles articles={allArticles} currentSlug="/blog/how-to-start-a-cleaning-business" />
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border">

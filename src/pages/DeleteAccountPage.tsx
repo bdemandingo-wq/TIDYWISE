@@ -71,7 +71,7 @@ export default function DeleteAccountPage() {
         <header className="border-b bg-card">
           <div className="container max-w-3xl mx-auto px-4 py-6">
             <div className="flex items-center gap-3">
-              <img src="/images/tidywise-logo.webp" alt="TidyWise" className="h-8 w-auto" />
+              <img src="/images/tidywise-logo.webp" alt="TidyWise" className="h-8 w-auto" loading="lazy" />
               <span className="text-xl font-bold text-foreground">TidyWise</span>
             </div>
           </div>

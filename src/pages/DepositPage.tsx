@@ -133,6 +133,7 @@ export default function DepositPage() {
             <img
               src={depositDetails.logoUrl}
               alt={depositDetails.companyName}
+              loading="lazy"
               className="h-12 mx-auto mb-3 object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />

@@ -137,7 +137,7 @@ export default function TipPage() {
       <Card className="w-full max-w-md shadow-xl border-emerald-200/50">
         <CardHeader className="text-center pb-2">
           {tipDetails.logoUrl && (
-            <img src={tipDetails.logoUrl} alt={tipDetails.companyName} className="h-12 mx-auto mb-3 object-contain" />
+            <img src={tipDetails.logoUrl} alt={tipDetails.companyName} className="h-12 mx-auto mb-3 object-contain" loading="lazy" />
           )}
           <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-2">
             <Heart className="w-7 h-7 text-emerald-600" />
