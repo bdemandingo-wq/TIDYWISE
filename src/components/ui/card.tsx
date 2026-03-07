@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { usePlatform } from "@/hooks/usePlatform";
 
 const cardVariants = cva(
-  "rounded-xl border bg-card text-card-foreground transition-all duration-300",
+  "rounded-xl border bg-card text-card-foreground transition-all duration-200",
   {
     variants: {
       variant: {
