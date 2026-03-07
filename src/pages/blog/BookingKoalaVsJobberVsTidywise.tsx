@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
+import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowLeft, 
   Calendar, 
