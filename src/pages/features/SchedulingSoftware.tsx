@@ -74,8 +74,8 @@ export default function SchedulingSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="Cleaning Scheduling Software | Book More Jobs, Less Hassle | TidyWise"
-        description="Best scheduling software for cleaning businesses. Visual calendar, recurring bookings, online booking portal, and automatic reminders. Reduce no-shows by 90%."
+        title="Cleaning Scheduling Software | TIDYWISE"
+        description="Visual calendar, recurring bookings, online booking portal, and automatic reminders for cleaning businesses. Reduce no-shows."
         canonicalPath="/features/scheduling-software"
       />
 

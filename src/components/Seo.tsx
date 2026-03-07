@@ -15,6 +15,7 @@ type SeoProps = {
     modifiedTime?: string;
     section?: string;
   };
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 };
 
 function setMetaTag(property: string, content: string, isProperty = false) {
@@ -28,7 +29,9 @@ function setMetaTag(property: string, content: string, isProperty = false) {
   meta.content = content;
 }
 
-export function Seo({ title, description, canonicalPath, noIndex, ogImage, ogType = "website", article }: SeoProps) {
+const JSON_LD_ID = "seo-json-ld";
+
+export function Seo({ title, description, canonicalPath, noIndex, ogImage, ogType = "website", article, jsonLd }: SeoProps) {
   useEffect(() => {
     document.title = title;
 
@@ -78,7 +81,27 @@ export function Seo({ title, description, canonicalPath, noIndex, ogImage, ogTyp
     if (noIndex !== undefined) {
       setMetaTag("robots", noIndex ? "noindex, nofollow" : "index, follow");
     }
-  }, [title, description, canonicalPath, noIndex, ogImage, ogType, article]);
+
+    // JSON-LD structured data
+    const prev = document.getElementById(JSON_LD_ID);
+    if (prev) prev.remove();
+
+    if (jsonLd) {
+      const script = document.createElement("script");
+      script.id = JSON_LD_ID;
+      script.type = "application/ld+json";
+      const payload = Array.isArray(jsonLd)
+        ? { "@context": "https://schema.org", "@graph": jsonLd }
+        : { "@context": "https://schema.org", ...jsonLd };
+      script.textContent = JSON.stringify(payload);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      const el = document.getElementById(JSON_LD_ID);
+      if (el) el.remove();
+    };
+  }, [title, description, canonicalPath, noIndex, ogImage, ogType, article, jsonLd]);
 
   return null;
 }

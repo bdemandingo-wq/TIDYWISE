@@ -74,8 +74,8 @@ export default function InvoicingSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="Invoicing Software for Cleaning Business | Get Paid Faster | TidyWise"
-        description="Professional invoicing software for cleaning companies. Create branded invoices, accept online payments, and automate reminders. Get paid 2x faster with TidyWise."
+        title="Cleaning Business Invoicing Software"
+        description="Create branded invoices, accept online payments, and automate reminders. Get paid 2x faster with TidyWise invoicing for cleaning companies."
         canonicalPath="/features/invoicing-software"
       />
 

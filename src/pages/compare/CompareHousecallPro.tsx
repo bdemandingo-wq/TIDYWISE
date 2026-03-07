@@ -73,8 +73,8 @@ export default function CompareHousecallPro() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="TidyWise vs Housecall Pro 2026 | Best Housecall Pro Alternative for Cleaning"
-        description="Compare TidyWise vs Housecall Pro for cleaning businesses. TidyWise offers cleaning-specific features, automated payroll, and flat $50/mo pricing vs Housecall Pro's $59-$199/month."
+        title="TIDYWISE vs Housecall Pro (2026)"
+        description="Compare TIDYWISE vs Housecall Pro for cleaning businesses. Cleaning-specific features, payroll, and $50/mo flat pricing vs Housecall Pro's $59–$199/mo."
         canonicalPath="/compare/housecall-pro"
         ogImage="/images/tidywise-og.png"
       />

@@ -18,10 +18,21 @@ export default function HowToStartCleaningBusiness() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="How to Start a Cleaning Business in 2026 | Complete Guide - TIDYWISE"
-        description="Learn how to start a profitable cleaning business in 2026. Covers automated payroll software for maid services, cleaning business inventory management tool, scheduling, leads, and more."
+        title="How to Start a Cleaning Business (2026)"
+        description="Step-by-step guide to starting a cleaning business. Covers payroll, scheduling, inventory management, pricing, and lead generation for maid services."
         canonicalPath="/blog/how-to-start-a-cleaning-business"
         ogImage="/images/tidywise-og.png"
+        ogType="article"
+        article={{ publishedTime: "2026-01-15", section: "Business Guide" }}
+        jsonLd={{
+          "@type": "Article",
+          "headline": "How to Start a Cleaning Business in 2026",
+          "datePublished": "2026-01-15",
+          "dateModified": "2026-03-01",
+          "author": { "@type": "Organization", "name": "TIDYWISE" },
+          "publisher": { "@type": "Organization", "name": "TIDYWISE", "url": "https://www.jointidywise.com", "logo": { "@type": "ImageObject", "url": "https://www.jointidywise.com/images/tidywise-logo.png" } },
+          "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.jointidywise.com/blog/how-to-start-a-cleaning-business" }
+        }}
       />
 
       {/* Navigation */}

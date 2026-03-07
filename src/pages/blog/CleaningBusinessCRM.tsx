@@ -165,10 +165,12 @@ export default function CleaningBusinessCRM() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="Best CRM for Cleaning Business (2026) | Maid Service Software"
-        description="Find the best CRM for your cleaning business. Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, customer management & automation. Start your 60-day free trial today."
+        title="Best CRM for Cleaning Business (2026)"
+        description="Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, and customer management. Find the right fit for your maid service."
         canonicalPath="/blog/crm-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
+        ogType="article"
+        article={{ publishedTime: "2026-02-01", modifiedTime: "2026-02-04", section: "CRM Software" }}
       />
 
       {/* Navigation */}

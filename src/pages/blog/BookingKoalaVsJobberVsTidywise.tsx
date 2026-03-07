@@ -43,10 +43,21 @@ export default function BookingKoalaVsJobberVsTidywise() {
   return (
     <div className="min-h-screen bg-background">
       <Seo 
-        title="Booking Koala vs Jobber vs TIDYWISE (2026) | Best Cleaning Business Software Comparison"
-        description="Detailed comparison of Booking Koala vs Jobber vs TIDYWISE. Find the best maid service software, house cleaning CRM, and janitorial scheduling app for your business."
+        title="Booking Koala vs Jobber vs TIDYWISE (2026)"
+        description="Side-by-side comparison of Booking Koala, Jobber, and TIDYWISE. Pricing, features, and support for cleaning businesses."
         canonicalPath="/blog/booking-koala-vs-jobber-vs-tidywise"
         ogImage="/images/tidywise-og.png"
+        ogType="article"
+        article={{ publishedTime: "2026-01-10", section: "Comparison" }}
+        jsonLd={{
+          "@type": "Article",
+          "headline": "Booking Koala vs Jobber vs TIDYWISE: 2026 Comparison",
+          "datePublished": "2026-01-10",
+          "dateModified": "2026-03-01",
+          "author": { "@type": "Organization", "name": "TIDYWISE" },
+          "publisher": { "@type": "Organization", "name": "TIDYWISE", "url": "https://www.jointidywise.com", "logo": { "@type": "ImageObject", "url": "https://www.jointidywise.com/images/tidywise-logo.png" } },
+          "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.jointidywise.com/blog/booking-koala-vs-jobber-vs-tidywise" }
+        }}
       />
 
       {/* Navigation */}

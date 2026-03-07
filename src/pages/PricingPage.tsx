@@ -71,8 +71,33 @@ export default function PricingPage() {
   return (
     <>
       <Seo
-        title="Pricing - TIDYWISE | $50/mo Cleaning Business Software"
-        description="Simple, transparent pricing. Start free for 60 days. $50/month for unlimited bookings, team management, payments, and more."
+        title="Pricing – $50/mo All-Inclusive | TIDYWISE"
+        description="Simple pricing for cleaning businesses. 60-day free trial, then $50/mo for unlimited bookings, team management, payments, CRM, and more. No hidden fees."
+        canonicalPath="/pricing"
+        ogImage="/images/tidywise-og.png"
+        jsonLd={[
+          {
+            "@type": "Product",
+            "name": "TIDYWISE Pro",
+            "description": "Complete cleaning business management software",
+            "brand": { "@type": "Brand", "name": "TIDYWISE" },
+            "offers": {
+              "@type": "Offer",
+              "price": "50.00",
+              "priceCurrency": "USD",
+              "priceValidUntil": "2027-12-31",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(({ q, a }) => ({
+              "@type": "Question",
+              "name": q,
+              "acceptedAnswer": { "@type": "Answer", "text": a }
+            }))
+          }
+        ]}
       />
 
       <div className="min-h-screen bg-background">

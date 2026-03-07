@@ -201,10 +201,32 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <Seo 
-        title="TIDYWISE – Cleaning Business Software | Booking Koala & Jobber Alternative"
-        description="Best cleaning business software for maid services. Smart scheduling, automated payroll, CRM, GPS tracking & online booking. Better than Booking Koala & Jobber. Start free."
+        title="Cleaning Business Software | TIDYWISE"
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Start your 60-day free trial today."
         canonicalPath="/"
         ogImage="/images/tidywise-og.png"
+        jsonLd={[
+          {
+            "@type": "Organization",
+            "name": "TIDYWISE",
+            "url": "https://www.jointidywise.com",
+            "logo": "https://www.jointidywise.com/images/tidywise-logo.png",
+            "sameAs": []
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "TIDYWISE",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web, iOS, Android",
+            "offers": {
+              "@type": "Offer",
+              "price": "50.00",
+              "priceCurrency": "USD",
+              "priceValidUntil": "2027-12-31"
+            },
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management."
+          }
+        ]}
       />
 
       {/* Navigation - Premium glassmorphism (iOS safe-area aware) */}

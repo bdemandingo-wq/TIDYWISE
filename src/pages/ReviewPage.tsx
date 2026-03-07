@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Star, Send, CheckCircle, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Seo } from '@/components/Seo';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
@@ -146,6 +147,7 @@ export default function ReviewPage() {
   if (isLoading || redirectedToGoogle) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <Seo title="Leave a Review" noIndex />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           {redirectedToGoogle && <p className="text-muted-foreground">Taking you to Google Reviews...</p>}
