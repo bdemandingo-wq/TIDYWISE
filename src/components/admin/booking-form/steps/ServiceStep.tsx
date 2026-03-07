@@ -418,7 +418,7 @@ export function ServiceStep() {
                 <SelectContent className="bg-popover border-border">
                   {frequencyOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label} {opt.discount > 0 && `(${opt.discount * 100}% off)`}
+                      {opt.label}
                     </SelectItem>
                   ))}
                   {customFrequencies.length > 0 && (
