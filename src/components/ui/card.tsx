@@ -2,6 +2,7 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { usePlatform } from "@/hooks/usePlatform";
 
 const cardVariants = cva(
   "rounded-xl border bg-card text-card-foreground transition-all duration-300",
@@ -27,9 +28,19 @@ export interface CardProps
     VariantProps<typeof cardVariants> {}
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, ...props }, ref) => (
-    <div ref={ref} className={cn(cardVariants({ variant, className }))} {...props} />
-  )
+  ({ className, variant, ...props }, ref) => {
+    const { isNative } = usePlatform();
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          cardVariants({ variant, className }),
+          isNative && "rounded-2xl"
+        )}
+        {...props}
+      />
+    );
+  }
 );
 Card.displayName = "Card";
 

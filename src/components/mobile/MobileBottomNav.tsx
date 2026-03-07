@@ -12,11 +12,12 @@ import {
   Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { usePlatform } from '@/hooks/usePlatform';
 
 type MobileNavItem = {
   id: string;
@@ -56,10 +57,22 @@ export function MobileBottomNav() {
   const { isAdmin } = useOrganization();
   const [tabs, setTabs] = useState<MobileNavItem[]>(DEFAULT_TABS);
   const [moreOpen, setMoreOpen] = useState(false);
+  const { isNative } = usePlatform();
 
   const isDashboard = isDashboardRoute(location.pathname);
 
   const roleKey = isAdmin ? 'admin' : 'member';
+
+  // Haptic feedback for native tab presses
+  const triggerHaptic = useCallback(async () => {
+    if (!isNative) return;
+    try {
+      const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+      await Haptics.impact({ style: ImpactStyle.Light });
+    } catch {
+      // Haptics not available
+    }
+  }, [isNative]);
 
   useEffect(() => {
     if (!isDashboard) return;
@@ -111,14 +124,16 @@ export function MobileBottomNav() {
     return { primaryTabs: primary, overflowTabs: overflow, overflowActive: isOverflowActive };
   }, [tabs, location.pathname]);
 
+  // On native, always show (no md:hidden). On web, only show on mobile.
   if (!isDashboard) return null;
 
   return (
     <nav
       className={cn(
-        'md:hidden fixed left-0 right-0 z-50',
+        'fixed left-0 right-0 z-50',
         'bottom-0 pb-[env(safe-area-inset-bottom)]',
-        'bg-background/90 backdrop-blur border-t border-border'
+        'bg-background/95 backdrop-blur-lg border-t border-border',
+        !isNative && 'md:hidden'
       )}
       aria-label="Primary"
     >
@@ -129,17 +144,28 @@ export function MobileBottomNav() {
             <NavLink
               key={id}
               to={to}
+              onClick={triggerHaptic}
               className={({ isActive }) =>
                 cn(
-                  'h-14 flex flex-col items-center justify-center gap-0.5',
-                  'text-[11px] font-medium transition-colors',
+                  'flex flex-col items-center justify-center gap-0.5',
+                  'text-[11px] font-medium transition-all duration-200',
                   'active:scale-[0.96] will-change-transform min-w-[48px]',
-                  isActive ? 'text-foreground' : 'text-muted-foreground'
+                  isNative ? 'h-16' : 'h-14',
+                  isActive
+                    ? 'text-primary font-semibold'
+                    : 'text-muted-foreground'
                 )
               }
             >
-              <Icon className="h-5 w-5" aria-hidden="true" />
-              <span className="leading-none">{label}</span>
+              {({ isActive }) => (
+                <div className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 transition-all duration-200',
+                  isActive && isNative && 'bg-primary/10 rounded-xl px-3 py-1'
+                )}>
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span className="leading-none">{label}</span>
+                </div>
+              )}
             </NavLink>
           );
         })}
@@ -149,16 +175,23 @@ export function MobileBottomNav() {
             <SheetTrigger asChild>
               <button
                 type="button"
+                onClick={triggerHaptic}
                 className={cn(
-                  'h-14 flex flex-col items-center justify-center gap-0.5',
-                  'text-[11px] font-medium transition-colors',
+                  'flex flex-col items-center justify-center gap-0.5',
+                  'text-[11px] font-medium transition-all duration-200',
                   'active:scale-[0.96] will-change-transform min-w-[48px]',
-                  overflowActive ? 'text-foreground' : 'text-muted-foreground'
+                  isNative ? 'h-16' : 'h-14',
+                  overflowActive ? 'text-primary font-semibold' : 'text-muted-foreground'
                 )}
                 aria-label="More"
               >
-                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-                <span className="leading-none">More</span>
+                <div className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 transition-all duration-200',
+                  overflowActive && isNative && 'bg-primary/10 rounded-xl px-3 py-1'
+                )}>
+                  <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+                  <span className="leading-none">More</span>
+                </div>
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="p-0">
@@ -172,7 +205,10 @@ export function MobileBottomNav() {
                     <NavLink
                       key={t.id}
                       to={t.to}
-                      onClick={() => setMoreOpen(false)}
+                      onClick={() => {
+                        triggerHaptic();
+                        setMoreOpen(false);
+                      }}
                       className={({ isActive }) =>
                         cn(
                           'flex items-center gap-3 rounded-lg px-3 py-3',
@@ -192,7 +228,7 @@ export function MobileBottomNav() {
 
         {overflowTabs.length === 0 && primaryTabs.length < 5 &&
           Array.from({ length: 5 - primaryTabs.length }).map((_, i) => (
-            <div key={`pad_${i}`} className="h-14" />
+            <div key={`pad_${i}`} className={isNative ? 'h-16' : 'h-14'} />
           ))}
       </div>
     </nav>

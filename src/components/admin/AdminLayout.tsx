@@ -26,31 +26,42 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
-  const { canShowPaymentFlows } = usePlatform();
+  const { canShowPaymentFlows, isNative } = usePlatform();
   const location = useLocation();
-  
   
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
 
-  // Swipe-to-navigate disabled: it used hardcoded routes that didn't match
-  // custom mobile nav configurations, causing random page switches on touch.
-
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      {/* Hide sidebar completely on native */}
+      {!isNative && (
+        <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      )}
+
       <div className={cn(
         "transition-all duration-300 min-h-screen",
-        "pl-0 md:pl-16",
-        sidebarOpen && "md:pl-64"
+        isNative
+          ? "w-full"
+          : cn("pl-0 md:pl-16", sidebarOpen && "md:pl-64")
       )}>
-        <AdminHeader title={title} subtitle={subtitle} actions={actions} />
-        {/*
-          AdminHeader is sticky (not overlay), so we don't need the large top padding.
-          Keeping this compact avoids the “huge header” feel on mobile across all admin pages.
-        */}
+        {/* Hide AdminHeader on native; show inline title instead */}
+        {isNative ? (
+          <div className="px-4 pt-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+        ) : (
+          <AdminHeader title={title} subtitle={subtitle} actions={actions} />
+        )}
+
         <main
-          className="p-2 md:p-4 pt-2 md:pt-4 pb-24 md:pb-4 animate-page-enter overflow-y-auto"
+          className={cn(
+            "animate-page-enter overflow-y-auto",
+            isNative
+              ? "px-4 pt-4 pb-28"
+              : "p-2 md:p-4 pt-2 md:pt-4 pb-24 md:pb-4"
+          )}
         >
           {children}
         </main>
@@ -72,8 +83,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       )}
       
       <OfflineIndicator />
-      <AdminHelpChat />
+      {!isNative && <AdminHelpChat />}
     </div>
   );
 }
-

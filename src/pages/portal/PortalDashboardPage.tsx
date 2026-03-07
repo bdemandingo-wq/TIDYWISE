@@ -19,7 +19,8 @@ import {
   Trash2,
   X,
   RotateCcw,
-  CalendarClock
+  CalendarClock,
+  ChevronRight
 } from "lucide-react";
 import {
   AlertDialog,
@@ -37,11 +38,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { Seo } from "@/components/Seo";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
+import { usePlatform } from "@/hooks/usePlatform";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface Booking {
   id: string;
@@ -83,6 +87,7 @@ export default function PortalDashboardPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const { isNative } = usePlatform();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -271,11 +276,208 @@ export default function PortalDashboardPage() {
     return format(d, "EEE, MMM d");
   };
 
-  // Next upcoming booking for hero card
   const nextBooking = upcomingBookings.length > 0
     ? upcomingBookings.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
     : null;
 
+  // Tier progress percentage (rough estimate for visual)
+  const tierProgressMap: Record<string, number> = { bronze: 25, silver: 50, gold: 75, platinum: 100 };
+  const tierProgress = tierProgressMap[displayLoyalty.tier?.toLowerCase()] ?? 25;
+
+  // ─── NATIVE PORTAL LAYOUT ───
+  if (isNative) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Seo
+          title="My Dashboard | Client Portal"
+          description="View your bookings, loyalty status, and manage appointments."
+          canonicalPath="/portal/dashboard"
+        />
+
+        {/* Native header */}
+        <div className="px-4 pt-[calc(env(safe-area-inset-top)+16px)] pb-2 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">
+            Hey {customer.first_name} 👋
+          </h1>
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <Settings className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Settings</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-6">
+                <PortalProfileTab />
+                <PortalSettingsTab />
+                <Button variant="outline" className="w-full gap-2 h-12 rounded-xl" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        <div className="px-4 pb-28 space-y-4">
+          {/* Loyalty card */}
+          <Card className="rounded-2xl overflow-hidden shadow-sm">
+            <div className={`h-1.5 ${getTierColor(displayLoyalty.tier)}`} />
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  <span className="font-semibold capitalize">{displayLoyalty.tier} Member</span>
+                </div>
+                <Badge variant="outline" className="text-sm px-2.5 py-0.5">
+                  {displayLoyalty.points} pts
+                </Badge>
+              </div>
+              <Progress value={tierProgress} className="h-2" />
+            </CardContent>
+          </Card>
+
+          {/* Upcoming booking card */}
+          {nextBooking ? (
+            <Card className="rounded-2xl overflow-hidden border-primary/20 shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Next Appointment</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-lg">{nextBooking.service?.name || "Service"}</p>
+                    {getStatusBadge(nextBooking.status)}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-foreground">{getDateLabel(nextBooking.scheduled_at)}</span>
+                    <span>at {format(new Date(nextBooking.scheduled_at), "h:mm a")}</span>
+                  </div>
+                  {nextBooking.address && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      {nextBooking.address}
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-1 h-12 rounded-xl text-base"
+                      onClick={() => handleReschedule(nextBooking)}
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                      Manage
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="rounded-2xl p-6 text-center shadow-sm">
+              <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">No upcoming bookings</p>
+            </Card>
+          )}
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              className="rounded-2xl h-14 text-base font-semibold gap-2"
+              onClick={() => navigate("/portal/request")}
+            >
+              <Plus className="h-5 w-5" />
+              Book Again
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl h-14 text-base font-semibold gap-2"
+              onClick={() => {/* scroll to past bookings below */}}
+            >
+              <CalendarDays className="h-5 w-5" />
+              All Bookings
+            </Button>
+          </div>
+
+          {/* Past bookings */}
+          {pastBookings.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground">Past Bookings</h2>
+              {pastBookings.map((booking) => (
+                <Card key={booking.id} className="rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="font-medium">{booking.service?.name || "Service"}</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {format(new Date(booking.scheduled_at), "MMM d, yyyy")}
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-2">
+                      {getStatusBadge(booking.status)}
+                      <p className="text-lg font-semibold">${booking.total_amount}</p>
+                      {booking.status === "completed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs gap-1 h-8 rounded-lg"
+                          onClick={() => handleRebook(booking)}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Rebook
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Cancel Booking Dialog */}
+        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {bookingToCancel && (
+                  <>
+                    Are you sure you want to cancel your{" "}
+                    <strong>{bookingToCancel.service?.name || "cleaning"}</strong> scheduled for{" "}
+                    <strong>{format(new Date(bookingToCancel.scheduled_at), "MMM d, yyyy 'at' h:mm a")}</strong>?
+                    <br /><br />
+                    <span className="text-muted-foreground text-sm">
+                      Note: Same day or next day cancellations (within 48 hours) may incur a fee unless you are a Platinum member.
+                    </span>
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancelling}>Keep Booking</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmCancelBooking}
+                disabled={cancelling}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  "Yes, Cancel"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </main>
+    );
+  }
+
+  // ─── WEB / DESKTOP LAYOUT (unchanged) ───
   return (
     <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <Seo
