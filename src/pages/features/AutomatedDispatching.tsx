@@ -218,14 +218,21 @@ export default function AutomatedDispatching() {
         </div>
       </section>
 
+      {/* Related Articles */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-5xl mx-auto">
+          <RelatedArticles articles={allArticles} currentSlug="/features/automated-dispatching" />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">© 2026 TIDYWISE. Smart dispatching for cleaning businesses.</p>
           <div className="flex justify-center gap-6 mt-4">
-            <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
-            <a href="/features/quote-software" className="text-muted-foreground hover:text-foreground">Quote Software</a>
-            <a href="/features/sms-notifications" className="text-muted-foreground hover:text-foreground">SMS Notifications</a>
+            <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
           </div>
         </div>
       </footer>

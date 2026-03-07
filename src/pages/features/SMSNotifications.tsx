@@ -217,14 +217,21 @@ export default function SMSNotifications() {
         </div>
       </section>
 
+      {/* Related Articles */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-5xl mx-auto">
+          <RelatedArticles articles={allArticles} currentSlug="/features/sms-notifications" />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-muted-foreground">© 2026 TIDYWISE. SMS notifications for cleaning businesses.</p>
           <div className="flex justify-center gap-6 mt-4">
-            <a href="/" className="text-muted-foreground hover:text-foreground">Home</a>
-            <a href="/features/automated-dispatching" className="text-muted-foreground hover:text-foreground">Dispatching</a>
-            <a href="/features/payment-processing" className="text-muted-foreground hover:text-foreground">Payments</a>
+            <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
           </div>
         </div>
       </footer>
