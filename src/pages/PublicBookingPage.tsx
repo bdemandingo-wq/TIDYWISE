@@ -406,7 +406,7 @@ export default function PublicBookingPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {logoUrl ? (
-                <img src={logoUrl} alt={organizationName} className="w-10 h-10 rounded-xl object-cover" />
+                <img src={logoUrl} alt={organizationName} className="w-10 h-10 rounded-xl object-cover" loading="lazy" />
               ) : (
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   <CalendarIcon className="w-6 h-6 text-primary-foreground" />

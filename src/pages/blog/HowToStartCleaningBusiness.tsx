@@ -398,6 +398,13 @@ export default function HowToStartCleaningBusiness() {
         </div>
       </article>
 
+      {/* Related Articles */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-4xl mx-auto">
+          <RelatedArticles articles={allArticles} currentSlug="/blog/how-to-start-a-cleaning-business" />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-4xl mx-auto text-center text-sm text-muted-foreground">
