@@ -394,7 +394,7 @@ export default function PortalDashboardPage() {
               className="rounded-2xl h-14 text-base font-semibold gap-2"
               onClick={() => {/* scroll to past bookings below */}}
             >
-              <CalendarDays className="h-5 w-5" />
+              <CalendarDays className="h-4 w-4" />
               All Bookings
             </Button>
           </div>
