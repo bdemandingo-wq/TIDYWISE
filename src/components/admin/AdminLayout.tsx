@@ -47,9 +47,9 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       )}>
         {/* Hide AdminHeader on native; show inline title instead */}
         {isNative ? (
-          <div className="px-4 pt-4 pt-[calc(env(safe-area-inset-top)+16px)]">
-            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+          <div className="px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
+            <h1 className="text-xl font-bold text-foreground">{title}</h1>
+            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>
         ) : (
           <AdminHeader title={title} subtitle={subtitle} actions={actions} />
