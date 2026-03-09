@@ -92,10 +92,10 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
               Subscribe to Unlock
             </Button>
           ) : (
-            <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Subscribe on Web
-            </Button>
+            /* Guideline 3.1.1: No external payment links on native iOS */
+            <p className="text-xs text-muted-foreground mt-2">
+              Visit jointidywise.com to manage your subscription.
+            </p>
           )}
         </div>
       </div>
