@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +96,7 @@ export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
   const { organization } = useOrganization();
+  const isMobile = useIsMobile();
 
   // Fetch invoices with items
   const { data: invoices = [], isLoading } = useQuery({
@@ -377,7 +380,92 @@ export default function InvoicesPage() {
         </Card>
       </div>
 
-      {/* Table */}
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <div className="space-y-2 pb-20">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border/40 rounded-2xl p-4 animate-pulse">
+                  <div className="h-4 w-1/3 bg-muted rounded" />
+                  <div className="mt-2 h-3 w-2/3 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              No invoices yet. Create your first invoice to get started.
+            </div>
+          ) : (
+            invoices.map((invoice) => {
+              const customer = getCustomerDisplay(invoice);
+              const statusConfig = STATUS_CONFIG[invoice.status];
+              const StatusIcon = statusConfig.icon;
+
+              return (
+                <SwipeableRow
+                  key={invoice.id}
+                  rightAction={{
+                    label: 'Delete',
+                    variant: 'destructive',
+                    onAction: () => deleteMutation.mutate(invoice.id),
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="w-full text-left bg-card border border-border/40 rounded-2xl p-4 active:scale-[0.99] transition-transform"
+                    onClick={() => {
+                      setViewingInvoice(invoice);
+                      setViewDialogOpen(true);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">
+                            INV-{String(invoice.invoice_number).padStart(4, '0')}
+                          </p>
+                          <Badge variant={statusConfig.variant} className="gap-1 text-[10px] px-1.5 py-0">
+                            <StatusIcon className="w-3 h-3" />
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mt-0.5">
+                          {maskName(customer.name)}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold">{maskAmount(invoice.total_amount)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(invoice.created_at), 'MMM d')}
+                        </p>
+                      </div>
+                    </div>
+                    {invoice.due_date && (
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Due: {format(new Date(invoice.due_date), 'MMM d, yyyy')}
+                      </p>
+                    )}
+                  </button>
+                </SwipeableRow>
+              );
+            })
+          )}
+
+          {/* Mobile FAB */}
+          <Button
+            size="icon"
+            className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full shadow-lg"
+            onClick={() => {
+              setEditingInvoice(null);
+              setFormDialogOpen(true);
+            }}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      ) : (
+      /* Desktop Table */
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -532,6 +620,7 @@ export default function InvoicesPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
 
       {/* Invoice Form Dialog */}
       <InvoiceFormDialog
