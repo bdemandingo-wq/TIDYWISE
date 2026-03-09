@@ -8,10 +8,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Download, MessageSquare, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,8 +29,6 @@ import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 
 interface FeedbackEntry {
   id: string;
@@ -34,7 +41,6 @@ interface FeedbackEntry {
 }
 
 export default function ClientFeedbackPage() {
-  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FeedbackEntry | null>(null);
   const [filterResolved, setFilterResolved] = useState<string>('all');
@@ -195,104 +201,97 @@ export default function ClientFeedbackPage() {
         </Card>
       </div>
 
-      {/* Table / Mobile Cards */}
-      {isMobile ? (
-        <div className="space-y-2">
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="p-4 animate-pulse"><div className="h-12 bg-muted rounded" /></Card>
-            ))
-          ) : filteredEntries.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">No feedback entries found</Card>
-          ) : (
-            filteredEntries.map((entry) => (
-              <SwipeableRow
-                key={entry.id}
-                rightAction={{ label: 'Delete', onAction: () => deleteMutation.mutate(entry.id), variant: 'destructive' }}
-              >
-                <Card
-                  className="p-4 cursor-pointer active:bg-accent/50"
-                  onClick={() => { setEditingEntry(entry); setDialogOpen(true); }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium truncate">
-                      {isTestMode ? maskName(entry.customer_name) : entry.customer_name}
-                    </p>
-                    <Badge variant={entry.is_resolved ? 'default' : 'destructive'} className="shrink-0">
-                      {entry.is_resolved ? 'Resolved' : 'Open'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{format(parseISO(entry.feedback_date), 'MMM d, yyyy')}</span>
-                    {entry.followup_needed && !entry.is_resolved && (
-                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-600">Follow-up</Badge>
-                    )}
-                  </div>
-                  {entry.issue_description && (
-                    <p className="text-sm text-muted-foreground mt-1 truncate">{entry.issue_description}</p>
-                  )}
-                </Card>
-              </SwipeableRow>
-            ))
-          )}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Follow-up</TableHead>
+                <TableHead className="max-w-[300px]">Issue</TableHead>
+                <TableHead className="max-w-[300px]">Resolution</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Follow-up</TableHead>
-                  <TableHead className="max-w-[300px]">Issue</TableHead>
-                  <TableHead className="max-w-[300px]">Resolution</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
-                ) : filteredEntries.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No feedback entries found</TableCell></TableRow>
-                ) : (
-                  filteredEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-medium">{isTestMode ? maskName(entry.customer_name) : entry.customer_name}</TableCell>
-                      <TableCell>{format(parseISO(entry.feedback_date), 'MMM d, yyyy')}</TableCell>
-                      <TableCell><Badge variant={entry.is_resolved ? 'default' : 'destructive'}>{entry.is_resolved ? 'Resolved' : 'Open'}</Badge></TableCell>
-                      <TableCell>
-                        {entry.followup_needed && !entry.is_resolved
-                          ? <Badge variant="outline" className="text-amber-600 border-amber-300">Yes</Badge>
-                          : <span className="text-muted-foreground">No</span>}
-                      </TableCell>
-                      <TableCell className="max-w-[300px]"><p className="truncate text-sm" title={entry.issue_description || ''}>{entry.issue_description || '-'}</p></TableCell>
-                      <TableCell className="max-w-[300px]"><p className="truncate text-sm" title={entry.resolution || ''}>{entry.resolution || '-'}</p></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingEntry(entry); setDialogOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm('Delete this feedback?')) deleteMutation.mutate(entry.id); }}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Button
-          className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-30"
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      )}
+              ) : filteredEntries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No feedback entries found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEntries.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">
+                      {isTestMode ? maskName(entry.customer_name) : entry.customer_name}
+                    </TableCell>
+                    <TableCell>{format(parseISO(entry.feedback_date), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>
+                      <Badge variant={entry.is_resolved ? 'default' : 'destructive'}>
+                        {entry.is_resolved ? 'Resolved' : 'Open'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {entry.followup_needed && !entry.is_resolved ? (
+                        <Badge variant="outline" className="text-amber-600 border-amber-300">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-[300px]">
+                      <p className="truncate text-sm" title={entry.issue_description || ''}>
+                        {entry.issue_description || '-'}
+                      </p>
+                    </TableCell>
+                    <TableCell className="max-w-[300px]">
+                      <p className="truncate text-sm" title={entry.resolution || ''}>
+                        {entry.resolution || '-'}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingEntry(entry);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => {
+                            if (confirm('Delete this feedback?')) {
+                              deleteMutation.mutate(entry.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Add/Edit Dialog */}
       <FeedbackDialog

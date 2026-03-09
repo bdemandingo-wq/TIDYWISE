@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { hapticImpact } from '@/lib/haptics';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1428,8 +1427,6 @@ export default function BookingsPage() {
           </div>
 
       {/* Filters */}
-
-
       <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1496,7 +1493,7 @@ export default function BookingsPage() {
           </Select>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-info border-info/30 hover:bg-info/10"
+            className="h-11 gap-2 rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
             onClick={handleBulkNotifyWeekCleaners}
             disabled={bulkNotifyingWeek}
           >
@@ -1505,7 +1502,7 @@ export default function BookingsPage() {
           </Button>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-success border-success/30 hover:bg-success/10"
+            className="h-11 gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
             onClick={handlePrepareWeeklyReminders}
           >
             <Phone className="w-4 h-4" />
@@ -1539,7 +1536,7 @@ export default function BookingsPage() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-11 gap-2 rounded-xl text-accent border-accent/30 hover:bg-accent/10"
+                className="h-11 gap-2 rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50"
                 onClick={handleBulkNotifyCleaners}
                 disabled={bulkNotifyingCleaners}
               >
@@ -1560,36 +1557,36 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Bookings List */}
+      {/* Table */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading bookings...</p>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading bookings...</p>
+            </div>
           </div>
-        </div>
-      ) : filteredBookings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-card rounded-2xl border border-border/50">
-          <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
-            <Calendar className="w-8 h-8 text-muted-foreground" />
+        ) : filteredBookings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+            <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
+              <Calendar className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No bookings found</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              {searchTerm || statusFilter !== 'all' 
+                ? "Try adjusting your search or filter criteria"
+                : "Get started by creating your first booking"
+              }
+            </p>
+            <Button 
+              onClick={() => setAddDialogOpen(true)}
+              className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            >
+              <Plus className="w-4 h-4" />
+              Create Booking
+            </Button>
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">No bookings found</h3>
-          <p className="text-muted-foreground mb-6 max-w-sm">
-            {searchTerm || statusFilter !== 'all' 
-              ? "Try adjusting your search or filter criteria"
-              : "Get started by creating your first booking"
-            }
-          </p>
-          <Button 
-            onClick={() => { hapticImpact('medium'); setAddDialogOpen(true); }}
-            className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-          >
-            <Plus className="w-4 h-4" />
-            Create Booking
-          </Button>
-        </div>
-      ) : (
+        ) : (
           <div className="overflow-x-auto" data-no-swipe>
             <Table>
               <TableHeader>
@@ -1988,7 +1985,319 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+        </TabsContent>
 
+        <TabsContent value="drafts" className="space-y-6">
+          <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
+            <h3 className="text-lg font-semibold mb-4">Draft Bookings</h3>
+            <p className="text-muted-foreground mb-4">
+              These are bookings saved as drafts with pending payment status. Complete the booking or payment to move them to active bookings.
+            </p>
+            {draftBookings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No draft bookings found.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {draftBookings.map((booking) => (
+                  <div key={booking.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-border/50">
+                    <div>
+                      <p className="font-medium">
+                        #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                        ${booking.total_amount?.toFixed(2)} unpaid
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveBooking(booking);
+                          setViewDialogOpen(true);
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setEditingBooking(booking);
+                          setAddDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(booking)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="quotes" className="space-y-6">
+          <QuotesTabContent />
+        </TabsContent>
+
+        <TabsContent value="cleaner-wages">
+          <BulkEditCleanerWages />
+        </TabsContent>
+      </Tabs>
+
+      <AddBookingDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        booking={editingBooking}
+        onDuplicate={handleDuplicate}
+      />
+      
+      <BookingDetailsDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        booking={activeBooking}
+      />
+
+      <AdjustPaymentDialog
+        open={adjustPaymentOpen}
+        onOpenChange={setAdjustPaymentOpen}
+        booking={activeBooking}
+      />
+
+      {/* Charge Confirmation Dialog */}
+      <AlertDialog open={!!chargeConfirmBooking} onOpenChange={(open) => !open && setChargeConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Charge</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to charge <strong>${chargeConfirmBooking?.total_amount?.toFixed(2)}</strong> to{' '}
+              <strong>{chargeConfirmBooking?.customer?.first_name} {chargeConfirmBooking?.customer?.last_name}</strong>'s card?
+              <br /><br />
+              This will immediately charge their saved payment method.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => {
+                if (chargeConfirmBooking) {
+                  handleChargeCard(chargeConfirmBooking);
+                  setChargeConfirmBooking(null);
+                }
+              }}
+            >
+              Yes, Charge Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Place Hold Confirmation Dialog */}
+      <AlertDialog open={!!placeHoldConfirmBooking} onOpenChange={(open) => !open && setPlaceHoldConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Place Hold</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to place a hold of <strong>${placeHoldConfirmBooking?.total_amount?.toFixed(2)}</strong> on{' '}
+              <strong>{placeHoldConfirmBooking?.customer?.first_name} {placeHoldConfirmBooking?.customer?.last_name}</strong>'s card?
+              <br /><br />
+              This will authorize the amount but not charge the card until you capture the payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (placeHoldConfirmBooking) {
+                  handlePlaceHold(placeHoldConfirmBooking);
+                  setPlaceHoldConfirmBooking(null);
+                }
+              }}
+            >
+              Yes, Place Hold
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Capture Hold Confirmation Dialog */}
+      <AlertDialog open={!!captureConfirmBooking} onOpenChange={(open) => !open && setCaptureConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Capture Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to capture <strong>${captureConfirmBooking?.total_amount?.toFixed(2)}</strong> from the hold on{' '}
+              <strong>{captureConfirmBooking?.customer?.first_name} {captureConfirmBooking?.customer?.last_name}</strong>'s card?
+              <br /><br />
+              This will finalize the payment hold and transfer the funds.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (captureConfirmBooking) {
+                  handleCapturePayment(captureConfirmBooking);
+                  setCaptureConfirmBooking(null);
+                }
+              }}
+            >
+              Yes, Capture Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Refund Dialog */}
+      <AlertDialog open={!!refundDialogBooking} onOpenChange={(open) => {
+        if (!open) {
+          setRefundDialogBooking(null);
+          setRefundType('full');
+          setRefundAmount('');
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Process Refund</AlertDialogTitle>
+            <AlertDialogDescription>
+              Refund payment for Booking #{refundDialogBooking?.booking_number} —{' '}
+              <strong>{refundDialogBooking?.customer?.first_name} {refundDialogBooking?.customer?.last_name}</strong>
+              <br />
+              Original amount: <strong>${refundDialogBooking?.total_amount?.toFixed(2)}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-4">
+            <RadioGroup value={refundType} onValueChange={(v) => setRefundType(v as 'full' | 'partial')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="full" id="refund-full" />
+                <Label htmlFor="refund-full">Full Refund (${refundDialogBooking?.total_amount?.toFixed(2)})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="partial" id="refund-partial" />
+                <Label htmlFor="refund-partial">Partial Refund</Label>
+              </div>
+            </RadioGroup>
+            {refundType === 'partial' && (
+              <div className="space-y-2">
+                <Label htmlFor="refund-amount">Refund Amount ($)</Label>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={refundDialogBooking?.total_amount}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processingRefund}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary hover:bg-primary/90"
+              disabled={processingRefund}
+              onClick={() => {
+                if (refundDialogBooking) {
+                  handleProcessRefund(refundDialogBooking);
+                }
+              }}
+            >
+              {processingRefund ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                `Refund ${refundType === 'full' ? `$${refundDialogBooking?.total_amount?.toFixed(2)}` : refundAmount ? `$${parseFloat(refundAmount).toFixed(2)}` : '...'}`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment History Dialog */}
+      <PaymentHistoryLogDialog
+        open={paymentHistoryOpen}
+        onOpenChange={setPaymentHistoryOpen}
+        booking={paymentHistoryBooking}
+      />
+
+      {/* Bulk Assign Cleaner Dialog */}
+      <AlertDialog open={bulkAssignDialogOpen} onOpenChange={setBulkAssignDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assign Cleaner to {selectedBookings.size} Booking{selectedBookings.size > 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select a cleaner to assign to the selected bookings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a cleaner..." />
+              </SelectTrigger>
+              <SelectContent>
+                {staffList.map((staff) => (
+                  <SelectItem key={staff.id} value={staff.id}>
+                    {staff.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedStaffId('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!selectedStaffId || bulkAssigning}
+              onClick={handleBulkAssign}
+            >
+              {bulkAssigning ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign Cleaner'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Additional Charges Dialog */}
+      {additionalChargesBooking && (
+        <AdditionalChargesDialog
+          open={additionalChargesOpen}
+          onOpenChange={setAdditionalChargesOpen}
+          bookingId={additionalChargesBooking.id}
+          bookingNumber={additionalChargesBooking.booking_number}
+          organizationId={organization?.id || ''}
+          currentTotal={additionalChargesBooking.total_amount}
+          customerEmail={additionalChargesBooking.customer?.email}
+          onTotalUpdated={() => {
+            // Refetch handled by invalidation in dialog
+          }}
+        />
+      )}
 
       {/* Deposit Request Dialog */}
       <AlertDialog open={!!depositDialogBooking} onOpenChange={(open) => { if (!open) setDepositDialogBooking(null); }}>
@@ -2152,8 +2461,6 @@ export default function BookingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-        </TabsContent>
-      </Tabs>
     </AdminLayout>
   );
 }

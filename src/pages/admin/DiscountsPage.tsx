@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +38,6 @@ import { format } from 'date-fns';
 export default function DiscountsPage() {
   const { discounts, loading, createDiscount, deleteDiscount, updateDiscount } = useDiscounts();
   const { settings } = useOrganizationSettings();
-  const isMobile = useIsMobile();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newDiscount, setNewDiscount] = useState({
     code: '',
@@ -244,48 +241,6 @@ export default function DiscountsPage() {
               <Tag className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No discounts created yet</p>
               <p className="text-sm">Create your first coupon code to offer discounts</p>
-            </div>
-          ) : isMobile ? (
-            <div className="space-y-2 -mx-4 px-1">
-              {discounts.map((discount) => (
-                <SwipeableRow
-                  key={discount.id}
-                  rightAction={{
-                    label: 'Delete',
-                    variant: 'destructive',
-                    onAction: () => handleDeleteDiscount(discount.id),
-                  }}
-                >
-                  <div className="bg-card border border-border/40 rounded-2xl p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <code className="font-mono font-bold text-sm">{discount.code}</code>
-                          {discount.is_test && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-yellow-600 border-yellow-600">Test</Badge>
-                          )}
-                        </div>
-                        {discount.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{discount.description}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>
-                            {discount.discount_type === 'percentage' ? `${discount.discount_value}%` : `$${discount.discount_value}`} off
-                          </span>
-                          <span>{discount.current_uses}{discount.max_uses ? `/${discount.max_uses}` : ''} uses</span>
-                          {discount.valid_until && (
-                            <span>Exp {format(new Date(discount.valid_until), 'MMM d')}</span>
-                          )}
-                        </div>
-                      </div>
-                      <Switch
-                        checked={discount.is_active}
-                        onCheckedChange={() => handleToggleActive(discount)}
-                      />
-                    </div>
-                  </div>
-                </SwipeableRow>
-              ))}
             </div>
           ) : (
             <Table>

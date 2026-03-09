@@ -11,7 +11,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,7 +48,6 @@ interface Task {
 
 export default function TasksPage() {
   const { organizationId } = useOrgId();
-  const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TaskType>('daily');
@@ -467,16 +465,6 @@ export default function TasksPage() {
           ))}
         </Tabs>
       </div>
-
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Button
-          className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-30"
-          onClick={() => setAddDialogOpen(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      )}
     </AdminLayout>
   );
 }

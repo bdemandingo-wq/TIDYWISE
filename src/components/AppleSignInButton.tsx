@@ -29,15 +29,14 @@ export function AppleSignInButton({
   const { isIOS } = usePlatform();
   const [loading, setLoading] = useState(false);
 
-  // Only render on iOS (native or simulator via user agent)
-  const isIOSDevice = isIOS || /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if (!isIOSDevice) return null;
+  // Only render on native iOS
+  if (!isIOS) return null;
 
   const handleAppleSignIn = async () => {
     setLoading(true);
     try {
       const options: SignInWithAppleOptions = {
-        clientId: 'com.jointidywise.app',
+        clientId: 'app.lovable.b5fbe592e63a4ccf8d0f0393049d0881',
         redirectURI: 'https://slwfkaqczvwvvvavkgpr.supabase.co/auth/v1/callback',
         scopes: 'email name',
       };

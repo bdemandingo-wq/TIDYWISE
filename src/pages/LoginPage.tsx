@@ -20,7 +20,6 @@ import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { usePlatform } from '@/hooks/usePlatform';
 import { AppleSignInButton } from '@/components/AppleSignInButton';
-import { AppleSignInWebButton } from '@/components/AppleSignInWebButton';
 
 // Native-aware signup link component for App Store compliance
 function NativeAwareSignupLink() {
@@ -234,20 +233,12 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
-              {/* Apple Sign In — iOS native */}
+              {/* Apple Sign In — iOS only */}
               <AppleSignInButton
                 label="Sign in with Apple"
                 onSuccess={() => setShowSplash(true)}
                 disabled={loading}
               />
-
-              {/* Apple Sign In — Web */}
-              <div className="mt-3">
-                <AppleSignInWebButton
-                  label="Sign in with Apple"
-                  disabled={loading}
-                />
-              </div>
             </form>
 
             {/* Sign up link - on native, direct to website */}

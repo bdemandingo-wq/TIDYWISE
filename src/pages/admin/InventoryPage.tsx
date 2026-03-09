@@ -41,8 +41,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 
 interface InventoryItem {
   id: string;
@@ -68,7 +66,6 @@ interface InventoryCategory {
 const DEFAULT_CATEGORIES = ['supplies', 'equipment', 'chemicals', 'uniforms', 'other'];
 
 export default function InventoryPage() {
-  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
@@ -238,124 +235,102 @@ export default function InventoryPage() {
         </Card>
       )}
 
-      {/* Table / Mobile Cards */}
-      {isMobile ? (
-        <div className="space-y-2">
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="p-4 animate-pulse"><div className="h-12 bg-muted rounded" /></Card>
-            ))
-          ) : items.length === 0 ? (
-            <Card className="p-8 text-center text-muted-foreground">No inventory items</Card>
-          ) : (
-            items.map((item) => (
-              <SwipeableRow
-                key={item.id}
-                rightAction={{ label: 'Delete', onAction: () => deleteMutation.mutate(item.id), variant: 'destructive' }}
-              >
-                <Card
-                  className="p-4 cursor-pointer active:bg-accent/50"
-                  onClick={() => { setEditingItem(item); setDialogOpen(true); }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium truncate">{item.name}</p>
-                        <Badge variant="outline" className="capitalize text-xs shrink-0">{item.category}</Badge>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className={item.quantity <= item.min_quantity ? 'text-amber-600 font-medium' : ''}>
-                          Qty: {item.quantity}
-                        </span>
-                        <span>${item.cost_per_unit.toFixed(2)}/unit</span>
-                        {item.supplier && <span className="truncate">{item.supplier}</span>}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 shrink-0"
-                      onClick={(e) => { e.stopPropagation(); setRestockItem(item); setRestockDialogOpen(true); }}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </Card>
-              </SwipeableRow>
-            ))
-          )}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Quantity</TableHead>
+                <TableHead className="text-right">Low Stock Min</TableHead>
+                <TableHead className="text-right">Cost/Unit</TableHead>
+                <TableHead>Supplier</TableHead>
+                <TableHead className="w-[120px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Low Stock Min</TableHead>
-                  <TableHead className="text-right">Cost/Unit</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead className="w-[120px]">Actions</TableHead>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Loading...
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
+              ) : items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No inventory items
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="capitalize">{item.category}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={item.quantity <= item.min_quantity ? 'text-amber-600 font-medium' : ''}>
+                        {item.quantity}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {item.min_quantity}
+                    </TableCell>
+                    <TableCell className="text-right">${item.cost_per_unit.toFixed(2)}</TableCell>
+                    <TableCell>{item.supplier || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setRestockItem(item);
+                            setRestockDialogOpen(true);
+                          }}
+                          title="Restock"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingItem(item);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => {
+                            if (confirm('Delete this item?')) {
+                              deleteMutation.mutate(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ) : items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No inventory items</TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="capitalize">{item.category}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={item.quantity <= item.min_quantity ? 'text-amber-600 font-medium' : ''}>{item.quantity}</span>
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">{item.min_quantity}</TableCell>
-                      <TableCell className="text-right">${item.cost_per_unit.toFixed(2)}</TableCell>
-                      <TableCell>{item.supplier || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setRestockItem(item); setRestockDialogOpen(true); }} title="Restock">
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingItem(item); setDialogOpen(true); }}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (confirm('Delete this item?')) deleteMutation.mutate(item.id); }}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Button
-          className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-30"
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      )}
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Add/Edit Dialog */}
       <InventoryDialog
