@@ -20,6 +20,7 @@ import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react';
 import { z } from 'zod';
+import { AppleSignInButton } from '@/components/AppleSignInButton';
 
 // Validation schema
 const signupSchema = z.object({

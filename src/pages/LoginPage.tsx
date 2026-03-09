@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, ExternalLink } from 'lucide-react';
 import { z } from 'zod';
 import { usePlatform } from '@/hooks/usePlatform';
+import { AppleSignInButton } from '@/components/AppleSignInButton';
 
 // Native-aware signup link component for App Store compliance
 function NativeAwareSignupLink() {
