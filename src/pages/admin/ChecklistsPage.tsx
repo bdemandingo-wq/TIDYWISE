@@ -130,6 +130,7 @@ function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
 }
 
 export default function ChecklistsPage() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
