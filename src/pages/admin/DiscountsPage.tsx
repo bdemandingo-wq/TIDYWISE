@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
