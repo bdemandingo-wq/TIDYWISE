@@ -40,6 +40,7 @@ import { format } from 'date-fns';
 export default function DiscountsPage() {
   const { discounts, loading, createDiscount, deleteDiscount, updateDiscount } = useDiscounts();
   const { settings } = useOrganizationSettings();
+  const isMobile = useIsMobile();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newDiscount, setNewDiscount] = useState({
     code: '',

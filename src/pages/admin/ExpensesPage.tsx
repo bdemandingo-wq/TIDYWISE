@@ -79,6 +79,7 @@ const EXPENSE_CATEGORIES = [
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
+  const isMobile = useIsMobile();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
