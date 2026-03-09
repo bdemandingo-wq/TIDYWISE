@@ -181,11 +181,8 @@ export function MobileBottomNav() {
                 )}
                 aria-label="More"
               >
-                <div className={cn(
-                  'flex flex-col items-center justify-center gap-0.5 transition-all duration-200',
-                  overflowActive && isNative && 'bg-primary/8 rounded-lg px-2.5 py-1'
-                )}>
-                  <MoreHorizontal className={cn("h-5 w-5", isNative && "h-[18px] w-[18px]")} aria-hidden="true" />
+                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-200">
+                  <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
                   <span className="leading-none">More</span>
                 </div>
               </button>
