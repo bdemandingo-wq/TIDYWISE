@@ -2114,8 +2114,24 @@ export default function BookingsPage() {
               </TableBody>
             </Table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Mobile FAB */}
+      {isMobile && (
+        <button
+          type="button"
+          className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          onClick={() => {
+            hapticImpact('medium');
+            setEditingBooking(null);
+            setAddDialogOpen(true);
+          }}
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
         </TabsContent>
 
         <TabsContent value="drafts" className="space-y-6">
