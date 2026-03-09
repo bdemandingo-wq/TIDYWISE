@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePlatform } from '@/hooks/usePlatform';
 import { Seo } from '@/components/Seo';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
@@ -46,7 +47,8 @@ export default function SignupPage() {
     checkExistingProfile,
     signOut 
   } = useAuthNoSession();
-  
+  const { isNative } = usePlatform();
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -338,7 +340,8 @@ export default function SignupPage() {
                 )}
               </div>
 
-              {/* Phone (optional) */}
+              {/* Phone (optional) — hidden on native iOS per Guideline 5.1.1 */}
+              {!isNative && (
               <div className="space-y-2">
                 <Label htmlFor="phone" className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
@@ -355,6 +358,7 @@ export default function SignupPage() {
                 />
                 <p className="text-xs text-muted-foreground">We'll send you a welcome text!</p>
               </div>
+              )}
 
               {/* Email */}
               <div className="space-y-2">
