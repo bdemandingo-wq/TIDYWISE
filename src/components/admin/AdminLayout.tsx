@@ -39,8 +39,8 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
       <div className={cn(
         "transition-all duration-300 min-h-screen",
-        "pl-0 md:pl-16",
-        sidebarOpen && "md:pl-64"
+        isNative ? "pl-0" : "pl-0 md:pl-16",
+        !isNative && sidebarOpen && "md:pl-64"
       )}>
         <AdminHeader title={title} subtitle={subtitle} actions={actions} />
 
