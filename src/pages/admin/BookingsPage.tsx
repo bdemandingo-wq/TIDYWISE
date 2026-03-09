@@ -2115,9 +2115,9 @@ export default function BookingsPage() {
               </TableBody>
             </Table>
           </div>
-        </div>
-      )}
-
+          </div>
+        )}
+      </div>
       {/* Mobile FAB */}
       {isMobile && (
         <button
