@@ -113,7 +113,7 @@ export default function LeadsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; message?: string; notes?: string; source: string; status: string }) => {
+    mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
       if (!organization?.id) {
         throw new Error('No organization found');
       }

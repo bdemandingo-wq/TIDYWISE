@@ -722,11 +722,12 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         </div>
 
         {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-border">
+        <div className="overflow-x-auto">
+        <div className="grid grid-cols-7 border-b border-border min-w-[700px]">
           {DAYS.map((day) => (
             <div
               key={day}
-              className="py-3 text-center text-sm font-medium text-muted-foreground"
+              className="py-3 text-center text-sm font-medium text-muted-foreground min-w-[100px]"
             >
               {day}
             </div>
@@ -734,7 +735,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-7 min-w-[700px]">
           {isLoading ? (
             <div className="col-span-7 flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
