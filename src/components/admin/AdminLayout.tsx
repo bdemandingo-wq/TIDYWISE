@@ -35,15 +35,21 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      {/* Show sidebar on all platforms — same layout as web */}
-      <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      {/* Show sidebar on web only — native uses NativeAdminHeader drawer */}
+      {!isNative && (
+        <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      )}
 
       <div className={cn(
         "transition-all duration-300 min-h-screen",
         isNative ? "pl-0" : "pl-0 md:pl-16",
         !isNative && sidebarOpen && "md:pl-64"
       )}>
-        <AdminHeader title={title} subtitle={subtitle} actions={actions} />
+        {isNative ? (
+          <NativeAdminHeader title={title} subtitle={subtitle} actions={actions} />
+        ) : (
+          <AdminHeader title={title} subtitle={subtitle} actions={actions} />
+        )}
 
         <main
           className={cn(
