@@ -1622,6 +1622,7 @@ export default function BookingsPage() {
       )}
 
       {/* Bookings List */}
+      <div className={cn(!isMobile && "bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in")} style={!isMobile ? { animationDelay: '0.2s' } : undefined}>
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
