@@ -129,8 +129,6 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
   return { label: 'Unpaid', bg: 'bg-rose-50', text: 'text-rose-700', icon: '○' };
 };
 
-import { useNavigate } from 'react-router-dom';
-
 export default function BookingsPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
