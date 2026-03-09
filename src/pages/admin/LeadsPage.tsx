@@ -28,8 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays } from 'lucide-react';
-// Simple address input - no Google Places integration
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +42,10 @@ import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'd
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SwipeableRow } from '@/components/mobile/SwipeableRow';
+import { MobileFilterSheet } from '@/components/mobile/MobileFilterSheet';
+import { cn } from '@/lib/utils';
 
 
 
@@ -95,6 +98,7 @@ export default function LeadsPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organization } = useOrganization();
+  const isMobile = useIsMobile();
 
 
   const { data: leads = [], isLoading } = useQuery({
@@ -253,6 +257,14 @@ export default function LeadsPage() {
       return matchesSearch && matchesStatus && matchesSource && matchesMonth;
     });
   }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter]);
+
+  const activeFilterCount = [statusFilter !== 'all', sourceFilter !== 'all', monthFilter !== 'all'].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setStatusFilter('all');
+    setSourceFilter('all');
+    setMonthFilter('all');
+  };
 
   const stats = {
     total: leads.length,
@@ -498,6 +510,61 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
+      {isMobile ? (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search leads..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-11 rounded-xl"
+            />
+          </div>
+          <MobileFilterSheet
+            activeFilterCount={activeFilterCount}
+            onClearAll={clearAllFilters}
+            title="Filter Leads"
+          >
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs uppercase text-muted-foreground mb-2 block">Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger><SelectValue placeholder="All Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs uppercase text-muted-foreground mb-2 block">Source</Label>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger><SelectValue placeholder="All Sources" /></SelectTrigger>
+                  <SelectContent>
+                    {SOURCE_OPTIONS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs uppercase text-muted-foreground mb-2 block">Month</Label>
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                  <SelectTrigger><SelectValue placeholder="All Months" /></SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </MobileFilterSheet>
+        </div>
+      ) : (
       <div className="flex flex-wrap gap-4 mb-4">
         <Input
           placeholder="Search leads..."
@@ -539,17 +606,92 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
-        {(statusFilter !== 'all' || sourceFilter !== 'all' || monthFilter !== 'all') && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => { setStatusFilter('all'); setSourceFilter('all'); setMonthFilter('all'); }}
-          >
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearAllFilters}>
             Clear Filters
           </Button>
         )}
       </div>
+      )}
 
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <div className="space-y-2 pb-20">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border/40 rounded-2xl p-4 animate-pulse">
+                  <div className="h-4 w-1/2 bg-muted rounded" />
+                  <div className="mt-2 h-3 w-2/3 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          ) : filteredLeads.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">No leads found</div>
+          ) : (
+            filteredLeads.map((lead) => (
+              <SwipeableRow
+                key={lead.id}
+                rightAction={{
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onAction: () => deleteMutation.mutate(lead.id),
+                }}
+              >
+                <button
+                  type="button"
+                  className="w-full text-left bg-card border border-border/40 rounded-2xl p-4 active:scale-[0.99] transition-transform"
+                  onClick={() => {
+                    setEditingLead(lead);
+                    setDialogOpen(true);
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{maskName(lead.name)}</p>
+                        <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_CONFIG[lead.status]?.color, 'text-white')}>
+                          {STATUS_CONFIG[lead.status]?.label}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">{maskEmail(lead.email)}</p>
+                      {lead.phone && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{maskPhone(lead.phone)}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-xs text-muted-foreground capitalize">{lead.source}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(lead.created_at), 'MMM d')}
+                      </span>
+                      {lead.estimated_value && !isTestMode && (
+                        <span className="text-xs font-medium text-primary">
+                          ${lead.estimated_value.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {lead.service_interest && (
+                    <p className="text-xs text-muted-foreground mt-2 truncate">
+                      Interest: {lead.service_interest}
+                    </p>
+                  )}
+                </button>
+              </SwipeableRow>
+            ))
+          )}
+
+          {/* Mobile FAB */}
+          <Button
+            size="icon"
+            className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      ) : (
+      <>
       {/* Pipeline View */}
       {viewMode === 'pipeline' && (
         <LeadPipelineBoard
@@ -693,6 +835,8 @@ export default function LeadsPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
+      </>
       )}
 
       {/* Add/Edit Dialog */}

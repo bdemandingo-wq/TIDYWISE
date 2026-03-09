@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useStaff } from '@/hooks/useBookings';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -40,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
 import { useOrgId } from '@/hooks/useOrgId';
+import { cn } from '@/lib/utils';
 
 interface StaffMember {
   id: string;
@@ -74,6 +76,7 @@ export default function StaffPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organizationId } = useOrgId();
+  const isMobile = useIsMobile();
 
   const filteredStaff = staff.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,7 +247,7 @@ export default function StaffPage() {
             placeholder="Search staff..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            className={cn('pl-9', isMobile && 'h-11 rounded-xl')}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -405,6 +408,17 @@ export default function StaffPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Mobile FAB */}
+      {isMobile && (
+        <Button
+          size="icon"
+          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full shadow-lg"
+          onClick={() => setAddDialogOpen(true)}
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
       )}
 
       <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
