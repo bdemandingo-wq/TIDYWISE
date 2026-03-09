@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { usePlatform } from '@/hooks/usePlatform';
-import { AppleSignInButton } from '@/components/AppleSignInButton';
+
 
 // Native-aware signup link component for App Store compliance
 function NativeAwareSignupLink() {
@@ -233,12 +233,6 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
-              {/* Apple Sign In — iOS only */}
-              <AppleSignInButton
-                label="Sign in with Apple"
-                onSuccess={() => setShowSplash(true)}
-                disabled={loading}
-              />
             </form>
 
             {/* Sign up link - on native, direct to website */}
