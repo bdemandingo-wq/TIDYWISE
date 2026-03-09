@@ -345,14 +345,14 @@ export default function ReportsPage() {
 
       {/* Tabs for different reports */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1 overflow-x-auto max-w-full">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="pnl">P&L Overview</TabsTrigger>
+          <TabsTrigger value="pnl">P&L</TabsTrigger>
           <TabsTrigger value="clv">Customer LTV</TabsTrigger>
-          <TabsTrigger value="staff-productivity">Staff Productivity</TabsTrigger>
-          <TabsTrigger value="forecasting">Revenue Forecast</TabsTrigger>
-          <TabsTrigger value="profit-margin">Profit Margin</TabsTrigger>
-          <TabsTrigger value="cleaner-performance">Cleaner Performance</TabsTrigger>
+          <TabsTrigger value="staff-productivity">Staff</TabsTrigger>
+          <TabsTrigger value="forecasting">Forecast</TabsTrigger>
+          <TabsTrigger value="profit-margin">Profit</TabsTrigger>
+          <TabsTrigger value="cleaner-performance">Performance</TabsTrigger>
           <TabsTrigger value="cleaner-availability">Availability</TabsTrigger>
         </TabsList>
 
