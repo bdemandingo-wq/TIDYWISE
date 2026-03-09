@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePlatform } from '@/hooks/usePlatform';
 import { Seo } from '@/components/Seo';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
