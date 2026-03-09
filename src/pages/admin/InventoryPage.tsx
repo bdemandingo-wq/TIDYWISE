@@ -251,7 +251,7 @@ export default function InventoryPage() {
             items.map((item) => (
               <SwipeableRow
                 key={item.id}
-                onDelete={() => deleteMutation.mutate(item.id)}
+                rightAction={{ label: 'Delete', onAction: () => deleteMutation.mutate(item.id), variant: 'destructive' }}
               >
                 <Card
                   className="p-4 cursor-pointer active:bg-accent/50"
