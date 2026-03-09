@@ -1,3 +1,6 @@
+# TidyWise Robots.txt - Cleaning Business Software
+# https://www.jointidywise.com
+
 User-agent: Googlebot
 Allow: /
 
@@ -13,43 +16,31 @@ Allow: /
 User-agent: LinkedInBot
 Allow: /
 
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ChatGPT-User
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
 User-agent: *
 Allow: /
-Disallow: /admin
-Disallow: /dashboard
-Disallow: /staff
-Disallow: /portal/dashboard
-Disallow: /portal/request
-Disallow: /auth
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /staff/
 Disallow: /onboarding
-Disallow: /redirect
 Disallow: /book/
 Disallow: /card-saved
 Disallow: /tip/
 Disallow: /deposit/
 Disallow: /c/
 Disallow: /review/
-Disallow: /*?*
+Disallow: /portal/dashboard
+Disallow: /portal/request
 
 # Allow public marketing pages
 Allow: /
 Allow: /login
 Allow: /signup
-Allow: /pricing
 Allow: /blog
 Allow: /blog/*
 Allow: /compare/*
 Allow: /features/*
 Allow: /privacy-policy
-Allow: /portal$
+Allow: /portal
 
+# Sitemap
 Sitemap: https://www.jointidywise.com/sitemap.xml

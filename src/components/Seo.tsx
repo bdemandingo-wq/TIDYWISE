@@ -70,16 +70,7 @@ export function Seo({ title, description, canonicalPath, noIndex, ogImage, ogTyp
     }
 
     setMetaTag("twitter:title", title);
-    setMetaTag("twitter:site", "@TidyWise");
     if (description) setMetaTag("twitter:description", description);
-
-    // Geo tags
-    setMetaTag("geo.region", "US-FL");
-    setMetaTag("geo.placename", "Deerfield Beach, Florida");
-
-    // App link tags
-    setMetaTag("al:ios:app_name", "TIDYWISE", true);
-    setMetaTag("al:android:app_name", "TIDYWISE", true);
 
     // Article-specific meta
     if (article?.publishedTime) setMetaTag("article:published_time", article.publishedTime, true);
