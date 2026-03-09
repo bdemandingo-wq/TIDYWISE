@@ -410,6 +410,17 @@ export default function StaffPage() {
         </div>
       )}
 
+      {/* Mobile FAB */}
+      {isMobile && (
+        <Button
+          size="icon"
+          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full shadow-lg"
+          onClick={() => setAddDialogOpen(true)}
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      )}
+
       <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
       <EditStaffDialog 
         open={editDialogOpen} 
