@@ -10,7 +10,7 @@ import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
-import { AppleSignInButton } from '@/components/AppleSignInButton';
+
 
 export default function AuthPage() {
   const navigate = useNavigate();
