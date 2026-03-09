@@ -9,9 +9,7 @@ import { isToday } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageSkeleton, BookingCardSkeleton } from '@/components/ui/page-skeleton';
-import { usePlatform } from '@/hooks/usePlatform';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { Card } from '@/components/ui/card';
 
 // Lazy load the heavy ReportsOverview component
 const ReportsOverview = lazy(() => import('@/components/admin/ReportsOverview').then(m => ({ default: m.ReportsOverview })));

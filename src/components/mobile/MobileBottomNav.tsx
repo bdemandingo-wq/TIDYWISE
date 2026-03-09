@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 type MobileNavItem = {
   id: string;
