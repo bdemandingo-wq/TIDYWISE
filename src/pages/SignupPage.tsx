@@ -272,7 +272,8 @@ export default function SignupPage() {
               disabled={googleLoading || loading}
             />
 
-            {/* Google Sign Up Button - SIGNUP ONLY */}
+            {/* Google Sign Up Button - SIGNUP ONLY, hidden on native (Guideline 4.0: no browser redirects) */}
+            {!isNative && (
             <Button 
               type="button"
               variant="outline" 
@@ -304,8 +305,10 @@ export default function SignupPage() {
               )}
               Continue with Google (Sign up)
             </Button>
+            )}
 
-            {/* Divider */}
+            {/* Divider - only show if there are social buttons above */}
+            {(!isNative || true) && (
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <Separator className="w-full" />
@@ -314,6 +317,7 @@ export default function SignupPage() {
                 <span className="bg-card px-2 text-muted-foreground">or sign up with email</span>
               </div>
             </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Full Name */}

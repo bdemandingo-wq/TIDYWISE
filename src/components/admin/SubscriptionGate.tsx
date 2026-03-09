@@ -17,6 +17,7 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
   if (subscription?.payment_failed) {
     // On native: show website link instead of payment dialog
     if (!canShowPaymentFlows) {
+      /* Guideline 3.1.1: No external payment links on native iOS */
       return (
         <Card className="border-destructive border-2">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -25,12 +26,8 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
             </div>
             <h3 className="text-lg font-semibold mb-2">Payment Issue</h3>
             <p className="text-muted-foreground mb-4 max-w-sm">
-              Please update your payment method at jointidywise.lovable.app to continue using TIDYWISE.
+              Please update your payment method at jointidywise.com to continue using TIDYWISE.
             </p>
-            <Button onClick={() => window.open(billingUrl, '_blank')} variant="destructive" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Manage on Web
-            </Button>
           </CardContent>
         </Card>
       );
@@ -92,10 +89,10 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
               Subscribe to Unlock
             </Button>
           ) : (
-            <Button onClick={() => window.open(billingUrl, '_blank')} variant="outline" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Subscribe on Web
-            </Button>
+            /* Guideline 3.1.1: No external payment links on native iOS */
+            <p className="text-xs text-muted-foreground mt-2">
+              Visit jointidywise.com to manage your subscription.
+            </p>
           )}
         </div>
       </div>
@@ -119,9 +116,8 @@ export function useSubscriptionCheck() {
       callback();
     } else if (canShowPaymentFlows) {
       setShowSubscriptionDialog(true);
-    } else {
-      window.open(billingUrl, '_blank');
     }
+    // Guideline 3.1.1: On native, don't open external payment links
   };
 
   const isSubscribed = hasPaidSubscription ?? false;

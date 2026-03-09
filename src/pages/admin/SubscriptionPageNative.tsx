@@ -1,28 +1,25 @@
 /**
- * Native Subscription Page - iOS App Store Compliant (US Storefront)
+ * Native Subscription Page - iOS App Store Compliant
  * 
- * Per Apple Guideline 3.1.1 and the US storefront alternative payment ruling,
- * apps may link out to the default browser for payment using a compliant button.
- * This page shows subscription status and a clearly labeled external link.
+ * Guideline 3.1.1: No external payment links or purchase CTAs.
+ * This page only shows current subscription status.
+ * Users are informed to visit the website to manage subscriptions.
  */
 
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   CreditCard, 
   CheckCircle2, 
   Clock, 
   Loader2,
-  ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { usePlatform } from "@/hooks/usePlatform";
-import { TrialExpiredBanner } from "@/components/admin/TrialExpiredBanner";
 
 interface SubscriptionStatus {
   subscribed: boolean;
@@ -37,7 +34,6 @@ interface SubscriptionStatus {
 export default function SubscriptionPageNative() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
-  const { billingUrl } = usePlatform();
 
   const checkSubscription = async () => {
     try {
@@ -74,42 +70,11 @@ export default function SubscriptionPageNative() {
     return diffDays;
   };
 
-  const handleManageOnWeb = () => {
-    window.open(billingUrl, '_blank');
-  };
-
   if (loading) {
     return (
-      <AdminLayout title="Subscription" subtitle="Manage your TIDYWISE subscription">
+      <AdminLayout title="Subscription" subtitle="Your TIDYWISE subscription status">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AdminLayout>
-    );
-  }
-
-  // Trial expired or not subscribed
-  if (!status?.subscribed) {
-    return (
-      <AdminLayout title="Subscription" subtitle="Manage your TIDYWISE subscription">
-        <div className="max-w-2xl mx-auto space-y-4">
-          <TrialExpiredBanner onManageOnWeb={handleManageOnWeb} />
-          
-          {/* Apple-compliant external link disclosure */}
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                Subscriptions are managed on the TIDYWISE website. You will leave this app to subscribe.
-              </p>
-              <Button onClick={handleManageOnWeb} className="w-full gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Continue to jointidywise.com
-              </Button>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Apple is not responsible for the privacy or security of transactions made outside this app.
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </AdminLayout>
     );
@@ -118,7 +83,7 @@ export default function SubscriptionPageNative() {
   // Payment failed
   if (status?.payment_failed) {
     return (
-      <AdminLayout title="Subscription" subtitle="Manage your TIDYWISE subscription">
+      <AdminLayout title="Subscription" subtitle="Your TIDYWISE subscription status">
         <div className="max-w-2xl mx-auto">
           <Card className="border-destructive border-2">
             <CardContent className="flex flex-col items-center justify-center py-8 text-center">
@@ -126,15 +91,8 @@ export default function SubscriptionPageNative() {
                 <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Payment Issue</h3>
-              <p className="text-muted-foreground mb-4 max-w-sm">
-                Please update your payment method to continue using TIDYWISE.
-              </p>
-              <Button onClick={handleManageOnWeb} variant="destructive" className="gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Update Payment Method
-              </Button>
-              <p className="text-xs text-muted-foreground mt-3">
-                You will leave this app. Apple is not responsible for the privacy or security of transactions made outside this app.
+              <p className="text-muted-foreground max-w-sm">
+                Please visit jointidywise.com to update your payment method and continue using TIDYWISE.
               </p>
             </CardContent>
           </Card>
@@ -143,10 +101,31 @@ export default function SubscriptionPageNative() {
     );
   }
 
+  // Not subscribed
+  if (!status?.subscribed) {
+    return (
+      <AdminLayout title="Subscription" subtitle="Your TIDYWISE subscription status">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="p-4 rounded-full bg-muted mb-4">
+                <Info className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No Active Subscription</h3>
+              <p className="text-muted-foreground max-w-sm">
+                Visit jointidywise.com to subscribe and unlock all features.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Active subscription / trial
   return (
-    <AdminLayout title="Subscription" subtitle="Manage your TIDYWISE subscription">
+    <AdminLayout title="Subscription" subtitle="Your TIDYWISE subscription status">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Current Status */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -185,20 +164,15 @@ export default function SubscriptionPageNative() {
                     <div>
                       <p className="font-medium text-foreground">Your trial includes full access</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Subscribe before your trial ends to keep all features.
+                        Visit jointidywise.com to manage your subscription.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <Button onClick={handleManageOnWeb} variant="outline" className="w-full gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Manage Subscription
-              </Button>
-              
               <p className="text-xs text-muted-foreground text-center">
-                You will leave this app to manage billing. Apple is not responsible for the privacy or security of transactions made outside this app.
+                To manage your subscription, visit jointidywise.com.
               </p>
             </div>
           </CardContent>

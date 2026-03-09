@@ -145,10 +145,10 @@ const App = () => (
                      <ErrorBoundary featureName="App">
                        <Suspense fallback={<PageLoader />}>
                          <Routes>
-                      {/* Auth Routes - No Session Persistence */}
-                        {/* On native: redirect signup to website (App Store compliance) */}
+                    {/* Auth Routes - No Session Persistence */}
                         <Route path="/login" element={<LoginPage />} />
-                        <Route path="/signup" element={<NativeSignupRedirect />} />
+                        {/* Guideline 4.0: signup must happen in-app, not in browser */}
+                        <Route path="/signup" element={<SignupPage />} />
                         <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}
