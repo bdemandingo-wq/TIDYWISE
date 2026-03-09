@@ -1612,10 +1612,8 @@ export default function BookingsPage() {
                 Delete ({selectedBookings.size})
               </Button>
             </>
-          )}
         </div>
       </div>
-      )}
 
       {/* Bookings List */}
       <div className={cn(!isMobile && "bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in")} style={!isMobile ? { animationDelay: '0.2s' } : undefined}>
