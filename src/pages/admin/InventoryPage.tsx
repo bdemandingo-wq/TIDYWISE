@@ -68,6 +68,7 @@ interface InventoryCategory {
 const DEFAULT_CATEGORIES = ['supplies', 'equipment', 'chemicals', 'uniforms', 'other'];
 
 export default function InventoryPage() {
+  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
