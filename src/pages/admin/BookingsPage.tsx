@@ -1,5 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SwipeableRow } from '@/components/mobile/SwipeableRow';
+import { MobileFilterSheet } from '@/components/mobile/MobileFilterSheet';
+import { hapticImpact } from '@/lib/haptics';
 import {
   AlertDialog,
   AlertDialogAction,
