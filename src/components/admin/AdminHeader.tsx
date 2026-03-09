@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { Badge } from '@/components/ui/badge';
 import { AdminNotificationBell } from '@/components/admin/AdminNotificationBell';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 // Performance: the booking dialog is a heavy multi-step flow; only load it when opened.
 const AddBookingDialog = lazy(() =>
@@ -23,10 +23,6 @@ interface AdminHeaderProps {
 export function AdminHeader({ title, actions }: AdminHeaderProps) {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const { isTestMode, toggleTestMode } = useTestMode();
-  const { isNative } = usePlatform();
-
-  // On native, header is replaced by inline title in AdminLayout
-  if (isNative) return null;
 
   return (
     <>

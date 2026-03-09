@@ -4,14 +4,12 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
 import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
-import { Loader2, Calendar, DollarSign, Users, ChevronRight, BarChart3 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { isToday } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageSkeleton, BookingCardSkeleton } from '@/components/ui/page-skeleton';
-import { usePlatform } from '@/hooks/usePlatform';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { Card } from '@/components/ui/card';
 
 // Lazy load the heavy ReportsOverview component
 const ReportsOverview = lazy(() => import('@/components/admin/ReportsOverview').then(m => ({ default: m.ReportsOverview })));
@@ -57,7 +55,6 @@ export default function AdminDashboard() {
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const queryClient = useQueryClient();
-  const { isNative } = usePlatform();
   const { organization } = useOrganization();
   const navigate = useNavigate();
 
@@ -93,81 +90,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // Native dashboard layout
-  if (isNative) {
-    return (
-      <AdminLayout title="Dashboard">
-        <div className="space-y-4 animate-fade-in">
-          {/* Greeting */}
-          <div>
-            <h2 className="text-xl font-bold text-foreground">
-              {getGreeting()} 👋
-            </h2>
-            {organization?.name && (
-              <p className="text-xs text-muted-foreground mt-0.5">{organization.name}</p>
-            )}
-          </div>
-
-          {/* 2-column stat cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="rounded-2xl p-4 border border-border/40 shadow-none">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-              <p className="text-xl font-bold text-foreground">
-                ${todayStats.grossVolume.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-              <p className="text-xs text-muted-foreground">Today's Revenue</p>
-            </Card>
-
-            <Card className="rounded-2xl p-4 border border-border/40 shadow-none">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-              <p className="text-xl font-bold text-foreground">{todayStats.payments}</p>
-              <p className="text-xs text-muted-foreground">Payments Today</p>
-            </Card>
-
-            <Card className="rounded-2xl p-4 border border-border/40 shadow-none">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-              <p className="text-xl font-bold text-foreground">{todayStats.customers}</p>
-              <p className="text-xs text-muted-foreground">New Customers</p>
-            </Card>
-
-            {/* View Reports card */}
-            <Card
-              className="rounded-2xl p-4 border border-border/40 shadow-none cursor-pointer active:scale-[0.98] transition-transform"
-              onClick={() => navigate('/dashboard/reports')}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">View Reports</p>
-                <ChevronRight className="w-4 h-4 text-border" />
-              </div>
-              <p className="text-xs text-muted-foreground">Charts & analytics</p>
-            </Card>
-          </div>
-
-          {/* Upcoming Bookings - full width */}
-          <UpcomingBookings bookings={bookings as BookingWithDetails[]} />
-        </div>
-      </AdminLayout>
-    );
-  }
-
-  // Desktop / web layout (unchanged)
+  // Desktop / web layout (used on all platforms)
   return (
     <AdminLayout
       title="Dashboard"

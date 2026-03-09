@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 type MobileNavItem = {
   id: string;
@@ -57,22 +57,22 @@ export function MobileBottomNav() {
   const { isAdmin } = useOrganization();
   const [tabs, setTabs] = useState<MobileNavItem[]>(DEFAULT_TABS);
   const [moreOpen, setMoreOpen] = useState(false);
-  const { isNative } = usePlatform();
 
   const isDashboard = isDashboardRoute(location.pathname);
 
   const roleKey = isAdmin ? 'admin' : 'member';
 
-  // Haptic feedback for native tab presses
+  // Haptic feedback for tab presses
   const triggerHaptic = useCallback(async () => {
-    if (!isNative) return;
     try {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
       const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
       await Haptics.impact({ style: ImpactStyle.Light });
     } catch {
       // Haptics not available
     }
-  }, [isNative]);
+  }, []);
 
   useEffect(() => {
     if (!isDashboard) return;
@@ -130,10 +130,9 @@ export function MobileBottomNav() {
   return (
     <nav
       className={cn(
-        'fixed left-0 right-0 z-50',
+        'fixed left-0 right-0 z-50 md:hidden',
         'bottom-0 pb-[env(safe-area-inset-bottom)]',
-        'bg-background/95 backdrop-blur-md border-t border-border/30',
-        !isNative && 'md:hidden'
+        'bg-background/95 backdrop-blur-md border-t border-border/30'
       )}
       aria-label="Primary"
     >
@@ -158,11 +157,8 @@ export function MobileBottomNav() {
               }
             >
               {({ isActive }) => (
-                <div className={cn(
-                  'flex flex-col items-center justify-center gap-0.5 transition-all duration-200',
-                  isActive && isNative && 'bg-primary/8 rounded-lg px-2.5 py-1'
-                )}>
-                  <Icon className={cn("h-5 w-5", isNative && "h-[18px] w-[18px]")} aria-hidden="true" />
+                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-200">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                   <span className="leading-none">{label}</span>
                 </div>
               )}
@@ -185,11 +181,8 @@ export function MobileBottomNav() {
                 )}
                 aria-label="More"
               >
-                <div className={cn(
-                  'flex flex-col items-center justify-center gap-0.5 transition-all duration-200',
-                  overflowActive && isNative && 'bg-primary/8 rounded-lg px-2.5 py-1'
-                )}>
-                  <MoreHorizontal className={cn("h-5 w-5", isNative && "h-[18px] w-[18px]")} aria-hidden="true" />
+                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-200">
+                  <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
                   <span className="leading-none">More</span>
                 </div>
               </button>

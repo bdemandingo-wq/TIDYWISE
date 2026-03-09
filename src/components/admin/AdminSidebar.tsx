@@ -273,7 +273,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   }, []);
 
   // Platform detection for App Store compliance
-  const { canShowPaymentFlows, isNative } = usePlatform();
+  const { canShowPaymentFlows } = usePlatform();
   
   // Items to hide on native apps (App Store compliance - no payment flows)
   const nativeHiddenItems = useMemo(() => {
@@ -498,33 +498,30 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
   return (
     <>
-      {/* Mobile Sheet - always used on native, md:hidden on web */}
+      {/* Mobile Sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className={cn("w-64 p-0 bg-sidebar", !isNative && "md:hidden")}>
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar md:hidden">
           <div className="flex flex-col h-full">
             <SidebarContent isMobile />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Mobile Toggle Button - always visible on native, md:hidden on web */}
+      {/* Mobile Toggle Button */}
       <Button
         variant="ghost"
         size="icon"
-        className={cn(
-          "fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-2 z-50 min-w-[44px] min-h-[44px]",
-          !isNative && "md:hidden"
-        )}
+        className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-2 z-50 min-w-[44px] min-h-[44px] md:hidden"
         onClick={() => setMobileOpen(true)}
         aria-label="Open navigation menu"
       >
         <Menu className="w-6 h-6" />
       </Button>
 
-      {/* Desktop Sidebar - hidden on native (use sheet instead) */}
+      {/* Desktop Sidebar */}
       <aside className={cn(
         "fixed left-0 top-0 z-40 h-screen bg-sidebar flex-col transition-all duration-300",
-        isNative ? "hidden" : "hidden md:flex",
+        "hidden md:flex",
         isOpen ? "w-64" : "w-16"
       )}>
         {/* Toggle Button */}
