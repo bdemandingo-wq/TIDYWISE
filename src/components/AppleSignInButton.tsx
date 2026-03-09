@@ -29,8 +29,9 @@ export function AppleSignInButton({
   const { isIOS } = usePlatform();
   const [loading, setLoading] = useState(false);
 
-  // Only render on native iOS
-  if (!isIOS) return null;
+  // Only render on iOS (native or simulator via user agent)
+  const isIOSDevice = isIOS || /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (!isIOSDevice) return null;
 
   const handleAppleSignIn = async () => {
     setLoading(true);
