@@ -98,6 +98,7 @@ function formatDuration(seconds: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
+// Platform-level analytics — intentionally unscoped by org_id. Super admin only.
 export default function PlatformAnalyticsPage() {
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);

@@ -81,7 +81,8 @@ export default function ClientFeedbackPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<FeedbackEntry> & { id: string }) => {
-      const { error } = await supabase.from('client_feedback').update(data).eq('id', id);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('client_feedback').update(data).eq('id', id).eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -95,7 +96,8 @@ export default function ClientFeedbackPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('client_feedback').delete().eq('id', id);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('client_feedback').delete().eq('id', id).eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {

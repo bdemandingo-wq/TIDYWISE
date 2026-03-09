@@ -162,37 +162,43 @@ export default function ChecklistsPage() {
     }
   };
 
-  // Fetch templates with items
+  // Fetch templates with items — scoped by organization
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['checklist-templates'],
+    queryKey: ['checklist-templates', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('checklist_templates')
         .select(`
           *,
           items:checklist_items(*)
         `)
+        .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data.map(t => ({
         ...t,
         items: t.items?.sort((a: any, b: any) => a.sort_order - b.sort_order) || []
       }));
-    }
+    },
+    enabled: !!organization?.id,
   });
 
-  // Fetch services
+  // Fetch services — scoped by organization
   const { data: services = [] } = useQuery({
-    queryKey: ['services'],
+    queryKey: ['services', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('services')
         .select('id, name')
+        .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!organization?.id,
   });
 
   // Create template

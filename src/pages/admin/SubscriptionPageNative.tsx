@@ -33,6 +33,7 @@ interface SubscriptionStatus {
   payment_failed?: boolean;
 }
 
+// Subscription data is user-scoped not org-scoped by design
 export default function SubscriptionPageNative() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);

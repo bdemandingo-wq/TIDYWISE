@@ -23,6 +23,7 @@ interface SubscriptionStatus {
   trial_end: string | null;
 }
 
+// Subscription data is user-scoped not org-scoped by design
 export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);

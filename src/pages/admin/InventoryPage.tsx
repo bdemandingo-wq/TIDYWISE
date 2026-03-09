@@ -75,17 +75,20 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
 
-  // Fetch inventory items
+  // Fetch inventory items — scoped by organization
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['inventory'],
+    queryKey: ['inventory', organization?.id],
     queryFn: async () => {
+      if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('inventory_items')
         .select('*')
+        .eq('organization_id', organization.id)
         .order('name');
       if (error) throw error;
       return data as InventoryItem[];
     },
+    enabled: !!organization?.id,
   });
 
   // Fetch custom categories
@@ -129,7 +132,8 @@ export default function InventoryPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<InventoryItem> & { id: string }) => {
-      const { error } = await supabase.from('inventory_items').update(data).eq('id', id);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('inventory_items').update(data).eq('id', id).eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -143,7 +147,8 @@ export default function InventoryPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+      if (!organization?.id) throw new Error('No organization found');
+      const { error } = await supabase.from('inventory_items').delete().eq('id', id).eq('organization_id', organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
