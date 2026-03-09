@@ -75,6 +75,7 @@ export default function StaffPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organizationId } = useOrgId();
+  const isMobile = useIsMobile();
 
   const filteredStaff = staff.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
