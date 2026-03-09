@@ -3,28 +3,78 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Bell, MessageSquare, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface NotificationSettings {
+  notify_new_booking: boolean;
+  notify_cancellations: boolean;
+  notify_reminders: boolean;
+  notify_sms: boolean;
+}
+
+const DEFAULT_SETTINGS: NotificationSettings = {
+  notify_new_booking: true,
+  notify_cancellations: true,
+  notify_reminders: true,
+  notify_sms: false,
+};
 
 export default function NotificationsPage() {
-  const [settings, setSettings] = useState({
-    emailNewBooking: true,
-    emailCancellation: true,
-    emailReminder: true,
-    emailDailyDigest: false,
-    smsNewBooking: false,
-    smsCancellation: true,
-    smsReminder: true,
-    pushEnabled: true,
-  });
+  const { organization } = useOrganization();
+  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleToggle = (key: keyof typeof settings) => {
+  // Load settings from business_settings table
+  useEffect(() => {
+    if (!organization?.id) return;
+    const load = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('notify_new_booking, notify_cancellations, notify_reminders, notify_sms')
+        .eq('organization_id', organization.id)
+        .maybeSingle();
+      if (!error && data) {
+        setSettings({
+          notify_new_booking: data.notify_new_booking ?? true,
+          notify_cancellations: data.notify_cancellations ?? true,
+          notify_reminders: data.notify_reminders ?? true,
+          notify_sms: data.notify_sms ?? false,
+        });
+      }
+      setLoading(false);
+    };
+    load();
+  }, [organization?.id]);
+
+  const handleToggle = (key: keyof NotificationSettings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleSave = () => {
-    toast.success('Notification settings saved!');
+  const handleSave = async () => {
+    if (!organization?.id) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('business_settings')
+      .update({
+        notify_new_booking: settings.notify_new_booking,
+        notify_cancellations: settings.notify_cancellations,
+        notify_reminders: settings.notify_reminders,
+        notify_sms: settings.notify_sms,
+      })
+      .eq('organization_id', organization.id);
+    setSaving(false);
+    if (error) {
+      toast.error('Failed to save notification settings');
+    } else {
+      toast.success('Notification settings saved!');
+    }
   };
 
   return (
