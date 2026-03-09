@@ -49,6 +49,7 @@ interface Task {
 
 export default function TasksPage() {
   const { organizationId } = useOrgId();
+  const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TaskType>('daily');
