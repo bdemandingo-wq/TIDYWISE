@@ -750,7 +750,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   disabled={!date}
                   className={cn(
                     'calendar-day',
-                    viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[120px]',
+                    viewMode === 'week' ? 'min-h-[300px]' : isMobile ? 'min-h-[70px]' : 'min-h-[120px]',
                     date && isToday(date) && 'today',
                     !date && 'bg-muted/30'
                   )}
