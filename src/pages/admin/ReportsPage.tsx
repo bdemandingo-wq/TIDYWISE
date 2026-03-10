@@ -392,17 +392,21 @@ export default function ReportsPage() {
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                     <PieChart>
                       <Pie
                         data={serviceStatsAllTime}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
+                        innerRadius={40}
+                        outerRadius={80}
                         dataKey="revenue"
                         nameKey="name"
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        labelLine={false}
+                        label={({ name, percent, cx, x }) => {
+                          const truncatedName = name.length > 12 ? name.slice(0, 10) + '…' : name;
+                          return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
+                        }}
+                        labelLine={true}
+                        fontSize={11}
                       >
                         {serviceStatsAllTime.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

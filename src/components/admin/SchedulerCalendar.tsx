@@ -636,14 +636,14 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             <TrashDropZone />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search bookings..."
                 value={activeSearchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 w-64"
+                className="pl-9 w-40 md:w-64"
                 onFocus={() => activeSearchTerm && setSearchResultsOpen(true)}
               />
               

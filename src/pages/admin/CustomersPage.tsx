@@ -439,28 +439,26 @@ export default function CustomersPage() {
                               </div>
                             ) : null}
 
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="font-medium truncate">
+                             <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm truncate">
                                     {maskName(`${customer.first_name} ${customer.last_name}`)}
                                   </p>
-                                  <p className="text-sm text-muted-foreground truncate">{maskEmail(customer.email)}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{maskEmail(customer.email)}</p>
+                                  {customer.phone ? (
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                      {maskPhone(customer.phone)}
+                                    </p>
+                                  ) : null}
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
+                                <div className="flex flex-col items-end gap-0.5 shrink-0">
                                   {getStatusBadge((customer as any).customer_status)}
                                   {(customer as any).marketing_status === 'opted_out' ? (
-                                    <Badge variant="destructive" className="text-xs">No Campaigns</Badge>
+                                    <Badge variant="destructive" className="text-[10px]">No Campaigns</Badge>
                                   ) : null}
                                 </div>
                               </div>
-
-                              {customer.phone ? (
-                                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Phone className="h-4 w-4" aria-hidden="true" />
-                                  <span className="truncate">{maskPhone(customer.phone)}</span>
-                                </div>
-                              ) : null}
 
                               {isExpanded ? (
                                 <div className="mt-3 space-y-2 animate-fade-in">
