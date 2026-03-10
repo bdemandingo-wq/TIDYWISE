@@ -750,7 +750,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   disabled={!date}
                   className={cn(
                     'calendar-day',
-                    viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[120px]',
+                    viewMode === 'week' ? 'min-h-[300px]' : isMobile ? 'min-h-[70px]' : 'min-h-[120px]',
                     date && isToday(date) && 'today',
                     !date && 'bg-muted/30'
                   )}
@@ -765,7 +765,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       >
                         {viewMode === 'week' ? format(date, 'MMM d') : date.getDate()}
                       </span>
-                      <div className="w-full space-y-1 overflow-y-auto max-h-[200px] scrollbar-thin">
+                      <div className={cn("w-full space-y-1 overflow-y-auto scrollbar-thin", isMobile ? "max-h-[60px]" : "max-h-[200px]")}>
                         {/* Mobile: 1 booking shows name, 2+ shows +X count. Desktop: show all names */}
                         {isMobile ? (
                           // Mobile behavior: compact +X for 2+ bookings
