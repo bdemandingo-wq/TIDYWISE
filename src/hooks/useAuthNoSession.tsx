@@ -9,6 +9,8 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { lovable } from '@/integrations/lovable/index';
+import { Capacitor } from '@capacitor/core';
+import { signInWithOAuthNative } from '@/lib/nativeOAuth';
 
 // Re-export for backward compatibility
 export const supabaseNoSession = supabase;
@@ -118,10 +120,15 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Google OAuth using Lovable Cloud managed auth (works in-app on native)
+   * Google OAuth:
+   * - Native: uses Supabase + @capacitor/browser (in-app SFSafariViewController) for Guideline 4.0
+   * - Web: uses Lovable Cloud managed auth
    */
   const signInWithGoogle = useCallback(async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        return await signInWithOAuthNative('google');
+      }
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
@@ -135,10 +142,15 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Apple Sign In using Lovable Cloud managed auth (works in-app on native)
+   * Apple Sign In:
+   * - Native: uses Supabase + @capacitor/browser (in-app SFSafariViewController) for Guideline 4.0
+   * - Web: uses Lovable Cloud managed auth
    */
   const signInWithApple = useCallback(async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        return await signInWithOAuthNative('apple');
+      }
       const result = await lovable.auth.signInWithOAuth('apple', {
         redirect_uri: window.location.origin,
       });

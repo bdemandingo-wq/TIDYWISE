@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { lovable } from '@/integrations/lovable/index';
+import { Capacitor } from '@capacitor/core';
+import { signInWithOAuthNative } from '@/lib/nativeOAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -156,6 +158,11 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        const { error } = await signInWithOAuthNative('google');
+        if (error) toast.error('Failed to sign in with Google');
+        return;
+      }
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
@@ -169,6 +176,11 @@ export default function AuthPage() {
 
   const handleAppleSignIn = async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        const { error } = await signInWithOAuthNative('apple');
+        if (error) toast.error('Failed to sign in with Apple');
+        return;
+      }
       const result = await lovable.auth.signInWithOAuth('apple', {
         redirect_uri: window.location.origin,
       });
