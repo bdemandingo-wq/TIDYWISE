@@ -19,11 +19,11 @@ const buttonVariants = cva(
         premium: "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 font-semibold",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-lg px-3",
-        lg: "h-12 rounded-xl px-8 text-base",
-        xl: "h-14 rounded-xl px-10 text-lg",
-        icon: "h-10 w-10",
+        default: "h-8 md:h-10 px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm",
+        sm: "h-7 md:h-9 rounded-lg px-2.5 md:px-3 text-xs md:text-sm",
+        lg: "h-10 md:h-12 rounded-xl px-6 md:px-8 text-sm md:text-base",
+        xl: "h-11 md:h-14 rounded-xl px-8 md:px-10 text-sm md:text-lg",
+        icon: "h-8 w-8 md:h-10 md:w-10",
       },
     },
     defaultVariants: {

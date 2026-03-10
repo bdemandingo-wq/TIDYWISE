@@ -44,7 +44,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         <main
           className={cn(
             "animate-page-enter overflow-y-auto",
-            "p-2 md:p-4 pt-2 md:pt-4 pb-4"
+            "p-1.5 md:p-4 pt-1.5 md:pt-4 pb-3 md:pb-4"
           )}
         >
           {children}

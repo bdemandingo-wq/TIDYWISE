@@ -138,16 +138,21 @@
     @apply font-semibold tracking-tight;
   }
 
-  /* Improve touch targets on mobile */
+  /* Mobile compact overrides */
   @media (max-width: 768px) {
     button, a, [role="button"] {
-      min-height: 44px;
-      min-width: 44px;
+      min-height: 36px;
+      min-width: 36px;
     }
 
     input, select, textarea {
       font-size: 16px !important; /* Prevents zoom on iOS */
     }
+
+    h1 { font-size: 1.25rem !important; }
+    h2 { font-size: 1.1rem !important; }
+    h3 { font-size: 0.95rem !important; }
+    h4, h5, h6 { font-size: 0.85rem !important; }
   }
 }
 
@@ -562,15 +567,15 @@
   color: hsl(var(--foreground)) !important;
 }
 
-/* Mobile touch target minimum size (44x44px per Apple/Google guidelines) */
+/* Mobile touch target minimum size — reduced from 44px to 36px for compact UI */
 @media (pointer: coarse) {
   button,
   [role="button"],
   a[href],
   input[type="checkbox"],
   input[type="radio"] {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 36px;
+    min-width: 36px;
   }
 
   /* Exception for inline text links and badges */
