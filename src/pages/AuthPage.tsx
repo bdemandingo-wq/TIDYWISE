@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,10 +46,8 @@ export default function AuthPage() {
   useEffect(() => {
     if (authLoading || !user) return;
     
-    // Small delay to ensure auth state is fully settled
     const timeoutId = setTimeout(async () => {
       try {
-        // Check if user has an organization membership
         const { data: membership, error } = await supabase
           .from('org_memberships')
           .select('organization_id')
@@ -101,7 +100,6 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate password confirmation for signup
     if (!isLogin && formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -131,7 +129,6 @@ export default function AuthPage() {
         });
         if (error) throw error;
         
-        // Update profile with phone number if provided
         if (signUpData.user && formData.phone) {
           await supabase
             .from('profiles')
@@ -139,7 +136,6 @@ export default function AuthPage() {
             .eq('id', signUpData.user.id);
         }
         
-        // Send welcome SMS (non-blocking)
         if (formData.phone) {
           supabase.functions.invoke('send-signup-welcome-sms', {
             body: {
@@ -160,15 +156,27 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-        },
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
       });
-      if (error) throw error;
+      if (result.error) {
+        toast.error('Failed to sign in with Google');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in with Google');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      const result = await lovable.auth.signInWithOAuth('apple', {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error('Failed to sign in with Apple');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to sign in with Apple');
     }
   };
 
@@ -405,11 +413,24 @@ export default function AuthPage() {
               </div>
             </div>
             
+            {/* Apple Sign In - Guideline 4.8 */}
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full gap-2 bg-black text-white hover:bg-black/90 hover:text-white border-black"
+              onClick={handleAppleSignIn}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+              {isLogin ? 'Sign in with Apple' : 'Sign up with Apple'}
+            </Button>
+
             {/* Google Sign In */}
             <Button 
               type="button"
               variant="outline" 
-              className="w-full gap-2"
+              className="w-full gap-2 mt-3"
               onClick={handleGoogleSignIn}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">

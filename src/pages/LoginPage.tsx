@@ -1,8 +1,8 @@
 /**
- * LOGIN PAGE - Email/Password ONLY
+ * LOGIN PAGE - Email/Password + Apple Sign In
  * 
- * NO Google OAuth on this page - Google is for signup only
- * No persistent sessions - users must re-authenticate every visit
+ * Apple Sign In is required on login when any third-party login is offered (Guideline 4.8)
+ * All OAuth flows use Lovable Cloud managed auth (in-app, no external browser - Guideline 4.0)
  */
 
 import { useState, useEffect } from 'react';
@@ -13,30 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
-import { usePlatform } from '@/hooks/usePlatform';
-
-
-// Native-aware signup link component for App Store compliance
-function NativeAwareSignupLink() {
-  // On all platforms (including native): use in-app signup link
-  // Per App Store Guideline 4.0: users must be able to sign up in-app
-  return (
-    <div className="mt-6 text-center text-sm">
-      <span className="text-muted-foreground">Don't have an account? </span>
-      <Link
-        to="/signup"
-        className="text-primary hover:underline font-medium"
-      >
-        Create account
-      </Link>
-    </div>
-  );
-}
 
 // Validation schema
 const loginSchema = z.object({
@@ -46,9 +28,10 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, initialCleanupDone, signIn } = useAuthNoSession();
+  const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
   
   const [loading, setLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [formData, setFormData] = useState({
@@ -61,7 +44,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
     if (user) {
-      // Show splash screen when already authenticated, then navigate
       setShowSplash(true);
     }
   }, [user, authLoading, initialCleanupDone]);
@@ -95,7 +77,6 @@ export default function LoginPage() {
       const { error } = await signIn(formData.email, formData.password);
       
       if (error) {
-        // Friendly error messages
         if (error.message.includes('Invalid login credentials')) {
           toast.error('Invalid email or password. Please try again.');
         } else if (error.message.includes('Email not confirmed')) {
@@ -108,11 +89,24 @@ export default function LoginPage() {
       }
       
       toast.success('Welcome back!');
-      // Show splash screen after successful login
       setShowSplash(true);
     } catch (error: any) {
       toast.error(error.message || 'An error occurred. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        toast.error(error.message || 'Failed to sign in with Apple');
+        setAppleLoading(false);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to sign in with Apple');
+      setAppleLoading(false);
     }
   };
 
@@ -157,10 +151,38 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
             <CardDescription>
-              Sign in with your email and password
+              Sign in to your account
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Apple Sign In Button - Guideline 4.8 */}
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full gap-2 bg-black text-white hover:bg-black/90 hover:text-white border-black"
+              onClick={handleAppleSignIn}
+              disabled={appleLoading || loading}
+            >
+              {appleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+              )}
+              Sign in with Apple
+            </Button>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or sign in with email</span>
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email field */}
               <div className="space-y-2">
@@ -235,8 +257,16 @@ export default function LoginPage() {
 
             </form>
 
-            {/* Sign up link - on native, direct to website */}
-            <NativeAwareSignupLink />
+            {/* Sign up link */}
+            <div className="mt-6 text-center text-sm">
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link
+                to="/signup"
+                className="text-primary hover:underline font-medium"
+              >
+                Create account
+              </Link>
+            </div>
           </CardContent>
         </Card>
 

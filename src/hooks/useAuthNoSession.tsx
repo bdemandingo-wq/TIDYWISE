@@ -2,11 +2,13 @@
  * AUTH HOOK WITH SESSION PERSISTENCE
  * 
  * Sessions are now persisted across browser restarts for mobile app support.
+ * Google & Apple OAuth use Lovable Cloud managed auth (in-app, no external browser).
  */
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { lovable } from '@/integrations/lovable/index';
 
 // Re-export for backward compatibility
 export const supabaseNoSession = supabase;
@@ -19,6 +21,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata?: { full_name?: string; phone?: string }) => Promise<{ data: { user: User | null } | null; error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithApple: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   checkExistingProfile: (userId: string) => Promise<boolean>;
 }
@@ -115,19 +118,34 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Google OAuth for SIGN-UP ONLY
-   * After OAuth callback, we check if user already exists (has profile)
-   * If they do, we sign them out and block access
+   * Google OAuth using Lovable Cloud managed auth (works in-app on native)
    */
   const signInWithGoogle = useCallback(async () => {
     try {
-      const { error } = await supabaseNoSession.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/signup?oauth=google`,
-        },
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
       });
-      return { error };
+      if (result.error) {
+        return { error: result.error instanceof Error ? result.error : new Error(String(result.error)) };
+      }
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  }, []);
+
+  /**
+   * Apple Sign In using Lovable Cloud managed auth (works in-app on native)
+   */
+  const signInWithApple = useCallback(async () => {
+    try {
+      const result = await lovable.auth.signInWithOAuth('apple', {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        return { error: result.error instanceof Error ? result.error : new Error(String(result.error)) };
+      }
+      return { error: null };
     } catch (err) {
       return { error: err as Error };
     }
@@ -135,7 +153,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
   /**
    * Check if a profile already exists for this user
-   * Used to block Google OAuth "sign-in" attempts
+   * Used to block Google/Apple OAuth "sign-in" attempts on signup page
    */
   const checkExistingProfile = useCallback(async (userId: string): Promise<boolean> => {
     try {
@@ -178,6 +196,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signInWithGoogle,
+      signInWithApple,
       signOut,
       checkExistingProfile,
     }}>

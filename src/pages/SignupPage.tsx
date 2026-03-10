@@ -1,13 +1,13 @@
 /**
- * SIGNUP PAGE - Email/Password + Google OAuth (SIGNUP ONLY)
+ * SIGNUP PAGE - Email/Password + Google OAuth + Apple Sign In
  * 
- * Google OAuth is ONLY for creating NEW accounts
- * If a user already exists (has a profile), Google OAuth is blocked
- * No persistent sessions - users must re-authenticate every visit
+ * Google & Apple OAuth are for creating NEW accounts (signup only)
+ * If a user already exists (has a profile), OAuth is blocked
+ * All OAuth uses Lovable Cloud managed auth (in-app, no external browser - Guideline 4.0)
+ * Apple Sign In required per Guideline 4.8
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { usePlatform } from '@/hooks/usePlatform';
 import { Seo } from '@/components/Seo';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
@@ -44,13 +44,14 @@ export default function SignupPage() {
     initialCleanupDone, 
     signUp, 
     signInWithGoogle,
+    signInWithApple,
     checkExistingProfile,
     signOut 
   } = useAuthNoSession();
-  const { isNative } = usePlatform();
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
@@ -67,7 +68,8 @@ export default function SignupPage() {
   const handleOAuthCallback = useCallback(async () => {
     if (!user || !initialCleanupDone) return;
     
-    const isOAuthCallback = searchParams.get('oauth') === 'google';
+    const oauthProvider = searchParams.get('oauth');
+    const isOAuthCallback = oauthProvider === 'google' || oauthProvider === 'apple';
     
     if (isOAuthCallback) {
       setGoogleLoading(true);
@@ -77,7 +79,7 @@ export default function SignupPage() {
         const profileExists = await checkExistingProfile(user.id);
         
         if (profileExists) {
-          // User already exists - block Google sign-in
+          // User already exists - block sign-in via signup page
           await signOut();
           toast.error(
             'An account with this email already exists. Please log in with email and password.',
@@ -87,7 +89,7 @@ export default function SignupPage() {
           return;
         }
         
-        // New user via Google - create profile
+        // New user via OAuth - create profile
         const { error: profileError } = await supabaseNoSession
           .from('profiles')
           .insert({
@@ -99,6 +101,15 @@ export default function SignupPage() {
         if (profileError && !profileError.message.includes('duplicate key')) {
           console.error('Error creating profile:', profileError);
         }
+        
+        // Notify platform admin of new signup
+        supabaseNoSession.functions.invoke('notify-platform-admin-signup', {
+          body: {
+            email: user.email,
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+            signupMethod: oauthProvider,
+          },
+        }).catch(err => console.log('Admin notification failed (non-critical):', err));
         
         toast.success('Account created successfully!');
         setGoogleLoading(false);
@@ -213,10 +224,23 @@ export default function SignupPage() {
         toast.error(error.message || 'Failed to start Google signup');
         setGoogleLoading(false);
       }
-      // If successful, user will be redirected to OAuth provider
     } catch (error: any) {
       toast.error(error.message || 'Failed to start Google signup');
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignup = async () => {
+    setAppleLoading(true);
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        toast.error(error.message || 'Failed to start Apple signup');
+        setAppleLoading(false);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to start Apple signup');
+      setAppleLoading(false);
     }
   };
 
@@ -235,7 +259,7 @@ export default function SignupPage() {
     );
   }
 
-  // Show loading spinner during initial auth check or Google OAuth
+  // Show loading spinner during initial auth check or OAuth
   if (authLoading || !initialCleanupDone || googleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -266,14 +290,31 @@ export default function SignupPage() {
           </CardHeader>
           <CardContent>
 
-            {/* Google Sign Up Button - SIGNUP ONLY, hidden on native (Guideline 4.0: no browser redirects) */}
-            {!isNative && (
+            {/* Apple Sign Up Button - Guideline 4.8: must appear alongside Google */}
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full gap-2 bg-black text-white hover:bg-black/90 hover:text-white border-black"
+              onClick={handleAppleSignup}
+              disabled={appleLoading || loading || googleLoading}
+            >
+              {appleLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+              )}
+              Sign up with Apple
+            </Button>
+
+            {/* Google Sign Up Button */}
             <Button 
               type="button"
               variant="outline" 
               className="w-full gap-2 mt-3"
               onClick={handleGoogleSignup}
-              disabled={googleLoading || loading}
+              disabled={googleLoading || loading || appleLoading}
             >
               {googleLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -297,12 +338,10 @@ export default function SignupPage() {
                   />
                 </svg>
               )}
-              Continue with Google (Sign up)
+              Sign up with Google
             </Button>
-            )}
 
-            {/* Divider - only show if there are social buttons above */}
-            {(!isNative || true) && (
+            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <Separator className="w-full" />
@@ -311,7 +350,6 @@ export default function SignupPage() {
                 <span className="bg-card px-2 text-muted-foreground">or sign up with email</span>
               </div>
             </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Full Name */}
@@ -338,8 +376,7 @@ export default function SignupPage() {
                 )}
               </div>
 
-              {/* Phone (optional) — hidden on native iOS per Guideline 5.1.1 */}
-              {!isNative && (
+              {/* Phone (optional) */}
               <div className="space-y-2">
                 <Label htmlFor="phone" className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
@@ -356,7 +393,6 @@ export default function SignupPage() {
                 />
                 <p className="text-xs text-muted-foreground">We'll send you a welcome text!</p>
               </div>
-              )}
 
               {/* Email */}
               <div className="space-y-2">
