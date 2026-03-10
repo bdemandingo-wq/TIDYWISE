@@ -9,6 +9,8 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { lovable } from '@/integrations/lovable/index';
+import { Capacitor } from '@capacitor/core';
+import { signInWithOAuthNative } from '@/lib/nativeOAuth';
 
 // Re-export for backward compatibility
 export const supabaseNoSession = supabase;
