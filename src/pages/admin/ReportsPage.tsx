@@ -255,7 +255,7 @@ export default function ReportsPage() {
   return (
     <AdminLayout
       title="Reports"
-      subtitle="Analytics and performance metrics"
+      subtitle=""
       actions={
         <div className="flex items-center gap-2">
           <Popover>
