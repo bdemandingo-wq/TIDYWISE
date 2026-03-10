@@ -14,18 +14,15 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   build: {
-    // Enable source maps for production debugging (optional)
     sourcemap: false,
-    // Optimize chunk splitting
     rollupOptions: {
       output: {
         manualChunks: {
-          // Vendor chunks - split large dependencies
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip'],
+          // Keep React + Radix UI together to prevent duplicate React instances
+          'vendor-react': ['react', 'react-dom', 'react-router-dom', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip'],
           'vendor-query': ['@tanstack/react-query'],
           'vendor-charts': ['recharts'],
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
@@ -34,16 +31,11 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    // Increase chunk size warning limit (after optimization)
-    chunkSizeWarningLimit: 600,
-    // Target modern browsers for smaller bundle
+    chunkSizeWarningLimit: 800,
     target: 'es2020',
-    // Minification settings
     minify: 'esbuild',
-    // CSS code splitting
     cssCodeSplit: true,
   },
-  // Optimize dependencies
   optimizeDeps: {
     include: [
       'react',
