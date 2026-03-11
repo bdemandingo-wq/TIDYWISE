@@ -16,6 +16,7 @@ import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Capacitor } from "@capacitor/core";
+import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
