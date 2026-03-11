@@ -348,9 +348,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       const bookingDate = new Date(b.scheduled_at);
       const inDateRange = bookingDate >= start && bookingDate <= end;
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-      return inDateRange && matchesStatus;
+      const matchesStaff = !staffFilter || b.staff_id === staffFilter;
+      return inDateRange && matchesStatus && matchesStaff;
     });
-  }, [allBookings, currentDate, viewMode, statusFilter]);
+  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter]);
 
   const { year, month, days } = useMemo(() => {
     const year = currentDate.getFullYear();
