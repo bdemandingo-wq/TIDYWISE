@@ -1247,7 +1247,10 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
-      <div className="flex h-[calc(100vh-12rem)] border rounded-lg overflow-hidden bg-card relative">
+      <div className={cn(
+        "flex border rounded-lg overflow-hidden bg-card relative",
+        isMobile ? "h-[calc(100vh-7rem)] -mx-2 -mt-2 rounded-none border-0" : "h-[calc(100vh-12rem)]"
+      )}>
         {/* Conversation List - Hidden on mobile, shown in sheet */}
         {isMobile ? (
           <>
