@@ -145,7 +145,8 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
         {...listeners}
         className={cn(
           "p-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation",
-          isDragging && "opacity-100"
+          isDragging && "opacity-100",
+          isMobile && "hidden"
         )}
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
