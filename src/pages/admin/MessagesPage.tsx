@@ -610,7 +610,7 @@ export default function MessagesPage() {
     }
     
     if (activeTab === 'all') return matchesSearch && matchesUnread && matchesDate;
-    if (activeTab === 'clients') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type !== 'cleaner';
+    if (activeTab === 'clients') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type === 'client';
     if (activeTab === 'cleaners') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type === 'cleaner';
     return matchesSearch && matchesUnread && matchesDate;
   });
