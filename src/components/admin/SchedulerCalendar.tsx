@@ -121,6 +121,7 @@ interface SchedulerCalendarProps {
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
   statusFilter?: 'all' | 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  staffFilter?: string | null;
 }
 
 interface DraggableBookingProps {
@@ -225,7 +226,7 @@ function DraggableBooking({ booking, index, onClick, staffList, teamStaffIds = [
   );
 }
 
-export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilter = 'all' }: SchedulerCalendarProps) {
+export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilter = 'all', staffFilter = null }: SchedulerCalendarProps) {
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
@@ -347,9 +348,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       const bookingDate = new Date(b.scheduled_at);
       const inDateRange = bookingDate >= start && bookingDate <= end;
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-      return inDateRange && matchesStatus;
+      const matchesStaff = !staffFilter || b.staff_id === staffFilter;
+      return inDateRange && matchesStatus && matchesStaff;
     });
-  }, [allBookings, currentDate, viewMode, statusFilter]);
+  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter]);
 
   const { year, month, days } = useMemo(() => {
     const year = currentDate.getFullYear();

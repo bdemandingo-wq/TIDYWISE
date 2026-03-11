@@ -3,7 +3,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SchedulerCalendar } from '@/components/admin/SchedulerCalendar';
 import { useStaff, useBookings } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
-import { Filter, Download, Loader2 } from 'lucide-react';
+import { Filter, Download, Loader2, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,13 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -31,6 +38,7 @@ export default function SchedulerPage() {
   const { data: bookings = [] } = useBookings();
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [staffFilter, setStaffFilter] = useState<string | null>(null);
   const { maskName } = useTestMode();
 
   const handleExport = async (type: 'csv' | 'json') => {
@@ -74,27 +82,31 @@ export default function SchedulerPage() {
     }
   };
 
-  // Must match SchedulerCalendar palette exactly
-  const STAFF_COLOR_PALETTE = [
-    '#1d4ed8', '#15803d', '#7c3aed', '#c2410c', '#be185d', '#0e7490',
-    '#b91c1c', '#4338ca', '#0f766e', '#a21caf', '#ca8a04', '#0369a1'
-  ];
-  
-  // Create color map using custom colors when available, fallback to palette
-  const sortedStaff = [...staff].sort((a, b) => a.id.localeCompare(b.id));
-  const staffColorMap = new Map<string, string>();
-  sortedStaff.forEach((s, index) => {
-    // Use custom calendar_color if set, otherwise use palette
-    const color = (s as any).calendar_color || STAFF_COLOR_PALETTE[index % STAFF_COLOR_PALETTE.length];
-    staffColorMap.set(s.id, color);
-  });
-
   return (
     <AdminLayout
       title="Scheduler"
       subtitle="Manage your bookings and appointments"
       actions={
         <div className="flex items-center gap-2">
+          {/* Staff Filter Dropdown */}
+          <Select
+            value={staffFilter || 'all'}
+            onValueChange={(v) => setStaffFilter(v === 'all' ? null : v)}
+          >
+            <SelectTrigger className="w-[140px] h-9 text-sm">
+              <Users className="w-4 h-4 mr-1.5 shrink-0" />
+              <SelectValue placeholder="All Staff" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Staff</SelectItem>
+              {staff.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {maskName(s.name)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -148,23 +160,7 @@ export default function SchedulerPage() {
         </div>
       }
     >
-      {/* Staff Legend */}
-      {staff.length > 0 && (
-        <div className="flex items-center gap-4 mb-4 flex-wrap">
-          <span className="text-sm font-medium text-muted-foreground">Staff:</span>
-          {staff.map((s) => (
-            <div key={s.id} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: staffColorMap.get(s.id) || '#6b7280' }}
-              />
-              <span className="text-sm">{maskName(s.name)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <SchedulerCalendar statusFilter={statusFilter} />
+      <SchedulerCalendar statusFilter={statusFilter} staffFilter={staffFilter} />
     </AdminLayout>
   );
 }
