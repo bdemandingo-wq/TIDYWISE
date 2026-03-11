@@ -172,6 +172,29 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
   );
 }
 
+function StaticNavItem({ item, isActive, isOpen, isMobile, onNavClick }: SortableNavItemProps) {
+  return (
+    <Link
+      to={item.href}
+      onClick={onNavClick}
+      className={cn(
+        'sidebar-link min-h-[44px] pointer-events-auto touch-manipulation',
+        isActive && 'active',
+        !isOpen && !isMobile && 'justify-center px-2'
+      )}
+      title={!isOpen && !isMobile ? item.name : undefined}
+    >
+      <item.icon className="w-5 h-5 flex-shrink-0" />
+      {(isOpen || isMobile) && <span>{item.name}</span>}
+      {item.badge !== undefined && item.badge > 0 && (
+        <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
+          {item.badge > 9 ? '9+' : item.badge}
+        </Badge>
+      )}
+    </Link>
+  );
+}
+
 export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
