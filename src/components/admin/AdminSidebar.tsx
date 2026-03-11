@@ -138,13 +138,13 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center group"
+      className="flex items-center group pointer-events-auto touch-manipulation"
     >
       <button
         {...attributes}
         {...listeners}
         className={cn(
-          "p-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity",
+          "p-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation",
           isDragging && "opacity-100"
         )}
       >
@@ -154,7 +154,7 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
         to={item.href}
         onClick={onNavClick}
         className={cn(
-          'sidebar-link flex-1',
+          'sidebar-link flex-1 min-h-[44px] pointer-events-auto touch-manipulation',
           isActive && 'active',
           !isOpen && !isMobile && 'justify-center px-2'
         )}
