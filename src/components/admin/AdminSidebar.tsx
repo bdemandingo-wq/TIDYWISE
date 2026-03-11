@@ -378,7 +378,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 pointer-events-auto touch-manipulation relative z-10">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
