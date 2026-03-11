@@ -62,6 +62,7 @@ interface Conversation {
   last_message_at: string;
   unread_count: number;
   conversation_type?: string;
+  last_message_preview?: string;
 }
 
 interface Message {
