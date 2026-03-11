@@ -433,7 +433,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         <button
           onClick={() => setIsProfileOpen(!isProfileOpen)}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent transition-colors",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent transition-colors min-h-[44px] pointer-events-auto touch-manipulation",
             !isOpen && !isMobile && "justify-center px-2"
           )}
         >
