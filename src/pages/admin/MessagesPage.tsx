@@ -1318,7 +1318,6 @@ export default function MessagesPage() {
                   )}
                 </div>
                 {/* Spacer to balance back button for centering */}
-                <div className="w-9 shrink-0" />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
