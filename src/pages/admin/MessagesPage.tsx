@@ -242,19 +242,56 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const normalizePhone = (phone: string): string => {
+    const digits = phone.replace(/\D/g, '');
+    return digits.startsWith('1') && digits.length === 11 ? digits.substring(1) : digits;
+  };
+
   const fetchConversations = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('sms_conversations')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('last_message_at', { ascending: false });
+    const [convsRes, customersRes, staffRes] = await Promise.all([
+      supabase
+        .from('sms_conversations')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('last_message_at', { ascending: false }),
+      supabase
+        .from('customers')
+        .select('phone')
+        .eq('organization_id', organizationId)
+        .not('phone', 'is', null),
+      supabase
+        .from('staff')
+        .select('phone')
+        .eq('organization_id', organizationId)
+        .not('phone', 'is', null),
+    ]);
 
-    if (error) {
-      console.error('Error fetching conversations:', error);
+    if (convsRes.error) {
+      console.error('Error fetching conversations:', convsRes.error);
       toast.error('Failed to load conversations');
     } else {
-      const convs = (data || []) as Conversation[];
+      const convs = (convsRes.data || []) as Conversation[];
+
+      // Build normalized phone lookup sets
+      const customerPhones = new Set(
+        (customersRes.data || []).map(c => normalizePhone(c.phone!))
+      );
+      const staffPhones = new Set(
+        (staffRes.data || []).map(s => normalizePhone(s.phone!))
+      );
+
+      // Auto-classify each conversation by phone number
+      convs.forEach(c => {
+        const norm = normalizePhone(c.customer_phone);
+        if (staffPhones.has(norm)) {
+          c.conversation_type = 'cleaner';
+        } else if (customerPhones.has(norm)) {
+          c.conversation_type = 'client';
+        }
+        // else keep existing conversation_type (or undefined for unknown)
+      });
+
       // Fetch last message preview for each conversation
       if (convs.length > 0) {
         const { data: previews } = await supabase
