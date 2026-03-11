@@ -16,6 +16,7 @@ import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Capacitor } from "@capacitor/core";
+import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -123,6 +124,11 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppStateHandler = () => {
+  useAppStateHandler();
+  return null;
+};
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
@@ -136,6 +142,7 @@ const App = () => (
                 <TooltipProvider>
                 <Toaster />
                 <Sonner />
+                <AppStateHandler />
                 {/*
                   Native (Capacitor) builds should use HashRouter to avoid blank screens on launch
                   due to history-based routing not being handled by the embedded webview.
