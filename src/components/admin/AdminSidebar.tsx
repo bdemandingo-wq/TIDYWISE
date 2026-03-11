@@ -500,7 +500,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     <>
       {/* Mobile Sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar md:hidden">
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar md:hidden z-[60] pointer-events-auto touch-manipulation">
           <div className="flex flex-col h-full">
             <SidebarContent isMobile />
           </div>
