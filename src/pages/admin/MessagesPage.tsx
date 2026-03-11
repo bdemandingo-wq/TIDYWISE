@@ -682,7 +682,11 @@ export default function MessagesPage() {
 
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv);
-    setShowConversationList(false);
+  };
+
+  const handleBackToList = () => {
+    setSelectedConversation(null);
+    setMessages([]);
   };
 
   const renderConversationList = () => (
@@ -1247,125 +1251,54 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
-      <div className={cn(
-        "flex border rounded-lg overflow-hidden bg-card relative",
-        isMobile ? "h-[calc(100vh-7rem)] -mx-2 -mt-2 rounded-none border-0" : "h-[calc(100vh-12rem)]"
-      )}>
-        {/* Conversation List - Hidden on mobile, shown in sheet */}
-        {isMobile ? (
-          <>
-            {/* Floating button to open conversation list on mobile */}
-            {!selectedConversation && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-0">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <MessageSquare className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Your Messages</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mb-4">
-                  View your conversations or start a new one.
-                </p>
-                <Button onClick={() => setShowConversationList(true)} className="gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  View Conversations
+      {isMobile ? (
+        /* MOBILE: Full-screen list OR full-screen chat */
+        <div className="flex flex-col h-[calc(100vh-7rem)] -mx-2 -mt-2 bg-background">
+          {!selectedConversation ? (
+            /* Full-screen conversation list */
+            renderConversationList()
+          ) : (
+            /* Full-screen chat view */
+            <div className="flex flex-col h-full">
+              {/* Chat Header with back button */}
+              <div className="px-3 py-2.5 border-b flex items-center gap-2 bg-card">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={handleBackToList}
+                >
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
-              </div>
-            )}
-            {selectedConversation && !showConversationList && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 left-2 z-20 h-8 px-2 bg-background/80 backdrop-blur-sm border shadow-sm"
-                onClick={() => setShowConversationList(true)}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
-            )}
-            <Sheet open={showConversationList} onOpenChange={setShowConversationList}>
-              <SheetContent side="left" className="w-[320px] p-0">
-                {renderConversationList()}
-              </SheetContent>
-            </Sheet>
-          </>
-        ) : (
-          <div className={cn(
-            "border-r flex flex-col transition-all duration-300 relative",
-            isListCollapsed ? "w-0 overflow-hidden" : "w-80"
-          )}>
-            {renderConversationList()}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border bg-background shadow-sm z-10"
-              onClick={() => setIsListCollapsed(true)}
-            >
-              <PanelLeftClose className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
-
-        {/* Expand button when collapsed */}
-        {!isMobile && isListCollapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full border bg-background shadow-sm z-10"
-            onClick={() => setIsListCollapsed(false)}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 pl-20 sm:pl-4 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-9 w-9 shrink-0">
                     <AvatarFallback className={cn(
-                      "text-primary",
+                      "text-sm",
                       selectedConversation.conversation_type === 'cleaner' 
-                        ? "bg-amber-100" 
-                        : "bg-primary/10"
+                        ? "bg-amber-100 text-amber-700" 
+                        : "bg-primary/10 text-primary"
                     )}>
                       {selectedConversation.conversation_type === 'cleaner' 
-                        ? <HardHat className="h-5 w-5 text-amber-600" />
+                        ? <HardHat className="h-4 w-4" />
                         : getInitials(selectedConversation.customer_name, selectedConversation.customer_phone)
                       }
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    {selectedConversation.customer_name ? (
-                      <p className="font-medium">
-                        {selectedConversation.customer_name}
-                      </p>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <p className="text-muted-foreground">Unknown Contact</p>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-6 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
-                          onClick={() => {
-                            setEditingName('');
-                            setEditNameOpen(true);
-                          }}
-                        >
-                          Set Name
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {selectedConversation.customer_phone}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">
+                      {selectedConversation.customer_name || selectedConversation.customer_phone}
                     </p>
+                    {selectedConversation.customer_name && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {selectedConversation.customer_phone}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -1410,19 +1343,19 @@ export default function MessagesPage() {
               </Dialog>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
+              <ScrollArea className="flex-1 p-3">
+                <div className="space-y-3">
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
                       className={cn(
-                        "flex animate-message-in",
+                        "flex",
                         msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
                       )}
                     >
                       <div
                         className={cn(
-                          "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm",
+                          "max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm",
                           msg.direction === 'outbound'
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted'
@@ -1443,7 +1376,7 @@ export default function MessagesPage() {
               </ScrollArea>
 
               {/* Message Input */}
-              <div className="p-4 border-t">
+              <div className="p-3 border-t pb-[env(safe-area-inset-bottom)]">
                 <div className="flex gap-2">
                   {organizationId && (
                     <MessageTemplatesPicker
@@ -1461,14 +1394,14 @@ export default function MessagesPage() {
                         handleSendMessage();
                       }
                     }}
-                    className="min-h-[44px] max-h-32 resize-none text-base sm:text-sm"
+                    className="min-h-[44px] max-h-32 resize-none text-base"
                     rows={1}
                   />
                   <Button 
                     onClick={handleSendMessage} 
                     disabled={!newMessage.trim() || sending}
                     size="icon"
-                    className="h-11 w-11"
+                    className="h-11 w-11 shrink-0"
                   >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1478,20 +1411,216 @@ export default function MessagesPage() {
                   </Button>
                 </div>
               </div>
-            </>
-          ) : !isMobile ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <MessageSquare className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Choose a conversation from the list or start a new one to begin messaging your customers.
-              </p>
             </div>
-          ) : null}
+          )}
         </div>
-      </div>
+      ) : (
+        /* DESKTOP: Side-by-side split panel */
+        <div className="flex border rounded-lg overflow-hidden bg-card relative h-[calc(100vh-12rem)]">
+          <div className={cn(
+            "border-r flex flex-col transition-all duration-300 relative",
+            isListCollapsed ? "w-0 overflow-hidden" : "w-80"
+          )}>
+            {renderConversationList()}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border bg-background shadow-sm z-10"
+              onClick={() => setIsListCollapsed(true)}
+            >
+              <PanelLeftClose className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Expand button when collapsed */}
+          {isListCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full border bg-background shadow-sm z-10"
+              onClick={() => setIsListCollapsed(false)}
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Chat Area */}
+          <div className="flex-1 flex flex-col">
+            {selectedConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className={cn(
+                        "text-primary",
+                        selectedConversation.conversation_type === 'cleaner' 
+                          ? "bg-amber-100" 
+                          : "bg-primary/10"
+                      )}>
+                        {selectedConversation.conversation_type === 'cleaner' 
+                          ? <HardHat className="h-5 w-5 text-amber-600" />
+                          : getInitials(selectedConversation.customer_name, selectedConversation.customer_phone)
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      {selectedConversation.customer_name ? (
+                        <p className="font-medium">
+                          {selectedConversation.customer_name}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-muted-foreground">Unknown Contact</p>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-6 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
+                            onClick={() => {
+                              setEditingName('');
+                              setEditNameOpen(true);
+                            }}
+                          >
+                            Set Name
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {selectedConversation.customer_phone}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setEditingName(selectedConversation.customer_name || '');
+                        setEditNameOpen(true);
+                      }}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit Name
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDeleteConversation(selectedConversation.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Conversation
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Edit Name Dialog */}
+                <Dialog open={editNameOpen} onOpenChange={setEditNameOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Contact Name</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label>Name</Label>
+                      <Input 
+                        value={editingName} 
+                        onChange={(e) => setEditingName(e.target.value)}
+                        placeholder="Enter contact name"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setEditNameOpen(false)}>Cancel</Button>
+                      <Button onClick={handleUpdateCustomerName}>Save</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Messages */}
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "flex",
+                          msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm",
+                            msg.direction === 'outbound'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
+                          )}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className={cn(
+                            "text-xs mt-1",
+                            msg.direction === 'outbound' ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                          )}>
+                            {format(new Date(msg.sent_at), 'h:mm a')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+
+                {/* Message Input */}
+                <div className="p-4 border-t">
+                  <div className="flex gap-2">
+                    {organizationId && (
+                      <MessageTemplatesPicker
+                        organizationId={organizationId}
+                        onSelect={(content) => setNewMessage(content)}
+                      />
+                    )}
+                    <Textarea
+                      placeholder="Type a message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      className="min-h-[44px] max-h-32 resize-none text-sm"
+                      rows={1}
+                    />
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!newMessage.trim() || sending}
+                      size="icon"
+                      className="h-11 w-11"
+                    >
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <MessageSquare className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Choose a conversation from the list or start a new one to begin messaging your customers.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       </SubscriptionGate>
     </AdminLayout>
   );
