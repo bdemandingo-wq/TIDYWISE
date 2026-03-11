@@ -790,94 +790,95 @@ export default function MessagesPage() {
             <p className="text-xs text-muted-foreground mt-1">Start a new message to begin</p>
           </div>
         ) : (
-          <div className="divide-y">
-            {filteredConversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={cn(
-                  "w-full p-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-2 bg-card",
-                  selectedConversation?.id === conv.id && "bg-muted"
-                )}
-              >
-                <div 
-                  className="pt-1"
-                  onClick={(e) => toggleSelectConversation(conv.id, e)}
+          <div className="divide-y divide-border/50">
+            {filteredConversations.map((conv) => {
+              const isUnread = conv.unread_count > 0;
+              return (
+                <div
+                  key={conv.id}
+                  className={cn(
+                    "w-full px-3 py-3 text-left hover:bg-muted/50 transition-colors flex items-center gap-2",
+                    selectedConversation?.id === conv.id && "bg-muted",
+                    isUnread && "bg-primary/[0.03]"
+                  )}
                 >
-                  <Checkbox 
-                    checked={selectedIds.has(conv.id)}
-                    onCheckedChange={() => {}}
-                  />
-                </div>
-                <button
-                  onClick={() => handleSelectConversation(conv)}
-                  className="flex-1 text-left"
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className={cn(
-                        "text-sm",
-                        conv.conversation_type === 'cleaner' 
-                          ? "bg-amber-100 text-amber-700" 
-                          : "bg-primary/10 text-primary"
-                      )}>
-                        {conv.conversation_type === 'cleaner' 
-                          ? <HardHat className="h-4 w-4" />
-                          : getInitials(conv.customer_name, conv.customer_phone)
-                        }
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {conv.customer_name ? (
-                            <p className="font-medium truncate">
-                              {conv.customer_name}
-                            </p>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <p className="text-muted-foreground truncate">
+                  <div 
+                    className="shrink-0"
+                    onClick={(e) => toggleSelectConversation(conv.id, e)}
+                  >
+                    <Checkbox 
+                      checked={selectedIds.has(conv.id)}
+                      onCheckedChange={() => {}}
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleSelectConversation(conv)}
+                    className="flex-1 text-left min-w-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-11 w-11 shrink-0">
+                        <AvatarFallback className={cn(
+                          "text-sm font-medium",
+                          conv.conversation_type === 'cleaner' 
+                            ? "bg-amber-100 text-amber-700" 
+                            : "bg-primary/10 text-primary"
+                        )}>
+                          {conv.conversation_type === 'cleaner' 
+                            ? <HardHat className="h-4 w-4" />
+                            : getInitials(conv.customer_name, conv.customer_phone)
+                          }
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            {conv.customer_name ? (
+                              <p className={cn(
+                                "truncate text-sm",
+                                isUnread ? "font-semibold text-foreground" : "font-medium text-foreground"
+                              )}>
+                                {conv.customer_name}
+                              </p>
+                            ) : (
+                              <p className={cn(
+                                "truncate text-sm",
+                                isUnread ? "font-semibold text-foreground" : "text-muted-foreground"
+                              )}>
                                 {conv.customer_phone}
                               </p>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-5 px-2 text-[10px] border-primary/50 text-primary hover:bg-primary/10"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedConversation(conv);
-                                  setEditingName('');
-                                  setEditNameOpen(true);
-                                }}
-                              >
-                                Set Name
-                              </Button>
-                            </div>
-                          )}
-                          {conv.conversation_type === 'cleaner' && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1">
-                              Cleaner
-                            </Badge>
+                            )}
+                            {conv.conversation_type === 'cleaner' && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                                Staff
+                              </Badge>
+                            )}
+                          </div>
+                          <span className={cn(
+                            "text-xs shrink-0",
+                            isUnread ? "text-primary font-medium" : "text-muted-foreground"
+                          )}>
+                            {format(new Date(conv.last_message_at), 'MMM d')}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <p className={cn(
+                            "text-sm truncate flex-1",
+                            isUnread ? "font-medium text-foreground" : "text-muted-foreground"
+                          )}>
+                            {conv.last_message_preview || (conv.customer_name ? conv.customer_phone : 'No messages yet')}
+                          </p>
+                          {isUnread && (
+                            <span className="shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-semibold px-1.5">
+                              {conv.unread_count}
+                            </span>
                           )}
                         </div>
-                        {conv.unread_count > 0 && (
-                          <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                            {conv.unread_count}
-                          </Badge>
-                        )}
                       </div>
-                      {conv.customer_name && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {conv.customer_phone}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(conv.last_message_at), 'MMM d, h:mm a')}
-                      </p>
                     </div>
-                  </div>
-                </button>
-              </div>
-            ))}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
