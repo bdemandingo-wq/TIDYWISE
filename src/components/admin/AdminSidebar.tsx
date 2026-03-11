@@ -511,7 +511,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-2 z-50 min-w-[44px] min-h-[44px] md:hidden"
+        className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-1 z-50 min-w-[44px] min-h-[44px] md:hidden bg-background/80 backdrop-blur-sm touch-manipulation pointer-events-auto"
         onClick={() => setMobileOpen(true)}
         aria-label="Open navigation menu"
       >
