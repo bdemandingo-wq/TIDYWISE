@@ -1,51 +1,69 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home,
-  Users,
-  Target,
-  MessageSquare,
-  Settings,
-  MoreHorizontal,
-  Calendar,
-  BarChart3,
-  ClipboardList,
-  Bell,
+  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
+  ClipboardList, Bell, Plus, Brain, CalendarDays, Repeat, UserCircle,
+  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
+  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
+  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
-import { useOrganization } from '@/contexts/OrganizationContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
-
-type MobileNavItem = {
+export type MobileNavItem = {
   id: string;
   label: string;
   to: string;
   iconKey: string;
 };
 
-const DEFAULT_TABS: MobileNavItem[] = [
-  { id: 'home', label: 'Home', to: '/dashboard', iconKey: 'Home' },
-  { id: 'customers', label: 'Customers', to: '/dashboard/customers', iconKey: 'Users' },
-  { id: 'leads', label: 'Leads', to: '/dashboard/leads', iconKey: 'Target' },
-  { id: 'messages', label: 'Messages', to: '/dashboard/messages', iconKey: 'MessageSquare' },
-  { id: 'settings', label: 'Settings', to: '/dashboard/settings', iconKey: 'Settings' },
+export const DEFAULT_SLOTS: MobileNavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', to: '/dashboard', iconKey: 'Home' },
+  { id: 'scheduler', label: 'Calendar', to: '/dashboard/scheduler', iconKey: 'Calendar' },
+  // center slot is the + button (not stored)
+  { id: 'bookings', label: 'Bookings', to: '/dashboard/bookings', iconKey: 'CalendarDays' },
+  { id: 'reports', label: 'Reports', to: '/dashboard/reports', iconKey: 'BarChart3' },
 ];
 
-const ICONS: Record<string, typeof Home> = {
-  Home,
-  Users,
-  Target,
-  MessageSquare,
-  Settings,
-  Calendar,
-  BarChart3,
-  ClipboardList,
-  Bell,
-  MoreHorizontal,
+export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
+  ClipboardList, Bell, Brain, CalendarDays, Repeat, UserCircle,
+  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
+  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
+  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
+  Plus,
 };
+
+export const ALL_NAV_PAGES: Array<{ id: string; label: string; to: string; iconKey: string }> = [
+  { id: 'dashboard', label: 'Dashboard', to: '/dashboard', iconKey: 'Home' },
+  { id: 'ai-intelligence', label: 'AI Intelligence', to: '/dashboard/ai-intelligence', iconKey: 'Brain' },
+  { id: 'scheduler', label: 'Scheduler', to: '/dashboard/scheduler', iconKey: 'Calendar' },
+  { id: 'bookings', label: 'Bookings', to: '/dashboard/bookings', iconKey: 'CalendarDays' },
+  { id: 'recurring', label: 'Recurring', to: '/dashboard/recurring', iconKey: 'Repeat' },
+  { id: 'customers', label: 'Customers', to: '/dashboard/customers', iconKey: 'Users' },
+  { id: 'client-portal', label: 'Client Portal', to: '/dashboard/client-portal', iconKey: 'UserCircle' },
+  { id: 'invoices', label: 'Invoices', to: '/dashboard/invoices', iconKey: 'FileText' },
+  { id: 'messages', label: 'Messages', to: '/dashboard/messages', iconKey: 'MessageSquare' },
+  { id: 'tasks', label: 'Tasks', to: '/dashboard/tasks', iconKey: 'ListTodo' },
+  { id: 'leads', label: 'Leads', to: '/dashboard/leads', iconKey: 'Target' },
+  { id: 'operations', label: 'Operations', to: '/dashboard/operations', iconKey: 'Crosshair' },
+  { id: 'campaigns', label: 'Campaigns', to: '/dashboard/campaigns', iconKey: 'Megaphone' },
+  { id: 'feedback', label: 'Feedback', to: '/dashboard/feedback', iconKey: 'MessageCircle' },
+  { id: 'services', label: 'Services', to: '/dashboard/services', iconKey: 'Wrench' },
+  { id: 'staff', label: 'Staff', to: '/dashboard/staff', iconKey: 'UsersRound' },
+  { id: 'checklists', label: 'Checklists', to: '/dashboard/checklists', iconKey: 'CheckSquare' },
+  { id: 'booking-photos', label: 'Booking Photos', to: '/dashboard/booking-photos', iconKey: 'Camera' },
+  { id: 'inventory', label: 'Inventory', to: '/dashboard/inventory', iconKey: 'Package' },
+  { id: 'discounts', label: 'Discounts', to: '/dashboard/discounts', iconKey: 'Percent' },
+  { id: 'payroll', label: 'Payroll', to: '/dashboard/payroll', iconKey: 'DollarSign' },
+  { id: 'expenses', label: 'Expenses', to: '/dashboard/expenses', iconKey: 'Receipt' },
+  { id: 'finance', label: 'Finance', to: '/dashboard/finance', iconKey: 'PieChart' },
+  { id: 'reports', label: 'Reports', to: '/dashboard/reports', iconKey: 'BarChart3' },
+  { id: 'subscription', label: 'Subscription', to: '/dashboard/subscription', iconKey: 'CreditCard' },
+  { id: 'automation-center', label: 'Automation Center', to: '/dashboard/automation-center', iconKey: 'Zap' },
+  { id: 'payment-integration', label: 'Payment Setup', to: '/dashboard/payment-integration', iconKey: 'Briefcase' },
+];
 
 function isDashboardRoute(pathname: string) {
   return pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
@@ -53,38 +71,32 @@ function isDashboardRoute(pathname: string) {
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { organizationId } = useOrgId();
-  const { isAdmin } = useOrganization();
-  const [tabs, setTabs] = useState<MobileNavItem[]>(DEFAULT_TABS);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
 
   const isDashboard = isDashboardRoute(location.pathname);
 
-  const roleKey = isAdmin ? 'admin' : 'member';
-
-  // Haptic feedback for tab presses
   const triggerHaptic = useCallback(async () => {
     try {
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) return;
       const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
       await Haptics.impact({ style: ImpactStyle.Light });
-    } catch {
-      // Haptics not available
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
-    if (!isDashboard) return;
+    if (!isDashboard || !organizationId) return;
     let cancelled = false;
+
     const load = async () => {
-      if (!organizationId) return;
       try {
         const { data, error } = await supabase
           .from('organization_mobile_nav_settings')
           .select('items')
           .eq('organization_id', organizationId)
-          .eq('role', roleKey)
+          .eq('role', 'admin')
           .maybeSingle();
 
         if (error) throw error;
@@ -100,32 +112,27 @@ export function MobileBottomNav() {
           })
           .filter(Boolean) as MobileNavItem[];
 
-        if (!cancelled) {
-          setTabs(sanitized.length ? sanitized : DEFAULT_TABS);
+        if (!cancelled && sanitized.length === 4) {
+          setSlots(sanitized);
         }
-      } catch (e) {
-        if (!cancelled) setTabs(DEFAULT_TABS);
+      } catch {
+        if (!cancelled) setSlots(DEFAULT_SLOTS);
       }
     };
 
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId, roleKey, isDashboard]);
+    return () => { cancelled = true; };
+  }, [organizationId, isDashboard]);
 
-  const { primaryTabs, overflowTabs, overflowActive } = useMemo(() => {
-    if (tabs.length <= 5) {
-      return { primaryTabs: tabs, overflowTabs: [] as MobileNavItem[], overflowActive: false };
-    }
-    const primary = tabs.slice(0, 4);
-    const overflow = tabs.slice(4);
-    const isOverflowActive = overflow.some((t) => location.pathname === t.to);
-    return { primaryTabs: primary, overflowTabs: overflow, overflowActive: isOverflowActive };
-  }, [tabs, location.pathname]);
-
-  // On native, always show (no md:hidden). On web, only show on mobile.
   if (!isDashboard) return null;
+
+  const leftSlots = slots.slice(0, 2);
+  const rightSlots = slots.slice(2, 4);
+
+  const handleAdd = () => {
+    triggerHaptic();
+    navigate('/dashboard/bookings', { state: { openAddBooking: true } });
+  };
 
   return (
     <nav
@@ -136,94 +143,62 @@ export function MobileBottomNav() {
       )}
       aria-label="Primary"
     >
-      <div className="grid grid-cols-5">
-        {primaryTabs.map(({ id, label, to, iconKey }) => {
-          const Icon = ICONS[iconKey] ?? Home;
-          return (
-            <NavLink
-              key={id}
-              to={to}
-              onClick={triggerHaptic}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-col items-center justify-center gap-0.5',
-                  'text-[10px] font-medium transition-all duration-200',
-                  'active:scale-[0.96] will-change-transform min-w-[48px]',
-                  'h-14',
-                  isActive
-                    ? 'text-primary font-semibold'
-                    : 'text-muted-foreground'
-                )
-              }
-            >
-              {({ isActive }) => (
-                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-200">
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span className="leading-none">{label}</span>
-                </div>
-              )}
-            </NavLink>
-          );
-        })}
+      <div className="relative grid grid-cols-5 items-end">
+        {/* Left 2 slots */}
+        {leftSlots.map((item) => (
+          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+        ))}
 
-        {overflowTabs.length > 0 && (
-          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                onClick={triggerHaptic}
-                className={cn(
-                  'flex flex-col items-center justify-center gap-0.5',
-                  'text-[10px] font-medium transition-all duration-200',
-                  'active:scale-[0.96] will-change-transform min-w-[48px]',
-                  'h-14',
-                  overflowActive ? 'text-primary font-semibold' : 'text-muted-foreground'
-                )}
-                aria-label="More"
-              >
-                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-200">
-                  <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-                  <span className="leading-none">More</span>
-                </div>
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="p-0">
-              <SheetHeader className="p-4 pb-2">
-                <SheetTitle>More</SheetTitle>
-              </SheetHeader>
-              <div className="p-2">
-                {overflowTabs.map((t) => {
-                  const Icon = ICONS[t.iconKey] ?? Home;
-                  return (
-                    <NavLink
-                      key={t.id}
-                      to={t.to}
-                      onClick={() => {
-                        triggerHaptic();
-                        setMoreOpen(false);
-                      }}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-3',
-                          isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                        )
-                      }
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                      <span className="text-sm font-medium">{t.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </SheetContent>
-          </Sheet>
-        )}
+        {/* Center + FAB */}
+        <div className="flex items-center justify-center relative">
+          <button
+            type="button"
+            onClick={handleAdd}
+            className={cn(
+              'absolute -top-4 flex items-center justify-center',
+              'w-14 h-14 rounded-full',
+              'bg-primary text-primary-foreground',
+              'shadow-lg shadow-primary/30',
+              'active:scale-95 transition-transform duration-150',
+              'touch-manipulation'
+            )}
+            aria-label="New booking"
+          >
+            <Plus className="w-7 h-7" strokeWidth={2.5} />
+          </button>
+          {/* Spacer to keep grid height */}
+          <div className="h-14" />
+        </div>
 
-        {overflowTabs.length === 0 && primaryTabs.length < 5 &&
-          Array.from({ length: 5 - primaryTabs.length }).map((_, i) => (
-            <div key={`pad_${i}`} className="h-14" />
-          ))}
+        {/* Right 2 slots */}
+        {rightSlots.map((item) => (
+          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+        ))}
       </div>
     </nav>
+  );
+}
+
+function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () => void; currentPath: string }) {
+  const Icon = ICON_MAP[item.iconKey] ?? Home;
+  const isActive = currentPath === item.to || (item.to !== '/dashboard' && currentPath.startsWith(item.to + '/'));
+  const isExactDashboard = item.to === '/dashboard' && currentPath === '/dashboard';
+  const active = isActive || isExactDashboard;
+
+  return (
+    <NavLink
+      to={item.to}
+      onClick={onTap}
+      className={cn(
+        'flex flex-col items-center justify-center gap-0.5',
+        'text-[10px] font-medium transition-all duration-200',
+        'active:scale-[0.96] will-change-transform touch-manipulation',
+        'h-14',
+        active ? 'text-primary font-semibold' : 'text-muted-foreground'
+      )}
+    >
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <span className="leading-none">{item.label}</span>
+    </NavLink>
   );
 }
