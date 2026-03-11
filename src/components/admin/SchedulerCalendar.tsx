@@ -715,11 +715,12 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           />
         )}
 
-        {/* Drag hint */}
-        <div className="px-4 py-2 bg-secondary/30 border-b border-border text-sm text-muted-foreground flex items-center gap-2">
-          <GripVertical className="w-4 h-4" />
-          Drag and drop bookings to reschedule them
-        </div>
+        {!isMobile && (
+          <div className="px-4 py-2 bg-secondary/30 border-b border-border text-sm text-muted-foreground flex items-center gap-2">
+            <GripVertical className="w-4 h-4" />
+            Drag and drop bookings to reschedule them
+          </div>
+        )}
 
         {/* Day Headers */}
         <div>
