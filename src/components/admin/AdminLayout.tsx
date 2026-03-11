@@ -3,6 +3,7 @@ import AdminHelpChat from './AdminHelpChat';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
+import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
