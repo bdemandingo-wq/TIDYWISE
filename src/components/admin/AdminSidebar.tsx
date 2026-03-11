@@ -414,7 +414,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
               to="/dashboard/platform-analytics"
               onClick={handleNavClick}
               className={cn(
-                'sidebar-link',
+                'sidebar-link min-h-[44px] pointer-events-auto touch-manipulation',
                 location.pathname === '/dashboard/platform-analytics' && 'active',
                 !isOpen && !isMobile && 'justify-center px-2'
               )}
