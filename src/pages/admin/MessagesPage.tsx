@@ -254,7 +254,28 @@ export default function MessagesPage() {
       console.error('Error fetching conversations:', error);
       toast.error('Failed to load conversations');
     } else {
-      setConversations(data || []);
+      const convs = (data || []) as Conversation[];
+      // Fetch last message preview for each conversation
+      if (convs.length > 0) {
+        const { data: previews } = await supabase
+          .from('sms_messages')
+          .select('conversation_id, content')
+          .in('conversation_id', convs.map(c => c.id))
+          .order('sent_at', { ascending: false });
+
+        if (previews) {
+          const previewMap = new Map<string, string>();
+          for (const p of previews) {
+            if (!previewMap.has(p.conversation_id)) {
+              previewMap.set(p.conversation_id, p.content);
+            }
+          }
+          convs.forEach(c => {
+            c.last_message_preview = previewMap.get(c.id) || undefined;
+          });
+        }
+      }
+      setConversations(convs);
     }
     setLoading(false);
   };
