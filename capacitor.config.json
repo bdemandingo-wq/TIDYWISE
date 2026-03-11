@@ -2,17 +2,33 @@
   "appId": "com.jointidywise.app",
   "appName": "TidyWise",
   "webDir": "dist",
+  "bundledWebRuntime": false,
   "ios": {
     "contentInset": "automatic",
     "allowsLinkPreview": false,
-    "appendUserAgent": "TidyWise-iOS"
+    "appendUserAgent": "TidyWise-iOS",
+    "backgroundColor": "#ffffff",
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": true,
+    "scrollEnabled": true,
+    "allowNavigation": [
+      "slwfkaqczvwvvvavkgpr.supabase.co",
+      "jointidywise.com",
+      "*.jointidywise.com",
+      "js.stripe.com",
+      "*.stripe.com"
+    ]
   },
   "plugins": {
-    "Camera": {
-      "presentationStyle": "popover"
-    },
-    "PushNotifications": {
-      "presentationOptions": ["badge", "sound", "alert"]
-    }
+    "Camera": { "presentationStyle": "popover" },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] },
+    "SplashScreen": { "launchShowDuration": 0, "launchAutoHide": true, "backgroundColor": "#ffffff" },
+    "StatusBar": { "style": "DEFAULT", "backgroundColor": "#ffffff" },
+    "Keyboard": { "resize": "body", "resizeOnFullScreen": true }
+  },
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "https",
+    "hostname": "app.jointidywise.com"
   }
 }
