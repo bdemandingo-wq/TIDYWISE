@@ -190,7 +190,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
     <>
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold">Upcoming Bookings</h3>
+          <h3 className="font-bold md:font-semibold text-primary md:text-foreground">Upcoming Bookings</h3>
           <Button 
             variant="ghost" 
             size="sm" 
