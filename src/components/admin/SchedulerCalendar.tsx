@@ -754,8 +754,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   className={cn(
                     'calendar-day',
                     viewMode === 'week' 
-                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[300px]') 
-                      : (isMobile ? 'min-h-[52px]' : 'min-h-[120px]'),
+                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]') 
+                      : '',
                     date && isToday(date) && 'today',
                     !date && 'bg-muted/30'
                   )}
