@@ -35,6 +35,17 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { 
   Search, 
   Download, 
@@ -62,7 +73,9 @@ import {
   RotateCcw,
   Heart,
   Banknote,
-  UserPlus
+  UserPlus,
+  ChevronDown,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -88,6 +101,7 @@ import { toast } from '@/hooks/use-toast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -126,6 +140,7 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 };
 
 export default function BookingsPage() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -175,6 +190,8 @@ export default function BookingsPage() {
   const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
   const [assignCleanerBooking, setAssignCleanerBooking] = useState<BookingWithDetails | null>(null);
   const [assigningCleaner, setAssigningCleaner] = useState(false);
+  const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -1557,7 +1574,6 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -1586,7 +1602,73 @@ export default function BookingsPage() {
               Create Booking
             </Button>
           </div>
+        ) : isMobile ? (
+          /* ========== MOBILE CARD VIEW ========== */
+          <div className="divide-y divide-border">
+            {filteredBookings.map((booking, index) => {
+              const statusStyle = statusConfig[booking.status] || statusConfig.pending;
+              const paymentInfo = getPaymentStatusInfo(booking);
+              const scheduledDate = new Date(booking.scheduled_at);
+              
+              return (
+                <div
+                  key={booking.id}
+                  className="p-3 active:bg-muted/30 transition-colors"
+                  onClick={() => setActionSheetBooking(booking)}
+                >
+                  {/* Top row: booking number + amount */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-mono text-xs font-bold text-primary">
+                      #{booking.booking_number}
+                    </span>
+                    <span className="font-bold text-sm text-foreground">{maskAmount(booking.total_amount)}</span>
+                  </div>
+                  
+                  {/* Client name */}
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    {booking.customer 
+                      ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
+                      : 'Unknown'
+                    }
+                  </p>
+                  
+                  {/* Service + date */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                    <span>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</span>
+                    <span>•</span>
+                    <span>{format(scheduledDate, 'MMM d, h:mm a')}</span>
+                  </div>
+                  
+                  {/* Staff */}
+                  <div className="text-xs text-muted-foreground mb-2">
+                    <span className={cn(!booking.staff?.name && "italic")}>
+                      {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
+                    </span>
+                  </div>
+                  
+                  {/* Badges row */}
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                      statusStyle.bg, statusStyle.text
+                    )}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full", statusStyle.dot)} />
+                      {statusLabels[booking.status] || booking.status.replace('_', ' ')}
+                    </div>
+                    <div className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                      paymentInfo.bg, paymentInfo.text
+                    )}>
+                      <span>{paymentInfo.icon}</span>
+                      {paymentInfo.label}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* ========== DESKTOP TABLE VIEW ========== */
           <div className="overflow-x-auto" data-no-swipe>
             <Table>
               <TableHeader>
@@ -1613,7 +1695,6 @@ export default function BookingsPage() {
                   const statusStyle = statusConfig[booking.status] || statusConfig.pending;
                   const paymentInfo = getPaymentStatusInfo(booking);
                   
-                  // Reminder indicator logic
                   const now = new Date();
                   const scheduledDate = new Date(booking.scheduled_at);
                   const daysUntil = differenceInDays(scheduledDate, now);
@@ -1985,6 +2066,203 @@ export default function BookingsPage() {
           </div>
         )}
       </div>
+
+      {/* ========== MOBILE ACTION BOTTOM SHEET ========== */}
+      <Sheet open={!!actionSheetBooking} onOpenChange={(open) => !open && setActionSheetBooking(null)}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)]">
+          {actionSheetBooking && (() => {
+            const booking = actionSheetBooking;
+            const statusStyle = statusConfig[booking.status] || statusConfig.pending;
+            const paymentInfo = getPaymentStatusInfo(booking);
+            return (
+              <>
+                <SheetHeader className="pb-3 border-b border-border">
+                  <SheetTitle className="text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm text-primary">#{booking.booking_number}</span>
+                      <span className="font-bold">{maskAmount(booking.total_amount)}</span>
+                    </div>
+                    <p className="text-base font-medium text-foreground mt-1">
+                      {booking.customer 
+                        ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
+                        : 'Unknown'
+                      }
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className={cn(
+                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                        statusStyle.bg, statusStyle.text
+                      )}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", statusStyle.dot)} />
+                        {statusLabels[booking.status] || booking.status}
+                      </div>
+                      <div className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                        paymentInfo.bg, paymentInfo.text
+                      )}>
+                        <span>{paymentInfo.icon}</span>
+                        {paymentInfo.label}
+                      </div>
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+
+                {/* Quick Actions - Always visible */}
+                <div className="py-3 space-y-2 border-b border-border">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 h-10"
+                    onClick={() => {
+                      setActionSheetBooking(null);
+                      setActiveBooking(booking);
+                      setViewDialogOpen(true);
+                    }}
+                  >
+                    <Eye className="w-4 h-4" /> View Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 h-10 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                    onClick={async () => {
+                      await updateBooking.mutateAsync({ id: booking.id, payment_status: 'paid' as any });
+                      toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
+                      setActionSheetBooking(null);
+                    }}
+                    disabled={booking.payment_status === 'paid'}
+                  >
+                    <CreditCard className="w-4 h-4" /> {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 h-10"
+                    onClick={() => {
+                      handleStatusChange(booking.id, 'completed');
+                      setActionSheetBooking(null);
+                    }}
+                    disabled={booking.status === 'completed'}
+                  >
+                    <CheckCircle className="w-4 h-4" /> Mark Complete
+                  </Button>
+                </div>
+
+                {/* Collapsible Sections */}
+                <div className="py-2 space-y-1">
+                  {/* Booking Section */}
+                  <Collapsible open={openSections['booking']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, booking: open }))}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
+                      <span>Booking</span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['booking'] && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 pb-2">
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActionSheetBooking(null); setEditingBooking(booking); setAddDialogOpen(true); }}>
+                        <Edit className="w-4 h-4" /> Edit
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActionSheetBooking(null); handleDuplicate(booking); }}>
+                        <Copy className="w-4 h-4" /> Duplicate
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { handleStatusChange(booking.id, 'completed'); setActiveBooking(booking); setAdjustPaymentOpen(true); setActionSheetBooking(null); }} disabled={booking.status === 'completed'}>
+                        Mark Complete & Adjust Pay
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={async () => { await handleStatusChange(booking.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }} disabled={booking.status === 'confirmed'}>
+                        <XCircle className="w-4 h-4" /> Mark Uncleaned
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActiveBooking(booking); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}>
+                        <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-destructive" onClick={() => { setActionSheetBooking(null); handleDelete(booking); }}>
+                        <Trash2 className="w-4 h-4" /> Delete
+                      </Button>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Payments Section */}
+                  <Collapsible open={openSections['payments']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, payments: open }))}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
+                      <span>Payments</span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['payments'] && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 pb-2">
+                      {booking.payment_status === 'paid' && (
+                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-orange-600" onClick={async () => { await updateBooking.mutateAsync({ id: booking.id, payment_status: 'pending' as any }); toast({ title: "Marked Unpaid" }); setActionSheetBooking(null); }}>
+                          <XCircle className="w-4 h-4" /> Mark Unpaid
+                        </Button>
+                      )}
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setAdditionalChargesBooking(booking); setAdditionalChargesOpen(true); setActionSheetBooking(null); }}>
+                        <PlusCircle className="w-4 h-4" /> Additional Charge
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={() => { setChargeConfirmBooking(booking); setActionSheetBooking(null); }} disabled={chargingCard === booking.id || booking.payment_status === 'paid' || !booking.customer?.email}>
+                        <DollarSign className="w-4 h-4" /> Charge Card Now
+                      </Button>
+                      {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setPlaceHoldConfirmBooking(booking); setActionSheetBooking(null); }} disabled={placingHold === booking.id || !booking.customer?.email}>
+                          <CreditCard className="w-4 h-4" /> Place Hold
+                        </Button>
+                      )}
+                      {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setCaptureConfirmBooking(booking); setActionSheetBooking(null); }} disabled={capturingPayment === booking.id}>
+                          <CreditCard className="w-4 h-4" /> Capture Hold
+                        </Button>
+                      )}
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { handleCancelHold(booking); setActionSheetBooking(null); }} disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}>
+                        <XCircle className="w-4 h-4" /> Release Hold
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setRefundDialogBooking(booking); setRefundType('full'); setRefundAmount(''); setActionSheetBooking(null); }} disabled={booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id)}>
+                        <RotateCcw className="w-4 h-4" /> Refund
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setPaymentHistoryBooking(booking); setPaymentHistoryOpen(true); setActionSheetBooking(null); }}>
+                        <Clock className="w-4 h-4" /> Payment History
+                      </Button>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Communication Section */}
+                  <Collapsible open={openSections['communication']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, communication: open }))}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
+                      <span>Communication</span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['communication'] && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 pb-2">
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-blue-600" onClick={() => { handleSendReminder(booking); setActionSheetBooking(null); }} disabled={sendingReminder === booking.id || !booking.customer?.phone}>
+                        <Phone className="w-4 h-4" /> Send Reminder
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-purple-600" onClick={() => { handleSendCleanerNotification(booking); setActionSheetBooking(null); }} disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}>
+                        <Phone className="w-4 h-4" /> Notify Cleaner
+                      </Button>
+                      {!booking.staff && (
+                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-green-600" onClick={() => { handleOpenCleanerPicker(booking); setActionSheetBooking(null); }} disabled={notifyingOpenJob === booking.id}>
+                          <Bell className="w-4 h-4" /> Notify Cleaners (Open Job)
+                        </Button>
+                      )}
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={() => { handleSendReviewRequest(booking); setActionSheetBooking(null); }} disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
+                        <Star className="w-4 h-4" /> Send Review
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-emerald-600" onClick={() => { handleSendTipRequest(booking); setActionSheetBooking(null); }} disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
+                        <Heart className="w-4 h-4" /> Send Tip Link
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-blue-600" onClick={() => { setDepositDialogBooking(booking); setDepositAmount(''); setActionSheetBooking(null); }} disabled={!booking.customer?.phone}>
+                        <Banknote className="w-4 h-4" /> Send Deposit Link
+                      </Button>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Staff Section */}
+                  <Collapsible open={openSections['staff']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, staff: open }))}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
+                      <span>Staff</span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['staff'] && "rotate-180")} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 pb-2">
+                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-indigo-600" onClick={() => { setAssignCleanerBooking(booking); setActionSheetBooking(null); }}>
+                        <UserPlus className="w-4 h-4" /> Assign Cleaner
+                      </Button>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
         </TabsContent>
 
         <TabsContent value="drafts" className="space-y-6">

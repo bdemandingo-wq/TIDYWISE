@@ -607,7 +607,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="bg-card rounded-xl border border-border shadow-sm">
+      <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]">
         {/* Calendar Header */}
         <div className="flex items-center justify-between p-2 md:p-4 border-b border-border flex-wrap gap-2 md:gap-4">
           <div className="flex items-center gap-2 md:gap-4">
@@ -725,7 +725,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         )}
 
         {/* Day Headers */}
-        <div>
+        <div className="flex-1 flex flex-col overflow-hidden">
         <div className="grid grid-cols-7 border-b border-border">
           {DAYS.map((day) => (
             <div
@@ -738,7 +738,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-7 flex-1">
           {isLoading ? (
             <div className="col-span-7 flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -754,8 +754,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   className={cn(
                     'calendar-day',
                     viewMode === 'week' 
-                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[300px]') 
-                      : (isMobile ? 'min-h-[52px]' : 'min-h-[120px]'),
+                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]') 
+                      : '',
                     date && isToday(date) && 'today',
                     !date && 'bg-muted/30'
                   )}
