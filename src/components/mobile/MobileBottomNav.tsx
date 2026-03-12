@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
+import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 
 export type MobileNavItem = {
   id: string;
