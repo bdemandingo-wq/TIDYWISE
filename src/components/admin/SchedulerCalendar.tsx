@@ -607,7 +607,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="bg-card rounded-xl border border-border shadow-sm">
+      <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)]">
         {/* Calendar Header */}
         <div className="flex items-center justify-between p-2 md:p-4 border-b border-border flex-wrap gap-2 md:gap-4">
           <div className="flex items-center gap-2 md:gap-4">
