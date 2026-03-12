@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
+import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 
 export type MobileNavItem = {
   id: string;
@@ -74,6 +75,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { organizationId } = useOrgId();
   const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
+  const [showAddBooking, setShowAddBooking] = useState(false);
 
   const isDashboard = isDashboardRoute(location.pathname);
 
@@ -129,9 +131,10 @@ export function MobileBottomNav() {
   const leftSlots = slots.slice(0, 2);
   const rightSlots = slots.slice(2, 4);
 
+
   const handleAdd = () => {
     triggerHaptic();
-    navigate('/dashboard/bookings', { state: { openAddBooking: true } });
+    setShowAddBooking(true);
   };
 
   return (
@@ -175,6 +178,7 @@ export function MobileBottomNav() {
           <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
         ))}
       </div>
+      <AddBookingDialog open={showAddBooking} onOpenChange={setShowAddBooking} />
     </nav>
   );
 }

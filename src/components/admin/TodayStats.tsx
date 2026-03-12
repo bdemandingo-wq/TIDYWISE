@@ -44,7 +44,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
           <div className="text-center px-4">
             <p className="text-sm text-muted-foreground mb-1">Gross Volume</p>
             <p className={cn(
-              "text-2xl font-bold transition-colors duration-300",
+              "text-lg md:text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
               {isTestMode ? '$X,XXX.XX' : `$${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -53,7 +53,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
           <div className="text-center px-4">
             <p className="text-sm text-muted-foreground mb-1">Payments</p>
             <p className={cn(
-              "text-2xl font-bold transition-colors duration-300",
+              "text-lg md:text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
               {isTestMode ? 'XX' : payments}
@@ -62,7 +62,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
           <div className="text-center px-4">
             <p className="text-sm text-muted-foreground mb-1">Customers</p>
             <p className={cn(
-              "text-2xl font-bold transition-colors duration-300",
+              "text-lg md:text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
               {isTestMode ? 'XX' : customers}
