@@ -75,6 +75,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { organizationId } = useOrgId();
   const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
+  const [showAddBooking, setShowAddBooking] = useState(false);
 
   const isDashboard = isDashboardRoute(location.pathname);
 
