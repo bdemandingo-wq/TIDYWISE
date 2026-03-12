@@ -190,6 +190,8 @@ export default function BookingsPage() {
   const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
   const [assignCleanerBooking, setAssignCleanerBooking] = useState<BookingWithDetails | null>(null);
   const [assigningCleaner, setAssigningCleaner] = useState(false);
+  const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
