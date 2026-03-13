@@ -1628,21 +1628,11 @@ export default function BookingsPage() {
               const scheduledDate = new Date(booking.scheduled_at);
               const isCleaned = booking.status === 'completed';
               const isPaid = booking.payment_status === 'paid';
-
-              // Color-coded left border
-              const borderColor = isCleaned && isPaid
-                ? 'border-l-emerald-500'
-                : isCleaned && !isPaid
-                ? 'border-l-amber-500'
-                : 'border-l-red-500';
               
               return (
                 <div
                   key={booking.id}
-                  className={cn(
-                    "p-3 active:bg-muted/30 transition-colors border-l-4",
-                    borderColor
-                  )}
+                  className="p-3 active:bg-muted/30 transition-colors"
                   onClick={() => setActionSheetBooking(booking)}
                 >
                   {/* Top row: booking number + amount */}
