@@ -205,33 +205,38 @@ export default function BookingsPage() {
     return b.status === 'completed' && b.payment_status === 'paid';
   }, []);
 
-  // Sort bookings: upcoming first (chronologically), then past
+  // Sort bookings: today's active bookings pinned to top, then reverse chronological
   // On mobile: additionally pin uncompleted/unpaid bookings above fully-done ones
   const sortedBookings = useMemo(() => {
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const isTodayActive = (b: typeof bookings[0]) => {
+      const d = new Date(b.scheduled_at);
+      return d >= todayStart && d < todayEnd && b.status !== 'completed' && b.status !== 'cancelled';
+    };
+
     return [...bookings].sort((a, b) => {
-      // Mobile smart sort: uncompleted/unpaid always above completed+paid
+      // Pin today's active (uncleaned/in-progress) bookings to the very top
+      const aTodayActive = isTodayActive(a);
+      const bTodayActive = isTodayActive(b);
+      if (aTodayActive !== bTodayActive) return aTodayActive ? -1 : 1;
+      // Within today's active: earliest first
+      if (aTodayActive && bTodayActive) {
+        return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
+      }
+
+      // Mobile smart sort: uncompleted/unpaid above completed+paid
       if (isMobile) {
         const aDone = isFullyDone(a);
         const bDone = isFullyDone(b);
         if (aDone !== bDone) return aDone ? 1 : -1;
       }
 
-      const aDate = new Date(a.scheduled_at);
-      const bDate = new Date(b.scheduled_at);
-      const aIsUpcoming = aDate >= now;
-      const bIsUpcoming = bDate >= now;
-      
-      // Both upcoming: earliest first
-      if (aIsUpcoming && bIsUpcoming) {
-        return aDate.getTime() - bDate.getTime();
-      }
-      // Both past: most recent first
-      if (!aIsUpcoming && !bIsUpcoming) {
-        return bDate.getTime() - aDate.getTime();
-      }
-      // Upcoming before past
-      return aIsUpcoming ? -1 : 1;
+      // Rest: reverse chronological (most recent first)
+      return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
     });
   }, [bookings, isMobile, isFullyDone]);
 
