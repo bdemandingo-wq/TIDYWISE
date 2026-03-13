@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
@@ -102,6 +103,8 @@ import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -195,6 +198,13 @@ export default function BookingsPage() {
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
+  const queryClient = useQueryClient();
+
+  const handlePullRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['bookings'] });
+  }, [queryClient]);
+
+  const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(handlePullRefresh);
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const { isTestMode, maskName, maskEmail, maskAmount, maskAddress } = useTestMode();
@@ -1622,7 +1632,11 @@ export default function BookingsPage() {
           </div>
         ) : isMobile ? (
           /* ========== MOBILE CARD VIEW ========== */
-          <div className="divide-y divide-border">
+          <div
+            className="divide-y divide-border overflow-y-auto"
+            {...pullHandlers}
+          >
+            <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
           {filteredBookings.map((booking, index) => {
               const paymentInfo = getPaymentStatusInfo(booking);
               const scheduledDate = new Date(booking.scheduled_at);
