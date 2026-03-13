@@ -198,6 +198,13 @@ export default function BookingsPage() {
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
+  const queryClient = useQueryClient();
+
+  const handlePullRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['bookings'] });
+  }, [queryClient]);
+
+  const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(handlePullRefresh);
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const { isTestMode, maskName, maskEmail, maskAmount, maskAddress } = useTestMode();
