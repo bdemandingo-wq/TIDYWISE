@@ -1632,7 +1632,11 @@ export default function BookingsPage() {
           </div>
         ) : isMobile ? (
           /* ========== MOBILE CARD VIEW ========== */
-          <div className="divide-y divide-border">
+          <div
+            className="divide-y divide-border overflow-y-auto"
+            {...pullHandlers}
+          >
+            <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
           {filteredBookings.map((booking, index) => {
               const paymentInfo = getPaymentStatusInfo(booking);
               const scheduledDate = new Date(booking.scheduled_at);
