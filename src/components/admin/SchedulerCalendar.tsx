@@ -202,7 +202,7 @@ function DraggableBooking({ booking, index, onClick, staffList, teamStaffIds = [
         if (!isDragging) onClick();
       }}
       className={cn(
-        'booking-pill w-full text-left cursor-grab active:cursor-grabbing group select-none touch-none',
+        'booking-pill w-full text-left cursor-grab active:cursor-grabbing group select-none',
         isDragging && 'opacity-50'
       )}
       style={{

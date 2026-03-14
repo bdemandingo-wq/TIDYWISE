@@ -53,12 +53,22 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
   const { isTestMode } = useTestMode();
 
   // Calculate daily P&L from bookings and expenses
+  // Only count PAID bookings (exclude unpaid, refunded, cancelled) by scheduled date
   const dailyPnL = useMemo(() => {
     const map = new Map<string, DailyPnL>();
+    const seenBookingIds = new Set<string>();
 
-    // Process bookings (revenue)
+    // Process bookings (revenue) - only paid bookings
     bookings.forEach((b: any) => {
+      // Skip cancelled, refunded, and unpaid bookings
       if (b.status === 'cancelled') return;
+      if (b.payment_status === 'refunded') return;
+      if (b.payment_status !== 'paid' && b.payment_status !== 'partial') return;
+      
+      // Prevent duplicate counting
+      if (seenBookingIds.has(b.id)) return;
+      seenBookingIds.add(b.id);
+
       const dateKey = format(new Date(b.scheduled_at), 'yyyy-MM-dd');
       const existing = map.get(dateKey) || { revenue: 0, expenses: 0, cleanerPay: 0, fees: 0, net: 0 };
 
