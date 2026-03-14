@@ -830,7 +830,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               </DialogTitle>
             </DialogHeader>
             {dayBookingsPopup && (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                 {dayBookingsPopup.bookings.map((booking) => {
                   const color = getStaffColor(booking.staff_id, staffList);
                   const fullName = booking.customer 
@@ -843,13 +843,31 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         setDayBookingsPopup(null);
                         setSelectedBooking(booking);
                       }}
-                      className="w-full text-left px-4 py-3 rounded-lg transition-colors hover:opacity-80"
+                      className="w-full text-left px-4 py-3 rounded-lg border transition-colors hover:opacity-80"
                       style={{
-                        backgroundColor: color,
-                        color: '#fff',
+                        backgroundColor: `${color}15`,
+                        borderColor: `${color}40`,
+                        borderLeftWidth: '4px',
+                        borderLeftColor: color,
                       }}
                     >
-                      <span className="font-medium">{maskName(fullName)}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium" style={{ color }}>{maskName(fullName)}</span>
+                        <Badge className={cn('text-xs', statusColors[booking.status])}>
+                          {statusLabels[booking.status] || booking.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                        <span>{formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                        <span>•</span>
+                        <span>{booking.service?.name || 'Service'}</span>
+                        {!isTestMode && booking.total_amount > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>${Number(booking.total_amount).toFixed(0)}</span>
+                          </>
+                        )}
+                      </div>
                     </button>
                   );
                 })}
