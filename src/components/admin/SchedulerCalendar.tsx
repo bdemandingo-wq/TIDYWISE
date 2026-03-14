@@ -772,16 +772,36 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         {viewMode === 'week' ? (isMobile ? format(date, 'd') : format(date, 'MMM d')) : date.getDate()}
                       </span>
                         <div className={cn("w-full space-y-0.5 md:space-y-1 overflow-y-auto scrollbar-thin", isMobile ? "max-h-[80px]" : "max-h-[200px]")}>
-                        {dayBookings.map((booking, bIndex) => (
-                          <DraggableBooking
-                            key={booking.id}
-                            booking={booking}
-                            index={bIndex}
-                            onClick={() => setSelectedBooking(booking)}
-                            staffList={staffList}
-                            teamStaffIds={teamAssignmentMap.get(booking.id)}
-                          />
-                        ))}
+                        {(() => {
+                          const maxVisible = isMobile && viewMode === 'month' ? 2 : dayBookings.length;
+                          const visibleBookings = dayBookings.slice(0, maxVisible);
+                          const overflowCount = dayBookings.length - maxVisible;
+                          return (
+                            <>
+                              {visibleBookings.map((booking, bIndex) => (
+                                <DraggableBooking
+                                  key={booking.id}
+                                  booking={booking}
+                                  index={bIndex}
+                                  onClick={() => setSelectedBooking(booking)}
+                                  staffList={staffList}
+                                  teamStaffIds={teamAssignmentMap.get(booking.id)}
+                                />
+                              ))}
+                              {overflowCount > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDayBookingsPopup({ date: date!, bookings: dayBookings });
+                                  }}
+                                  className="w-full text-center text-[10px] font-semibold text-primary bg-primary/10 rounded py-0.5 hover:bg-primary/20 transition-colors"
+                                >
+                                  +{overflowCount} more
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </>
                   )}
