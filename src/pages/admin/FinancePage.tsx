@@ -425,6 +425,7 @@ export default function FinancePage() {
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="pnl-calendar">P&L Calendar</TabsTrigger>
           <TabsTrigger value="sales-tax">Sales Tax by Zip</TabsTrigger>
           <TabsTrigger value="pnl">P&L Breakdown</TabsTrigger>
         </TabsList>
