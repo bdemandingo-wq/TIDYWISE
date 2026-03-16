@@ -32,29 +32,6 @@ import {
   Plus,
   Check,
 } from 'lucide-react';
-  ChevronDown,
-  Home,
-  DollarSign,
-  Receipt,
-  Package,
-  Menu,
-  Repeat,
-  Target,
-  MessageSquare,
-  MapPin,
-  CheckSquare,
-  CreditCard,
-  Sparkles,
-  HelpCircle,
-  GripVertical,
-  Tag,
-  Activity,
-  Zap,
-  Brain,
-  Trash2,
-  Globe,
-  Camera,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
