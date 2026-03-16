@@ -40,24 +40,17 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Public booking card setup for:", { email, customerName, organizationId });
     } else {
       // Admin/CRM flow: require admin auth
-      const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+      const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
+        requireAdmin: true,
+        requireOrganizationId: organizationId,
+      });
       
       if (!authResult.success) {
         console.error("Auth failed:", authResult.error);
         return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
       }
 
-      if (organizationId !== authResult.organizationId) {
-        console.error("Organization mismatch in create-setup-intent");
-        await logAudit({
-          action: AuditActions.PAYMENT_FAILED,
-          userId: authResult.userId!,
-          organizationId: authResult.organizationId!,
-          details: { reason: "Organization mismatch", requestedOrg: organizationId },
-        });
-        return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
-      }
-
+      authUserId = authResult.userId!;
       authUserId = authResult.userId!;
     }
 
