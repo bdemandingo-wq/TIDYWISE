@@ -489,19 +489,12 @@ export function AIAnalysisCenter() {
 
         {/* ─── Tab 4: Scheduling ─── */}
         <TabsContent value="scheduling">
-          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Weekly Schedule Overview</h3>
+          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Bookings Per Day</h3>
           <div style={cardStyle} className="p-5 mb-4">
             <div className="grid grid-cols-7 gap-3" style={{ height: 200 }}>
               {DAYS.map(day => {
                 const count = weeklyData[day] || 0;
-                const isBest = day === bestDay;
-                const isSunday = day === 'Sun';
                 const barHeight = count > 0 && maxBookings > 0 ? Math.max((count / maxBookings) * 100, 12) : 0;
-                let barColor = 'rgba(255,255,255,0.1)';
-                let dotColor = '';
-                if (count > 0 && count >= maxBookings * 0.8) { barColor = BLUE; dotColor = BLUE; }
-                else if (count > 0) { barColor = TEAL; dotColor = TEAL; }
-                if (isSunday && isBest) { barColor = AMBER; dotColor = AMBER; }
                 return (
                   <div key={day} className="flex flex-col items-center justify-end h-full gap-0">
                     <div style={{ width: '100%', flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
@@ -509,31 +502,20 @@ export function AIAnalysisCenter() {
                         <div style={{
                           width: '55%',
                           height: `${barHeight}%`,
-                          background: `linear-gradient(180deg, ${barColor}, ${barColor}88)`,
+                          background: `linear-gradient(180deg, ${TEAL}, ${TEAL}88)`,
                           borderRadius: '6px 6px 2px 2px',
                           transition: 'height 0.6s ease',
-                          position: 'relative',
                           minHeight: 16,
-                        }}>
-                          <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', width: 8, height: 8, borderRadius: '50%', background: dotColor, boxShadow: `0 0 6px ${dotColor}80` }} />
-                        </div>
+                        }} />
                       ) : (
                         <div style={{ width: '55%', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }} />
                       )}
                     </div>
                     <span style={{ fontFamily: monoFont, fontSize: 14, fontWeight: 500, color: count > 0 ? '#fff' : 'rgba(255,255,255,0.25)', marginTop: 8 }}>{count}</span>
-                    <span style={{ fontFamily: labelFont, fontSize: 12, color: isSunday && isBest ? AMBER : 'rgba(255,255,255,0.4)', marginTop: 2 }}>{day}</span>
-                    {isSunday && isBest && (
-                      <span style={{ fontSize: 9, color: AMBER, fontFamily: labelFont, marginTop: 2 }}>⚠ High demand</span>
-                    )}
+                    <span style={{ fontFamily: labelFont, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{day}</span>
                   </div>
                 );
               })}
-            </div>
-            <div className="flex gap-5 mt-4 pt-4" style={{ borderTop: `1px solid ${BORDER}` }}>
-              <div className="flex items-center gap-2"><div style={{ width: 10, height: 10, borderRadius: '50%', background: BLUE }} /><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Full capacity</span></div>
-              <div className="flex items-center gap-2"><div style={{ width: 10, height: 10, borderRadius: '50%', background: TEAL }} /><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open slots</span></div>
-              <div className="flex items-center gap-2"><div style={{ width: 10, height: 10, borderRadius: '50%', background: AMBER }} /><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Needs attention</span></div>
             </div>
           </div>
           <div style={cardStyle} className="p-4">
