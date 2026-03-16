@@ -37,12 +37,12 @@ interface PnLCalendarProps {
   teamPaysByBooking: Map<string, number>;
 }
 
-const formatAmount = (amount: number): string => {
+const formatAmount = (amount: number, showSign = true): string => {
   const abs = Math.abs(amount);
   if (abs >= 1000) {
-    return `${amount >= 0 ? '+' : '-'}$${(abs / 1000).toFixed(2)}K`;
+    return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}$${(abs / 1000).toFixed(2)}K`;
   }
-  return `${amount >= 0 ? '+' : '-'}$${abs.toFixed(2)}`;
+  return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}$${abs.toFixed(2)}`;
 };
 
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -113,11 +113,11 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
   }, [bookings, expenses, teamPaysByBooking]);
 
   // Monthly P&L for year view
-  const monthlyPnL = useMemo(() => {
+  const monthlyRevenue = useMemo(() => {
     const map = new Map<string, number>();
     dailyPnL.forEach((val, dateKey) => {
-      const monthKey = dateKey.substring(0, 7); // yyyy-MM
-      map.set(monthKey, (map.get(monthKey) || 0) + val.net);
+      const monthKey = dateKey.substring(0, 7);
+      map.set(monthKey, (map.get(monthKey) || 0) + val.revenue);
     });
     return map;
   }, [dailyPnL]);
@@ -144,7 +144,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
     let total = 0;
     const monthKey = format(currentMonth, 'yyyy-MM');
     dailyPnL.forEach((val, dateKey) => {
-      if (dateKey.startsWith(monthKey)) total += val.net;
+      if (dateKey.startsWith(monthKey)) total += val.revenue;
     });
     return total;
   }, [dailyPnL, currentMonth]);
@@ -199,11 +199,8 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
             <div className="text-center">
               <span className="text-sm font-medium">{format(currentMonth, 'MMMM yyyy')}</span>
               {!isTestMode && (
-                <span className={cn(
-                  'ml-2 text-sm font-bold',
-                  monthTotal >= 0 ? 'text-emerald-500' : 'text-red-500'
-                )}>
-                  {formatAmount(monthTotal)}
+                <span className="ml-2 text-sm font-bold text-emerald-500">
+                  {formatAmount(monthTotal, false)}
                 </span>
               )}
             </div>
@@ -233,8 +230,8 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                 const pnl = dailyPnL.get(dateKey);
                 const inMonth = isSameMonth(day, currentMonth);
                 const today = isToday(day);
-                const hasData = pnl && (pnl.revenue > 0 || pnl.expenses > 0);
-                const net = pnl?.net || 0;
+                const hasData = pnl && pnl.revenue > 0;
+                const revenue = pnl?.revenue || 0;
 
                 return (
                   <div
@@ -243,9 +240,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                       'relative flex flex-col items-center justify-center rounded-md min-h-[52px] sm:min-h-[64px] border transition-colors',
                       !inMonth && 'opacity-30',
                       today && 'ring-1 ring-primary',
-                      hasData && net > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-                      hasData && net < 0 && 'bg-red-500/10 border-red-500/30',
-                      hasData && net === 0 && 'bg-muted/50 border-border',
+                      hasData && 'bg-emerald-500/10 border-emerald-500/30',
                       !hasData && 'border-transparent'
                     )}
                   >
@@ -257,11 +252,8 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                       {today ? 'Today' : format(day, 'd')}
                     </span>
                     {hasData && !isTestMode && (
-                      <span className={cn(
-                        'text-[11px] sm:text-xs font-bold mt-0.5',
-                        net > 0 ? 'text-emerald-500' : net < 0 ? 'text-red-500' : 'text-muted-foreground'
-                      )}>
-                        {formatAmount(net)}
+                      <span className="text-[11px] sm:text-xs font-bold mt-0.5 text-emerald-500">
+                        {formatAmount(revenue, false)}
                       </span>
                     )}
                     {hasData && isTestMode && (
@@ -281,8 +273,8 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
             {Array.from({ length: 12 }, (_, i) => {
               const monthDate = new Date(currentYear, i, 1);
               const monthKey = format(monthDate, 'yyyy-MM');
-              const net = monthlyPnL.get(monthKey) || 0;
-              const hasData = net !== 0;
+              const revenue = monthlyRevenue.get(monthKey) || 0;
+              const hasData = revenue > 0;
 
               return (
                 <button
@@ -293,8 +285,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                   }}
                   className={cn(
                     'flex flex-col items-center justify-center rounded-lg p-3 border transition-all hover:shadow-sm',
-                    hasData && net > 0 && 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20',
-                    hasData && net < 0 && 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20',
+                    hasData && 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20',
                     !hasData && 'border-border hover:bg-muted/50'
                   )}
                 >
@@ -302,9 +293,9 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                   {!isTestMode ? (
                     <span className={cn(
                       'text-sm font-bold mt-1',
-                      net > 0 ? 'text-emerald-500' : net < 0 ? 'text-red-500' : 'text-muted-foreground'
+                      hasData ? 'text-emerald-500' : 'text-muted-foreground'
                     )}>
-                      {hasData ? formatAmount(net) : '--'}
+                      {hasData ? formatAmount(revenue, false) : '--'}
                     </span>
                   ) : (
                     <span className="text-sm text-muted-foreground mt-1">$--</span>
