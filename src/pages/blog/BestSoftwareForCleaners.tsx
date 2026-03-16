@@ -91,7 +91,7 @@ export default function BestSoftwareForCleaners() {
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-6xl mx-auto">
-          <RelatedArticles currentSlug="best-software-for-cleaning-business" articles={allArticles} maxArticles={3} />
+          <RelatedArticles currentSlug="best-software-for-cleaning-business" articles={allArticles} />
         </div>
       </section>
 

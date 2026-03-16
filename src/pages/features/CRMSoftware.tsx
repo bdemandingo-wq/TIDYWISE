@@ -148,7 +148,7 @@ export default function CRMSoftware() {
 
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-          <RelatedArticles currentSlug="crm" articles={allArticles} maxArticles={3} />
+          <RelatedArticles currentSlug="crm" articles={allArticles} />
         </div>
       </section>
 

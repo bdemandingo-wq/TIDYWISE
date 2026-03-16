@@ -93,7 +93,7 @@ export default function AutomateCleaningCompany() {
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-6xl mx-auto">
-          <RelatedArticles currentSlug="how-to-automate-cleaning-company" articles={allArticles} maxArticles={3} />
+          <RelatedArticles currentSlug="how-to-automate-cleaning-company" articles={allArticles} />
         </div>
       </section>
 
