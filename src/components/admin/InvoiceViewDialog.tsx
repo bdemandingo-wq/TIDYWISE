@@ -194,7 +194,7 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
         </DialogHeader>
 
         {/* Printable Invoice */}
-        <div ref={printRef} className="bg-white p-8 rounded-lg border">
+        <div ref={printRef} className="bg-white p-8 rounded-lg border text-gray-900 [&_*]:!text-gray-900 [&_.muted-text]:!text-gray-500 [&_.primary-text]:!text-blue-600 [&_.green-text]:!text-green-600 [&_.border-line]:!border-gray-200">
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
             <div>
