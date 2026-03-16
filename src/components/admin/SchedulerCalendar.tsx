@@ -354,35 +354,40 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     });
   }, [allBookings, currentDate, viewMode, statusFilter, staffFilter]);
 
-  const { year, month, days } = useMemo(() => {
+  const { year, month, days, monthWeekRows } = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
+
     if (viewMode === 'week') {
       const weekStart = startOfWeek(currentDate);
-      const days: Date[] = [];
+      const days: (Date | null)[] = [];
       for (let i = 0; i < 7; i++) {
         days.push(addDays(weekStart, i));
       }
-      return { year, month, days };
+      return { year, month, days, monthWeekRows: 1 };
     }
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startPadding = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    
+    const totalCells = Math.ceil((startPadding + daysInMonth) / 7) * 7;
+
     const days: (Date | null)[] = [];
-    
+
     for (let i = 0; i < startPadding; i++) {
       days.push(null);
     }
-    
+
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
-    
-    return { year, month, days };
+
+    while (days.length < totalCells) {
+      days.push(null);
+    }
+
+    return { year, month, days, monthWeekRows: totalCells / 7 };
   }, [currentDate, viewMode]);
 
   const getBookingsForDate = (date: Date): BookingWithDetails[] => {
