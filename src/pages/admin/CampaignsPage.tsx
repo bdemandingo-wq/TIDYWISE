@@ -341,7 +341,7 @@ export default function CampaignsPage() {
       winback_60day: { label: "Win Back Inactive", description: "Fires after 60+ days of no booking", icon: RefreshCw },
       review_request: { label: "Post-Clean Review Request", description: "Fires 30 min after booking marked complete", icon: Star },
       appointment_reminder: { label: "Appointment Reminder", description: "Fires 24 hours before scheduled cleaning", icon: CalendarDays },
-      missed_call_textback: { label: "Missed Call Text-Back", description: "Auto-reply when a call is missed", icon: Phone },
+      
       rebooking_reminder: { label: "Recurring Reminder", description: "Fires 28 days after completed cleaning", icon: Clock },
       recurring_upsell: { label: "Recurring Service Upsell", description: "Fires 2 hours after completed cleaning", icon: TrendingUp },
     };
