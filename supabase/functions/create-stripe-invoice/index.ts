@@ -10,9 +10,11 @@ const corsHeaders = {
 interface CreateInvoiceRequest {
   invoiceId: string;
   organizationId: string;
-  customerEmail: string;
+  customerEmail: string | null;
   customerName: string;
-  customerPhone?: string;
+  customerPhone?: string | null;
+  sendEmail?: boolean;
+  sendSms?: boolean;
   items: Array<{
     description: string;
     quantity: number;
