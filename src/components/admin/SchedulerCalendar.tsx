@@ -162,14 +162,19 @@ function TrashDropZone() {
     <div
       ref={setNodeRef}
       className={cn(
-        'flex items-center justify-center h-8 w-8 rounded-md border transition-all duration-200',
+        'flex items-center justify-center px-3 py-1.5 rounded-md border-2 border-dashed transition-all duration-200 select-none',
         isOver
-          ? 'border-destructive bg-destructive/10 text-destructive scale-110'
-          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          ? 'border-destructive bg-destructive/15 scale-105'
+          : 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10'
       )}
       title="Drag a booking here to delete"
     >
-      <Trash2 className={cn('w-4 h-4 transition-transform', isOver && 'animate-bounce')} />
+      <span className={cn(
+        'text-xs font-bold text-destructive whitespace-nowrap',
+        isOver && 'animate-pulse'
+      )}>
+        Drag to Delete
+      </span>
     </div>
   );
 }
