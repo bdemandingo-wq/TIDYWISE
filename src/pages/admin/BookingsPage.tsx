@@ -2127,201 +2127,50 @@ export default function BookingsPage() {
       </div>
 
       {/* ========== MOBILE ACTION BOTTOM SHEET ========== */}
-      <Sheet open={!!actionSheetBooking} onOpenChange={(open) => !open && setActionSheetBooking(null)}>
-        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)]">
-          {actionSheetBooking && (() => {
-            const booking = actionSheetBooking;
-            const statusStyle = statusConfig[booking.status] || statusConfig.pending;
-            const paymentInfo = getPaymentStatusInfo(booking);
-            return (
-              <>
-                <SheetHeader className="pb-3 border-b border-border">
-                  <SheetTitle className="text-left">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm text-primary">#{booking.booking_number}</span>
-                      <span className="font-bold">{maskAmount(booking.total_amount)}</span>
-                    </div>
-                    <p className="text-base font-medium text-foreground mt-1">
-                      {booking.customer 
-                        ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
-                        : 'Unknown'
-                      }
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                        statusStyle.bg, statusStyle.text
-                      )}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full", statusStyle.dot)} />
-                        {statusLabels[booking.status] || booking.status}
-                      </div>
-                      <div className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                        paymentInfo.bg, paymentInfo.text
-                      )}>
-                        <span>{paymentInfo.icon}</span>
-                        {paymentInfo.label}
-                      </div>
-                    </div>
-                  </SheetTitle>
-                </SheetHeader>
-
-                {/* Quick Actions - Always visible */}
-                <div className="py-3 space-y-2 border-b border-border">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2 h-10"
-                    onClick={() => {
-                      setActionSheetBooking(null);
-                      setActiveBooking(booking);
-                      setViewDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="w-4 h-4" /> View Details
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2 h-10 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                    onClick={async () => {
-                      await updateBooking.mutateAsync({ id: booking.id, payment_status: 'paid' as any });
-                      toast({ title: "Marked Paid", description: `Booking #${booking.booking_number} marked as paid.` });
-                      setActionSheetBooking(null);
-                    }}
-                    disabled={booking.payment_status === 'paid'}
-                  >
-                    <CreditCard className="w-4 h-4" /> {booking.payment_status === 'paid' ? 'Already Paid' : 'Mark Paid'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2 h-10"
-                    onClick={() => {
-                      handleStatusChange(booking.id, 'completed');
-                      setActionSheetBooking(null);
-                    }}
-                    disabled={booking.status === 'completed'}
-                  >
-                    <CheckCircle className="w-4 h-4" /> Mark Complete
-                  </Button>
-                </div>
-
-                {/* Collapsible Sections */}
-                <div className="py-2 space-y-1">
-                  {/* Booking Section */}
-                  <Collapsible open={openSections['booking']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, booking: open }))}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
-                      <span>Booking</span>
-                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['booking'] && "rotate-180")} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 pb-2">
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActionSheetBooking(null); setEditingBooking(booking); setAddDialogOpen(true); }}>
-                        <Edit className="w-4 h-4" /> Edit
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActionSheetBooking(null); handleDuplicate(booking); }}>
-                        <Copy className="w-4 h-4" /> Duplicate
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { handleStatusChange(booking.id, 'completed'); setActiveBooking(booking); setAdjustPaymentOpen(true); setActionSheetBooking(null); }} disabled={booking.status === 'completed'}>
-                        Mark Complete & Adjust Pay
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={async () => { await handleStatusChange(booking.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }} disabled={booking.status === 'confirmed'}>
-                        <XCircle className="w-4 h-4" /> Mark Uncleaned
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setActiveBooking(booking); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}>
-                        <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-destructive" onClick={() => { setActionSheetBooking(null); handleDelete(booking); }}>
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </Button>
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Payments Section */}
-                  <Collapsible open={openSections['payments']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, payments: open }))}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
-                      <span>Payments</span>
-                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['payments'] && "rotate-180")} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 pb-2">
-                      {booking.payment_status === 'paid' && (
-                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-orange-600" onClick={async () => { await updateBooking.mutateAsync({ id: booking.id, payment_status: 'pending' as any }); toast({ title: "Marked Unpaid" }); setActionSheetBooking(null); }}>
-                          <XCircle className="w-4 h-4" /> Mark Unpaid
-                        </Button>
-                      )}
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setAdditionalChargesBooking(booking); setAdditionalChargesOpen(true); setActionSheetBooking(null); }}>
-                        <PlusCircle className="w-4 h-4" /> Additional Charge
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={() => { setChargeConfirmBooking(booking); setActionSheetBooking(null); }} disabled={chargingCard === booking.id || booking.payment_status === 'paid' || !booking.customer?.email}>
-                        <DollarSign className="w-4 h-4" /> Charge Card Now
-                      </Button>
-                      {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
-                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setPlaceHoldConfirmBooking(booking); setActionSheetBooking(null); }} disabled={placingHold === booking.id || !booking.customer?.email}>
-                          <CreditCard className="w-4 h-4" /> Place Hold
-                        </Button>
-                      )}
-                      {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
-                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setCaptureConfirmBooking(booking); setActionSheetBooking(null); }} disabled={capturingPayment === booking.id}>
-                          <CreditCard className="w-4 h-4" /> Capture Hold
-                        </Button>
-                      )}
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { handleCancelHold(booking); setActionSheetBooking(null); }} disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}>
-                        <XCircle className="w-4 h-4" /> Release Hold
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setRefundDialogBooking(booking); setRefundType('full'); setRefundAmount(''); setActionSheetBooking(null); }} disabled={booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id)}>
-                        <RotateCcw className="w-4 h-4" /> Refund
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm" onClick={() => { setPaymentHistoryBooking(booking); setPaymentHistoryOpen(true); setActionSheetBooking(null); }}>
-                        <Clock className="w-4 h-4" /> Payment History
-                      </Button>
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Communication Section */}
-                  <Collapsible open={openSections['communication']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, communication: open }))}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
-                      <span>Communication</span>
-                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['communication'] && "rotate-180")} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 pb-2">
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-blue-600" onClick={() => { handleSendReminder(booking); setActionSheetBooking(null); }} disabled={sendingReminder === booking.id || !booking.customer?.phone}>
-                        <Phone className="w-4 h-4" /> Send Reminder
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-purple-600" onClick={() => { handleSendCleanerNotification(booking); setActionSheetBooking(null); }} disabled={sendingCleanerNotification === booking.id || !booking.staff?.phone}>
-                        <Phone className="w-4 h-4" /> Notify Cleaner
-                      </Button>
-                      {!booking.staff && (
-                        <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-green-600" onClick={() => { handleOpenCleanerPicker(booking); setActionSheetBooking(null); }} disabled={notifyingOpenJob === booking.id}>
-                          <Bell className="w-4 h-4" /> Notify Cleaners (Open Job)
-                        </Button>
-                      )}
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-amber-600" onClick={() => { handleSendReviewRequest(booking); setActionSheetBooking(null); }} disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
-                        <Star className="w-4 h-4" /> Send Review
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-emerald-600" onClick={() => { handleSendTipRequest(booking); setActionSheetBooking(null); }} disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
-                        <Heart className="w-4 h-4" /> Send Tip Link
-                      </Button>
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-blue-600" onClick={() => { setDepositDialogBooking(booking); setDepositAmount(''); setActionSheetBooking(null); }} disabled={!booking.customer?.phone}>
-                        <Banknote className="w-4 h-4" /> Send Deposit Link
-                      </Button>
-                    </CollapsibleContent>
-                  </Collapsible>
-
-                  {/* Staff Section */}
-                  <Collapsible open={openSections['staff']} onOpenChange={(open) => setOpenSections(prev => ({ ...prev, staff: open }))}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full py-2.5 px-1 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg">
-                      <span>Staff</span>
-                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", openSections['staff'] && "rotate-180")} />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="space-y-1 pb-2">
-                      <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-indigo-600" onClick={() => { setAssignCleanerBooking(booking); setActionSheetBooking(null); }}>
-                        <UserPlus className="w-4 h-4" /> Assign Cleaner
-                      </Button>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              </>
-            );
-          })()}
-        </SheetContent>
-      </Sheet>
+      <BookingActionSheet
+        booking={actionSheetBooking}
+        onClose={() => setActionSheetBooking(null)}
+        openSections={openSections}
+        onToggleSection={(key, open) => setOpenSections(prev => ({ ...prev, [key]: open }))}
+        statusConfig={statusConfig}
+        statusLabels={statusLabels}
+        getPaymentStatusInfo={getPaymentStatusInfo}
+        maskAmount={maskAmount}
+        maskName={maskName}
+        onViewDetails={(b) => { setActionSheetBooking(null); setActiveBooking(b); setViewDialogOpen(true); }}
+        onMarkPaid={async (b) => { await updateBooking.mutateAsync({ id: b.id, payment_status: 'paid' as any }); toast({ title: "Marked Paid", description: `Booking #${b.booking_number} marked as paid.` }); setActionSheetBooking(null); }}
+        onMarkComplete={(b) => { handleStatusChange(b.id, 'completed'); setActionSheetBooking(null); }}
+        onEdit={(b) => { setActionSheetBooking(null); setEditingBooking(b); setAddDialogOpen(true); }}
+        onDuplicate={(b) => { setActionSheetBooking(null); handleDuplicate(b); }}
+        onMarkCompleteAdjustPay={(b) => { handleStatusChange(b.id, 'completed'); setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
+        onMarkUncleaned={async (b) => { await handleStatusChange(b.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }}
+        onAdjustCleanerPay={(b) => { setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
+        onDelete={(b) => { setActionSheetBooking(null); handleDelete(b); }}
+        onMarkUnpaid={async (b) => { await updateBooking.mutateAsync({ id: b.id, payment_status: 'pending' as any }); toast({ title: "Marked Unpaid" }); setActionSheetBooking(null); }}
+        onAdditionalCharge={(b) => { setAdditionalChargesBooking(b); setAdditionalChargesOpen(true); setActionSheetBooking(null); }}
+        onChargeCard={(b) => { setChargeConfirmBooking(b); setActionSheetBooking(null); }}
+        onPlaceHold={(b) => { setPlaceHoldConfirmBooking(b); setActionSheetBooking(null); }}
+        onCaptureHold={(b) => { setCaptureConfirmBooking(b); setActionSheetBooking(null); }}
+        onReleaseHold={(b) => { handleCancelHold(b); setActionSheetBooking(null); }}
+        onRefund={(b) => { setRefundDialogBooking(b); setRefundType('full'); setRefundAmount(''); setActionSheetBooking(null); }}
+        onPaymentHistory={(b) => { setPaymentHistoryBooking(b); setPaymentHistoryOpen(true); setActionSheetBooking(null); }}
+        onSendReminder={(b) => { handleSendReminder(b); setActionSheetBooking(null); }}
+        onNotifyCleaner={(b) => { handleSendCleanerNotification(b); setActionSheetBooking(null); }}
+        onNotifyOpenJob={(b) => { handleOpenCleanerPicker(b); setActionSheetBooking(null); }}
+        onSendReview={(b) => { handleSendReviewRequest(b); setActionSheetBooking(null); }}
+        onSendTipLink={(b) => { handleSendTipRequest(b); setActionSheetBooking(null); }}
+        onSendDepositLink={(b) => { setDepositDialogBooking(b); setDepositAmount(''); setActionSheetBooking(null); }}
+        onAssignCleaner={(b) => { setAssignCleanerBooking(b); setActionSheetBooking(null); }}
+        chargingCard={chargingCard}
+        placingHold={placingHold}
+        capturingPayment={capturingPayment}
+        cancelingHold={cancelingHold}
+        sendingReminder={sendingReminder}
+        sendingCleanerNotification={sendingCleanerNotification}
+        notifyingOpenJob={notifyingOpenJob}
+        sendingReviewRequest={sendingReviewRequest}
+        sendingTipRequest={sendingTipRequest}
+      />
         </TabsContent>
 
         <TabsContent value="drafts" className="space-y-6">
