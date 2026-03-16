@@ -1,5 +1,4 @@
 import { ReactNode, Suspense, lazy, useState } from 'react';
-import AdminHelpChat from './AdminHelpChat';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
