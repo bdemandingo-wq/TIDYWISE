@@ -113,11 +113,11 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
   }, [bookings, expenses, teamPaysByBooking]);
 
   // Monthly P&L for year view
-  const monthlyPnL = useMemo(() => {
+  const monthlyRevenue = useMemo(() => {
     const map = new Map<string, number>();
     dailyPnL.forEach((val, dateKey) => {
-      const monthKey = dateKey.substring(0, 7); // yyyy-MM
-      map.set(monthKey, (map.get(monthKey) || 0) + val.net);
+      const monthKey = dateKey.substring(0, 7);
+      map.set(monthKey, (map.get(monthKey) || 0) + val.revenue);
     });
     return map;
   }, [dailyPnL]);
