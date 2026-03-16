@@ -83,9 +83,10 @@ export default function OnboardingPage() {
     checkPhoneNeeded();
   }, [user]);
 
-  // If the user already has a business, never let them re-onboard.
+  // If the user already has a business and isn't creating a new one, redirect.
+  const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
   useEffect(() => {
-    if (!orgLoading && organization) {
+    if (!orgLoading && organization && !isNewBusiness) {
       navigate('/dashboard', { replace: true });
     }
   }, [orgLoading, organization, navigate]);
