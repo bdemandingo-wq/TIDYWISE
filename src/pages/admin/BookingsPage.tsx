@@ -245,8 +245,8 @@ export default function BookingsPage() {
         if (aDone !== bDone) return aDone ? 1 : -1;
       }
 
-      // Rest: reverse chronological (most recent first)
-      return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
+      // Rest: chronological (upcoming dates first)
+      return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
     });
   }, [bookings, isMobile, isFullyDone]);
 
