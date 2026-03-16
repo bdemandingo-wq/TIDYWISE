@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.lindy-crm-api]
 verify_jwt = false
+
+[functions.ai-analysis-center]
+verify_jwt = false

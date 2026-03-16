@@ -1,6 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { AIIntelligenceDashboard } from '@/components/admin/AIIntelligenceDashboard';
-import { Brain } from 'lucide-react';
+import { AIAnalysisCenter } from '@/components/admin/AIAnalysisCenter';
 
 export default function AIIntelligencePage() {
   return (
@@ -8,7 +7,7 @@ export default function AIIntelligencePage() {
       title="AI Intelligence"
       subtitle="Predictive insights powered by machine learning"
     >
-      <AIIntelligenceDashboard />
+      <AIAnalysisCenter />
     </AdminLayout>
   );
 }
