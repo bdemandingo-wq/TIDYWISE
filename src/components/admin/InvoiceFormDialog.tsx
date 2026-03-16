@@ -870,15 +870,42 @@ export function InvoiceFormDialog({
                 <Eye className="w-4 h-4 mr-2" />
                 Preview
               </Button>
-              <Button
-                className="flex-1"
-                onClick={handleSend}
-                disabled={saveMutation.isPending || lineItems.length === 0 || !selectedCustomer}
-              >
-                {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Send
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className="flex-1"
+                    disabled={saveMutation.isPending || lineItems.length === 0 || !selectedCustomer}
+                  >
+                    {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Send
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => handleSend('email')}
+                    disabled={!selectedCustomer?.email}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Send via Email
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleSend('sms')}
+                    disabled={!selectedCustomer?.phone}
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    Send via SMS
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleSend('both')}
+                    disabled={!selectedCustomer?.email || !selectedCustomer?.phone}
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Send Both
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </DialogContent>
