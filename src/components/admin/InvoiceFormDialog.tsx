@@ -311,24 +311,32 @@ export function InvoiceFormDialog({
       }
 
       // If we should send the invoice, call the edge function
-      if (shouldSend) {
+      if (sendMethod !== 'none') {
         const customerEmail = selectedCustomer.email;
         const customerName = formData.customer_type === 'customer' 
           ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
           : selectedCustomer.name;
         const customerPhone = selectedCustomer.phone;
 
-        if (!customerEmail && !customerPhone) {
-          throw new Error('Customer has no email or phone - cannot send invoice');
+        const wantsEmail = sendMethod === 'email' || sendMethod === 'both';
+        const wantsSms = sendMethod === 'sms' || sendMethod === 'both';
+
+        if (wantsEmail && !customerEmail) {
+          throw new Error('Customer has no email address');
+        }
+        if (wantsSms && !customerPhone) {
+          throw new Error('Customer has no phone number');
         }
 
         const { error: sendError } = await supabase.functions.invoke('create-stripe-invoice', {
           body: {
             invoiceId,
             organizationId,
-            customerEmail,
+            customerEmail: wantsEmail ? customerEmail : null,
             customerName,
-            customerPhone,
+            customerPhone: wantsSms ? customerPhone : null,
+            sendEmail: wantsEmail,
+            sendSms: wantsSms,
             items: validLineItems.map(item => ({
               description: item.description,
               quantity: item.quantity,
@@ -343,7 +351,7 @@ export function InvoiceFormDialog({
 
         if (sendError) throw sendError;
         
-        return { sent: true, invoiceNumber };
+        return { sent: true, sendMethod, invoiceNumber };
       }
 
       return { sent: false, invoiceNumber };
