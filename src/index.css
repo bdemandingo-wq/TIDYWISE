@@ -202,9 +202,9 @@
 
   /* Calendar styles */
   .calendar-day {
-    @apply w-full aspect-square flex flex-col items-start p-1 border border-border/30 
+    @apply w-full flex flex-col items-start p-1 border border-border/30 
            hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm
-           transition-all duration-200 cursor-pointer;
+           transition-all duration-200 cursor-pointer overflow-hidden;
   }
 
   .calendar-day.today {
