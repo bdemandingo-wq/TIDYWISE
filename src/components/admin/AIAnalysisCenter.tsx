@@ -122,12 +122,15 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Weekly booking distribution (for scheduling tab)
+  // Weekly booking distribution — current week (Mon–Sun)
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
+
   const { data: weeklyData = {} as Record<string, number> } = useQuery({
-    queryKey: ['ai-weekly', orgId],
+    queryKey: ['ai-weekly', orgId, weekStart],
     queryFn: async () => {
       if (!orgId) return {};
-      const { data } = await supabase.from('bookings').select('scheduled_at').eq('organization_id', orgId).in('status', ['confirmed', 'completed']).gte('scheduled_at', monthStart).lte('scheduled_at', monthEnd);
+      const { data } = await supabase.from('bookings').select('scheduled_at').eq('organization_id', orgId).in('status', ['confirmed', 'completed']).gte('scheduled_at', weekStart).lte('scheduled_at', weekEnd);
       const counts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
       (data || []).forEach(b => {
         const day = format(new Date(b.scheduled_at), 'EEE') as string;
