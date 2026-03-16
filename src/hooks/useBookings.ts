@@ -170,7 +170,7 @@ export function useBookings() {
           staff:staff(id, name, email, phone)
         `)
         .eq('organization_id', organizationId)
-        .order('scheduled_at', { ascending: false });
+        .order('scheduled_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching bookings:', error);
