@@ -93,6 +93,9 @@ const HowToStartCleaningBusiness = lazy(() => import("./pages/blog/HowToStartCle
 const BookingKoalaVsJobberVsTidywise = lazy(() => import("./pages/blog/BookingKoalaVsJobberVsTidywise"));
 const CleaningBusinessCRM = lazy(() => import("./pages/blog/CleaningBusinessCRM"));
 const DynamicBlogPost = lazy(() => import("./pages/blog/DynamicBlogPost"));
+const GrowCleaningBusiness2025 = lazy(() => import("./pages/blog/GrowCleaningBusiness2025"));
+const BestSoftwareForCleaners = lazy(() => import("./pages/blog/BestSoftwareForCleaners"));
+const AutomateCleaningCompany = lazy(() => import("./pages/blog/AutomateCleaningCompany"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompareJobber = lazy(() => import("./pages/compare/CompareJobber"));
 const CompareBookingKoala = lazy(() => import("./pages/compare/CompareBookingKoala"));
@@ -103,6 +106,8 @@ const PaymentProcessing = lazy(() => import("./pages/features/PaymentProcessing"
 const RouteOptimization = lazy(() => import("./pages/features/RouteOptimization"));
 const InvoicingSoftware = lazy(() => import("./pages/features/InvoicingSoftware"));
 const SchedulingSoftware = lazy(() => import("./pages/features/SchedulingSoftware"));
+const BookingSoftware = lazy(() => import("./pages/features/BookingSoftware"));
+const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
@@ -178,6 +183,9 @@ const App = () => (
                       <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                       <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
                       <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
+                      <Route path="/blog/how-to-grow-cleaning-business-2025" element={<GrowCleaningBusiness2025 />} />
+                      <Route path="/blog/best-software-for-cleaning-business" element={<BestSoftwareForCleaners />} />
+                      <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
                       
                       {/* Comparison Pages */}
                       <Route path="/compare/jobber" element={<CompareJobber />} />
@@ -192,6 +200,8 @@ const App = () => (
                       <Route path="/features/route-optimization" element={<RouteOptimization />} />
                       <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
                       <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
+                      <Route path="/features/booking" element={<BookingSoftware />} />
+                      <Route path="/features/crm" element={<CRMSoftware />} />
 
                       {/* Staff Portal */}
                       <Route path="/staff/login" element={<StaffLoginPage />} />
@@ -276,6 +286,9 @@ const App = () => (
                     <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                     <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
                     <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
+                    <Route path="/blog/how-to-grow-cleaning-business-2025" element={<GrowCleaningBusiness2025 />} />
+                    <Route path="/blog/best-software-for-cleaning-business" element={<BestSoftwareForCleaners />} />
+                    <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
                     
                     {/* Comparison Pages */}
                     <Route path="/compare/jobber" element={<CompareJobber />} />
@@ -290,6 +303,8 @@ const App = () => (
                     <Route path="/features/route-optimization" element={<RouteOptimization />} />
                     <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
                     <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
+                    <Route path="/features/booking" element={<BookingSoftware />} />
+                    <Route path="/features/crm" element={<CRMSoftware />} />
 
                     {/* Staff Portal */}
                     <Route path="/staff/login" element={<StaffLoginPage />} />

@@ -37,6 +37,36 @@ const staticPosts = [
     date: "January 2026",
     featured: false,
     isStatic: true
+  },
+  {
+    slug: "how-to-grow-cleaning-business-2025",
+    title: "How to Grow Your Cleaning Business in 2025",
+    excerpt: "Proven strategies from online booking to referral programs. Learn how to scale your maid service profitably with smart technology and targeted marketing.",
+    category: "Business Growth",
+    readTime: "10 min read",
+    date: "December 2025",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "best-software-for-cleaning-business",
+    title: "Best Software for Cleaning Business Owners",
+    excerpt: "Compare the top cleaning business software in 2025. Scheduling, CRM, invoicing, and automation tools reviewed for maid services and janitorial companies.",
+    category: "Software Reviews",
+    readTime: "12 min read",
+    date: "November 2025",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "how-to-automate-cleaning-company",
+    title: "How to Automate Your Cleaning Company",
+    excerpt: "Save 15+ hours per week by automating booking, scheduling, invoicing, and client communication. A complete automation guide for cleaning business owners.",
+    category: "Automation",
+    readTime: "8 min read",
+    date: "October 2025",
+    featured: false,
+    isStatic: true
   }
 ];
 
