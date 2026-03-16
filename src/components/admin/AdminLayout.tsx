@@ -65,7 +65,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       )}
       
       <OfflineIndicator />
-      <AdminHelpChat />
+      
       <MobileBottomNav />
     </div>
   );
