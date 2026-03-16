@@ -213,64 +213,92 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to update invoice:", updateError);
     }
 
-    // Get organization SMS settings
-    const { data: smsSettings } = await supabase
-      .from("organization_sms_settings")
-      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
-      .eq("organization_id", data.organizationId)
-      .maybeSingle();
+    // Send SMS if requested
+    if (wantsSms && data.customerPhone) {
+      // Get organization SMS settings
+      const { data: smsSettings } = await supabase
+        .from("organization_sms_settings")
+        .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+        .eq("organization_id", data.organizationId)
+        .maybeSingle();
 
-    // STRICT ISOLATION: Only use organization-specific OpenPhone credentials
-    const openPhoneApiKey = smsSettings?.openphone_api_key;
-    const openPhoneNumberId = smsSettings?.openphone_phone_number_id;
+      const openPhoneApiKey = smsSettings?.openphone_api_key;
+      const openPhoneNumberId = smsSettings?.openphone_phone_number_id;
 
-    if (openPhoneApiKey && openPhoneNumberId && data.customerPhone && smsSettings?.sms_enabled) {
-      try {
-        // Format phone number to E.164 format (must start with +)
-        let formattedPhone = data.customerPhone.replace(/\D/g, ''); // Remove non-digits
-        if (!formattedPhone.startsWith('+')) {
-          // Assume US number if no country code
-          if (formattedPhone.length === 10) {
-            formattedPhone = `+1${formattedPhone}`;
-          } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
-            formattedPhone = `+${formattedPhone}`;
-          } else {
-            formattedPhone = `+${formattedPhone}`;
+      if (openPhoneApiKey && openPhoneNumberId && smsSettings?.sms_enabled) {
+        try {
+          let formattedPhone = data.customerPhone.replace(/\D/g, '');
+          if (!formattedPhone.startsWith('+')) {
+            if (formattedPhone.length === 10) {
+              formattedPhone = `+1${formattedPhone}`;
+            } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+              formattedPhone = `+${formattedPhone}`;
+            } else {
+              formattedPhone = `+${formattedPhone}`;
+            }
           }
+
+          const dueDateText = data.dueDate 
+            ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
+            : '';
+          
+          const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
+
+          const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Authorization": openPhoneApiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              content: smsContent,
+              from: openPhoneNumberId,
+              to: [formattedPhone],
+            }),
+          });
+
+          if (smsResponse.ok) {
+            console.log("Invoice SMS sent to:", formattedPhone);
+          } else {
+            const errorText = await smsResponse.text();
+            console.error("Invoice SMS failed:", errorText);
+          }
+        } catch (smsError) {
+          console.error("Failed to send invoice SMS:", smsError);
         }
-
-        const dueDateText = data.dueDate 
-          ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
-          : '';
-        
-        const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
-
-        console.log("Sending SMS to formatted number:", formattedPhone);
-
-        const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Authorization": openPhoneApiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: smsContent,
-            from: openPhoneNumberId,
-            to: [formattedPhone],
-          }),
-        });
-
-        if (smsResponse.ok) {
-          console.log("Invoice SMS sent to:", formattedPhone);
-        } else {
-          const errorText = await smsResponse.text();
-          console.error("Invoice SMS failed:", errorText);
-        }
-      } catch (smsError) {
-        console.error("Failed to send invoice SMS:", smsError);
+      } else {
+        console.log("SMS not sent - missing phone settings");
       }
     } else {
-      console.log("SMS not sent - missing phone settings or customer phone number");
+      console.log("SMS not requested or no phone number");
+    }
+
+    // Send email if requested
+    if (wantsEmail && data.customerEmail) {
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-invoice', {
+          body: {
+            invoiceNumber: null, // Will be fetched inside the function
+            organizationId: data.organizationId,
+            customerEmail: data.customerEmail,
+            customerName: data.customerName,
+            serviceName: data.items.map(i => i.description).join(', '),
+            amount: data.totalAmount,
+            paymentLink: session.url,
+            validUntil: data.dueDate ? new Date(data.dueDate).toLocaleDateString() : undefined,
+            notes: data.notes || undefined,
+          },
+        });
+        if (emailError) {
+          console.error("Invoice email failed:", emailError);
+        } else {
+          console.log("Invoice email sent to:", data.customerEmail);
+        }
+      } catch (emailErr) {
+        console.error("Failed to send invoice email:", emailErr);
+      }
+    } else {
+      console.log("Email not requested or no email address");
     }
 
     return new Response(
