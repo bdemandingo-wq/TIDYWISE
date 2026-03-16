@@ -183,6 +183,9 @@ const App = () => (
                       <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                       <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
                       <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
+                      <Route path="/blog/how-to-grow-cleaning-business-2025" element={<GrowCleaningBusiness2025 />} />
+                      <Route path="/blog/best-software-for-cleaning-business" element={<BestSoftwareForCleaners />} />
+                      <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
                       
                       {/* Comparison Pages */}
                       <Route path="/compare/jobber" element={<CompareJobber />} />
