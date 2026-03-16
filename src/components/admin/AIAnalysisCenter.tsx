@@ -12,7 +12,7 @@ import {
   RefreshCw, MessageSquare, BarChart3, ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, differenceInDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, addDays } from 'date-fns';
 
 // ─── Count-up hook ───
 function useCountUp(target: number, duration = 1200) {
@@ -122,12 +122,15 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Weekly booking distribution (for scheduling tab)
+  // Weekly booking distribution — current week (Mon–Sun)
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
+
   const { data: weeklyData = {} as Record<string, number> } = useQuery({
-    queryKey: ['ai-weekly', orgId],
+    queryKey: ['ai-weekly', orgId, weekStart],
     queryFn: async () => {
       if (!orgId) return {};
-      const { data } = await supabase.from('bookings').select('scheduled_at').eq('organization_id', orgId).in('status', ['confirmed', 'completed']).gte('scheduled_at', monthStart).lte('scheduled_at', monthEnd);
+      const { data } = await supabase.from('bookings').select('scheduled_at').eq('organization_id', orgId).in('status', ['confirmed', 'completed']).gte('scheduled_at', weekStart).lte('scheduled_at', weekEnd);
       const counts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
       (data || []).forEach(b => {
         const day = format(new Date(b.scheduled_at), 'EEE') as string;
@@ -489,7 +492,12 @@ export function AIAnalysisCenter() {
 
         {/* ─── Tab 4: Scheduling ─── */}
         <TabsContent value="scheduling">
-          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Bookings Per Day</h3>
+          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+            This Week's Bookings
+            <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>
+              {format(startOfWeek(now, { weekStartsOn: 1 }), 'MMM d')} – {format(endOfWeek(now, { weekStartsOn: 1 }), 'MMM d')}
+            </span>
+          </h3>
           <div style={cardStyle} className="p-5 mb-4">
             <div className="grid grid-cols-7 gap-3" style={{ height: 200 }}>
               {DAYS.map(day => {
