@@ -460,15 +460,15 @@ export default function InvoicesPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {invoice.status === 'draft' && (
+                          {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-blue-600"
-                                onClick={() => sendInvoice(invoice)}
+                                onClick={() => sendInvoiceEmail(invoice)}
                                 disabled={sendingInvoice === invoice.id}
-                                title="Send invoice"
+                                title={invoice.status === 'draft' ? 'Send invoice email' : 'Resend invoice email'}
                               >
                                 {sendingInvoice === invoice.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -476,18 +476,20 @@ export default function InvoicesPage() {
                                   <Send className="w-4 h-4" />
                                 )}
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingInvoice(invoice);
-                                  setFormDialogOpen(true);
-                                }}
-                                title="Edit invoice"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                              {invoice.status === 'draft' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setEditingInvoice(invoice);
+                                    setFormDialogOpen(true);
+                                  }}
+                                  title="Edit invoice"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              )}
                             </>
                           )}
                           <Button
