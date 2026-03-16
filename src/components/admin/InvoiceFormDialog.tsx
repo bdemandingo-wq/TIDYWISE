@@ -379,8 +379,8 @@ export function InvoiceFormDialog({
     setPreviewOpen(true);
   };
 
-  const handleSend = () => {
-    saveMutation.mutate(true);
+  const handleSend = (method: 'email' | 'sms' | 'both') => {
+    saveMutation.mutate(method);
   };
 
   const SectionHeader = ({ 
