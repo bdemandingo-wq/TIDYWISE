@@ -200,6 +200,8 @@ const App = () => (
                       <Route path="/features/route-optimization" element={<RouteOptimization />} />
                       <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
                       <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
+                      <Route path="/features/booking" element={<BookingSoftware />} />
+                      <Route path="/features/crm" element={<CRMSoftware />} />
 
                       {/* Staff Portal */}
                       <Route path="/staff/login" element={<StaffLoginPage />} />
