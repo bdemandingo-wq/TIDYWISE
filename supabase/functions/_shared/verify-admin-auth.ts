@@ -54,29 +54,32 @@ export async function verifyAdminAuth(
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // Get user's organization membership
-  const { data: membership, error: membershipError } = await supabaseAdmin
+  // When a specific org is required, filter by it directly to avoid multi-row errors
+  let membershipQuery = supabaseAdmin
     .from("org_memberships")
     .select("organization_id, role")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
+
+  if (options.requireOrganizationId) {
+    membershipQuery = membershipQuery.eq("organization_id", options.requireOrganizationId);
+  }
+
+  const { data: memberships, error: membershipError } = await membershipQuery;
 
   if (membershipError) {
     console.error("Failed to fetch org membership:", membershipError);
     return { success: false, error: "Failed to verify organization membership" };
   }
 
-  if (!membership) {
+  if (!memberships || memberships.length === 0) {
+    if (options.requireOrganizationId) {
+      return { success: false, error: "Access denied: organization mismatch" };
+    }
     return { success: false, error: "User does not belong to any organization" };
   }
 
-  // If specific organization is required, verify it matches
-  if (options.requireOrganizationId && membership.organization_id !== options.requireOrganizationId) {
-    console.error("Organization mismatch:", { 
-      requested: options.requireOrganizationId, 
-      actual: membership.organization_id 
-    });
-    return { success: false, error: "Access denied: organization mismatch" };
-  }
+  // Use the matching membership (first one if no specific org required)
+  const membership = memberships[0];
 
   // If admin role is required, verify it
   if (options.requireAdmin && membership.role !== "admin" && membership.role !== "owner") {
