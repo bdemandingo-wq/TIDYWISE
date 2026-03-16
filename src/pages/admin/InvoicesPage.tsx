@@ -212,47 +212,52 @@ export default function InvoicesPage() {
     onError: (error: any) => toast.error(error.message),
   });
 
-  // Send invoice
-  const sendInvoice = async (invoice: Invoice) => {
+  // Send invoice via email
+  const sendInvoiceEmail = async (invoice: Invoice) => {
     const customerEmail = invoice.customer?.email || invoice.lead?.email;
     const customerName = invoice.customer 
       ? `${invoice.customer.first_name} ${invoice.customer.last_name}`
       : invoice.lead?.name;
-    const customerPhone = invoice.customer?.phone || invoice.lead?.phone;
 
-    if (!customerEmail && !customerPhone) {
-      toast.error('No contact information found for this customer');
+    if (!customerEmail) {
+      toast.error('No email address found for this client');
       return;
     }
 
     setSendingInvoice(invoice.id);
     try {
-      const { data, error } = await supabase.functions.invoke('create-stripe-invoice', {
+      // Build a combined service description from line items
+      const serviceName = invoice.invoice_items?.map(i => i.description).join(', ') || 'Cleaning Service';
+
+      const { data, error } = await supabase.functions.invoke('send-invoice', {
         body: {
-          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
           organizationId: organization?.id,
           customerEmail,
           customerName,
-          customerPhone,
-          items: invoice.invoice_items?.map(item => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unit_price,
-          })) || [],
-          totalAmount: invoice.total_amount,
-          taxAmount: invoice.tax_amount,
-          dueDate: invoice.due_date,
-          notes: invoice.notes,
+          serviceName,
+          amount: invoice.total_amount,
+          address: invoice.address || undefined,
+          validUntil: invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : undefined,
+          notes: invoice.notes || undefined,
         },
       });
 
       if (error) throw error;
 
-      toast.success(`Invoice sent to ${customerEmail || customerPhone}`);
+      // Update invoice status to 'sent' if currently draft
+      if (invoice.status === 'draft') {
+        await supabase
+          .from('invoices')
+          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .eq('id', invoice.id);
+      }
+
+      toast.success(`Invoice emailed to ${customerEmail}`);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
     } catch (error: any) {
-      console.error('Failed to send invoice:', error);
-      toast.error(error.message || 'Failed to send invoice');
+      console.error('Failed to send invoice email:', error);
+      toast.error(error.message || 'Failed to send invoice email');
     } finally {
       setSendingInvoice(null);
     }
@@ -455,15 +460,15 @@ export default function InvoicesPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {invoice.status === 'draft' && (
+                          {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-blue-600"
-                                onClick={() => sendInvoice(invoice)}
+                                onClick={() => sendInvoiceEmail(invoice)}
                                 disabled={sendingInvoice === invoice.id}
-                                title="Send invoice"
+                                title={invoice.status === 'draft' ? 'Send invoice email' : 'Resend invoice email'}
                               >
                                 {sendingInvoice === invoice.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -471,18 +476,20 @@ export default function InvoicesPage() {
                                   <Send className="w-4 h-4" />
                                 )}
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingInvoice(invoice);
-                                  setFormDialogOpen(true);
-                                }}
-                                title="Edit invoice"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                              {invoice.status === 'draft' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setEditingInvoice(invoice);
+                                    setFormDialogOpen(true);
+                                  }}
+                                  title="Edit invoice"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              )}
                             </>
                           )}
                           <Button
