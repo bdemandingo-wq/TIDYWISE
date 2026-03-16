@@ -350,7 +350,7 @@ export default function OperationsTrackerPage() {
             <CardTitle className="text-base">Monthly Summary ({format(new Date(), 'MMMM yyyy')})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-secondary/50 rounded-lg">
                 <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.calls}</p>
                 <p className="text-sm text-muted-foreground">Total Calls</p>
@@ -358,6 +358,10 @@ export default function OperationsTrackerPage() {
               <div className="text-center p-4 bg-secondary/50 rounded-lg">
                 <p className="text-3xl font-bold">{isTestMode ? 'XX' : stats.monthlyTotals.deals}</p>
                 <p className="text-sm text-muted-foreground">Total Closes</p>
+              </div>
+              <div className="text-center p-4 bg-secondary/50 rounded-lg">
+                <p className="text-3xl font-bold text-primary">{isTestMode ? 'XX%' : `${stats.monthlyCloseRate}%`}</p>
+                <p className="text-sm text-muted-foreground">Close %</p>
               </div>
               <div className="text-center p-4 bg-secondary/50 rounded-lg">
                 <p className="text-3xl font-bold text-emerald-600">{maskAmount(stats.monthlyTotals.revenue)}</p>
