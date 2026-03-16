@@ -354,35 +354,40 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     });
   }, [allBookings, currentDate, viewMode, statusFilter, staffFilter]);
 
-  const { year, month, days } = useMemo(() => {
+  const { year, month, days, monthWeekRows } = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
+
     if (viewMode === 'week') {
       const weekStart = startOfWeek(currentDate);
-      const days: Date[] = [];
+      const days: (Date | null)[] = [];
       for (let i = 0; i < 7; i++) {
         days.push(addDays(weekStart, i));
       }
-      return { year, month, days };
+      return { year, month, days, monthWeekRows: 1 };
     }
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startPadding = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    
+    const totalCells = Math.ceil((startPadding + daysInMonth) / 7) * 7;
+
     const days: (Date | null)[] = [];
-    
+
     for (let i = 0; i < startPadding; i++) {
       days.push(null);
     }
-    
+
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
-    
-    return { year, month, days };
+
+    while (days.length < totalCells) {
+      days.push(null);
+    }
+
+    return { year, month, days, monthWeekRows: totalCells / 7 };
   }, [currentDate, viewMode]);
 
   const getBookingsForDate = (date: Date): BookingWithDetails[] => {
@@ -739,7 +744,15 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 flex-1" style={{ gridAutoRows: '1fr' }}>
+        <div
+          className="grid grid-cols-7 flex-1 min-h-0"
+          style={{
+            gridTemplateRows:
+              viewMode === 'week'
+                ? 'repeat(1, minmax(0, 1fr))'
+                : `repeat(${monthWeekRows}, minmax(0, 1fr))`,
+          }}
+        >
           {isLoading ? (
             <div className="col-span-7 flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -753,9 +766,9 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   id={date ? `day-${format(date, 'yyyy-MM-dd')}` : `empty-${index}`}
                   disabled={!date}
                   className={cn(
-                    'calendar-day',
-                    viewMode === 'week' 
-                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]') 
+                    'calendar-day min-h-0 overflow-hidden',
+                    viewMode === 'week'
+                      ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]')
                       : '',
                     date && isToday(date) && 'today',
                     !date && 'bg-muted/30'
@@ -771,7 +784,14 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       >
                         {viewMode === 'week' ? (isMobile ? format(date, 'd') : format(date, 'MMM d')) : date.getDate()}
                       </span>
-                        <div className={cn("w-full space-y-0.5 md:space-y-1 overflow-y-auto scrollbar-thin", isMobile ? "max-h-[80px]" : "max-h-[200px]")}>
+                        <div
+                          className={cn(
+                            'w-full space-y-0.5 md:space-y-1 overflow-y-auto scrollbar-thin min-h-0',
+                            viewMode === 'week'
+                              ? (isMobile ? 'max-h-[80px]' : 'max-h-[200px]')
+                              : 'flex-1'
+                          )}
+                        >
                         {(() => {
                           const maxVisible = isMobile && viewMode === 'month' ? 2 : dayBookings.length;
                           const visibleBookings = dayBookings.slice(0, maxVisible);
