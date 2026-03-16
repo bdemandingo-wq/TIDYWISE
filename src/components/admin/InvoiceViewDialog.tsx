@@ -194,15 +194,15 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
         </DialogHeader>
 
         {/* Printable Invoice */}
-        <div ref={printRef} className="bg-white p-8 rounded-lg border">
+        <div ref={printRef} className="bg-white p-8 rounded-lg border border-gray-200 text-gray-900">
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-bold text-gray-900">
                 {businessSettings?.company_name || 'Your Company'}
               </h1>
               {businessSettings?.company_address && (
-                <p className="text-muted-foreground mt-1">
+                <p className="text-gray-500 mt-1">
                   {businessSettings.company_address}
                   {businessSettings.company_city && `, ${businessSettings.company_city}`}
                   {businessSettings.company_state && `, ${businessSettings.company_state}`}
@@ -210,15 +210,15 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
                 </p>
               )}
               {businessSettings?.company_phone && (
-                <p className="text-muted-foreground">{businessSettings.company_phone}</p>
+                <p className="text-gray-500">{businessSettings.company_phone}</p>
               )}
               {businessSettings?.company_email && (
-                <p className="text-muted-foreground">{businessSettings.company_email}</p>
+                <p className="text-gray-500">{businessSettings.company_email}</p>
               )}
             </div>
             <div className="text-right">
-              <h2 className="text-3xl font-bold text-primary">INVOICE</h2>
-              <p className="text-muted-foreground mt-1">
+              <h2 className="text-3xl font-bold text-blue-600">INVOICE</h2>
+              <p className="text-gray-500 mt-1">
                 INV-{String(invoice.invoice_number).padStart(4, '0')}
               </p>
               <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-2 ${statusConfig.color}`}>
@@ -231,22 +231,22 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           {/* Bill To & Invoice Details */}
           <div className="grid grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-xs uppercase text-muted-foreground font-medium mb-2">Bill To</h3>
-              <p className="font-medium">{customerName}</p>
-              <p className="text-muted-foreground">{customerEmail}</p>
-              {customerPhone && <p className="text-muted-foreground">{customerPhone}</p>}
-              {invoice.address && <p className="text-muted-foreground mt-2">{invoice.address}</p>}
+              <h3 className="text-xs uppercase text-gray-500 font-medium mb-2">Bill To</h3>
+              <p className="font-medium text-gray-900">{customerName}</p>
+              <p className="text-gray-500">{customerEmail}</p>
+              {customerPhone && <p className="text-gray-500">{customerPhone}</p>}
+              {invoice.address && <p className="text-gray-500 mt-2">{invoice.address}</p>}
             </div>
             <div className="text-right">
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Invoice Date:</span>
-                  <span>{format(new Date(invoice.created_at), 'MMM d, yyyy')}</span>
+                  <span className="text-gray-500">Invoice Date:</span>
+                  <span className="text-gray-900">{format(new Date(invoice.created_at), 'MMM d, yyyy')}</span>
                 </div>
                 {invoice.due_date && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Due Date:</span>
-                    <span>{format(new Date(invoice.due_date), 'MMM d, yyyy')}</span>
+                    <span className="text-gray-500">Due Date:</span>
+                    <span className="text-gray-900">{format(new Date(invoice.due_date), 'MMM d, yyyy')}</span>
                   </div>
                 )}
                 {invoice.paid_at && (
@@ -262,25 +262,25 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           {/* Line Items Table */}
           <table className="w-full mb-8">
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 text-xs uppercase text-muted-foreground font-medium">Description</th>
-                <th className="text-center py-3 text-xs uppercase text-muted-foreground font-medium w-20">Qty</th>
-                <th className="text-right py-3 text-xs uppercase text-muted-foreground font-medium w-28">Unit Price</th>
-                <th className="text-right py-3 text-xs uppercase text-muted-foreground font-medium w-28">Total</th>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 text-xs uppercase text-gray-500 font-medium">Description</th>
+                <th className="text-center py-3 text-xs uppercase text-gray-500 font-medium w-20">Qty</th>
+                <th className="text-right py-3 text-xs uppercase text-gray-500 font-medium w-28">Unit Price</th>
+                <th className="text-right py-3 text-xs uppercase text-gray-500 font-medium w-28">Total</th>
               </tr>
             </thead>
             <tbody>
               {invoice.invoice_items?.map((item: any, index: number) => (
-                <tr key={item.id || index} className="border-b">
+                <tr key={item.id || index} className="border-b border-gray-200">
                   <td className="py-3">
-                    <span className="font-medium">{item.description}</span>
+                    <span className="font-medium text-gray-900">{item.description}</span>
                     {item.service?.name && item.service.name !== item.description && (
-                      <span className="text-muted-foreground text-sm ml-2">({item.service.name})</span>
+                      <span className="text-gray-500 text-sm ml-2">({item.service.name})</span>
                     )}
                   </td>
-                  <td className="text-center py-3">{item.quantity}</td>
-                  <td className="text-right py-3">${Number(item.unit_price).toFixed(2)}</td>
-                  <td className="text-right py-3 font-medium">${Number(item.total).toFixed(2)}</td>
+                  <td className="text-center py-3 text-gray-900">{item.quantity}</td>
+                  <td className="text-right py-3 text-gray-900">${Number(item.unit_price).toFixed(2)}</td>
+                  <td className="text-right py-3 font-medium text-gray-900">${Number(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -290,8 +290,8 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           <div className="flex justify-end">
             <div className="w-72 space-y-2">
               <div className="flex justify-between py-1">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span>${Number(invoice.subtotal).toFixed(2)}</span>
+                <span className="text-gray-500">Subtotal:</span>
+                <span className="text-gray-900">${Number(invoice.subtotal).toFixed(2)}</span>
               </div>
               {invoice.discount_amount > 0 && (
                 <div className="flex justify-between py-1 text-green-600">
@@ -301,11 +301,11 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
               )}
               {invoice.tax_amount > 0 && (
                 <div className="flex justify-between py-1">
-                  <span className="text-muted-foreground">Tax ({invoice.tax_percent}%):</span>
-                  <span>${Number(invoice.tax_amount).toFixed(2)}</span>
+                  <span className="text-gray-500">Tax ({invoice.tax_percent}%):</span>
+                  <span className="text-gray-900">${Number(invoice.tax_amount).toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-2 border-t-2 border-foreground font-bold text-lg">
+              <div className="flex justify-between py-2 border-t-2 border-gray-900 font-bold text-lg text-gray-900">
                 <span>Total:</span>
                 <span>${Number(invoice.total_amount).toFixed(2)}</span>
               </div>
@@ -314,14 +314,14 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
 
           {/* Notes */}
           {invoice.notes && (
-            <div className="mt-8 p-4 bg-muted/30 rounded-lg">
-              <h4 className="text-sm font-medium mb-2">Notes</h4>
-              <p className="text-muted-foreground text-sm whitespace-pre-wrap">{invoice.notes}</p>
+            <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium mb-2 text-gray-900">Notes</h4>
+              <p className="text-gray-500 text-sm whitespace-pre-wrap">{invoice.notes}</p>
             </div>
           )}
 
           {/* Footer */}
-          <div className="mt-8 pt-6 border-t text-center text-muted-foreground text-sm">
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
             <p>Thank you for your business!</p>
             {businessSettings?.company_email && (
               <p className="mt-1">Questions? Contact us at {businessSettings.company_email}</p>
