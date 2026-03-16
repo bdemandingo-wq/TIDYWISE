@@ -12,7 +12,7 @@ import {
   RefreshCw, MessageSquare, BarChart3, ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, differenceInDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, addDays } from 'date-fns';
 
 // ─── Count-up hook ───
 function useCountUp(target: number, duration = 1200) {
