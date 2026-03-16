@@ -1473,6 +1473,16 @@ export default function MessagesPage() {
                 {/* Chat Header */}
                 <div className="p-4 border-b flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    {isListCollapsed && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 -ml-1"
+                        onClick={() => setIsListCollapsed(false)}
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                    )}
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className={cn(
                         "text-primary",
