@@ -16,8 +16,17 @@ import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
 
+type Coordinates = { lat: number; lng: number };
+
+type GeocodeCacheEntry = {
+  coords: Coordinates | null;
+  updatedAt: number;
+};
+
 // Module-level geocode cache persists across step navigation
-const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
+const geocodeCache = new Map<string, GeocodeCacheEntry>();
+const GEOCODE_SUCCESS_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
+const GEOCODE_FAILURE_TTL_MS = 1000 * 60 * 2; // 2 minutes
 
 // 12-hour time slots with AM/PM labels
 const TIME_SLOTS = [
@@ -82,49 +91,91 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [isGeocodingJob, setIsGeocodingJob] = useState(false);
 
-  // Geocode the job address when it changes - with cache and retry
+  // Geocode the job address when it changes - with cache, retry, and fallback queries
   useEffect(() => {
-    const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ');
-    if (!fullAddress || fullAddress.length < 10) {
+    const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ').trim();
+    if (!fullAddress || fullAddress.length < 5) {
       setJobCoordinates(null);
+      setIsGeocodingJob(false);
       return;
     }
 
-    const cacheKey = fullAddress.trim().toLowerCase();
+    const cacheKey = fullAddress.toLowerCase();
+    const cachedEntry = geocodeCache.get(cacheKey);
 
-    // Check cache first
-    if (geocodeCache.has(cacheKey)) {
-      setJobCoordinates(geocodeCache.get(cacheKey) || null);
-      return;
+    if (cachedEntry) {
+      const maxAge = cachedEntry.coords ? GEOCODE_SUCCESS_TTL_MS : GEOCODE_FAILURE_TTL_MS;
+      const isFresh = Date.now() - cachedEntry.updatedAt < maxAge;
+
+      if (isFresh) {
+        setJobCoordinates(cachedEntry.coords);
+        setIsGeocodingJob(false);
+        return;
+      }
+
+      geocodeCache.delete(cacheKey);
     }
 
     let cancelled = false;
 
-    const geocodeWithRetry = async (retries = 2) => {
-      setIsGeocodingJob(true);
+    const geocodeWithRetry = async (query: string, retries = 2): Promise<Coordinates | null> => {
       for (let attempt = 0; attempt <= retries; attempt++) {
+        if (cancelled) return null;
+
+        const coords = await geocodeAddress(query);
+        if (cancelled) return null;
+        if (coords) return coords;
+
+        if (attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+        }
+      }
+
+      return null;
+    };
+
+    const runGeocode = async () => {
+      setIsGeocodingJob(true);
+
+      const primaryCoords = await geocodeWithRetry(fullAddress, 2);
+      if (cancelled) return;
+
+      if (primaryCoords) {
+        geocodeCache.set(cacheKey, { coords: primaryCoords, updatedAt: Date.now() });
+        setJobCoordinates(primaryCoords);
+        setIsGeocodingJob(false);
+        return;
+      }
+
+      const fallbackCandidates = [
+        [address, state, zipCode].filter(Boolean).join(', '),
+        [address, zipCode].filter(Boolean).join(', '),
+        [city, state, zipCode].filter(Boolean).join(', '),
+      ]
+        .map((candidate) => candidate.trim())
+        .filter((candidate) => candidate.length >= 5 && candidate.toLowerCase() !== cacheKey);
+
+      for (const candidate of fallbackCandidates) {
+        const fallbackCoords = await geocodeWithRetry(candidate, 0);
         if (cancelled) return;
-        const coords = await geocodeAddress(fullAddress);
-        if (cancelled) return;
-        if (coords) {
-          geocodeCache.set(cacheKey, coords);
-          setJobCoordinates(coords);
+
+        if (fallbackCoords) {
+          geocodeCache.set(cacheKey, { coords: fallbackCoords, updatedAt: Date.now() });
+          setJobCoordinates(fallbackCoords);
           setIsGeocodingJob(false);
           return;
         }
-        // Wait before retry (increasing delay)
-        if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
-        }
       }
-      // All retries failed - cache the failure too to avoid hammering
-      geocodeCache.set(cacheKey, null);
+
+      geocodeCache.set(cacheKey, { coords: null, updatedAt: Date.now() });
       setJobCoordinates(null);
       setIsGeocodingJob(false);
     };
 
-    // Debounce geocoding
-    const timeout = setTimeout(geocodeWithRetry, 500);
+    const timeout = setTimeout(() => {
+      void runGeocode();
+    }, 500);
+
     return () => {
       cancelled = true;
       clearTimeout(timeout);
