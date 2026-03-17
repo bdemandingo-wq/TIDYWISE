@@ -33,7 +33,8 @@ export function AddBookingDialog({
   const isSubscribed = subscription?.subscribed ?? false;
 
   // If editing existing booking, allow it. Only block new bookings for non-subscribers.
-  const shouldBlockNewBooking = !booking && !isSubscribed;
+  // Don't block if subscription hasn't loaded yet (null = still checking)
+  const shouldBlockNewBooking = !booking && subscription !== null && !isSubscribed;
 
   // Render subscription block content based on platform
   const renderSubscriptionBlock = () => {
