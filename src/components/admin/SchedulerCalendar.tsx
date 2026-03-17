@@ -835,6 +835,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                                   onClick={() => setSelectedBooking(booking)}
                                   staffList={staffList}
                                   teamStaffIds={teamAssignmentMap.get(booking.id)}
+                                  disableDrag={isMobile}
                                 />
                               ))}
                               {overflowCount > 0 && (
