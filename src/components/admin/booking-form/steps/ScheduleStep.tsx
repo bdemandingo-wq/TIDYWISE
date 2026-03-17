@@ -82,7 +82,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [isGeocodingJob, setIsGeocodingJob] = useState(false);
 
-  // Geocode the job address when it changes
+  // Geocode the job address when it changes - with cache and retry
   useEffect(() => {
     const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ');
     if (!fullAddress || fullAddress.length < 10) {
@@ -90,16 +90,45 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
       return;
     }
 
-    const geocode = async () => {
+    const cacheKey = fullAddress.trim().toLowerCase();
+
+    // Check cache first
+    if (geocodeCache.has(cacheKey)) {
+      setJobCoordinates(geocodeCache.get(cacheKey) || null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const geocodeWithRetry = async (retries = 2) => {
       setIsGeocodingJob(true);
-      const coords = await geocodeAddress(fullAddress);
-      setJobCoordinates(coords);
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        if (cancelled) return;
+        const coords = await geocodeAddress(fullAddress);
+        if (cancelled) return;
+        if (coords) {
+          geocodeCache.set(cacheKey, coords);
+          setJobCoordinates(coords);
+          setIsGeocodingJob(false);
+          return;
+        }
+        // Wait before retry (increasing delay)
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+      // All retries failed - cache the failure too to avoid hammering
+      geocodeCache.set(cacheKey, null);
+      setJobCoordinates(null);
       setIsGeocodingJob(false);
     };
 
     // Debounce geocoding
-    const timeout = setTimeout(geocode, 500);
-    return () => clearTimeout(timeout);
+    const timeout = setTimeout(geocodeWithRetry, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [address, city, state, zipCode]);
 
   // Calculate distance from staff home to job location
