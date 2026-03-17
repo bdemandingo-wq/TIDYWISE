@@ -155,8 +155,30 @@ function DroppableDay({ id, disabled, className, children }: DroppableDayProps) 
   );
 }
 
-function TrashDropZone() {
+function TrashDropZone({ floating }: { floating?: boolean }) {
   const { isOver, setNodeRef } = useDroppable({ id: 'trash-zone' });
+
+  if (floating) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border-2 border-dashed transition-all duration-200 shadow-lg',
+          isOver
+            ? 'border-destructive bg-destructive/20 scale-110 shadow-destructive/30'
+            : 'border-destructive/60 bg-background/95 backdrop-blur-sm'
+        )}
+      >
+        <Trash2 className={cn('w-5 h-5 text-destructive', isOver && 'animate-bounce')} />
+        <span className={cn(
+          'text-sm font-bold text-destructive whitespace-nowrap',
+          isOver && 'animate-pulse'
+        )}>
+          Drop to Delete
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -646,7 +668,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
             </Button>
-            <TrashDropZone />
+            {!isMobile && <TrashDropZone />}
+            {isMobile && activeBooking && <TrashDropZone floating />}
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
