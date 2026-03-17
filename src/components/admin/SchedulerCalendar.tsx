@@ -668,7 +668,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
             </Button>
-            <TrashDropZone />
+            {!isMobile && <TrashDropZone />}
+            {isMobile && activeBooking && <TrashDropZone floating />}
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
