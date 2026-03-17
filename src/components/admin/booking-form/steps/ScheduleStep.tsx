@@ -41,7 +41,7 @@ const TIME_SLOTS = [
   { value: '08:00', label: '8:00 AM' }, { value: '08:30', label: '8:30 AM' },
   { value: '09:00', label: '9:00 AM' }, { value: '09:30', label: '9:30 AM' },
   { value: '10:00', label: '10:00 AM' }, { value: '10:30', label: '10:30 AM' },
-  { value: '11:00', label: '11:30 AM' }, { value: '11:30', label: '11:30 AM' },
+  { value: '11:00', label: '11:00 AM' }, { value: '11:30', label: '11:30 AM' },
   { value: '12:00', label: '12:00 PM' }, { value: '12:30', label: '12:30 PM' },
   { value: '13:00', label: '1:00 PM' }, { value: '13:30', label: '1:30 PM' },
   { value: '14:00', label: '2:00 PM' }, { value: '14:30', label: '2:30 PM' },
