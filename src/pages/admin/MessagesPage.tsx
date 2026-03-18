@@ -1604,6 +1604,20 @@ export default function MessagesPage() {
                               : 'bg-muted'
                           )}
                         >
+                          {msg.media_urls && msg.media_urls.length > 0 && (
+                            <div className="space-y-1 mb-1">
+                              {msg.media_urls.map((url, idx) => (
+                                <img
+                                  key={idx}
+                                  src={url}
+                                  alt="MMS attachment"
+                                  className="max-w-full rounded-lg cursor-pointer"
+                                  onClick={() => window.open(url, '_blank')}
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              ))}
+                            </div>
+                          )}
                           <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                           <p className={cn(
                             "text-xs mt-1",
