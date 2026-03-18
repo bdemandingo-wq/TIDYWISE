@@ -304,6 +304,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (conversationId) {
             // Insert the outbound message
+            const deliveryMediaUrls = (messageObj as any).media?.map((m: any) => m.url).filter(Boolean) || null;
             await supabase.from('sms_messages').insert({
               conversation_id: conversationId,
               organization_id: organizationId,
@@ -314,6 +315,7 @@ const handler = async (req: Request): Promise<Response> => {
               openphone_message_id: openphoneMessageId,
               sent_at: messageObj.createdAt || new Date().toISOString(),
               delivered_at: new Date().toISOString(),
+              media_urls: deliveryMediaUrls?.length ? deliveryMediaUrls : null,
             });
 
             // Update conversation timestamp
