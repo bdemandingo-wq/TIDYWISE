@@ -71,6 +71,7 @@ interface Message {
   content: string;
   sent_at: string;
   status: string;
+  media_urls: string[] | null;
 }
 
 interface Contact {
