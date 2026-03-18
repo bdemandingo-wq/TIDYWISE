@@ -624,6 +624,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Extract media URLs from OpenPhone MMS
+    const mediaUrls = message.media?.map((m) => m.url).filter(Boolean) || null;
+
     // Insert the message
     const { error: messageError } = await supabase
       .from('sms_messages')
@@ -635,6 +638,7 @@ const handler = async (req: Request): Promise<Response> => {
         status: direction === 'inbound' ? 'received' : 'sent',
         openphone_message_id: openphoneMessageId,
         sent_at: message.createdAt || new Date().toISOString(),
+        media_urls: mediaUrls?.length ? mediaUrls : null,
       });
 
     if (messageError) {
