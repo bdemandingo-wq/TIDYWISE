@@ -601,6 +601,16 @@ export function PaymentStep() {
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                   <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleRemoveCard}
+                    disabled={removingCard}
+                    className="text-xs"
+                  >
+                    {removingCard ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Remove Card
+                  </Button>
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCardInfo({ hasCard: false })}
