@@ -277,14 +277,18 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
-  // Weekly forecast: current week + next week bookings
-  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-  const nextWeekStart = addWeeks(currentWeekStart, 1);
-  const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
+  // Payroll period config
+  const { config: periodConfig } = usePayrollPeriodConfig();
+  const currentPeriod = useMemo(() => getCurrentPeriod(periodConfig), [periodConfig]);
+  const nextPeriod = useMemo(() => getNextPeriod(periodConfig), [periodConfig]);
+
+  const currentWeekStart = currentPeriod.start;
+  const currentWeekEnd = currentPeriod.end;
+  const nextWeekStart = nextPeriod.start;
+  const nextWeekEnd = nextPeriod.end;
 
   const { data: forecastBookings = [] } = useQuery({
-    queryKey: ['forecast-bookings', organizationId],
+    queryKey: ['forecast-bookings', organizationId, currentWeekStart.toISOString(), nextWeekEnd.toISOString()],
     queryFn: async () => {
       if (!organizationId) return [];
       const nwEnd = new Date(nextWeekEnd);
