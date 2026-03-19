@@ -303,7 +303,7 @@ export default function TasksPage() {
     >
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TaskType)}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="daily" className="gap-2">
               <CalendarDays className="w-4 h-4" />
               <span className="hidden sm:inline">Daily Tasks</span>
@@ -313,6 +313,11 @@ export default function TasksPage() {
               <CalendarCheck className="w-4 h-4" />
               <span className="hidden sm:inline">Weekly Reminders</span>
               <span className="sm:hidden">Weekly</span>
+            </TabsTrigger>
+            <TabsTrigger value="monthly" className="gap-2">
+              <CalendarRange className="w-4 h-4" />
+              <span className="hidden sm:inline">Monthly Tasks</span>
+              <span className="sm:hidden">Monthly</span>
             </TabsTrigger>
             <TabsTrigger value="note" className="gap-2">
               <StickyNote className="w-4 h-4" />
