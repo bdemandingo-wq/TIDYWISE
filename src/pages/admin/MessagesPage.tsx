@@ -126,6 +126,11 @@ export default function MessagesPage() {
   const [contentSearchResults, setContentSearchResults] = useState<Set<string> | null>(null);
   const [searchingContent, setSearchingContent] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardMediaUrl, setForwardMediaUrl] = useState('');
+  const [forwardContactSearch, setForwardContactSearch] = useState('');
+  const [forwardSelectedContact, setForwardSelectedContact] = useState<Contact | null>(null);
+  const [forwardSending, setForwardSending] = useState(false);
   
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
