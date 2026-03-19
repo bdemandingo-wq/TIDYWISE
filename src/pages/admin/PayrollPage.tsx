@@ -18,7 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -26,6 +26,9 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { calculateBookingWage } from '@/lib/wageCalculation';
+import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
+import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
+import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 
 interface StaffWithPayroll {
   id: string;
