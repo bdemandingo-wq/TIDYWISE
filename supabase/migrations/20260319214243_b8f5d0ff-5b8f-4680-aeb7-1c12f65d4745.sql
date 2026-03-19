@@ -1,0 +1,2 @@
+ALTER TABLE public.tasks_and_notes DROP CONSTRAINT tasks_and_notes_type_check;
+ALTER TABLE public.tasks_and_notes ADD CONSTRAINT tasks_and_notes_type_check CHECK (type = ANY (ARRAY['daily'::text, 'weekly'::text, 'monthly'::text, 'note'::text]));
