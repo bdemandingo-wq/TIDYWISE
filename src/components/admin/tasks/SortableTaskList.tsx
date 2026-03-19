@@ -12,7 +12,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers' with { type: 'macro' };
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { TaskItem } from './TaskItem';
 
 interface Task {
