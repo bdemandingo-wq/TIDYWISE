@@ -326,7 +326,7 @@ export default function TasksPage() {
             </TabsTrigger>
           </TabsList>
 
-          {(['daily', 'weekly', 'note'] as TaskType[]).map(type => (
+          {(['daily', 'weekly', 'monthly', 'note'] as TaskType[]).map(type => (
             <TabsContent key={type} value={type} className="mt-6">
               {isLoading ? (
                 <div className="flex justify-center py-12">
