@@ -193,6 +193,7 @@ export default function TasksPage() {
     switch (type) {
       case 'daily': return <CalendarDays className="w-4 h-4" />;
       case 'weekly': return <CalendarCheck className="w-4 h-4" />;
+      case 'monthly': return <CalendarRange className="w-4 h-4" />;
       case 'note': return <StickyNote className="w-4 h-4" />;
     }
   };
