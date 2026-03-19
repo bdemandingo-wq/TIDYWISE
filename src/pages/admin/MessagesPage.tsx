@@ -137,6 +137,42 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
+  const handleForwardPhoto = (mediaUrl: string) => {
+    setForwardMediaUrl(mediaUrl);
+    setForwardSelectedContact(null);
+    setForwardContactSearch('');
+    setForwardOpen(true);
+  };
+
+  const handleSendForward = async () => {
+    if (!forwardSelectedContact || !organizationId || !forwardMediaUrl) return;
+
+    setForwardSending(true);
+    try {
+      const messageText = `📷 Forwarded photo: ${forwardMediaUrl}`;
+      const response = await supabase.functions.invoke('send-openphone-sms', {
+        body: {
+          to: forwardSelectedContact.phone,
+          message: messageText,
+          organizationId
+        }
+      });
+
+      if (handleSmsError(response)) {
+        setForwardSending(false);
+        return;
+      }
+
+      toast.success(`Photo forwarded to ${forwardSelectedContact.name}`);
+      setForwardOpen(false);
+    } catch (error: any) {
+      console.error('Error forwarding photo:', error);
+      toast.error(error.message || 'Failed to forward photo');
+    } finally {
+      setForwardSending(false);
+    }
+  };
+
 
   // Pull-to-refresh for conversations
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
