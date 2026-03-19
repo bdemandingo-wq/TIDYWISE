@@ -18,7 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -26,6 +26,9 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { calculateBookingWage } from '@/lib/wageCalculation';
+import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
+import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
+import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 
 interface StaffWithPayroll {
   id: string;
@@ -274,14 +277,18 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
-  // Weekly forecast: current week + next week bookings
-  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-  const nextWeekStart = addWeeks(currentWeekStart, 1);
-  const nextWeekEnd = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
+  // Payroll period config
+  const { config: periodConfig } = usePayrollPeriodConfig();
+  const currentPeriod = useMemo(() => getCurrentPeriod(periodConfig), [periodConfig]);
+  const nextPeriod = useMemo(() => getNextPeriod(periodConfig), [periodConfig]);
+
+  const currentWeekStart = currentPeriod.start;
+  const currentWeekEnd = currentPeriod.end;
+  const nextWeekStart = nextPeriod.start;
+  const nextWeekEnd = nextPeriod.end;
 
   const { data: forecastBookings = [] } = useQuery({
-    queryKey: ['forecast-bookings', organizationId],
+    queryKey: ['forecast-bookings', organizationId, currentWeekStart.toISOString(), nextWeekEnd.toISOString()],
     queryFn: async () => {
       if (!organizationId) return [];
       const nwEnd = new Date(nextWeekEnd);
@@ -854,17 +861,17 @@ export default function PayrollPage() {
         </Card>
       )}
 
-      {/* Weekly Forecast */}
+      {/* Period Forecast */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <ForecastCard
-          title="Current Week Forecast"
+          title={getPeriodTitle(periodConfig, 'current')}
           forecast={currentWeekForecast}
-          weekLabel={`${format(currentWeekStart, 'MMM d')} – ${format(currentWeekEnd, 'MMM d, yyyy')}`}
+          weekLabel={formatPeriodLabel(currentWeekStart, currentWeekEnd)}
         />
         <ForecastCard
-          title="Next Week Forecast"
+          title={getPeriodTitle(periodConfig, 'next')}
           forecast={nextWeekForecast}
-          weekLabel={`${format(nextWeekStart, 'MMM d')} – ${format(nextWeekEnd, 'MMM d, yyyy')}`}
+          weekLabel={formatPeriodLabel(nextWeekStart, nextWeekEnd)}
         />
       </div>
 
@@ -873,6 +880,7 @@ export default function PayrollPage() {
         <TabsList>
           <TabsTrigger value="summary">Staff Summary</TabsTrigger>
           <TabsTrigger value="details">Booking Details</TabsTrigger>
+          <TabsTrigger value="settings">Payroll Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary">
@@ -1091,6 +1099,10 @@ export default function PayrollPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <PayrollPeriodSettings />
         </TabsContent>
       </Tabs>
       </SubscriptionGate>

@@ -1128,6 +1128,9 @@ export type Database = {
           notify_reminders: boolean | null
           notify_sms: boolean | null
           organization_id: string | null
+          payroll_custom_days: number[] | null
+          payroll_frequency: string
+          payroll_start_day: number
           primary_color: string | null
           reminder_email_body: string | null
           reminder_email_subject: string | null
@@ -1165,6 +1168,9 @@ export type Database = {
           notify_reminders?: boolean | null
           notify_sms?: boolean | null
           organization_id?: string | null
+          payroll_custom_days?: number[] | null
+          payroll_frequency?: string
+          payroll_start_day?: number
           primary_color?: string | null
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
@@ -1202,6 +1208,9 @@ export type Database = {
           notify_reminders?: boolean | null
           notify_sms?: boolean | null
           organization_id?: string | null
+          payroll_custom_days?: number[] | null
+          payroll_frequency?: string
+          payroll_start_day?: number
           primary_color?: string | null
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
