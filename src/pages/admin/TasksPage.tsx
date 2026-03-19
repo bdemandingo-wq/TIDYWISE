@@ -226,8 +226,8 @@ export default function TasksPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Type</Label>
-                <div className="flex gap-2">
-                  {(['daily', 'weekly', 'note'] as TaskType[]).map(type => (
+                <div className="flex gap-2 flex-wrap">
+                  {(['daily', 'weekly', 'monthly', 'note'] as TaskType[]).map(type => (
                     <Button
                       key={type}
                       variant={newType === type ? 'default' : 'outline'}
@@ -236,7 +236,7 @@ export default function TasksPage() {
                       className="gap-2"
                     >
                       {getTabIcon(type)}
-                      {type === 'daily' ? 'Daily' : type === 'weekly' ? 'Weekly' : 'Note'}
+                      {type === 'daily' ? 'Daily' : type === 'weekly' ? 'Weekly' : type === 'monthly' ? 'Monthly' : 'Note'}
                     </Button>
                   ))}
                 </div>
