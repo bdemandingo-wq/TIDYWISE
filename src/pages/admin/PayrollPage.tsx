@@ -580,11 +580,12 @@ export default function PayrollPage() {
     return { revenueNet, laborTotal, profit, laborPct, bookingCount, missingPay };
   };
 
+  const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e; };
   const currentWeekBookings = forecastBookings.filter((b: any) =>
-    new Date(b.scheduled_at) >= currentWeekStart && new Date(b.scheduled_at) <= currentWeekEnd
+    new Date(b.scheduled_at) >= currentWeekStart && new Date(b.scheduled_at) <= endOfDay(currentWeekEnd)
   );
   const nextWeekBookings = forecastBookings.filter((b: any) =>
-    new Date(b.scheduled_at) >= nextWeekStart && new Date(b.scheduled_at) <= nextWeekEnd
+    new Date(b.scheduled_at) >= nextWeekStart && new Date(b.scheduled_at) <= endOfDay(nextWeekEnd)
   );
 
   const currentWeekForecast = useMemo(() => calcWeekForecast(currentWeekBookings, forecastTeamAssignments), [currentWeekBookings, forecastTeamAssignments, staff]);
