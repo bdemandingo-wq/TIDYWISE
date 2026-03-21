@@ -394,7 +394,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                   {selectedDate ? format(selectedDate, "EEEE, MMMM d, yyyy") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
