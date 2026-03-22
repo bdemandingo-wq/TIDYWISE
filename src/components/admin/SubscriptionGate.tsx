@@ -103,24 +103,10 @@ export function SubscriptionGate({ children, feature = "this feature" }: Subscri
 }
 
 export function useSubscriptionCheck() {
-  const { subscription, setShowSubscriptionDialog } = useAuth();
-  const { canShowPaymentFlows, billingUrl } = usePlatform();
-
-  const hasPaidSubscription = subscription?.subscribed && 
-    !subscription?.trial_active && 
-    subscription?.product_id !== 'org_trial' &&
-    !subscription?.payment_failed;
-
-  const requireSubscription = (callback: () => void, feature?: string) => {
-    if (hasPaidSubscription) {
-      callback();
-    } else if (canShowPaymentFlows) {
-      setShowSubscriptionDialog(true);
-    }
-    // Guideline 3.1.1: On native, don't open external payment links
+  // TEMPORARILY BYPASSED: All users treated as subscribed. Billing continues in background.
+  const requireSubscription = (callback: () => void, _feature?: string) => {
+    callback();
   };
 
-  const isSubscribed = hasPaidSubscription ?? false;
-
-  return { requireSubscription, isSubscribed };
+  return { requireSubscription, isSubscribed: true };
 }
