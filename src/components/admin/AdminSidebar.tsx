@@ -405,7 +405,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 pointer-events-auto touch-manipulation relative z-10">
         {isMobile ? (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {visibleNavigation.map((item) => {
               const isActive = location.pathname === item.href ||
                 (item.href !== '/dashboard' && location.pathname.startsWith(item.href));

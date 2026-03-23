@@ -182,10 +182,10 @@
 
   /* Sidebar styles */
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 
+    @apply flex items-center gap-3 px-3 py-1.5 rounded-lg text-sidebar-foreground/70 
            hover:text-sidebar-foreground hover:bg-sidebar-accent 
            hover:translate-x-1 hover:shadow-sm
-           transition-all duration-200 ease-out;
+           transition-all duration-200 ease-out text-sm;
   }
 
   .sidebar-link.active {
