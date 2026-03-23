@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState('other');
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['staff-documents', staffId],
@@ -43,9 +45,7 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: async (doc: { id: string; file_path: string }) => {
-      // Delete from storage
       await supabase.storage.from('staff-documents').remove([doc.file_path]);
-      // Delete metadata
       const { error } = await supabase.from('staff_documents').delete().eq('id', doc.id);
       if (error) throw error;
     },
@@ -56,19 +56,28 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
     onError: () => toast.error('Failed to delete document'),
   });
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleButtonClick = () => {
+    // Programmatically trigger the hidden file input – works on mobile WebViews
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File must be under 10MB');
+      e.target.value = '';
       return;
     }
 
+    setSelectedFileName(file.name);
     setUploading(true);
+
     try {
       const ext = file.name.split('.').pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
+      const safeName = `${Date.now()}.${ext}`;
+      const path = `documents/${user.id}/${docType}/${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('staff-documents')
@@ -88,12 +97,13 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
       if (metaError) throw metaError;
 
       queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId] });
-      toast.success('Document uploaded');
+      toast.success('Document uploaded successfully');
     } catch (err: any) {
       console.error('Upload error:', err);
       toast.error('Failed to upload document');
     } finally {
       setUploading(false);
+      setSelectedFileName(null);
       e.target.value = '';
     }
   };
@@ -129,6 +139,16 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Hidden native file input – rendered outside the button for mobile compatibility */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          onChange={handleFileChange}
+          disabled={uploading}
+        />
+
         {/* Upload section */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Select value={docType} onValueChange={setDocType}>
@@ -142,20 +162,22 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
             </SelectContent>
           </Select>
 
-          <Button asChild variant="outline" className="gap-2" disabled={uploading}>
-            <label className="cursor-pointer">
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {uploading ? 'Uploading...' : 'Upload File'}
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-            </label>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={uploading}
+            onClick={handleButtonClick}
+            type="button"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? 'Uploading...' : 'Upload File'}
           </Button>
         </div>
+
+        {/* Selected file indicator */}
+        {selectedFileName && (
+          <p className="text-sm text-muted-foreground">Selected: {selectedFileName}</p>
+        )}
 
         {/* Documents list */}
         {isLoading ? (
