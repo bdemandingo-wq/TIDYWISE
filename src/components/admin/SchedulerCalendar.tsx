@@ -272,7 +272,13 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const { organization } = useOrganization();
   const orgTimezone = useOrgTimezone();
 
-  const { data: allBookings = [], isLoading } = useBookings();
+  const { data: allBookings = [], isLoading, refetch } = useBookings();
+
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(handleRefresh);
 
   // Fetch team assignments for the selected booking (org-scoped)
   const { data: teamMembers = [] } = useQuery({
