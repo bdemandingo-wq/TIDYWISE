@@ -55,6 +55,7 @@ export function OpenPhoneIntegrationCard() {
 
   const fetchSettings = async () => {
     try {
+      // Fetch OpenPhone settings
       const { data, error } = await supabase
         .from('organization_sms_settings')
         .select('id, openphone_api_key, openphone_phone_number_id, sms_enabled')
@@ -76,6 +77,16 @@ export function OpenPhoneIntegrationCard() {
       } else if (data) {
         setSettings({ id: data.id, openphone_api_key: '', openphone_phone_number_id: '', sms_enabled: false });
         setIsConnected(false);
+      }
+
+      // Fetch Google Review URL from business_settings
+      const { data: biz } = await supabase
+        .from('business_settings')
+        .select('google_review_url')
+        .eq('organization_id', organization!.id)
+        .maybeSingle();
+      if (biz?.google_review_url) {
+        setGoogleReviewUrl(biz.google_review_url);
       }
     } catch (error) {
       console.error('Error fetching OpenPhone settings:', error);
