@@ -349,7 +349,58 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             )}
           </div>
 
-          {/* Actions */}
+          {/* Booking Activity Tracking */}
+          {linkTracking.length > 0 && (
+            <div className="space-y-3">
+              <Separator />
+              <div className="flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-primary" />
+                <Label className="text-base font-semibold">Booking Activity</Label>
+              </div>
+              <div className="space-y-2">
+                {linkTracking.map((track: any) => (
+                  <div key={track.id} className="p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <Badge variant={
+                        track.booking_completed_at ? 'default' :
+                        track.link_opened_at ? 'destructive' : 'secondary'
+                      }>
+                        {track.booking_completed_at ? 'Completed' :
+                         track.link_opened_at ? 'Abandoned' : 'Sent'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(track.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Send className="w-3 h-3" /> Sent
+                        </span>
+                        <span>{track.link_sent_at ? format(new Date(track.link_sent_at), 'h:mm a') : '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Opened
+                        </span>
+                        <span className={track.link_opened_at ? 'text-amber-600' : ''}>
+                          {track.link_opened_at ? format(new Date(track.link_opened_at), 'h:mm a') : '-'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Completed
+                        </span>
+                        <span className={track.booking_completed_at ? 'text-green-600' : ''}>
+                          {track.booking_completed_at ? format(new Date(track.booking_completed_at), 'h:mm a') : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
