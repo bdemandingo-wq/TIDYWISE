@@ -222,6 +222,15 @@ export default function AutomationCenterPage() {
           </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-4">
+            <AutomationTemplates onImport={(template) => {
+              setImportTemplate(template);
+              // Switch to automations tab so user can see the builder
+              const tabsTrigger = document.querySelector('[data-state="active"][value="suggestions"]');
+              // Navigate to automations tab
+              const automationsTab = document.querySelector('[value="automations"]') as HTMLElement;
+              if (automationsTab) automationsTab.click();
+              toast.success(`"${template.name}" template loaded — customize it in the builder below.`);
+            }} />
             <CRMSuggestionsPanel />
           </TabsContent>
 
