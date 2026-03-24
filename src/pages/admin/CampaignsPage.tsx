@@ -823,7 +823,7 @@ export default function CampaignsPage() {
                       rows={6}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_date}"}, {"{service_type}"}
+                      Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}, {"{booking_date}"}, {"{service_type}"}
                     </p>
                   </div>
                 </>
