@@ -476,6 +476,9 @@ export default function OperationsTrackerPage() {
         </CardContent>
       </Card>
 
+      {/* Performance Analytics */}
+      <PerformanceAnalytics entries={entries} />
+
       {/* Add/Edit Dialog */}
       <OperationsDialog
         open={dialogOpen}
