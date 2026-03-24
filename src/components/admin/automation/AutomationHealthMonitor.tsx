@@ -295,6 +295,56 @@ export function AutomationHealthMonitor() {
     enabled: !!organization?.id,
   });
 
+  // Campaign-specific abandoned stats
+  const { data: campaignAbandonedStats } = useQuery({
+    queryKey: ['automation-health-campaign-abandoned', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      // Get tracking data with campaign associations
+      const { data: trackingData, error: tErr } = await supabase
+        .from('booking_link_tracking' as any)
+        .select('campaign_id, link_opened_at, booking_completed_at')
+        .eq('organization_id', organization.id)
+        .not('campaign_id', 'is', null);
+      if (tErr || !trackingData) return null;
+
+      // Get campaign names
+      const campaignIds = [...new Set(trackingData.map((t: any) => t.campaign_id))];
+      if (campaignIds.length === 0) return null;
+
+      const { data: campaigns } = await supabase
+        .from('automated_campaigns')
+        .select('id, name')
+        .in('id', campaignIds);
+
+      const nameMap: Record<string, string> = {};
+      (campaigns || []).forEach((c: any) => { nameMap[c.id] = c.name; });
+
+      // Aggregate per campaign
+      const perCampaign: Record<string, { name: string; sent: number; opened: number; completed: number; abandoned: number }> = {};
+      trackingData.forEach((row: any) => {
+        const cid = row.campaign_id;
+        if (!perCampaign[cid]) perCampaign[cid] = { name: nameMap[cid] || 'Unknown', sent: 0, opened: 0, completed: 0, abandoned: 0 };
+        perCampaign[cid].sent++;
+        if (row.link_opened_at) perCampaign[cid].opened++;
+        if (row.booking_completed_at) perCampaign[cid].completed++;
+        if (row.link_opened_at && !row.booking_completed_at) perCampaign[cid].abandoned++;
+      });
+
+      const entries = Object.values(perCampaign).filter(c => c.sent > 0);
+      const totalAbandoned = entries.reduce((sum, c) => sum + c.abandoned, 0);
+      const best = entries.length > 0
+        ? entries.reduce((b, c) => (c.sent > 0 && (c.completed / c.sent) > (b.completed / b.sent)) ? c : b)
+        : null;
+      const worst = entries.length > 0
+        ? entries.reduce((w, c) => (c.sent > 0 && (c.abandoned / c.sent) > (w.abandoned / w.sent)) ? c : w)
+        : null;
+
+      return { totalAbandoned, best, worst, campaigns: entries };
+    },
+    enabled: !!organization?.id,
+  });
+
   const automationQueues = [
     { name: 'Review Requests', table: 'automated_review_sms_queue', stats: reviewStats, icon: CheckCircle2, color: 'text-amber-500' },
     { name: 'Rebooking Reminders', table: 'rebooking_reminder_queue', stats: rebookingStats, icon: TrendingUp, color: 'text-green-500' },
