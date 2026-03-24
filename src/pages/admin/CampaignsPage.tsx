@@ -93,6 +93,9 @@ export default function CampaignsPage() {
   // Automations expand
   const [expandedAutomation, setExpandedAutomation] = useState<string | null>(null);
 
+  // Campaign detail dialog
+  const [detailCampaignId, setDetailCampaignId] = useState<string | null>(null);
+
   // Test results
   const [testResult, setTestResult] = useState<{
     inactive: number; contactable: number; customers?: any[];
