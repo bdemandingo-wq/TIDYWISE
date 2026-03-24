@@ -944,6 +944,125 @@ export default function CampaignsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Campaign Tracking Detail Dialog */}
+      <Dialog open={!!detailCampaignId} onOpenChange={(open) => { if (!open) setDetailCampaignId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Campaign Tracking
+            </DialogTitle>
+            <DialogDescription>
+              Booking link tracking for {campaigns.find(c => c.id === detailCampaignId)?.name || "campaign"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Stats Cards */}
+          {(() => {
+            const stats = detailCampaignId ? campaignTrackingStats[detailCampaignId] : null;
+            const sent = stats?.sent || 0;
+            const opened = stats?.opened || 0;
+            const completed = stats?.completed || 0;
+            const abandoned = stats?.abandoned || 0;
+            const convRate = sent > 0 ? Math.round((completed / sent) * 100) : 0;
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xl font-bold">{sent}</p>
+                  <p className="text-xs text-muted-foreground">Sent</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xl font-bold text-amber-600">{opened}</p>
+                  <p className="text-xs text-muted-foreground">Opened</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xl font-bold text-green-600">{completed}</p>
+                  <p className="text-xs text-muted-foreground">Completed</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xl font-bold text-destructive">{abandoned}</p>
+                  <p className="text-xs text-muted-foreground">Abandoned</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xl font-bold">{convRate}%</p>
+                  <p className="text-xs text-muted-foreground">Conversion</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Re-send to Abandoned button */}
+          {(() => {
+            const abandonedRecipients = detailTracking.filter((t: any) => t.link_opened_at && !t.booking_completed_at);
+            if (abandonedRecipients.length === 0) return null;
+            return (
+              <Button
+                variant="outline"
+                className="gap-2 w-full"
+                onClick={async () => {
+                  if (!orgId || !detailCampaignId) return;
+                  const campaign = campaigns.find(c => c.id === detailCampaignId);
+                  const resendMessage = `Hi {first_name}! Just following up on the booking link we sent. Would you like to complete your booking? {booking_link} Reply STOP to opt out.`;
+                  try {
+                    const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
+                      body: {
+                        organizationId: orgId,
+                        campaignId: detailCampaignId,
+                        message: resendMessage,
+                        targetAudience: "active_clients",
+                        testMode: false,
+                      },
+                    });
+                    if (error) throw error;
+                    toast({ title: "Re-sent!", description: `Sent to ${abandonedRecipients.length} abandoned recipients` });
+                    queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
+                    queryClient.invalidateQueries({ queryKey: ["campaign-detail-tracking"] });
+                  } catch {
+                    toast({ title: "Error", description: "Failed to re-send campaign", variant: "destructive" });
+                  }
+                }}
+              >
+                <RefreshCw className="w-4 h-4" />
+                Re-send to {abandonedRecipients.length} Abandoned
+              </Button>
+            );
+          })()}
+
+          {/* Recipients List */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Recipients</h4>
+            {detailTracking.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No tracked links for this campaign yet. Include {"{booking_link}"} in your message to enable tracking.</p>
+            ) : (
+              <div className="max-h-[300px] overflow-y-auto space-y-2">
+                {detailTracking.map((track: any) => (
+                  <div key={track.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{track.customer_name || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">{track.customer_phone || track.customer_email || ""}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {track.link_opened_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Opened {formatDistanceToNow(new Date(track.link_opened_at), { addSuffix: true })}
+                        </span>
+                      )}
+                      <Badge variant={
+                        track.booking_completed_at ? "default" :
+                        track.link_opened_at ? "destructive" : "secondary"
+                      } className="text-xs">
+                        {track.booking_completed_at ? "Completed" :
+                         track.link_opened_at ? "Abandoned" : "Sent"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
