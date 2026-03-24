@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Phone, Target, DollarSign, MessageSquare, Users, CheckCircle, Plus, Edit, Trash2, Download, TrendingUp, CalendarDays } from 'lucide-react';
+import { PerformanceAnalytics } from '@/components/admin/PerformanceAnalytics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -474,6 +475,9 @@ export default function OperationsTrackerPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Performance Analytics */}
+      <PerformanceAnalytics entries={entries} />
 
       {/* Add/Edit Dialog */}
       <OperationsDialog
