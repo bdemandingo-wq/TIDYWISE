@@ -179,6 +179,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create a Stripe Checkout session in SETUP mode to save card WITHOUT charging
     // The card will be saved to the customer for future manual charges
+
+    // Generate a tracking ref for booking link tracking
+    const trackingRef = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "setup",  // SETUP mode = save card only, NO automatic charge
@@ -190,8 +194,25 @@ const handler = async (req: Request): Promise<Response> => {
         purpose: "card_collection",  // Changed from cleaning_payment
         organizationId: organizationId,
         amount: amount.toString(),  // Store amount for reference (NOT charged)
+        trackingRef: trackingRef,
       },
     });
+
+    // Insert booking link tracking record
+    await supabase
+      .from('booking_link_tracking')
+      .insert({
+        organization_id: organizationId,
+        tracking_ref: trackingRef,
+        customer_name: customerName,
+        customer_phone: phone,
+        customer_email: email || null,
+        link_sent_at: new Date().toISOString(),
+        status: 'sent',
+      })
+      .then(({ error: trackingError }) => {
+        if (trackingError) console.log('Booking link tracking insert skipped:', trackingError.message);
+      });
 
     console.log("Created Stripe setup session (card save only):", session.id);
 

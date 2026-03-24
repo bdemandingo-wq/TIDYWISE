@@ -270,6 +270,31 @@ export function AutomationHealthMonitor() {
     enabled: !!organization?.id,
   });
 
+  // Abandoned booking link stats
+  const { data: abandonedStats } = useQuery({
+    queryKey: ['automation-health-abandoned', organization?.id],
+    queryFn: async (): Promise<{ total: number; opened: number; completed: number; abandoned: number; conversionRate: number }> => {
+      if (!organization?.id) return { total: 0, opened: 0, completed: 0, abandoned: 0, conversionRate: 0 };
+      const { data, error } = await supabase
+        .from('booking_link_tracking' as any)
+        .select('status, link_opened_at, booking_completed_at')
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+      const items = data || [];
+      const opened = items.filter((i: any) => i.link_opened_at).length;
+      const completed = items.filter((i: any) => i.booking_completed_at).length;
+      const abandoned = items.filter((i: any) => i.link_opened_at && !i.booking_completed_at).length;
+      return {
+        total: items.length,
+        opened,
+        completed,
+        abandoned,
+        conversionRate: opened > 0 ? Math.round((completed / opened) * 100) : 0,
+      };
+    },
+    enabled: !!organization?.id,
+  });
+
   const automationQueues = [
     { name: 'Review Requests', table: 'automated_review_sms_queue', stats: reviewStats, icon: CheckCircle2, color: 'text-amber-500' },
     { name: 'Rebooking Reminders', table: 'rebooking_reminder_queue', stats: rebookingStats, icon: TrendingUp, color: 'text-green-500' },
@@ -332,6 +357,48 @@ export function AutomationHealthMonitor() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Abandoned Bookings Card */}
+      {abandonedStats && abandonedStats.total > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Abandoned Bookings
+            </CardTitle>
+            <CardDescription>Booking links sent but not completed</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold">{abandonedStats.total}</p>
+                <p className="text-xs text-muted-foreground">Links Sent</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-amber-600">{abandonedStats.opened}</p>
+                <p className="text-xs text-muted-foreground">Opened</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-green-600">{abandonedStats.completed}</p>
+                <p className="text-xs text-muted-foreground">Completed</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold">{abandonedStats.conversionRate}%</p>
+                <p className="text-xs text-muted-foreground">Conversion</p>
+                <Progress value={abandonedStats.conversionRate} className="mt-1 h-1.5" />
+              </div>
+            </div>
+            {abandonedStats.abandoned > 0 && (
+              <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-sm">
+                  <strong>{abandonedStats.abandoned}</strong> customers opened their booking link but didn't complete.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Per-Automation Breakdown */}
       <Card>

@@ -650,6 +650,69 @@ export type Database = {
           },
         ]
       }
+      booking_link_tracking: {
+        Row: {
+          booking_completed_at: string | null
+          created_at: string
+          customer_email: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          link_opened_at: string | null
+          link_sent_at: string
+          organization_id: string
+          status: string
+          tracking_ref: string
+          updated_at: string
+        }
+        Insert: {
+          booking_completed_at?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          link_opened_at?: string | null
+          link_sent_at?: string
+          organization_id: string
+          status?: string
+          tracking_ref: string
+          updated_at?: string
+        }
+        Update: {
+          booking_completed_at?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          link_opened_at?: string | null
+          link_sent_at?: string
+          organization_id?: string
+          status?: string
+          tracking_ref?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_link_tracking_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_link_tracking_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_photos: {
         Row: {
           booking_id: string

@@ -54,6 +54,12 @@ function formatTime24to12(time24: string): string {
 
 export default function PublicBookingPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  
+  // Track booking link ref parameter for link tracking
+  const [trackingRef] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('ref') || null;
+  });
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedSqFtIndex, setSelectedSqFtIndex] = useState<number | null>(null);
@@ -144,6 +150,19 @@ export default function PublicBookingPage() {
     return () => clearPublicBranding();
   }, [primaryColor, accentColor, formColors.accent]);
 
+  // Track link_opened when ref param exists
+  useEffect(() => {
+    if (trackingRef && organizationId) {
+      supabase
+        .from('booking_link_tracking' as any)
+        .update({ link_opened_at: new Date().toISOString(), status: 'opened' })
+        .eq('tracking_ref', trackingRef)
+        .then(({ error }) => {
+          if (error) console.log('Link tracking update skipped:', error.message);
+        });
+    }
+  }, [trackingRef, organizationId]);
+
   // Track abandoned bookings - save progress when user has contact info
   const sessionTokenRef = useState(() => crypto.randomUUID())[0];
   const abandonedTrackedRef = useState({ tracked: false })[0];
@@ -187,6 +206,14 @@ export default function PublicBookingPage() {
         .from('abandoned_bookings')
         .update({ converted: true, converted_at: new Date().toISOString() })
         .eq('session_token', sessionTokenRef)
+        .then(() => {});
+    }
+    // Also mark link tracking as completed
+    if (confirmationNumber && trackingRef) {
+      supabase
+        .from('booking_link_tracking' as any)
+        .update({ booking_completed_at: new Date().toISOString(), status: 'completed' })
+        .eq('tracking_ref', trackingRef)
         .then(() => {});
     }
   }, [confirmationNumber]);
