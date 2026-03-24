@@ -653,6 +653,7 @@ export type Database = {
       booking_link_tracking: {
         Row: {
           booking_completed_at: string | null
+          campaign_id: string | null
           created_at: string
           customer_email: string | null
           customer_id: string | null
@@ -668,6 +669,7 @@ export type Database = {
         }
         Insert: {
           booking_completed_at?: string | null
+          campaign_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_id?: string | null
@@ -683,6 +685,7 @@ export type Database = {
         }
         Update: {
           booking_completed_at?: string | null
+          campaign_id?: string | null
           created_at?: string
           customer_email?: string | null
           customer_id?: string | null
@@ -697,6 +700,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "booking_link_tracking_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "automated_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "booking_link_tracking_customer_id_fkey"
             columns: ["customer_id"]
