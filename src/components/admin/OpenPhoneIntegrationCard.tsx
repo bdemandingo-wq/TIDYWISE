@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Save, Loader2, Eye, EyeOff, Zap, Unplug, CheckCircle2, XCircle } from 'lucide-react';
+import { Phone, Save, Loader2, Eye, EyeOff, Zap, Unplug, CheckCircle2, XCircle, Star } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,12 +45,17 @@ export function OpenPhoneIntegrationCard() {
   const [draftApiKey, setDraftApiKey] = useState('');
   const [draftPhoneId, setDraftPhoneId] = useState('');
 
+  // Google Review Link state
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('');
+  const [savingReview, setSavingReview] = useState(false);
+
   useEffect(() => {
     if (organization?.id) fetchSettings();
   }, [organization?.id]);
 
   const fetchSettings = async () => {
     try {
+      // Fetch OpenPhone settings
       const { data, error } = await supabase
         .from('organization_sms_settings')
         .select('id, openphone_api_key, openphone_phone_number_id, sms_enabled')
@@ -72,6 +77,16 @@ export function OpenPhoneIntegrationCard() {
       } else if (data) {
         setSettings({ id: data.id, openphone_api_key: '', openphone_phone_number_id: '', sms_enabled: false });
         setIsConnected(false);
+      }
+
+      // Fetch Google Review URL from business_settings
+      const { data: biz } = await supabase
+        .from('business_settings')
+        .select('google_review_url')
+        .eq('organization_id', organization!.id)
+        .maybeSingle();
+      if (biz?.google_review_url) {
+        setGoogleReviewUrl(biz.google_review_url);
       }
     } catch (error) {
       console.error('Error fetching OpenPhone settings:', error);
@@ -220,6 +235,7 @@ export function OpenPhoneIntegrationCard() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -329,5 +345,57 @@ export function OpenPhoneIntegrationCard() {
         </div>
       </CardContent>
     </Card>
+
+      {/* Google Review Link */}
+      <Card className="mt-4">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-500" />
+            <CardTitle>Google Review Link</CardTitle>
+          </div>
+          <CardDescription>
+            Set your Google Review URL to auto-populate the {"{review_link}"} merge tag in automation messages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="google-review-url">Review URL</Label>
+            <Input
+              id="google-review-url"
+              value={googleReviewUrl}
+              onChange={(e) => setGoogleReviewUrl(e.target.value)}
+              placeholder="https://g.page/r/your-business/review"
+            />
+            <p className="text-xs text-muted-foreground">
+              Find this in Google Business Profile → Share review link
+            </p>
+          </div>
+          <Button
+            size="sm"
+            disabled={savingReview}
+            className="gap-2"
+            onClick={async () => {
+              if (!organization?.id) return;
+              setSavingReview(true);
+              try {
+                const { error } = await supabase
+                  .from('business_settings')
+                  .update({ google_review_url: googleReviewUrl })
+                  .eq('organization_id', organization.id);
+                if (error) throw error;
+                toast.success('Google Review link saved');
+              } catch {
+                toast.error('Failed to save review link');
+              } finally {
+                setSavingReview(false);
+              }
+            }}
+          >
+            {savingReview ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Review Link
+          </Button>
+        </CardContent>
+      </Card>
+    </>
   );
 }

@@ -2013,6 +2013,172 @@ export type Database = {
           },
         ]
       }
+      custom_automation_logs: {
+        Row: {
+          automation_id: string
+          booking_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          error: string | null
+          id: string
+          organization_id: string
+          paused_reason: string | null
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          step_id: string | null
+        }
+        Insert: {
+          automation_id: string
+          booking_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          organization_id: string
+          paused_reason?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          step_id?: string | null
+        }
+        Update: {
+          automation_id?: string
+          booking_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          organization_id?: string
+          paused_reason?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          step_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_automation_logs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "custom_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_automation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_automation_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_automation_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_automation_logs_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "custom_automation_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_automation_steps: {
+        Row: {
+          automation_id: string
+          condition: string
+          created_at: string | null
+          delay_unit: string
+          delay_value: number
+          id: string
+          message_body: string
+          step_order: number
+        }
+        Insert: {
+          automation_id: string
+          condition?: string
+          created_at?: string | null
+          delay_unit?: string
+          delay_value?: number
+          id?: string
+          message_body: string
+          step_order?: number
+        }
+        Update: {
+          automation_id?: string
+          condition?: string
+          created_at?: string | null
+          delay_unit?: string
+          delay_value?: number
+          id?: string
+          message_body?: string
+          step_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_automation_steps_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "custom_automations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_automations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          organization_id: string
+          overrides_default: string | null
+          tag_filter: string | null
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          organization_id: string
+          overrides_default?: string | null
+          tag_filter?: string | null
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string
+          overrides_default?: string | null
+          tag_filter?: string | null
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_automations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_frequencies: {
         Row: {
           created_at: string
