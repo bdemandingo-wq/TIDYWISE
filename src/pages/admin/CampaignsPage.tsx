@@ -177,6 +177,48 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
+  // Campaign link tracking stats (aggregated per campaign)
+  const { data: campaignTrackingStats = {} } = useQuery({
+    queryKey: ["campaign-tracking-stats", orgId],
+    queryFn: async () => {
+      if (!orgId) return {};
+      const { data, error } = await supabase
+        .from("booking_link_tracking" as any)
+        .select("campaign_id, status, link_opened_at, booking_completed_at")
+        .eq("organization_id", orgId)
+        .not("campaign_id", "is", null);
+      if (error) return {};
+      const stats: Record<string, { sent: number; opened: number; completed: number; abandoned: number }> = {};
+      (data || []).forEach((row: any) => {
+        if (!row.campaign_id) return;
+        if (!stats[row.campaign_id]) stats[row.campaign_id] = { sent: 0, opened: 0, completed: 0, abandoned: 0 };
+        stats[row.campaign_id].sent++;
+        if (row.link_opened_at) stats[row.campaign_id].opened++;
+        if (row.booking_completed_at) stats[row.campaign_id].completed++;
+        if (row.link_opened_at && !row.booking_completed_at) stats[row.campaign_id].abandoned++;
+      });
+      return stats;
+    },
+    enabled: !!orgId,
+  });
+
+  // Detail tracking for selected campaign
+  const { data: detailTracking = [] } = useQuery({
+    queryKey: ["campaign-detail-tracking", detailCampaignId, orgId],
+    queryFn: async () => {
+      if (!detailCampaignId || !orgId) return [];
+      const { data, error } = await supabase
+        .from("booking_link_tracking" as any)
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("campaign_id", detailCampaignId)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!detailCampaignId && !!orgId,
+  });
+
   // Filtered campaigns
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter(c => {
