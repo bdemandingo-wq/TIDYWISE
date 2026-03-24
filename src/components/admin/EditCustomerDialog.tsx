@@ -60,6 +60,24 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   const [submitting, setSubmitting] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
 
+  // Fetch booking link tracking for this customer
+  const { data: linkTracking = [] } = useQuery({
+    queryKey: ['customer-link-tracking', customer?.id, organization?.id],
+    queryFn: async () => {
+      if (!customer || !organization?.id) return [];
+      const { data, error } = await supabase
+        .from('booking_link_tracking' as any)
+        .select('*')
+        .eq('organization_id', organization.id)
+        .or(`customer_email.eq.${customer.email},customer_phone.eq.${customer.phone}`)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!customer && !!organization?.id && open,
+  });
+
   useEffect(() => {
     if (customer) {
       setFormData({
