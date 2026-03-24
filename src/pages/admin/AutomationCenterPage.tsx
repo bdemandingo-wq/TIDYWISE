@@ -100,6 +100,7 @@ const sidebarGuide = [
 export default function AutomationCenterPage() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
+  const [importTemplate, setImportTemplate] = useState<Omit<CustomAutomation, 'id'> | null>(null);
 
   const { data: automations = [], isLoading } = useQuery({
     queryKey: ['organization-automations', organization?.id],
