@@ -220,6 +220,22 @@ export default function LoginPage() {
                 Create account
               </Link>
             </div>
+
+            {/* Staff & Client Portal links */}
+            <div className="mt-4 pt-4 border-t border-border space-y-2">
+              <Link
+                to="/staff/login"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                Staff Portal Login
+              </Link>
+              <Link
+                to="/portal/login"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                Client Portal Login
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
