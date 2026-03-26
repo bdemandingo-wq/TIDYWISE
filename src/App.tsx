@@ -210,6 +210,7 @@ const App = () => (
 
                       {/* Client Portal */}
                       <Route path="/portal" element={<PortalLoginPage />} />
+                      <Route path="/portal/login" element={<PortalLoginPage />} />
                       <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                       <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
@@ -313,6 +314,7 @@ const App = () => (
 
                     {/* Client Portal */}
                     <Route path="/portal" element={<PortalLoginPage />} />
+                    <Route path="/portal/login" element={<PortalLoginPage />} />
                     <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                     <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
