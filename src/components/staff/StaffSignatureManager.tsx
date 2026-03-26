@@ -156,7 +156,14 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     setPreviewTitle(title);
     setPreviewIsPdf(isPdf);
     if (isPdf) {
-      setPreviewUrl(data.signedUrl);
+      try {
+        const res = await fetch(data.signedUrl);
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      } catch {
+        toast.error('Failed to load PDF');
+      }
     } else {
       const encodedUrl = encodeURIComponent(data.signedUrl);
       setPreviewUrl(`https://docs.google.com/gview?url=${encodedUrl}&embedded=true`);
@@ -401,7 +408,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       })}
 
       {/* Document Preview Dialog */}
-      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { setPreviewUrl(null); setPreviewTitle(''); setPreviewIsPdf(false); } }}>
+      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { if (previewUrl && previewIsPdf) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); setPreviewTitle(''); setPreviewIsPdf(false); } }}>
         <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col" aria-describedby={undefined}>
           <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle className="text-sm">{previewTitle}</DialogTitle>
