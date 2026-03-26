@@ -55,16 +55,17 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
 
   // Fetch this staff's signatures
   const { data: signatures = [], isLoading: loadingSigs } = useQuery({
-    queryKey: ['staff-signatures', staffId],
+    queryKey: ['staff-signatures', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_signatures')
         .select('id, signable_document_id, signature_data, signature_type, signed_at')
-        .eq('staff_id', staffId);
+        .eq('staff_id', staffId)
+        .eq('organization_id', organizationId);
       if (error) throw error;
       return (data || []) as Signature[];
     },
-    enabled: !!staffId,
+    enabled: !!staffId && !!organizationId,
   });
 
   const signMutation = useMutation({
@@ -94,7 +95,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff-signatures', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['staff-signatures', staffId, organizationId] });
       toast.success('Document signed successfully');
       setSigningDocId(null);
     },

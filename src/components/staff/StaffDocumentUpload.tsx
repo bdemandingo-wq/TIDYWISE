@@ -125,7 +125,7 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
         setUploadProgress(Math.round((uploaded / fileArray.length) * 100));
       }
 
-      queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] });
       toast.success(`${uploaded} document(s) uploaded successfully`);
     } catch (err: any) {
       console.error('Upload error:', err);
