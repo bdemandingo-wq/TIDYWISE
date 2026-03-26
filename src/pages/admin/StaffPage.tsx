@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { StaffEventNotifications } from '@/components/admin/StaffEventNotifications';
 import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDashboard';
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
+import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
 
 interface StaffMember {
   id: string;
@@ -263,6 +264,11 @@ export default function StaffPage() {
           <AdminSignableDocManager />
         </CardContent>
       </Card>
+
+      {/* Document Review Section */}
+      <div className="mb-4">
+        <PendingDocumentsReview />
+      </div>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
