@@ -359,14 +359,17 @@ export default function RecurringBookingsPage() {
       return;
     }
 
-    // Apply day-matched pricing if day_prices exists
+    // Apply day-matched pricing and service if day_prices/day_services exist
     const dayPrices = (recurring as any).day_prices as Record<string, number> | null;
+    const dayServices = (recurring as any).day_services as Record<string, string> | null;
     let bookingAmount = recurring.total_amount;
-    if (dayPrices) {
-      const dayOfWeek = nextDate.getDay().toString();
-      if (dayPrices[dayOfWeek] != null) {
-        bookingAmount = dayPrices[dayOfWeek];
-      }
+    let bookingServiceId = recurring.service_id;
+    const dayOfWeek = nextDate.getDay().toString();
+    if (dayPrices && dayPrices[dayOfWeek] != null) {
+      bookingAmount = dayPrices[dayOfWeek];
+    }
+    if (dayServices && dayServices[dayOfWeek]) {
+      bookingServiceId = dayServices[dayOfWeek];
     }
 
     const scheduledAt = applyTime(new Date(nextDate)).toISOString();
