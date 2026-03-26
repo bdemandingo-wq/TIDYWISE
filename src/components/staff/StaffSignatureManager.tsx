@@ -55,6 +55,8 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       return (data || []) as SignableDoc[];
     },
     enabled: !!organizationId,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch this staff's signatures
