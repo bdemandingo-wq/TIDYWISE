@@ -840,52 +840,92 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                             />
                           ))}
 
-                          {/* Booking blocks */}
-                          {dayBookings.map((booking) => {
-                            const bookingDate = new Date(booking.scheduled_at);
-                            const bookingHour = bookingDate.getHours() + bookingDate.getMinutes() / 60;
-                            const clampedStart = Math.max(bookingHour, START_HOUR);
-                            const topPx = (clampedStart - START_HOUR) * HOUR_PX;
-                            const durationHours = (booking.duration || 60) / 60;
-                            const heightPx = Math.max(durationHours * HOUR_PX, isMobile ? 22 : 28);
-                            const color = getStaffColor(booking.staff_id, staffList);
-                            const teamIds = teamAssignmentMap.get(booking.id) || [];
-                            const teamColors = teamIds
-                              .filter(id => id !== booking.staff_id)
-                              .map(id => getStaffColor(id, staffList));
+                          {/* Booking blocks with overlap detection */}
+                          {(() => {
+                            // Calculate overlap columns for this day's bookings
+                            const START_HOUR_LOCAL = START_HOUR;
+                            const sorted = [...dayBookings].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
-                            return (
-                              <button
-                                key={booking.id}
-                                onClick={() => setSelectedBooking(booking)}
-                                className="absolute left-0.5 right-0.5 z-10 rounded text-left px-1 py-0.5 overflow-hidden border-l-[3px] text-[10px] md:text-xs leading-tight select-none cursor-pointer hover:opacity-80 transition-opacity"
-                                style={{
-                                  top: topPx,
-                                  height: heightPx,
-                                  backgroundColor: `${color}25`,
-                                  color: color,
-                                  borderLeftColor: color,
-                                }}
-                              >
-                                <div className="font-semibold truncate">{formatCustomerName(booking.customer)}</div>
-                                {heightPx >= (isMobile ? 32 : 36) && (
-                                  <div className="truncate opacity-70">
-                                    {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                  </div>
-                                )}
-                                {heightPx >= (isMobile ? 48 : 54) && booking.service?.name && (
-                                  <div className="truncate opacity-60">{booking.service.name}</div>
-                                )}
-                                {teamColors.length > 0 && (
-                                  <div className="flex items-center gap-0.5 mt-0.5">
-                                    {teamColors.map((tc, i) => (
-                                      <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tc }} />
-                                    ))}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
+                            // Assign columns using a greedy approach
+                            const layouts: { booking: typeof sorted[0]; col: number; totalCols: number; topPx: number; heightPx: number }[] = [];
+                            const columns: { end: number }[] = []; // track end time per column
+
+                            for (const booking of sorted) {
+                              const bDate = new Date(booking.scheduled_at);
+                              const startH = bDate.getHours() + bDate.getMinutes() / 60;
+                              const durH = (booking.duration || 60) / 60;
+                              const endH = startH + durH;
+
+                              // Find first column where this booking fits (no overlap)
+                              let placed = false;
+                              for (let c = 0; c < columns.length; c++) {
+                                if (startH >= columns[c].end) {
+                                  columns[c].end = endH;
+                                  layouts.push({ booking, col: c, totalCols: 0, topPx: 0, heightPx: 0 });
+                                  placed = true;
+                                  break;
+                                }
+                              }
+                              if (!placed) {
+                                columns.push({ end: endH });
+                                layouts.push({ booking, col: columns.length - 1, totalCols: 0, topPx: 0, heightPx: 0 });
+                              }
+                            }
+
+                            const totalCols = columns.length;
+
+                            // Now compute positions
+                            return layouts.map(({ booking, col }) => {
+                              const bDate = new Date(booking.scheduled_at);
+                              const bookingHour = bDate.getHours() + bDate.getMinutes() / 60;
+                              const clampedStart = Math.max(bookingHour, START_HOUR_LOCAL);
+                              const topPx = (clampedStart - START_HOUR_LOCAL) * HOUR_PX;
+                              const durationHours = (booking.duration || 60) / 60;
+                              const heightPx = Math.max(durationHours * HOUR_PX, isMobile ? 22 : 28);
+                              const color = getStaffColor(booking.staff_id, staffList);
+                              const teamIds = teamAssignmentMap.get(booking.id) || [];
+                              const teamColors = teamIds
+                                .filter(id => id !== booking.staff_id)
+                                .map(id => getStaffColor(id, staffList));
+
+                              const widthPct = 100 / totalCols;
+                              const leftPct = col * widthPct;
+
+                              return (
+                                <button
+                                  key={booking.id}
+                                  onClick={() => setSelectedBooking(booking)}
+                                  className="absolute z-10 rounded text-left px-1 py-0.5 overflow-hidden border-l-[3px] text-[10px] md:text-xs leading-tight select-none cursor-pointer hover:opacity-80 transition-opacity"
+                                  style={{
+                                    top: topPx,
+                                    height: heightPx,
+                                    left: `calc(${leftPct}% + 1px)`,
+                                    width: `calc(${widthPct}% - 2px)`,
+                                    backgroundColor: `${color}25`,
+                                    color: color,
+                                    borderLeftColor: color,
+                                  }}
+                                >
+                                  <div className="font-semibold truncate">{formatCustomerName(booking.customer)}</div>
+                                  {heightPx >= (isMobile ? 32 : 36) && (
+                                    <div className="truncate opacity-70">
+                                      {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                    </div>
+                                  )}
+                                  {heightPx >= (isMobile ? 48 : 54) && booking.service?.name && (
+                                    <div className="truncate opacity-60">{booking.service.name}</div>
+                                  )}
+                                  {teamColors.length > 0 && (
+                                    <div className="flex items-center gap-0.5 mt-0.5">
+                                      {teamColors.map((tc, i) => (
+                                        <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tc }} />
+                                      ))}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            });
+                          })()}
                         </div>
                       );
                     })}
