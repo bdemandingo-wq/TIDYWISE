@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Calendar,
   Users,
