@@ -42,6 +42,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
 import { useOrgId } from '@/hooks/useOrgId';
 import { cn } from '@/lib/utils';
+import { StaffEventNotifications } from '@/components/admin/StaffEventNotifications';
 
 interface StaffMember {
   id: string;
@@ -242,6 +243,11 @@ export default function StaffPage() {
         </Button>
       }
     >
+      {/* Staff Event Notifications */}
+      <div className="mb-4">
+        <StaffEventNotifications />
+      </div>
+
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
