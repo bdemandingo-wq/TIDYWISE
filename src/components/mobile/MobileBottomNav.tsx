@@ -158,8 +158,8 @@ export function MobileBottomNav() {
             type="button"
             onClick={handleAdd}
             className={cn(
-              'absolute -top-4 flex items-center justify-center',
-              'w-14 h-14 rounded-full',
+              'absolute -top-3 flex items-center justify-center',
+              'w-12 h-12 rounded-full',
               'bg-primary text-primary-foreground',
               'shadow-lg shadow-primary/30',
               'active:scale-95 transition-transform duration-150',
@@ -167,10 +167,10 @@ export function MobileBottomNav() {
             )}
             aria-label="New booking"
           >
-            <Plus className="w-7 h-7" strokeWidth={2.5} />
+            <Plus className="w-6 h-6" strokeWidth={2.5} />
           </button>
           {/* Spacer to keep grid height */}
-          <div className="h-14" />
+          <div className="h-12" />
         </div>
 
         {/* Right 2 slots */}
@@ -197,11 +197,11 @@ function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () 
         'flex flex-col items-center justify-center gap-0.5',
         'text-[10px] font-medium transition-all duration-200',
         'active:scale-[0.96] will-change-transform touch-manipulation',
-        'h-14',
+        'h-12',
         active ? 'text-primary font-semibold' : 'text-muted-foreground'
       )}
     >
-      <Icon className="h-5 w-5" aria-hidden="true" />
+      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
       <span className="leading-none">{item.label}</span>
     </NavLink>
   );
