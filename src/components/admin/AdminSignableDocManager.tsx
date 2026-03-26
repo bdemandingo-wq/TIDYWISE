@@ -92,6 +92,7 @@ export function AdminSignableDocManager() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -241,15 +242,44 @@ export function AdminSignableDocManager() {
             <Textarea placeholder="Brief description of what this document is..." value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </div>
           <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={handleUpload} disabled={uploading} />
-          <div className="flex gap-2">
-            <Button variant="default" size="sm" className="gap-1" disabled={uploading || !title.trim()} onClick={() => fileInputRef.current?.click()}>
-              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-              {uploading ? 'Uploading...' : 'Upload PDF'}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setTitle(''); setDescription(''); }}>
-              Cancel
-            </Button>
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+              dragOver ? 'border-primary bg-primary/10' : 'border-muted-foreground/30 hover:border-primary/50'
+            } ${(!title.trim() || uploading) ? 'opacity-50 pointer-events-none' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (!title.trim() || uploading) return;
+              const file = e.dataTransfer.files?.[0];
+              if (file) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                if (fileInputRef.current) {
+                  fileInputRef.current.files = dt.files;
+                  fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+              }
+            }}
+            onClick={() => title.trim() && !uploading && fileInputRef.current?.click()}
+          >
+            {uploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Uploading...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-medium">Drag & drop your PDF here</p>
+                <p className="text-xs text-muted-foreground">or click to browse · PDF, DOC, DOCX · Max 10MB</p>
+              </div>
+            )}
           </div>
+          <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setTitle(''); setDescription(''); }}>
+            Cancel
+          </Button>
         </div>
       )}
 
