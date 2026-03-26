@@ -509,9 +509,17 @@ export default function BookingsPage() {
       // If no payment intent, handle as manual refund (just update status)
       if (!paymentIntentId) {
         const newStatus = refundType === 'full' ? 'refunded' : 'partial';
+        const manualRefundAmount = refundType === 'full'
+          ? (booking.total_amount || 0)
+          : parseFloat(refundAmount);
+        const nextTotalAmount = refundType === 'full'
+          ? 0
+          : Math.max(0, (booking.total_amount || 0) - manualRefundAmount);
+
         await updateBooking.mutateAsync({
           id: booking.id,
           payment_status: newStatus as any,
+          total_amount: nextTotalAmount,
         });
         toast({
           title: "Refund Recorded (Manual)",
@@ -537,6 +545,11 @@ export default function BookingsPage() {
       if (error) throw error;
 
       if (data.success) {
+        const refundedAmount = Number(data.amount || 0);
+        const nextTotalAmount = data.isFullRefund
+          ? 0
+          : Math.max(0, (booking.total_amount || 0) - refundedAmount);
+
         toast({
           title: "Refund Processed",
           description: data.message,
@@ -545,6 +558,7 @@ export default function BookingsPage() {
         await updateBooking.mutateAsync({
           id: booking.id,
           payment_status: (data.isFullRefund ? 'refunded' : 'partial') as any,
+          total_amount: nextTotalAmount,
         });
 
         setRefundDialogBooking(null);
