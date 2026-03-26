@@ -5382,6 +5382,131 @@ export type Database = {
           },
         ]
       }
+      staff_event_notifications: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          is_read: boolean | null
+          message: string | null
+          organization_id: string
+          staff_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          organization_id: string
+          staff_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          organization_id?: string
+          staff_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_event_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_event_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_event_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_payout_accounts: {
+        Row: {
+          account_holder_name: string | null
+          account_status: string
+          bank_last4: string | null
+          charges_enabled: boolean | null
+          created_at: string
+          details_submitted: boolean | null
+          id: string
+          onboarding_url: string | null
+          organization_id: string
+          payouts_enabled: boolean | null
+          staff_id: string
+          stripe_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_holder_name?: string | null
+          account_status?: string
+          bank_last4?: string | null
+          charges_enabled?: boolean | null
+          created_at?: string
+          details_submitted?: boolean | null
+          id?: string
+          onboarding_url?: string | null
+          organization_id: string
+          payouts_enabled?: boolean | null
+          staff_id: string
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_holder_name?: string | null
+          account_status?: string
+          bank_last4?: string | null
+          charges_enabled?: boolean | null
+          created_at?: string
+          details_submitted?: boolean | null
+          id?: string
+          onboarding_url?: string | null
+          organization_id?: string
+          payouts_enabled?: boolean | null
+          staff_id?: string
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_payout_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payout_accounts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_payout_accounts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_services: {
         Row: {
           id: string
