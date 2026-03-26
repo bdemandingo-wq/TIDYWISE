@@ -467,7 +467,7 @@ export default function RecurringBookingsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                recurringBookings.map((booking) => (
+                sortedRecurringBookings.map((booking) => (
                   <TableRow key={booking.id}>
                     <TableCell>
                       <div>
