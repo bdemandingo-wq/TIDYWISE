@@ -104,7 +104,7 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
       for (const file of fileArray) {
         const ext = file.name.split('.').pop();
         const safeName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const path = `documents/${user.id}/${docType}/${safeName}`;
+        const path = `documents/${organizationId}/${staffId}/${docType}/${safeName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('staff-documents')
