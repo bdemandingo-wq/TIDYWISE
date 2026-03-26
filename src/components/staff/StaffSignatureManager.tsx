@@ -401,19 +401,33 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       })}
 
       {/* Document Preview Dialog */}
-      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { setPreviewUrl(null); setPreviewTitle(''); } }}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col">
+      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { setPreviewUrl(null); setPreviewTitle(''); setPreviewIsPdf(false); } }}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col" aria-describedby={undefined}>
           <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle className="text-sm">{previewTitle}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0 px-4 pb-4">
-            {previewUrl && (
+            {previewUrl && previewIsPdf ? (
+              <object
+                data={previewUrl}
+                type="application/pdf"
+                className="w-full h-full rounded-lg border"
+              >
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                  <FileText className="h-10 w-10" />
+                  <p className="text-sm">Unable to display PDF inline.</p>
+                  <Button variant="outline" size="sm" onClick={() => window.open(previewUrl, '_blank')}>
+                    Open in New Tab
+                  </Button>
+                </div>
+              </object>
+            ) : previewUrl ? (
               <iframe
                 src={previewUrl}
                 className="w-full h-full rounded-lg border"
                 title={previewTitle}
               />
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>
