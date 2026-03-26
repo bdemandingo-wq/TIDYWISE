@@ -794,95 +794,104 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
             {/* Scrollable time grid */}
             <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="relative grid" style={{ gridTemplateColumns: '3rem repeat(7, 1fr)' }}>
-                {/* Hour labels + row lines */}
-                {Array.from({ length: 17 }, (_, i) => {
-                  const hour = i + 6; // 6 AM to 10 PM
-                  const label = hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
-                  return (
-                    <div key={`hour-row-${hour}`} className="contents">
-                      <div
-                        className="text-[10px] md:text-xs text-muted-foreground text-right pr-1.5 md:pr-2 border-b border-border/50 flex items-start justify-end pt-0.5"
-                        style={{ height: isMobile ? 48 : 60, gridColumn: '1' }}
-                      >
-                        {label}
-                      </div>
-                      {days.filter((d): d is Date => d !== null).map((date, dayIdx) => (
+              {(() => {
+                const HOUR_PX = isMobile ? 48 : 60;
+                const START_HOUR = 6;
+                const TOTAL_HOURS = 17; // 6 AM to 10 PM
+                const TOTAL_HEIGHT = TOTAL_HOURS * HOUR_PX;
+                const weekDays = days.filter((d): d is Date => d !== null);
+
+                return (
+                  <div className="flex" style={{ height: TOTAL_HEIGHT }}>
+                    {/* Time labels column */}
+                    <div className="shrink-0 w-10 md:w-12 relative">
+                      {Array.from({ length: TOTAL_HOURS }, (_, i) => {
+                        const hour = i + START_HOUR;
+                        const label = hour === 12 ? '12p' : hour > 12 ? `${hour - 12}p` : `${hour}a`;
+                        return (
+                          <div
+                            key={hour}
+                            className="absolute right-1 md:right-2 text-[9px] md:text-xs text-muted-foreground leading-none"
+                            style={{ top: i * HOUR_PX - 5 }}
+                          >
+                            {label}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Day columns */}
+                    {weekDays.map((date, dayIdx) => {
+                      const dayBookings = getBookingsForDate(date);
+                      return (
                         <div
-                          key={`cell-${hour}-${dayIdx}`}
+                          key={date.toISOString()}
                           className={cn(
-                            'border-b border-l border-border/50',
+                            'flex-1 relative border-l border-border/50',
                             isToday(date) && 'bg-primary/5'
                           )}
-                          style={{ height: isMobile ? 48 : 60 }}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-
-                {/* Booking overlays — one column per day */}
-                {days.filter((d): d is Date => d !== null).map((date, dayIdx) => {
-                  const dayBookings = getBookingsForDate(date);
-                  const HOUR_PX = isMobile ? 48 : 60;
-                  const START_HOUR = 6;
-
-                  return dayBookings.map((booking) => {
-                    const bookingDate = new Date(booking.scheduled_at);
-                    const bookingHour = bookingDate.getHours() + bookingDate.getMinutes() / 60;
-                    const clampedStart = Math.max(bookingHour, START_HOUR);
-                    const topPx = (clampedStart - START_HOUR) * HOUR_PX;
-                    const durationHours = (booking.duration || 60) / 60;
-                    const heightPx = Math.max(durationHours * HOUR_PX, isMobile ? 20 : 24);
-                    const color = getStaffColor(booking.staff_id, staffList);
-                    const teamStaffIds = teamAssignmentMap.get(booking.id) || [];
-                    const teamColors = teamStaffIds
-                      .filter(id => id !== booking.staff_id)
-                      .map(id => getStaffColor(id, staffList));
-
-                    return (
-                      <div
-                        key={booking.id}
-                        className="absolute z-10 px-0.5"
-                        style={{
-                          top: topPx,
-                          height: heightPx,
-                          gridColumn: `${dayIdx + 2}`,
-                          left: `calc(3rem + ${(dayIdx) * (100 - (3 * 100 / (3 + 7 * 16))) / 7}%)`,
-                          width: `calc((100% - 3rem) / 7)`,
-                        }}
-                      >
-                        <button
-                          onClick={() => setSelectedBooking(booking)}
-                          className="w-full h-full rounded text-left px-1 py-0.5 overflow-hidden border-l-[3px] text-[10px] md:text-xs leading-tight select-none cursor-pointer hover:opacity-80 transition-opacity"
-                          style={{
-                            backgroundColor: `${color}25`,
-                            color: color,
-                            borderLeftColor: color,
-                          }}
                         >
-                          <div className="font-semibold truncate">{formatCustomerName(booking.customer)}</div>
-                          {heightPx >= (isMobile ? 32 : 36) && (
-                            <div className="truncate opacity-70">
-                              {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
-                            </div>
-                          )}
-                          {heightPx >= (isMobile ? 48 : 54) && booking.service?.name && (
-                            <div className="truncate opacity-60">{booking.service.name}</div>
-                          )}
-                          {teamColors.length > 0 && (
-                            <div className="flex items-center gap-0.5 mt-0.5">
-                              {teamColors.map((tc, i) => (
-                                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tc }} />
-                              ))}
-                            </div>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  });
-                })}
-              </div>
+                          {/* Hour grid lines */}
+                          {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+                            <div
+                              key={i}
+                              className="absolute w-full border-b border-border/40"
+                              style={{ top: i * HOUR_PX, height: HOUR_PX }}
+                            />
+                          ))}
+
+                          {/* Booking blocks */}
+                          {dayBookings.map((booking) => {
+                            const bookingDate = new Date(booking.scheduled_at);
+                            const bookingHour = bookingDate.getHours() + bookingDate.getMinutes() / 60;
+                            const clampedStart = Math.max(bookingHour, START_HOUR);
+                            const topPx = (clampedStart - START_HOUR) * HOUR_PX;
+                            const durationHours = (booking.duration || 60) / 60;
+                            const heightPx = Math.max(durationHours * HOUR_PX, isMobile ? 22 : 28);
+                            const color = getStaffColor(booking.staff_id, staffList);
+                            const teamIds = teamAssignmentMap.get(booking.id) || [];
+                            const teamColors = teamIds
+                              .filter(id => id !== booking.staff_id)
+                              .map(id => getStaffColor(id, staffList));
+
+                            return (
+                              <button
+                                key={booking.id}
+                                onClick={() => setSelectedBooking(booking)}
+                                className="absolute left-0.5 right-0.5 z-10 rounded text-left px-1 py-0.5 overflow-hidden border-l-[3px] text-[10px] md:text-xs leading-tight select-none cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{
+                                  top: topPx,
+                                  height: heightPx,
+                                  backgroundColor: `${color}25`,
+                                  color: color,
+                                  borderLeftColor: color,
+                                }}
+                              >
+                                <div className="font-semibold truncate">{formatCustomerName(booking.customer)}</div>
+                                {heightPx >= (isMobile ? 32 : 36) && (
+                                  <div className="truncate opacity-70">
+                                    {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  </div>
+                                )}
+                                {heightPx >= (isMobile ? 48 : 54) && booking.service?.name && (
+                                  <div className="truncate opacity-60">{booking.service.name}</div>
+                                )}
+                                {teamColors.length > 0 && (
+                                  <div className="flex items-center gap-0.5 mt-0.5">
+                                    {teamColors.map((tc, i) => (
+                                      <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tc }} />
+                                    ))}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </>
         ) : (
