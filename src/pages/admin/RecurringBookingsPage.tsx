@@ -670,9 +670,15 @@ export default function RecurringBookingsPage() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const key = `${booking.customer_id}__${booking.service_id}`;
-                        const latestDate = latestBookingMap.get(key) || null;
-                        const existingDates = existingDatesMap.get(key);
+                        const isCustomMultiDay = (booking.frequency === 'custom' || booking.frequency.startsWith('custom_'))
+                          && booking.recurring_days_of_week && booking.recurring_days_of_week.length > 1;
+                        // For multi-day custom, use customer-only maps (different service_ids per day)
+                        const latestDate = isCustomMultiDay
+                          ? (latestByCustomer.get(booking.customer_id) || null)
+                          : (latestBookingMap.get(`${booking.customer_id}__${booking.service_id}`) || null);
+                        const existingDates = isCustomMultiDay
+                          ? existingDatesByCustomer.get(booking.customer_id)
+                          : existingDatesMap.get(`${booking.customer_id}__${booking.service_id}`);
                         const nextDate = computeNextDate(booking, latestDate, existingDates, customFrequencies);
                         return nextDate ? (
                           format(nextDate, 'MMM d, yyyy')
