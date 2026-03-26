@@ -605,6 +605,7 @@ function RecurringBookingDialog({
     preferred_time: '',
     total_amount: '',
     is_active: true,
+    day_prices: {} as Record<string, string>,
   });
 
   // Reset form when booking changes or dialog opens
