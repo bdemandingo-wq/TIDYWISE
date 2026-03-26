@@ -628,10 +628,11 @@ function RecurringBookingDialog({
     if (!formData.customer_id || !formData.service_id || !formData.total_amount) {
       return;
     }
+    const isWeekBased = ['weekly', 'biweekly', 'triweekly'].includes(formData.frequency);
     onSave({
       ...formData,
-      preferred_day: formData.frequency === 'monthly' ? null : (formData.preferred_day ? parseInt(formData.preferred_day) : null),
-      preferred_date_of_month: formData.frequency === 'monthly' && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
+      preferred_day: isWeekBased ? (formData.preferred_day ? parseInt(formData.preferred_day) : null) : null,
+      preferred_date_of_month: !isWeekBased && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
       total_amount: parseFloat(formData.total_amount),
       staff_id: formData.staff_id || null,
     });
