@@ -239,7 +239,7 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
               Need to fill out a W-9?
             </p>
             <a
-              href="https://share.google/I0X0F4dLE2kQ1y99n"
+              href="https://www.irs.gov/pub/irs-pdf/fw9.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-primary underline hover:text-primary/80 mt-1 inline-block"
