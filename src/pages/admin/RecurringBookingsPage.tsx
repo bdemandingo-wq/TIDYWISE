@@ -721,11 +721,15 @@ function RecurringBookingDialog({
 
     const primaryStaffId = teamMembers.length > 0 ? teamMembers[0].staff_id : null;
 
+    // Convert custom_${id} frequency to 'custom' for DB constraint compliance
+    const dbFrequency = formData.frequency.startsWith('custom_') ? 'custom' : formData.frequency;
+    const recurringDaysOfWeek = selectedCustomFreq?.days_of_week || null;
+
     onSave({
       customer_id: formData.customer_id,
       service_id: formData.service_id || null,
       staff_id: primaryStaffId,
-      frequency: formData.frequency,
+      frequency: dbFrequency,
       preferred_day: isWeekBased ? (formData.preferred_day ? parseInt(formData.preferred_day) : null) : null,
       preferred_date_of_month: !isWeekBased && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
       preferred_time: formData.preferred_time || null,
@@ -733,6 +737,7 @@ function RecurringBookingDialog({
       is_active: formData.is_active,
       day_prices: dayPricesPayload,
       day_services: dayServicesPayload,
+      recurring_days_of_week: recurringDaysOfWeek,
     });
   };
 
