@@ -603,6 +603,11 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
             )}
           </div>
 
+          {/* Signable Documents Section */}
+          <div className="space-y-2 pt-4 border-t">
+            <AdminSignableDocManager />
+          </div>
+
           {/* Password Reset Section */}
           <div className="space-y-2 pt-4 border-t">
             <Label className="flex items-center gap-2">
