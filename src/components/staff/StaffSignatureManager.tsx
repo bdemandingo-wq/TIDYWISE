@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, CheckCircle2, PenLine, Loader2, Eye, Clock } from 'lucide-react';
+import { FileText, CheckCircle2, PenLine, Loader2, Eye, Clock, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -40,6 +41,8 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
   const [signingDocUrl, setSigningDocUrl] = useState<string | null>(null);
   const [previewingDocId, setPreviewingDocId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
 
   // Fetch signable documents for this org
   const { data: signableDocs = [], isLoading: loadingDocs } = useQuery({
@@ -140,7 +143,8 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     },
   });
 
-  const handlePreview = async (filePath: string) => {
+  const handlePreview = async (filePath: string, title: string = 'Document') => {
+    const isPdf = filePath.toLowerCase().endsWith('.pdf');
     const { data, error } = await supabase.storage
       .from('staff-documents')
       .createSignedUrl(filePath, 3600);
@@ -148,7 +152,16 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       toast.error('Failed to preview document');
       return;
     }
-    window.open(data.signedUrl, '_blank');
+    if (isPdf) {
+      // Show inline PDF preview
+      setPreviewUrl(data.signedUrl);
+      setPreviewTitle(title);
+    } else {
+      // Non-PDF files (DOCX etc.) - use Google Docs Viewer for inline preview
+      const encodedUrl = encodeURIComponent(data.signedUrl);
+      setPreviewUrl(`https://docs.google.com/gview?url=${encodedUrl}&embedded=true`);
+      setPreviewTitle(title);
+    }
   };
 
   const regeneratePdfMutation = useMutation({
@@ -287,7 +300,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                         variant="outline"
                         size="sm"
                         className="gap-1 h-8 text-xs"
-                        onClick={() => handlePreview(sig.signed_pdf_path!)}
+                        onClick={() => handlePreview(sig.signed_pdf_path!, doc.title + ' (Signed)')}
                       >
                         <Eye className="h-3 w-3" /> View Signed PDF
                       </Button>
@@ -318,7 +331,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                     variant="outline"
                     size="sm"
                     className="gap-1 flex-1 h-10"
-                    onClick={() => handlePreview(doc.file_path)}
+                    onClick={() => handlePreview(doc.file_path, doc.title)}
                   >
                     <Eye className="h-3.5 w-3.5" /> Review Document
                   </Button>
@@ -387,6 +400,24 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
           </Card>
         );
       })}
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { setPreviewUrl(null); setPreviewTitle(''); } }}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-sm">{previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 px-4 pb-4">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-lg border"
+                title={previewTitle}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
