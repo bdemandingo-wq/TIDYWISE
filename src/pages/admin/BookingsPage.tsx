@@ -514,10 +514,10 @@ export default function BookingsPage() {
           payment_status: newStatus as any,
         });
         toast({
-          title: "Refund Recorded",
+          title: "Refund Recorded (Manual)",
           description: refundType === 'full'
-            ? `Full refund of $${booking.total_amount?.toFixed(2)} recorded`
-            : `Partial refund of $${parseFloat(refundAmount).toFixed(2)} recorded`,
+            ? `Full refund of $${booking.total_amount?.toFixed(2)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
+            : `Partial refund of $${parseFloat(refundAmount).toFixed(2)} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
         setRefundType('full');
