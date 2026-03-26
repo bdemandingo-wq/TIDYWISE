@@ -137,10 +137,7 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
   }
 
   if (booking.payment_status === 'partial') {
-    const isLikelyHold = hasPaymentIntent && booking.status !== 'completed' && booking.status !== 'cancelled';
-    return isLikelyHold
-      ? { label: 'Hold', bg: 'bg-amber-50', text: 'text-amber-700', icon: '◐' }
-      : { label: 'Partially Refunded', bg: 'bg-slate-100', text: 'text-slate-700', icon: '↩' };
+    return { label: 'Partially Refunded', bg: 'bg-slate-100', text: 'text-slate-700', icon: '↩' };
   }
 
   if (hasPaymentIntent) {
