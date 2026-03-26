@@ -1,0 +1,1 @@
+ALTER TABLE public.recurring_bookings ADD COLUMN preferred_date_of_month integer;

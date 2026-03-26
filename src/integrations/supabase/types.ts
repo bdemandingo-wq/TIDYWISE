@@ -4570,6 +4570,7 @@ export type Database = {
           next_scheduled_at: string | null
           notes: string | null
           organization_id: string | null
+          preferred_date_of_month: number | null
           preferred_day: number | null
           preferred_time: string | null
           recurring_days_of_week: number[] | null
@@ -4596,6 +4597,7 @@ export type Database = {
           next_scheduled_at?: string | null
           notes?: string | null
           organization_id?: string | null
+          preferred_date_of_month?: number | null
           preferred_day?: number | null
           preferred_time?: string | null
           recurring_days_of_week?: number[] | null
@@ -4622,6 +4624,7 @@ export type Database = {
           next_scheduled_at?: string | null
           notes?: string | null
           organization_id?: string | null
+          preferred_date_of_month?: number | null
           preferred_day?: number | null
           preferred_time?: string | null
           recurring_days_of_week?: number[] | null
