@@ -11,44 +11,6 @@ import { format } from 'date-fns';
 import { SignaturePad } from './SignaturePad';
 import { PDFSignatureOverlay } from './PDFSignatureOverlay';
 
-function DocumentPreviewEmbed({ filePath }: { filePath: string }) {
-  const { data: url, isLoading } = useQuery({
-    queryKey: ['doc-preview-url', filePath],
-    queryFn: async () => {
-      const { data, error } = await supabase.storage
-        .from('staff-documents')
-        .createSignedUrl(filePath, 3600);
-      if (error || !data?.signedUrl) throw new Error('Failed to load document');
-      return data.signedUrl;
-    },
-    staleTime: 1000 * 60 * 30,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 bg-muted/30 rounded-lg border">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!url) return null;
-
-  return (
-    <div className="rounded-lg border overflow-hidden bg-muted/20">
-      <div className="bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-        <FileText className="h-3.5 w-3.5" />
-        Document Preview — Review before signing
-      </div>
-      <iframe
-        src={`${url}#toolbar=0&navpanes=0`}
-        className="w-full border-0"
-        style={{ height: 400 }}
-        title="Document preview"
-      />
-    </div>
-  );
-}
 
 interface SignableDoc {
   id: string;
