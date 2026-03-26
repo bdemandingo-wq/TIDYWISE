@@ -153,15 +153,13 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       toast.error('Failed to preview document');
       return;
     }
+    setPreviewTitle(title);
+    setPreviewIsPdf(isPdf);
     if (isPdf) {
-      // Show inline PDF preview
       setPreviewUrl(data.signedUrl);
-      setPreviewTitle(title);
     } else {
-      // Non-PDF files (DOCX etc.) - use Google Docs Viewer for inline preview
       const encodedUrl = encodeURIComponent(data.signedUrl);
       setPreviewUrl(`https://docs.google.com/gview?url=${encodedUrl}&embedded=true`);
-      setPreviewTitle(title);
     }
   };
 
