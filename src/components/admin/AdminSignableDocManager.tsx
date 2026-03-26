@@ -61,24 +61,26 @@ function SortableDocItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="border rounded-lg p-3 flex items-center gap-3 bg-background">
-      <button type="button" className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-3 flex items-center gap-2 bg-background">
+      <button type="button" className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground min-w-[28px] min-h-[44px] flex items-center justify-center" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </button>
       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{doc.title}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground truncate">
           {doc.file_name} · {format(new Date(doc.created_at), 'MMM d, yyyy')}
         </p>
       </div>
-      <Switch checked={doc.is_active} onCheckedChange={(checked) => onToggle(doc.id, checked)} />
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPreview(doc.file_path)}>
-        <Eye className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(doc)}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        <Switch checked={doc.is_active} onCheckedChange={(checked) => onToggle(doc.id, checked)} />
+        <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] h-11 w-11" onClick={() => onPreview(doc.file_path)}>
+          <Eye className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="min-w-[44px] min-h-[44px] h-11 w-11 text-destructive" onClick={() => onDelete(doc)}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -195,13 +197,21 @@ export function AdminSignableDocManager() {
   });
 
   const handlePreview = async (filePath: string) => {
-    const { data, error } = await supabase.storage.from('staff-documents').download(filePath);
-    if (error || !data) {
+    // Pre-open window BEFORE async call to avoid iOS Safari popup blocker
+    const newTab = window.open('about:blank', '_blank');
+
+    const { data, error } = await supabase.storage.from('staff-documents').createSignedUrl(filePath, 300);
+    if (error || !data?.signedUrl) {
+      if (newTab) newTab.close();
       toast.error('Failed to preview');
       return;
     }
-    const url = URL.createObjectURL(data);
-    window.open(url, '_blank');
+
+    if (newTab) {
+      newTab.location.href = data.signedUrl;
+    } else {
+      window.location.href = data.signedUrl;
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
