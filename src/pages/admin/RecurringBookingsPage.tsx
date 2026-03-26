@@ -660,10 +660,21 @@ function RecurringBookingDialog({
           dayServicesStr[k] = v;
         }
       }
+      // Resolve 'custom' frequency back to custom_${id} for the Select
+      let resolvedFrequency = booking?.frequency || 'weekly';
+      if (resolvedFrequency === 'custom' && booking?.recurring_days_of_week && customFrequencies.length > 0) {
+        const matchedCf = customFrequencies.find((cf: any) => {
+          const cfDays = [...(cf.days_of_week || [])].sort().join(',');
+          const bookingDays = [...(booking.recurring_days_of_week || [])].sort().join(',');
+          return cfDays === bookingDays;
+        });
+        if (matchedCf) resolvedFrequency = `custom_${matchedCf.id}`;
+      }
+
       setFormData({
         customer_id: booking?.customer_id || '',
         service_id: booking?.service_id || '',
-        frequency: booking?.frequency || 'weekly',
+        frequency: resolvedFrequency,
         preferred_day: booking?.preferred_day?.toString() || '',
         preferred_date_of_month: (booking as any)?.preferred_date_of_month?.toString() || '',
         preferred_time: booking?.preferred_time || '',
@@ -721,11 +732,15 @@ function RecurringBookingDialog({
 
     const primaryStaffId = teamMembers.length > 0 ? teamMembers[0].staff_id : null;
 
+    // Convert custom_${id} frequency to 'custom' for DB constraint compliance
+    const dbFrequency = formData.frequency.startsWith('custom_') ? 'custom' : formData.frequency;
+    const recurringDaysOfWeek = selectedCustomFreq?.days_of_week || null;
+
     onSave({
       customer_id: formData.customer_id,
       service_id: formData.service_id || null,
       staff_id: primaryStaffId,
-      frequency: formData.frequency,
+      frequency: dbFrequency,
       preferred_day: isWeekBased ? (formData.preferred_day ? parseInt(formData.preferred_day) : null) : null,
       preferred_date_of_month: !isWeekBased && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
       preferred_time: formData.preferred_time || null,
@@ -733,6 +748,7 @@ function RecurringBookingDialog({
       is_active: formData.is_active,
       day_prices: dayPricesPayload,
       day_services: dayServicesPayload,
+      recurring_days_of_week: recurringDaysOfWeek,
     });
   };
 
