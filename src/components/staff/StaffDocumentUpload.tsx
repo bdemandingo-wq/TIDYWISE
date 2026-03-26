@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
 const DOCUMENT_TYPES = [
-  { value: 'insurance', label: 'Insurance Certificate', icon: Shield, required: true },
+  { value: 'insurance', label: 'Insurance Certificate', icon: Shield, required: false },
   { value: 'w9', label: 'W-9 Form', icon: FileText, required: true },
   { value: 'id', label: 'Government ID', icon: FileText, required: true },
   { value: 'certification', label: 'Certification', icon: FileText, required: false },
