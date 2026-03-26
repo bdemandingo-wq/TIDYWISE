@@ -42,6 +42,7 @@ export function StaffEventNotifications() {
       case 'document_uploaded': return <FileText className="w-4 h-4 text-blue-400" />;
       case 'document_signed': return <PenLine className="w-4 h-4 text-green-400" />;
       case 'payout_setup': return <Banknote className="w-4 h-4 text-amber-400" />;
+      case 'booking_claimed': return <Check className="w-4 h-4 text-emerald-400" />;
       default: return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
   };

@@ -66,6 +66,7 @@ export function PendingDocumentsReview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-pending-documents'] });
       queryClient.invalidateQueries({ queryKey: ['admin-staff-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-event-notifications'] });
       toast.success(`Document ${variables.status}`);
       setReviewingDocId(null);
       setAdminNote('');
