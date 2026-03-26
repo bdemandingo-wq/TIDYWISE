@@ -466,8 +466,8 @@ export default function RecurringBookingsPage() {
     } else {
       // Single-day frequency (weekly, monthly, etc.) — generate one booking
       const key = `${recurring.customer_id}__${recurring.service_id}`;
-      const latestDate = latestBookingMap.get(key) || null;
-      const existingDates = existingDatesMap.get(key);
+      const latestDate = latestBookingMap.get(key) || latestByCustomer.get(recurring.customer_id) || null;
+      const existingDates = existingDatesMap.get(key) || existingDatesByCustomer.get(recurring.customer_id);
       const nextDate = computeNextDate(recurring, latestDate, existingDates, customFrequencies);
 
       if (!nextDate) {
