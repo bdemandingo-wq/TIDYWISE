@@ -29,7 +29,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between h-10 md:h-14 px-2 md:px-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 md:hidden" aria-hidden="true" />
+            <div className="w-12 md:hidden" aria-hidden="true" />
             <div>
               <h1 className="text-sm md:text-xl font-semibold text-foreground leading-tight">{title}</h1>
             </div>

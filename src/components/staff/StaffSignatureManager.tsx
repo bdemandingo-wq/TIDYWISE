@@ -139,16 +139,25 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   });
 
   const handlePreview = async (filePath: string) => {
+    // Pre-open window BEFORE async call to avoid iOS Safari popup blocker
+    const newTab = window.open('about:blank', '_blank');
+
     const { data, error } = await supabase.storage
       .from('staff-documents')
       .createSignedUrl(filePath, 300);
 
     if (error || !data?.signedUrl) {
+      if (newTab) newTab.close();
       toast.error('Failed to open document preview');
       return;
     }
 
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    if (newTab) {
+      newTab.location.href = data.signedUrl;
+    } else {
+      // Fallback: direct navigation if popup was still blocked
+      window.location.href = data.signedUrl;
+    }
   };
 
   const regeneratePdfMutation = useMutation({
