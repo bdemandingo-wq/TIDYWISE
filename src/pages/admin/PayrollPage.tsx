@@ -949,25 +949,6 @@ export default function PayrollPage() {
                               <AlertTriangle className="w-3 h-3 mr-1" />1099
                             </Badge>
                           )}
-                          {s.totalPay > 0 && (
-                            paidStaffIds.has(s.id) ? (
-                              <Badge
-                                variant="outline"
-                                className="border-green-500 bg-green-50 text-green-700 cursor-pointer hover:bg-green-100"
-                                onClick={() => handleMarkPaid(s.id, s.name, s.totalPay)}
-                              >
-                                <Check className="w-3 h-3 mr-1" />Paid
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="border-muted-foreground text-muted-foreground cursor-pointer hover:bg-muted"
-                                onClick={() => handleMarkPaid(s.id, s.name, s.totalPay)}
-                              >
-                                Mark Paid
-                              </Badge>
-                            )
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
