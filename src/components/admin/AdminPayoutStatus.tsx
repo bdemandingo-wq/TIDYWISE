@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useOrgId } from '@/hooks/useOrgId';
 import { Badge } from '@/components/ui/badge';
 import { Banknote, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
@@ -10,17 +10,21 @@ interface AdminPayoutStatusProps {
 }
 
 export function AdminPayoutStatus({ staffId, staffName }: AdminPayoutStatusProps) {
+  const { organizationId } = useOrgId();
+
   const { data: payoutAccount, isLoading } = useQuery({
-    queryKey: ['admin-staff-payout', staffId],
+    queryKey: ['admin-staff-payout', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_payout_accounts')
         .select('*')
         .eq('staff_id', staffId)
+        .eq('organization_id', organizationId!)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+    enabled: !!staffId && !!organizationId,
   });
 
   const getStatusBadge = () => {

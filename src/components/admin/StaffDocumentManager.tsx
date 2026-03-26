@@ -48,6 +48,7 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
         .from('staff_documents')
         .select('*')
         .eq('staff_id', staffId)
+        .eq('organization_id', organizationId!)
         .order('uploaded_at', { ascending: false });
       if (error) throw error;
       return (data || []) as StaffDocument[];
