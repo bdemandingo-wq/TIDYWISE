@@ -78,6 +78,7 @@ export default function StaffPortal() {
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const [newJobAlert, setNewJobAlert] = useState(false);
   const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [hasSetAvailability, setHasSetAvailability] = useState<boolean | null>(null);
 
   // Get staff record for current user
@@ -569,10 +570,7 @@ export default function StaffPortal() {
           <OnboardingProgress
             staffId={staffInfo.id}
             organizationId={staffInfo.organization_id}
-            onNavigate={(tab) => {
-              const tabTrigger = document.querySelector(`[value="${tab}"]`) as HTMLButtonElement;
-              if (tabTrigger) tabTrigger.click();
-            }}
+            onNavigate={(tab) => setActiveTab(tab)}
           />
         )}
 
@@ -582,7 +580,7 @@ export default function StaffPortal() {
             <p className="text-sm text-muted-foreground">You must set your working hours before you can view or claim jobs.</p>
           </div>
         )}
-        <Tabs defaultValue={hasSetAvailability === false ? 'availability' : 'my-jobs'} className="space-y-4">
+        <Tabs value={activeTab || (hasSetAvailability === false ? 'availability' : 'my-jobs')} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
             <TabsTrigger value="my-jobs" className="gap-2">
               <Briefcase className="w-4 h-4 hidden sm:inline" />
