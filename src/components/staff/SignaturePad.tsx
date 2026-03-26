@@ -34,7 +34,9 @@ export function SignaturePad({ onSave, onCancel, saving }: Props) {
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-    ctx.strokeStyle = 'hsl(var(--foreground))';
+    // Canvas can't resolve CSS variables — compute the actual color
+    const computed = getComputedStyle(canvas);
+    ctx.strokeStyle = computed.color || '#000000';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -114,7 +116,7 @@ export function SignaturePad({ onSave, onCancel, saving }: Props) {
           <div className="relative border-2 border-dashed border-muted-foreground/30 rounded-lg overflow-hidden bg-background">
             <canvas
               ref={canvasRef}
-              className="w-full touch-none"
+              className="w-full touch-none text-foreground cursor-crosshair"
               style={{ height: 180 }}
               onMouseDown={startDraw}
               onMouseMove={draw}
