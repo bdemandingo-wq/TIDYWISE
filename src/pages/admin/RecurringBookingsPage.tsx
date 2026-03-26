@@ -640,16 +640,35 @@ function RecurringBookingDialog({
   }, [booking, open]);
 
   const handleSubmit = () => {
-    if (!formData.customer_id || !formData.service_id || !formData.total_amount) {
-      return;
-    }
+    if (!formData.customer_id || !formData.service_id) return;
+    // For multi-day, require at least one day price; for single-day, require total_amount
+    if (!isMultiDay && !formData.total_amount) return;
+
     const isWeekBased = ['weekly', 'biweekly', 'triweekly'].includes(formData.frequency);
+
+    // Build day_prices as numeric JSON
+    let dayPricesPayload: Record<string, number> | null = null;
+    let effectiveTotalAmount = parseFloat(formData.total_amount) || 0;
+
+    if (isMultiDay && selectedCustomFreq?.days_of_week) {
+      dayPricesPayload = {};
+      let sum = 0;
+      for (const dayIdx of selectedCustomFreq.days_of_week) {
+        const val = parseFloat(formData.day_prices[dayIdx.toString()] || '0');
+        dayPricesPayload[dayIdx.toString()] = val;
+        sum += val;
+      }
+      // Use average as the series-level total_amount for display
+      effectiveTotalAmount = Math.round((sum / selectedCustomFreq.days_of_week.length) * 100) / 100;
+    }
+
     onSave({
       ...formData,
       preferred_day: isWeekBased ? (formData.preferred_day ? parseInt(formData.preferred_day) : null) : null,
       preferred_date_of_month: !isWeekBased && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
-      total_amount: parseFloat(formData.total_amount),
+      total_amount: effectiveTotalAmount,
       staff_id: formData.staff_id || null,
+      day_prices: dayPricesPayload,
     });
   };
 
