@@ -396,7 +396,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     if (viewMode === 'week') {
       const weekStart = startOfWeek(currentDate);
-      const days: (Date | null)[] = [];
+      const days: Date[] = [];
       for (let i = 0; i < 7; i++) {
         days.push(addDays(weekStart, i));
       }
