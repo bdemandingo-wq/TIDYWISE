@@ -962,13 +962,6 @@ function RecurringBookingDialog({
     </Dialog>
   );
 }
-
-  // Determine if current frequency is a multi-day custom frequency
-  const selectedCustomFreq = formData.frequency.startsWith('custom_')
-    ? customFrequencies.find(cf => cf.id === formData.frequency.replace('custom_', ''))
-    : null;
-  const isMultiDay = selectedCustomFreq?.days_of_week && selectedCustomFreq.days_of_week.length > 1;
-
   // Reset form when booking changes or dialog opens
   useEffect(() => {
     if (open) {
