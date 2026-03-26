@@ -289,7 +289,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                         variant="outline"
                         size="sm"
                         className="gap-1 h-8 text-xs"
-                        onClick={() => handlePreview(sig.signed_pdf_path!, doc.title + ' (Signed)')}
+                        onClick={() => handlePreview(sig.signed_pdf_path!)}
                       >
                         <Eye className="h-3 w-3" /> View Signed PDF
                       </Button>
@@ -320,7 +320,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                     variant="outline"
                     size="sm"
                     className="gap-1 flex-1 h-10"
-                    onClick={() => handlePreview(doc.file_path, doc.title)}
+                    onClick={() => handlePreview(doc.file_path)}
                   >
                     <Eye className="h-3.5 w-3.5" /> Review Document
                   </Button>
