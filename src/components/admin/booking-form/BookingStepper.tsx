@@ -1318,6 +1318,24 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             </div>
           )}
 
+          {/* Apply to future bookings checkbox — only for editing existing recurring bookings */}
+          {booking?.id && booking.id.length > 10 && booking.frequency && booking.frequency !== 'one_time' && booking.frequency !== 'one-time' && getFutureSeriesBookings().length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <Checkbox
+                id="applyToFuture"
+                checked={applyToFuture}
+                onCheckedChange={(checked) => setApplyToFuture(checked as boolean)}
+              />
+              <Label
+                htmlFor="applyToFuture"
+                className="text-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                Apply these changes to all future bookings in this series ({getFutureSeriesBookings().length})
+              </Label>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
