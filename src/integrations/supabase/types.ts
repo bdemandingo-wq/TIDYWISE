@@ -4562,6 +4562,7 @@ export type Database = {
           city: string | null
           created_at: string
           customer_id: string | null
+          day_prices: Json | null
           extras: Json | null
           frequency: string
           id: string
@@ -4589,6 +4590,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           customer_id?: string | null
+          day_prices?: Json | null
           extras?: Json | null
           frequency?: string
           id?: string
@@ -4616,6 +4618,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           customer_id?: string | null
+          day_prices?: Json | null
           extras?: Json | null
           frequency?: string
           id?: string

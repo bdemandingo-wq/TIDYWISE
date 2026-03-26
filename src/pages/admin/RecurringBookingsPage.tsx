@@ -359,10 +359,21 @@ export default function RecurringBookingsPage() {
       return;
     }
 
+    // Apply day-matched pricing if day_prices exists
+    const dayPrices = (recurring as any).day_prices as Record<string, number> | null;
+    let bookingAmount = recurring.total_amount;
+    if (dayPrices) {
+      const dayOfWeek = nextDate.getDay().toString();
+      if (dayPrices[dayOfWeek] != null) {
+        bookingAmount = dayPrices[dayOfWeek];
+      }
+    }
+
     const scheduledAt = applyTime(new Date(nextDate)).toISOString();
 
     const { error } = await supabase.from('bookings').insert([{
       ...baseBooking,
+      total_amount: bookingAmount,
       scheduled_at: scheduledAt,
     }]);
 
@@ -605,11 +616,25 @@ function RecurringBookingDialog({
     preferred_time: '',
     total_amount: '',
     is_active: true,
+    day_prices: {} as Record<string, string>,
   });
+
+  // Determine if current frequency is a multi-day custom frequency
+  const selectedCustomFreq = formData.frequency.startsWith('custom_')
+    ? customFrequencies.find(cf => cf.id === formData.frequency.replace('custom_', ''))
+    : null;
+  const isMultiDay = selectedCustomFreq?.days_of_week && selectedCustomFreq.days_of_week.length > 1;
 
   // Reset form when booking changes or dialog opens
   useEffect(() => {
     if (open) {
+      const existingDayPrices = (booking as any)?.day_prices as Record<string, number> | null;
+      const dayPricesStr: Record<string, string> = {};
+      if (existingDayPrices) {
+        for (const [k, v] of Object.entries(existingDayPrices)) {
+          dayPricesStr[k] = v.toString();
+        }
+      }
       setFormData({
         customer_id: booking?.customer_id || '',
         service_id: booking?.service_id || '',
@@ -620,21 +645,41 @@ function RecurringBookingDialog({
         preferred_time: booking?.preferred_time || '',
         total_amount: booking?.total_amount?.toString() || '',
         is_active: booking?.is_active ?? true,
+        day_prices: dayPricesStr,
       });
     }
   }, [booking, open]);
 
   const handleSubmit = () => {
-    if (!formData.customer_id || !formData.service_id || !formData.total_amount) {
-      return;
-    }
+    if (!formData.customer_id || !formData.service_id) return;
+    // For multi-day, require at least one day price; for single-day, require total_amount
+    if (!isMultiDay && !formData.total_amount) return;
+
     const isWeekBased = ['weekly', 'biweekly', 'triweekly'].includes(formData.frequency);
+
+    // Build day_prices as numeric JSON
+    let dayPricesPayload: Record<string, number> | null = null;
+    let effectiveTotalAmount = parseFloat(formData.total_amount) || 0;
+
+    if (isMultiDay && selectedCustomFreq?.days_of_week) {
+      dayPricesPayload = {};
+      let sum = 0;
+      for (const dayIdx of selectedCustomFreq.days_of_week) {
+        const val = parseFloat(formData.day_prices[dayIdx.toString()] || '0');
+        dayPricesPayload[dayIdx.toString()] = val;
+        sum += val;
+      }
+      // Use average as the series-level total_amount for display
+      effectiveTotalAmount = Math.round((sum / selectedCustomFreq.days_of_week.length) * 100) / 100;
+    }
+
     onSave({
       ...formData,
       preferred_day: isWeekBased ? (formData.preferred_day ? parseInt(formData.preferred_day) : null) : null,
       preferred_date_of_month: !isWeekBased && formData.preferred_date_of_month ? parseInt(formData.preferred_date_of_month) : null,
-      total_amount: parseFloat(formData.total_amount),
+      total_amount: effectiveTotalAmount,
       staff_id: formData.staff_id || null,
+      day_prices: dayPricesPayload,
     });
   };
 
@@ -768,15 +813,38 @@ function RecurringBookingDialog({
               </Select>
             </div>
           </div>
-          <div>
-            <Label>Amount per Visit *</Label>
-            <Input
-              type="number"
-              value={formData.total_amount}
-              onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
-              placeholder="0.00"
-            />
-          </div>
+          {isMultiDay && selectedCustomFreq?.days_of_week ? (
+            <div>
+              <Label>Amount per Day *</Label>
+              <div className="space-y-2 mt-1">
+                {selectedCustomFreq.days_of_week.sort((a, b) => a - b).map((dayIdx) => (
+                  <div key={dayIdx} className="flex items-center gap-3">
+                    <span className="text-sm font-medium w-24 shrink-0">{DAYS_OF_WEEK[dayIdx]}</span>
+                    <Input
+                      type="number"
+                      value={formData.day_prices[dayIdx.toString()] || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        day_prices: { ...formData.day_prices, [dayIdx.toString()]: e.target.value },
+                      })}
+                      placeholder="0.00"
+                      className="flex-1"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label>Amount per Visit *</Label>
+              <Input
+                type="number"
+                value={formData.total_amount}
+                onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Switch
               checked={formData.is_active}
