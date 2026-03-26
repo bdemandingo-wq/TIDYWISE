@@ -125,8 +125,9 @@ export function AdminSignableDocManager() {
       return;
     }
     const ext = '.' + (file.name.split('.').pop()?.toLowerCase() || '');
-    if (ext !== '.pdf' || file.type !== 'application/pdf') {
-      toast.error('Only PDF files are supported for on-document signing');
+    const allowedExts = ['.pdf', '.doc', '.docx'];
+    if (!allowedExts.includes(ext)) {
+      toast.error('Only PDF, DOC, and DOCX files are supported');
       return;
     }
 
