@@ -46,7 +46,16 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
           returnUrl: window.location.origin,
         },
       });
-      if (error) throw error;
+
+      if (error) {
+        const edgeError = (data as { error?: string } | null)?.error;
+        throw new Error(edgeError || error.message || 'Failed to start payout setup');
+      }
+
+      if (!data?.url) {
+        throw new Error('No onboarding link was returned. Please try again.');
+      }
+
       return data as { url: string; accountId: string };
     },
     onSuccess: (data) => {
