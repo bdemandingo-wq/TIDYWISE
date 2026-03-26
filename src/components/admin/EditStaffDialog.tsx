@@ -24,6 +24,7 @@ import { geocodeAddress } from '@/lib/distanceUtils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff, MapPin, Loader2 } from 'lucide-react';
+import { StaffDocumentManager } from '@/components/admin/StaffDocumentManager';
 
 const STAFF_COLOR_OPTIONS = [
   { value: '#3b82f6', label: 'Blue' },
@@ -588,6 +589,17 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               placeholder="Brief description..."
               rows={3}
             />
+          </div>
+
+          {/* Staff Documents Section */}
+          <div className="space-y-2 pt-4 border-t">
+            <Label className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Uploaded Documents
+            </Label>
+            {staff && (
+              <StaffDocumentManager staffId={staff.id} staffName={staff.name} />
+            )}
           </div>
 
           {/* Password Reset Section */}

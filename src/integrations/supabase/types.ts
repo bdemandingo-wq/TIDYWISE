@@ -5317,32 +5317,44 @@ export type Database = {
       }
       staff_documents: {
         Row: {
+          admin_note: string | null
           document_type: string
           file_name: string
           file_path: string
           id: string
           organization_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           staff_id: string
+          status: string
           uploaded_at: string
           user_id: string
         }
         Insert: {
+          admin_note?: string | null
           document_type?: string
           file_name: string
           file_path: string
           id?: string
           organization_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           staff_id: string
+          status?: string
           uploaded_at?: string
           user_id: string
         }
         Update: {
+          admin_note?: string | null
           document_type?: string
           file_name?: string
           file_path?: string
           id?: string
           organization_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           staff_id?: string
+          status?: string
           uploaded_at?: string
           user_id?: string
         }
