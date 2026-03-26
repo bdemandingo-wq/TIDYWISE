@@ -255,17 +255,20 @@ export function AdminSignableDocManager() {
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
               dragOver ? 'border-primary bg-primary/10' : 'border-muted-foreground/30 hover:border-primary/50'
-            } ${(!title.trim() || uploading) ? 'opacity-50 pointer-events-none' : ''}`}
+            } ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              if (!title.trim() || uploading) return;
+              if (uploading) return;
               const file = e.dataTransfer.files?.[0];
               if (file) processFile(file);
             }}
-            onClick={() => title.trim() && !uploading && fileInputRef.current?.click()}
+            onClick={() => {
+              if (uploading) return;
+              fileInputRef.current?.click();
+            }}
           >
             {uploading ? (
               <div className="flex flex-col items-center gap-2">
