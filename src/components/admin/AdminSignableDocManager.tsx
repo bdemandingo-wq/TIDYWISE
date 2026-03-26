@@ -263,14 +263,7 @@ export function AdminSignableDocManager() {
               setDragOver(false);
               if (!title.trim() || uploading) return;
               const file = e.dataTransfer.files?.[0];
-              if (file) {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                if (fileInputRef.current) {
-                  fileInputRef.current.files = dt.files;
-                  fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-              }
+              if (file) processFile(file);
             }}
             onClick={() => title.trim() && !uploading && fileInputRef.current?.click()}
           >
