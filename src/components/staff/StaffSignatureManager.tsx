@@ -24,6 +24,7 @@ interface Signature {
   signature_data: string;
   signature_type: string;
   signed_at: string;
+  signed_pdf_path: string | null;
 }
 
 interface Props {
@@ -59,7 +60,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_signatures')
-        .select('id, signable_document_id, signature_data, signature_type, signed_at')
+        .select('id, signable_document_id, signature_data, signature_type, signed_at, signed_pdf_path')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId);
       if (error) throw error;
