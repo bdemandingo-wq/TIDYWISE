@@ -7,8 +7,6 @@ import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -173,8 +171,6 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   const [sendingConfirmationEmail, setSendingConfirmationEmail] = useState(false);
   const [sendingQuoteEmail, setSendingQuoteEmail] = useState(false);
   const [steps, setSteps] = useState<StepItem[]>(DEFAULT_STEPS);
-  const [showRecurringDialog, setShowRecurringDialog] = useState(false);
-  const [pendingBookingData, setPendingBookingData] = useState<any>(null);
   const [applyToFuture, setApplyToFuture] = useState(false);
   
   // Get all bookings to check for future recurring bookings
@@ -720,12 +716,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   };
 
   // Check if this customer has future bookings that could be affected by changes
-  const getFutureBookingsForCustomer = () => {
+  const getFutureSeriesBookings = () => {
     if (!booking?.customer?.id) return [];
     const now = new Date();
     return allBookings.filter(b => 
       b.customer?.id === booking.customer?.id &&
       b.id !== booking.id &&
+      b.frequency === booking.frequency &&
+      b.service?.id === booking.service?.id &&
       isAfter(new Date(b.scheduled_at), now) &&
       !['cancelled', 'completed'].includes(b.status)
     );
@@ -800,25 +798,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       }
     }
 
-    // Check if we're editing an existing booking and important fields changed
-    // Empty string id means duplicate - treat as new booking
-    const isExistingBooking = booking?.id && booking.id.length > 10;
-    if (isExistingBooking && !skipRecurringCheck) {
-      const changedFields = getChangedFields();
-      const futureBookings = getFutureBookingsForCustomer();
-      
-      if (changedFields.length > 0 && futureBookings.length > 0) {
-        const bookingData = await buildBookingData(isDraft);
-        setPendingBookingData({ bookingData, isDraft, futureBookings, changedFields });
-        setShowRecurringDialog(true);
-        return;
-      }
-    }
-
-    await executeSubmit(isDraft);
+    await executeSubmit(isDraft, applyToFuture);
   };
 
-  const executeSubmit = async (isDraft: boolean = false, updateFutureBookings: boolean = false) => {
+  const executeSubmit = async (isDraft: boolean = false, shouldApplyToFuture: boolean = false) => {
     if (isDraft) {
       setSavingDraft(true);
     } else {
@@ -826,7 +809,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     }
 
     try {
-      const bookingData = pendingBookingData?.bookingData || await buildBookingData(isDraft);
+      const bookingData = await buildBookingData(isDraft);
 
       // Check for valid UUID - empty string means this is a duplicate (new booking)
       const isExistingBooking = booking?.id && booking.id.length > 10;
@@ -934,36 +917,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
         
         // If user chose to apply to future bookings, update those too
-        if (updateFutureBookings && pendingBookingData?.futureBookings && pendingBookingData?.changedFields) {
-          const futureBookings = pendingBookingData.futureBookings as BookingWithDetails[];
-          const changedFields = pendingBookingData.changedFields as { key: string }[];
+        if (shouldApplyToFuture) {
+          const futureBookings = getFutureSeriesBookings();
+          const changedFields = getChangedFields();
           
-          for (const futureBooking of futureBookings) {
-            const updateData: Record<string, any> = { id: futureBooking.id };
-            
-            for (const change of changedFields) {
-              if (change.key === 'staff_id') {
-                updateData.staff_id = bookingData.staff_id;
+          if (changedFields.length > 0 && futureBookings.length > 0) {
+            for (const futureBooking of futureBookings) {
+              const updateData: Record<string, any> = { id: futureBooking.id };
+              
+              for (const change of changedFields) {
+                if (change.key === 'staff_id') {
+                  updateData.staff_id = bookingData.staff_id;
+                }
+                if (change.key === 'total_amount') {
+                  updateData.total_amount = bookingData.total_amount;
+                }
+                if (change.key === 'scheduled_time') {
+                  const futureDateStr = formatInTimezone(futureBooking.scheduled_at, orgTimezone, { year: 'numeric', month: '2-digit', day: '2-digit' });
+                  const dateParts = futureDateStr.split('/');
+                  const futureDate = new Date(parseInt(dateParts[2]), parseInt(dateParts[0]) - 1, parseInt(dateParts[1]));
+                  updateData.scheduled_at = selectedDateTimeToUTCISO(futureDate, selectedTime, orgTimezone);
+                }
+                if (change.key === 'service_id') {
+                  updateData.service_id = bookingData.service_id;
+                }
               }
-              if (change.key === 'total_amount') {
-                updateData.total_amount = bookingData.total_amount;
-              }
-              if (change.key === 'scheduled_time') {
-                // Construct a new scheduled_at using the future booking's date but the new time, in org timezone
-                const futureDateStr = formatInTimezone(futureBooking.scheduled_at, orgTimezone, { year: 'numeric', month: '2-digit', day: '2-digit' });
-                // Parse MM/DD/YYYY from Intl format
-                const dateParts = futureDateStr.split('/');
-                const futureDate = new Date(parseInt(dateParts[2]), parseInt(dateParts[0]) - 1, parseInt(dateParts[1]));
-                updateData.scheduled_at = selectedDateTimeToUTCISO(futureDate, selectedTime, orgTimezone);
-              }
-              if (change.key === 'service_id') {
-                updateData.service_id = bookingData.service_id;
-              }
+              
+              await updateBooking.mutateAsync(updateData as { id: string } & Partial<typeof bookingData>);
             }
-            
-            await updateBooking.mutateAsync(updateData as { id: string } & Partial<typeof bookingData>);
+            toast.success(`Booking updated and changes applied to ${futureBookings.length} future booking(s)`);
+          } else {
+            toast.success('Booking updated successfully');
           }
-          toast.success(`Booking updated and ${changedFields.length} change(s) applied to ${futureBookings.length} future booking(s)`);
         } else {
           toast.success('Booking updated successfully');
         }
@@ -1200,13 +1185,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     } finally {
       setSubmitting(false);
       setSavingDraft(false);
-      setPendingBookingData(null);
     }
-  };
-
-  const handleRecurringDialogConfirm = async (applyToFutureBookings: boolean) => {
-    setShowRecurringDialog(false);
-    await executeSubmit(pendingBookingData?.isDraft || false, applyToFutureBookings);
   };
 
   const handleDuplicate = () => {
@@ -1236,65 +1215,6 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
   return (
     <>
-      {/* Recurring Change Dialog */}
-      <Dialog open={showRecurringDialog} onOpenChange={setShowRecurringDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Apply Changes to Future Bookings?
-            </DialogTitle>
-            <DialogDescription>
-              This customer has {pendingBookingData?.futureBookings?.length || 0} upcoming booking(s). 
-              Would you like to apply {pendingBookingData?.changedFields?.length === 1 ? 'this change' : 'these changes'} to all future bookings?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3">
-            {/* Show all detected changes */}
-            <div className="space-y-2">
-              {pendingBookingData?.changedFields?.map((change: { field: string; oldValue: string; newValue: string; key: string }, idx: number) => (
-                <div key={idx} className="text-sm p-2 bg-secondary/50 rounded flex justify-between items-center">
-                  <span className="font-medium">{change.field}:</span>
-                  <span>
-                    <span className="text-muted-foreground line-through mr-2">{change.oldValue}</span>
-                    →
-                    <span className="font-medium text-foreground ml-2">{change.newValue}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            <Separator />
-            
-            <p className="text-xs text-muted-foreground font-medium">Future bookings affected:</p>
-            {pendingBookingData?.futureBookings?.slice(0, 3).map((fb: BookingWithDetails) => (
-              <div key={fb.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                <span>{format(new Date(fb.scheduled_at), 'MMM d, yyyy')}</span>
-                <span className="text-muted-foreground">{fb.service?.name}</span>
-              </div>
-            ))}
-            {(pendingBookingData?.futureBookings?.length || 0) > 3 && (
-              <p className="text-xs text-muted-foreground">
-                ...and {pendingBookingData.futureBookings.length - 3} more
-              </p>
-            )}
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button 
-              variant="outline" 
-              onClick={() => handleRecurringDialogConfirm(false)}
-            >
-              This Booking Only
-            </Button>
-            <Button 
-              onClick={() => handleRecurringDialogConfirm(true)}
-            >
-              Apply to All Future
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -1393,6 +1313,24 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   Quote Email
                 </Label>
               </div>
+            </div>
+          )}
+
+          {/* Apply to future bookings checkbox — only for editing existing recurring bookings */}
+          {booking?.id && booking.id.length > 10 && booking.frequency && booking.frequency !== 'one_time' && booking.frequency !== 'one-time' && getFutureSeriesBookings().length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <Checkbox
+                id="applyToFuture"
+                checked={applyToFuture}
+                onCheckedChange={(checked) => setApplyToFuture(checked as boolean)}
+              />
+              <Label
+                htmlFor="applyToFuture"
+                className="text-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                Apply these changes to all future bookings in this series ({getFutureSeriesBookings().length})
+              </Label>
             </div>
           )}
 
