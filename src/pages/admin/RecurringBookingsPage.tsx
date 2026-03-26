@@ -348,51 +348,135 @@ export default function RecurringBookingsPage() {
       recurring_days_of_week: recurring.recurring_days_of_week,
     };
 
-    // Use the same anchor logic as computeNextDate
-    const key = `${recurring.customer_id}__${recurring.service_id}`;
-    const latestDate = latestBookingMap.get(key) || null;
-    const existingDates = existingDatesMap.get(key);
-    const nextDate = computeNextDate(recurring, latestDate, existingDates, customFrequencies);
-
-    if (!nextDate) {
-      toast.error('Could not compute next date');
-      return;
+    // Resolve the custom frequency's days_of_week
+    const isCustom = recurring.frequency === 'custom' || recurring.frequency.startsWith('custom_');
+    let customDays: number[] | null = null;
+    if (isCustom && recurring.recurring_days_of_week && recurring.recurring_days_of_week.length > 1) {
+      customDays = recurring.recurring_days_of_week;
     }
 
-    // Apply day-matched pricing and service if day_prices/day_services exist
     const dayPrices = (recurring as any).day_prices as Record<string, number> | null;
     const dayServices = (recurring as any).day_services as Record<string, string> | null;
-    let bookingAmount = recurring.total_amount;
-    let bookingServiceId = recurring.service_id;
-    const dayOfWeek = nextDate.getDay().toString();
-    if (dayPrices && dayPrices[dayOfWeek] != null) {
-      bookingAmount = dayPrices[dayOfWeek];
-    }
-    if (dayServices && dayServices[dayOfWeek]) {
-      bookingServiceId = dayServices[dayOfWeek];
-    }
 
-    const scheduledAt = applyTime(new Date(nextDate)).toISOString();
+    if (customDays && customDays.length > 1) {
+      // For multi-day custom frequencies (M/W/F), generate one booking per day in the next week cycle
+      const key = `${recurring.customer_id}__${recurring.service_id}`;
+      const latestDate = latestBookingMap.get(key) || null;
+      const existingDates = existingDatesMap.get(key) || new Set<string>();
 
-    const { error } = await supabase.from('bookings').insert([{
-      ...baseBooking,
-      service_id: bookingServiceId,
-      total_amount: bookingAmount,
-      scheduled_at: scheduledAt,
-    }]);
+      // Find the anchor: latest booking or now
+      const now = new Date();
+      let anchor: Date;
+      if (latestDate) {
+        anchor = startOfDay(latestDate);
+      } else if (recurring.next_scheduled_at) {
+        anchor = startOfDay(new Date(recurring.next_scheduled_at));
+      } else {
+        anchor = startOfDay(now);
+      }
 
-    if (error) {
-      toast.error('Failed to generate booking');
+      // Find the next occurrence of each custom day after the anchor
+      const bookingsToInsert: any[] = [];
+      for (const dayIdx of customDays) {
+        // Find the next occurrence of this day of week after anchor
+        let candidate = addDays(anchor, 1); // Start from day after anchor
+        let safety = 0;
+        while (candidate.getDay() !== dayIdx && safety < 7) {
+          candidate = addDays(candidate, 1);
+          safety++;
+        }
+        // Make sure it's in the future and not already booked
+        while ((isBefore(candidate, now) || existingDates.has(formatDateKey(candidate))) && safety < 60) {
+          candidate = addWeeks(candidate, 1); // Jump by a week to find next occurrence of same day
+          safety++;
+        }
+
+        let bookingAmount = recurring.total_amount;
+        let bookingServiceId = recurring.service_id;
+        const dayKey = dayIdx.toString();
+        if (dayPrices && dayPrices[dayKey] != null) {
+          bookingAmount = dayPrices[dayKey];
+        }
+        if (dayServices && dayServices[dayKey]) {
+          bookingServiceId = dayServices[dayKey];
+        }
+
+        const scheduledAt = applyTime(new Date(candidate)).toISOString();
+        bookingsToInsert.push({
+          ...baseBooking,
+          service_id: bookingServiceId,
+          total_amount: bookingAmount,
+          scheduled_at: scheduledAt,
+        });
+      }
+
+      if (bookingsToInsert.length === 0) {
+        toast.error('Could not compute next dates');
+        return;
+      }
+
+      const { error } = await supabase.from('bookings').insert(bookingsToInsert);
+
+      if (error) {
+        toast.error('Failed to generate bookings');
+      } else {
+        // Update next_scheduled_at to the earliest of the new bookings
+        const earliest = bookingsToInsert.reduce((min, b) => 
+          b.scheduled_at < min ? b.scheduled_at : min, bookingsToInsert[0].scheduled_at);
+        await supabase.from('recurring_bookings').update({
+          last_generated_at: new Date().toISOString(),
+          next_scheduled_at: earliest,
+        }).eq('id', recurring.id);
+        
+        queryClient.invalidateQueries({ queryKey: ['recurring-bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['all-bookings-for-recurring'] });
+        toast.success(`${bookingsToInsert.length} bookings generated for ${customDays.map(d => DAYS_OF_WEEK[d].substring(0, 3)).join('/')}`);
+      }
     } else {
-      await supabase.from('recurring_bookings').update({
-        last_generated_at: new Date().toISOString(),
-        next_scheduled_at: scheduledAt,
-      }).eq('id', recurring.id);
-      
-      queryClient.invalidateQueries({ queryKey: ['recurring-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['all-bookings-for-recurring'] });
-      toast.success('Booking generated');
+      // Single-day frequency (weekly, monthly, etc.) — generate one booking
+      const key = `${recurring.customer_id}__${recurring.service_id}`;
+      const latestDate = latestBookingMap.get(key) || null;
+      const existingDates = existingDatesMap.get(key);
+      const nextDate = computeNextDate(recurring, latestDate, existingDates, customFrequencies);
+
+      if (!nextDate) {
+        toast.error('Could not compute next date');
+        return;
+      }
+
+      let bookingAmount = recurring.total_amount;
+      let bookingServiceId = recurring.service_id;
+      const dayOfWeek = nextDate.getDay().toString();
+      if (dayPrices && dayPrices[dayOfWeek] != null) {
+        bookingAmount = dayPrices[dayOfWeek];
+      }
+      if (dayServices && dayServices[dayOfWeek]) {
+        bookingServiceId = dayServices[dayOfWeek];
+      }
+
+      const scheduledAt = applyTime(new Date(nextDate)).toISOString();
+
+      const { error } = await supabase.from('bookings').insert([{
+        ...baseBooking,
+        service_id: bookingServiceId,
+        total_amount: bookingAmount,
+        scheduled_at: scheduledAt,
+      }]);
+
+      if (error) {
+        toast.error('Failed to generate booking');
+      } else {
+        await supabase.from('recurring_bookings').update({
+          last_generated_at: new Date().toISOString(),
+          next_scheduled_at: scheduledAt,
+        }).eq('id', recurring.id);
+        
+        queryClient.invalidateQueries({ queryKey: ['recurring-bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['all-bookings-for-recurring'] });
+        toast.success('Booking generated');
+      }
     }
   };
 
