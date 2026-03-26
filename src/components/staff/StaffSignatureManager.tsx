@@ -327,13 +327,20 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
               )}
 
               {isSigning && (
-                <SignaturePad
-                  saving={signMutation.isPending}
-                  onSave={(data, type) =>
-                    signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type })
-                  }
-                  onCancel={() => setSigningDocId(null)}
-                />
+                <div className="space-y-3">
+                  {/* Show the document inline so it feels like signing on paper */}
+                  <DocumentPreviewEmbed filePath={doc.file_path} />
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2 font-medium">✍️ Place your signature below</p>
+                    <SignaturePad
+                      saving={signMutation.isPending}
+                      onSave={(data, type) =>
+                        signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type })
+                      }
+                      onCancel={() => setSigningDocId(null)}
+                    />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
