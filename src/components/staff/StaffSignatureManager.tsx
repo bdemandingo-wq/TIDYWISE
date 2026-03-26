@@ -5,12 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { toast } from 'sonner';
-import { FileText, CheckCircle2, PenLine, Loader2, Eye, Clock, X } from 'lucide-react';
+import { FileText, CheckCircle2, PenLine, Loader2, Eye, Clock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { SignaturePad } from './SignaturePad';
-import { PDFSignatureOverlay } from './PDFSignatureOverlay';
 
 
 interface SignableDoc {
@@ -39,7 +38,6 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
-  const [signingDocUrl, setSigningDocUrl] = useState<string | null>(null);
 
   // Fetch signable documents for this org
   const { data: signableDocs = [], isLoading: loadingDocs } = useQuery({
@@ -327,27 +325,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                   <Button
                     size="sm"
                     className="gap-1 flex-1 h-10"
-                    onClick={async () => {
-                      const isPdfDoc =
-                        doc.file_name.toLowerCase().endsWith('.pdf') ||
-                        doc.file_path.toLowerCase().endsWith('.pdf');
-
-                      if (!isPdfDoc) {
-                        setSigningDocUrl(null);
-                        setSigningDocId(doc.id);
-                        return;
-                      }
-
-                      const { data } = await supabase.storage
-                        .from('staff-documents')
-                        .createSignedUrl(doc.file_path, 3600);
-                      if (data?.signedUrl) {
-                        setSigningDocUrl(data.signedUrl);
-                        setSigningDocId(doc.id);
-                      } else {
-                        toast.error('Failed to load document');
-                      }
-                    }}
+                    onClick={() => setSigningDocId(doc.id)}
                   >
                     <PenLine className="h-3.5 w-3.5" /> Sign Now
                   </Button>
@@ -355,35 +333,13 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
               )}
 
               {isSigning && (
-                (doc.file_name.toLowerCase().endsWith('.pdf') || doc.file_path.toLowerCase().endsWith('.pdf')) ? (
-                  signingDocUrl ? (
-                    <PDFSignatureOverlay
-                      pdfUrl={signingDocUrl}
-                      saving={signMutation.isPending}
-                      onSign={(data, type, placement) =>
-                        signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type, placement })
-                      }
-                      onCancel={() => {
-                        setSigningDocId(null);
-                        setSigningDocUrl(null);
-                      }}
-                    />
-                  ) : null
-                ) : (
-                  <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
-                    <p className="text-xs text-muted-foreground">
-                      This template is not a PDF, so exact on-document signing isn’t available. Upload as PDF to enable tap-to-sign on the document.
-                    </p>
-                    <SignaturePad
-                      saving={signMutation.isPending}
-                      onSave={(data, type) => signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type })}
-                      onCancel={() => {
-                        setSigningDocId(null);
-                        setSigningDocUrl(null);
-                      }}
-                    />
-                  </div>
-                )
+                <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
+                  <SignaturePad
+                    saving={signMutation.isPending}
+                    onSave={(data, type) => signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type })}
+                    onCancel={() => setSigningDocId(null)}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
