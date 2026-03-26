@@ -300,7 +300,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                         variant="outline"
                         size="sm"
                         className="gap-1 h-8 text-xs"
-                        onClick={() => handlePreview(sig.signed_pdf_path!)}
+                        onClick={() => handlePreview(sig.signed_pdf_path!, doc.title + ' (Signed)')}
                       >
                         <Eye className="h-3 w-3" /> View Signed PDF
                       </Button>
@@ -331,7 +331,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                     variant="outline"
                     size="sm"
                     className="gap-1 flex-1 h-10"
-                    onClick={() => handlePreview(doc.file_path)}
+                    onClick={() => handlePreview(doc.file_path, doc.title)}
                   >
                     <Eye className="h-3.5 w-3.5" /> Review Document
                   </Button>
@@ -400,6 +400,24 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
           </Card>
         );
       })}
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => { if (!open) { setPreviewUrl(null); setPreviewTitle(''); } }}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-sm">{previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 px-4 pb-4">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-lg border"
+                title={previewTitle}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
