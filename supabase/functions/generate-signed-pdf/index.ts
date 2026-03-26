@@ -17,7 +17,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate auth
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -36,7 +35,11 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { document_id, staff_id, organization_id, signature_data, signature_type, staff_name } = body;
+    const {
+      document_id, staff_id, organization_id,
+      signature_data, signature_type, staff_name,
+      placement, // { page, xPercent, yPercent, pageWidth, pageHeight }
+    } = body;
 
     if (!document_id || !staff_id || !organization_id || !signature_data || !signature_type) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -93,224 +96,99 @@ Deno.serve(async (req) => {
     try {
       pdfDoc = await PDFDocument.load(pdfBytes);
     } catch {
-      // If it's not a valid PDF (e.g., docx), create a new PDF with just the signature page
       pdfDoc = await PDFDocument.create();
     }
 
-    // Add signature page
-    const page = pdfDoc.addPage([612, 792]); // US Letter
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const signedDate = new Date().toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
     });
 
-    const black = rgb(0, 0, 0);
-    const gray = rgb(0.4, 0.4, 0.4);
-    const lineColor = rgb(0.7, 0.7, 0.7);
+    const signerName = staff_name || staff.name || "N/A";
 
-    // Title
-    page.drawText("SIGNATURE PAGE", {
-      x: 72,
-      y: 720,
-      size: 18,
-      font: helveticaBold,
-      color: black,
-    });
+    // If placement coordinates provided, place signature directly on the document page
+    if (placement && typeof placement.page === "number") {
+      const pageIndex = placement.page;
+      const pages = pdfDoc.getPages();
 
-    // Document title
-    page.drawText(`Document: ${doc.title}`, {
-      x: 72,
-      y: 685,
-      size: 12,
-      font: helvetica,
-      color: gray,
-    });
+      if (pageIndex >= 0 && pageIndex < pages.length) {
+        const page = pages[pageIndex];
+        const { width: pW, height: pH } = page.getSize();
 
-    // Divider
-    page.drawLine({
-      start: { x: 72, y: 670 },
-      end: { x: 540, y: 670 },
-      thickness: 1,
-      color: lineColor,
-    });
+        // Convert percentage coordinates to PDF points
+        // PDF y-axis is bottom-up, browser y-axis is top-down
+        const sigX = placement.xPercent * pW;
+        const sigY = (1 - placement.yPercent) * pH;
 
-    // Agreement text
-    const agreementText = `By signing below, I acknowledge that I have read, understood, and agree to the terms and conditions set forth in the document "${doc.title}".`;
-    
-    // Simple word-wrap
-    const maxWidth = 468; // 540 - 72
-    const words = agreementText.split(" ");
-    let lines: string[] = [];
-    let currentLine = "";
+        if (signature_type === "draw") {
+          // Download signature image from storage
+          const { data: sigData } = await supabase.storage
+            .from("staff-documents")
+            .download(signature_data);
 
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = helvetica.widthOfTextAtSize(testLine, 11);
-      if (testWidth > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
+          if (sigData) {
+            try {
+              const sigBytes = await sigData.arrayBuffer();
+              const sigImage = await pdfDoc.embedPng(new Uint8Array(sigBytes));
+              const sigDims = sigImage.scale(0.5);
+              const maxW = 180;
+              const maxH = 60;
+              const sc = Math.min(maxW / sigDims.width, maxH / sigDims.height, 1);
+              const finalW = sigDims.width * sc;
+              const finalH = sigDims.height * sc;
 
-    let yPos = 645;
-    for (const line of lines) {
-      page.drawText(line, {
-        x: 72,
-        y: yPos,
-        size: 11,
-        font: helvetica,
-        color: black,
-      });
-      yPos -= 18;
-    }
-
-    yPos -= 20;
-
-    // Name field
-    page.drawText("Full Name:", {
-      x: 72,
-      y: yPos,
-      size: 10,
-      font: helveticaBold,
-      color: gray,
-    });
-    yPos -= 20;
-    page.drawText(staff_name || staff.name || "N/A", {
-      x: 72,
-      y: yPos,
-      size: 14,
-      font: helvetica,
-      color: black,
-    });
-    yPos -= 5;
-    page.drawLine({
-      start: { x: 72, y: yPos },
-      end: { x: 350, y: yPos },
-      thickness: 0.5,
-      color: lineColor,
-    });
-
-    yPos -= 30;
-
-    // Date field
-    page.drawText("Date Signed:", {
-      x: 72,
-      y: yPos,
-      size: 10,
-      font: helveticaBold,
-      color: gray,
-    });
-    yPos -= 20;
-    page.drawText(signedDate, {
-      x: 72,
-      y: yPos,
-      size: 12,
-      font: helvetica,
-      color: black,
-    });
-    yPos -= 5;
-    page.drawLine({
-      start: { x: 72, y: yPos },
-      end: { x: 350, y: yPos },
-      thickness: 0.5,
-      color: lineColor,
-    });
-
-    yPos -= 30;
-
-    // Signature field
-    page.drawText("Signature:", {
-      x: 72,
-      y: yPos,
-      size: 10,
-      font: helveticaBold,
-      color: gray,
-    });
-    yPos -= 10;
-
-    if (signature_type === "draw") {
-      // Download signature image from storage
-      const { data: sigData, error: sigDownloadError } = await supabase.storage
-        .from("staff-documents")
-        .download(signature_data);
-
-      if (!sigDownloadError && sigData) {
-        try {
-          const sigBytes = await sigData.arrayBuffer();
-          const sigImage = await pdfDoc.embedPng(new Uint8Array(sigBytes));
-          const sigDims = sigImage.scale(0.5);
-          const maxSigWidth = 250;
-          const maxSigHeight = 80;
-          const scale = Math.min(maxSigWidth / sigDims.width, maxSigHeight / sigDims.height, 1);
-
-          page.drawImage(sigImage, {
-            x: 72,
-            y: yPos - (sigDims.height * scale),
-            width: sigDims.width * scale,
-            height: sigDims.height * scale,
+              page.drawImage(sigImage, {
+                x: sigX - finalW * 0.1,
+                y: sigY - finalH * 0.8,
+                width: finalW,
+                height: finalH,
+              });
+            } catch {
+              // Fallback to text
+              page.drawText("[Signature]", {
+                x: sigX, y: sigY - 15,
+                size: 12, font: helvetica, color: rgb(0, 0, 0),
+              });
+            }
+          }
+        } else {
+          // Typed signature
+          const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+          page.drawText(signature_data, {
+            x: sigX,
+            y: sigY - 20,
+            size: 18,
+            font: timesRoman,
+            color: rgb(0, 0, 0),
           });
-          yPos -= (sigDims.height * scale) + 10;
-        } catch {
-          // Fallback if image embedding fails
-          page.drawText("[Drawn Signature on File]", {
-            x: 72,
-            y: yPos - 20,
-            size: 12,
-            font: helvetica,
-            color: gray,
-          });
-          yPos -= 30;
         }
+
+        // Add a small date/name annotation below the signature
+        page.drawText(`${signerName} — ${signedDate}`, {
+          x: sigX,
+          y: sigY - (signature_type === "draw" ? 70 : 38),
+          size: 7,
+          font: helvetica,
+          color: rgb(0.4, 0.4, 0.4),
+        });
       }
-    } else {
-      // Typed signature
-      const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
-      page.drawText(signature_data, {
-        x: 72,
-        y: yPos - 25,
-        size: 24,
-        font: timesRoman,
-        color: black,
-      });
-      yPos -= 40;
     }
 
-    page.drawLine({
-      start: { x: 72, y: yPos },
-      end: { x: 350, y: yPos },
-      thickness: 0.5,
-      color: lineColor,
+    // Always add a verification page at the end for legal record
+    addVerificationPage(pdfDoc, {
+      helvetica, helveticaBold, doc, signerName, signedDate,
+      signature_data, signature_type, placement,
+      supabase,
     });
 
-    // Footer
-    page.drawText(
-      "This document was electronically signed and is legally binding.",
-      {
-        x: 72,
-        y: 60,
-        size: 8,
-        font: helvetica,
-        color: gray,
-      }
-    );
-
-    // Save signed PDF
     const signedPdfBytes = await pdfDoc.save();
     const signedPath = `signed/${organization_id}/${staff_id}/${document_id}_${Date.now()}.pdf`;
 
     const { error: uploadError } = await supabase.storage
       .from("staff-documents")
-      .upload(signedPath, signedPdfBytes, {
-        contentType: "application/pdf",
-      });
+      .upload(signedPath, signedPdfBytes, { contentType: "application/pdf" });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
@@ -322,19 +200,58 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, signed_pdf_path: signedPath }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error generating signed PDF:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+// Adds a lightweight verification/audit page at the end
+function addVerificationPage(
+  pdfDoc: PDFDocument,
+  opts: {
+    helvetica: any; helveticaBold: any;
+    doc: any; signerName: string; signedDate: string;
+    signature_data: string; signature_type: string;
+    placement: any; supabase: any;
+  }
+) {
+  const { helvetica, helveticaBold, doc, signerName, signedDate, signature_type, placement } = opts;
+  const page = pdfDoc.addPage([612, 792]);
+  const black = rgb(0, 0, 0);
+  const gray = rgb(0.4, 0.4, 0.4);
+  const lineColor = rgb(0.7, 0.7, 0.7);
+
+  page.drawText("SIGNATURE VERIFICATION", {
+    x: 72, y: 720, size: 16, font: helveticaBold, color: black,
+  });
+
+  page.drawText(`Document: ${doc.title}`, {
+    x: 72, y: 690, size: 11, font: helvetica, color: gray,
+  });
+
+  page.drawLine({ start: { x: 72, y: 678 }, end: { x: 540, y: 678 }, thickness: 1, color: lineColor });
+
+  const lines = [
+    `Signer: ${signerName}`,
+    `Date: ${signedDate}`,
+    `Method: ${signature_type === 'draw' ? 'Drawn signature' : 'Typed signature'}`,
+    placement ? `Placed on page ${placement.page + 1} at position (${Math.round(placement.xPercent * 100)}%, ${Math.round(placement.yPercent * 100)}%)` : 'Appended to document',
+  ];
+
+  let y = 650;
+  for (const line of lines) {
+    page.drawText(line, { x: 72, y, size: 11, font: helvetica, color: black });
+    y -= 22;
+  }
+
+  page.drawText(
+    "This document was electronically signed and is legally binding.",
+    { x: 72, y: 60, size: 8, font: helvetica, color: gray }
+  );
+}
