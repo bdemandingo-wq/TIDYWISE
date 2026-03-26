@@ -53,17 +53,18 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ['staff-documents', staffId],
+    queryKey: ['staff-documents', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_documents')
         .select('*')
         .eq('staff_id', staffId)
+        .eq('organization_id', organizationId)
         .order('uploaded_at', { ascending: false });
       if (error) throw error;
       return (data || []) as StaffDocument[];
     },
-    enabled: !!staffId,
+    enabled: !!staffId && !!organizationId,
   });
 
   const deleteMutation = useMutation({
@@ -73,7 +74,7 @@ export function StaffDocumentUpload({ staffId, organizationId }: Props) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] });
       toast.success('Document deleted');
     },
     onError: () => toast.error('Failed to delete document'),
