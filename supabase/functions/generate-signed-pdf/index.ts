@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     // Always add a verification page at the end for legal record
-    addVerificationPage(pdfDoc, {
+    await addVerificationPage(pdfDoc, {
       helvetica, helveticaBold, doc, signerName, signedDate,
       signature_data, signature_type, placement,
       supabase,
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
 });
 
 // Adds a lightweight verification/audit page at the end
-function addVerificationPage(
+async function addVerificationPage(
   pdfDoc: PDFDocument,
   opts: {
     helvetica: any; helveticaBold: any;
@@ -221,7 +221,7 @@ function addVerificationPage(
     placement: any; supabase: any;
   }
 ) {
-  const { helvetica, helveticaBold, doc, signerName, signedDate, signature_type, placement } = opts;
+  const { helvetica, helveticaBold, doc, signerName, signedDate, signature_data, signature_type, placement, supabase } = opts;
   const page = pdfDoc.addPage([612, 792]);
   const black = rgb(0, 0, 0);
   const gray = rgb(0.4, 0.4, 0.4);
@@ -241,7 +241,7 @@ function addVerificationPage(
     `Signer: ${signerName}`,
     `Date: ${signedDate}`,
     `Method: ${signature_type === 'draw' ? 'Drawn signature' : 'Typed signature'}`,
-    placement ? `Placed on page ${placement.page + 1} at position (${Math.round(placement.xPercent * 100)}%, ${Math.round(placement.yPercent * 100)}%)` : 'Appended to document',
+    placement ? `Placed on page ${placement.page + 1} at position (${Math.round(placement.xPercent * 100)}%, ${Math.round(placement.yPercent * 100)}%)` : 'Placed on verification page',
   ];
 
   let y = 650;
@@ -249,6 +249,51 @@ function addVerificationPage(
     page.drawText(line, { x: 72, y, size: 11, font: helvetica, color: black });
     y -= 22;
   }
+
+  page.drawText("Signature:", { x: 72, y: 530, size: 10, font: helveticaBold, color: gray });
+
+  if (signature_type === "draw") {
+    try {
+      const { data: sigData } = await supabase.storage
+        .from("staff-documents")
+        .download(signature_data);
+
+      if (sigData) {
+        const sigBytes = await sigData.arrayBuffer();
+        const sigImage = await pdfDoc.embedPng(new Uint8Array(sigBytes));
+        const sigDims = sigImage.scale(0.5);
+        const maxW = 250;
+        const maxH = 80;
+        const scale = Math.min(maxW / sigDims.width, maxH / sigDims.height, 1);
+
+        page.drawImage(sigImage, {
+          x: 72,
+          y: 430,
+          width: sigDims.width * scale,
+          height: sigDims.height * scale,
+        });
+      } else {
+        page.drawText("[Drawn signature on file]", {
+          x: 72, y: 470, size: 12, font: helvetica, color: gray,
+        });
+      }
+    } catch {
+      page.drawText("[Drawn signature on file]", {
+        x: 72, y: 470, size: 12, font: helvetica, color: gray,
+      });
+    }
+  } else {
+    const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+    page.drawText(signature_data, {
+      x: 72,
+      y: 470,
+      size: 24,
+      font: timesRoman,
+      color: black,
+    });
+  }
+
+  page.drawLine({ start: { x: 72, y: 420 }, end: { x: 350, y: 420 }, thickness: 0.5, color: lineColor });
 
   page.drawText(
     "This document was electronically signed and is legally binding.",

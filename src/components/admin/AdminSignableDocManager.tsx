@@ -124,10 +124,9 @@ export function AdminSignableDocManager() {
       toast.error('File must be under 10MB');
       return;
     }
-    const allowed = ['.pdf', '.doc', '.docx'];
     const ext = '.' + (file.name.split('.').pop()?.toLowerCase() || '');
-    if (!allowed.includes(ext)) {
-      toast.error('Only PDF, DOC, and DOCX files are allowed');
+    if (ext !== '.pdf' || file.type !== 'application/pdf') {
+      toast.error('Only PDF files are supported for on-document signing');
       return;
     }
 
