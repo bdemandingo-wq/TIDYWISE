@@ -76,6 +76,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
+  const [signingDocUrl, setSigningDocUrl] = useState<string | null>(null);
   const [previewingDocId, setPreviewingDocId] = useState<string | null>(null);
 
   // Fetch signable documents for this org
