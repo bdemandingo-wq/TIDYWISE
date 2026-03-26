@@ -44,6 +44,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { cn } from '@/lib/utils';
 import { StaffEventNotifications } from '@/components/admin/StaffEventNotifications';
 import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDashboard';
+import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 
 interface StaffMember {
   id: string;
@@ -255,6 +256,13 @@ export default function StaffPage() {
           <StaffComplianceDashboard organizationId={organizationId} />
         </div>
       )}
+
+      {/* Org-Wide Signable Documents */}
+      <Card className="mb-4">
+        <CardContent className="pt-6">
+          <AdminSignableDocManager />
+        </CardContent>
+      </Card>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
