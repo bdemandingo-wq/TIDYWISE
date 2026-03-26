@@ -726,7 +726,7 @@ function RecurringBookingDialog({
           dayServicesPayload[dayIdx.toString()] = formData.day_services[dayIdx.toString()];
         }
       }
-      effectiveTotalAmount = Math.round((sum / selectedCustomFreq.days_of_week.length) * 100) / 100;
+      effectiveTotalAmount = Math.round(sum * 100) / 100;
       if (Object.keys(dayServicesPayload).length === 0) dayServicesPayload = null;
     }
 
