@@ -327,27 +327,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                   <Button
                     size="sm"
                     className="gap-1 flex-1 h-10"
-                    onClick={async () => {
-                      const isPdfDoc =
-                        doc.file_name.toLowerCase().endsWith('.pdf') ||
-                        doc.file_path.toLowerCase().endsWith('.pdf');
-
-                      if (!isPdfDoc) {
-                        setSigningDocUrl(null);
-                        setSigningDocId(doc.id);
-                        return;
-                      }
-
-                      const { data } = await supabase.storage
-                        .from('staff-documents')
-                        .createSignedUrl(doc.file_path, 3600);
-                      if (data?.signedUrl) {
-                        setSigningDocUrl(data.signedUrl);
-                        setSigningDocId(doc.id);
-                      } else {
-                        toast.error('Failed to load document');
-                      }
-                    }}
+                    onClick={() => setSigningDocId(doc.id)}
                   >
                     <PenLine className="h-3.5 w-3.5" /> Sign Now
                   </Button>
