@@ -326,6 +326,16 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                     size="sm"
                     className="gap-1 flex-1 h-10"
                     onClick={async () => {
+                      const isPdfDoc =
+                        doc.file_name.toLowerCase().endsWith('.pdf') ||
+                        doc.file_path.toLowerCase().endsWith('.pdf');
+
+                      if (!isPdfDoc) {
+                        setSigningDocUrl(null);
+                        setSigningDocId(doc.id);
+                        return;
+                      }
+
                       const { data } = await supabase.storage
                         .from('staff-documents')
                         .createSignedUrl(doc.file_path, 3600);
@@ -342,15 +352,36 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
                 </div>
               )}
 
-              {isSigning && signingDocUrl && (
-                <PDFSignatureOverlay
-                  pdfUrl={signingDocUrl}
-                  saving={signMutation.isPending}
-                  onSign={(data, type, placement) =>
-                    signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type, placement })
-                  }
-                  onCancel={() => { setSigningDocId(null); setSigningDocUrl(null); }}
-                />
+              {isSigning && (
+                (doc.file_name.toLowerCase().endsWith('.pdf') || doc.file_path.toLowerCase().endsWith('.pdf')) ? (
+                  signingDocUrl ? (
+                    <PDFSignatureOverlay
+                      pdfUrl={signingDocUrl}
+                      saving={signMutation.isPending}
+                      onSign={(data, type, placement) =>
+                        signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type, placement })
+                      }
+                      onCancel={() => {
+                        setSigningDocId(null);
+                        setSigningDocUrl(null);
+                      }}
+                    />
+                  ) : null
+                ) : (
+                  <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
+                    <p className="text-xs text-muted-foreground">
+                      This template is not a PDF, so exact on-document signing isn’t available. Upload as PDF to enable tap-to-sign on the document.
+                    </p>
+                    <SignaturePad
+                      saving={signMutation.isPending}
+                      onSave={(data, type) => signMutation.mutate({ docId: doc.id, signatureData: data, signatureType: type })}
+                      onCancel={() => {
+                        setSigningDocId(null);
+                        setSigningDocUrl(null);
+                      }}
+                    />
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
