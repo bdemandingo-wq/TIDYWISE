@@ -88,13 +88,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const t = window.setTimeout(async () => {
-      const { data, error } = await supabaseNoSession.auth.getUser();
-      if (error || !data?.user) {
-        await signOut();
-        return;
+      try {
+        const { data, error } = await supabaseNoSession.auth.getUser();
+        if (error || !data?.user) {
+          // Try refreshing the session before giving up
+          const { data: refreshData, error: refreshError } = await supabaseNoSession.auth.refreshSession();
+          if (refreshError || !refreshData?.session) {
+            await signOut();
+            return;
+          }
+          // Session refreshed successfully, continue
+        }
+        await checkSubscription(noSessionAuth.session?.access_token);
+      } catch {
+        // Network error - don't sign out, just skip the check
+        console.warn('Network error during auth check, keeping session');
       }
-
-      await checkSubscription(noSessionAuth.session?.access_token);
     }, 0);
 
     return () => window.clearTimeout(t);

@@ -48,8 +48,17 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
       try {
         // Check for existing session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+        } else {
+          // No cached session — try refreshing in case token is expired but refresh token is valid
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (refreshData?.session) {
+            setSession(refreshData.session);
+            setUser(refreshData.session.user);
+          }
+        }
       } catch (err) {
         console.error('Error initializing auth:', err);
       } finally {
