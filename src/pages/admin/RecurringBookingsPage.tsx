@@ -359,10 +359,21 @@ export default function RecurringBookingsPage() {
       return;
     }
 
+    // Apply day-matched pricing if day_prices exists
+    const dayPrices = (recurring as any).day_prices as Record<string, number> | null;
+    let bookingAmount = recurring.total_amount;
+    if (dayPrices) {
+      const dayOfWeek = nextDate.getDay().toString();
+      if (dayPrices[dayOfWeek] != null) {
+        bookingAmount = dayPrices[dayOfWeek];
+      }
+    }
+
     const scheduledAt = applyTime(new Date(nextDate)).toISOString();
 
     const { error } = await supabase.from('bookings').insert([{
       ...baseBooking,
+      total_amount: bookingAmount,
       scheduled_at: scheduledAt,
     }]);
 
