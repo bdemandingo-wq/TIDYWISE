@@ -748,7 +748,8 @@ export default function BookingsPage() {
         
         await updateBooking.mutateAsync({ 
           id: booking.id, 
-          payment_status: 'paid' as any
+          payment_status: 'paid' as any,
+          payment_intent_id: data.paymentIntentId || null,
         });
       } else {
         toast({ 
