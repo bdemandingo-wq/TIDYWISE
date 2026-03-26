@@ -40,7 +40,7 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
       // Batch fetch all compliance data
       const [docsResult, sigsResult, payoutResult, availResult, signableDocsResult] = await Promise.all([
         supabase.from('staff_documents').select('staff_id, document_type, status').eq('organization_id', organizationId).in('staff_id', staffIds),
-        supabase.from('staff_signatures').select('staff_id, document_id').in('staff_id', staffIds),
+        supabase.from('staff_signatures').select('staff_id, signable_document_id').in('staff_id', staffIds),
         supabase.from('staff_payout_accounts').select('staff_id, account_status').eq('organization_id', organizationId).in('staff_id', staffIds),
         supabase.from('working_hours').select('staff_id').in('staff_id', staffIds),
         supabase.from('staff_signable_documents').select('id').eq('organization_id', organizationId).eq('is_active', true),
@@ -68,7 +68,7 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
           staffDocs.length > 0 ? 'pending' : 'missing';
 
         // Signatures
-        const staffSigs = sigs.filter(s => s.staff_id === staff.id && signableIds.includes(s.document_id));
+        const staffSigs = sigs.filter(s => s.staff_id === staff.id && signableIds.includes(s.signable_document_id));
         const sigsStatus: 'complete' | 'none_required' | 'incomplete' =
           totalSignable === 0 ? 'none_required' :
           staffSigs.length >= totalSignable ? 'complete' : 'incomplete';

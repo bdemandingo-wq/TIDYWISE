@@ -51,9 +51,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate }: Onbo
 
       const { data: sigs } = await supabase
         .from('staff_signatures')
-        .select('id, document_id')
+        .select('id, signable_document_id')
         .eq('staff_id', staffId)
-        .in('document_id', docs.map(d => d.id));
+        .in('signable_document_id', docs.map(d => d.id));
 
       return { required: docs.length, signed: sigs?.length || 0 };
     },
