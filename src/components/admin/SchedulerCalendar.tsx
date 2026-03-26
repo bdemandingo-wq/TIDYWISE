@@ -409,18 +409,22 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     const daysInMonth = lastDay.getDate();
     const totalCells = Math.ceil((startPadding + daysInMonth) / 7) * 7;
 
-    const days: (Date | null)[] = [];
+    const days: Date[] = [];
 
-    for (let i = 0; i < startPadding; i++) {
-      days.push(null);
+    // Previous month overflow days
+    for (let i = startPadding - 1; i >= 0; i--) {
+      days.push(new Date(year, month, -i));
     }
 
+    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
 
+    // Next month overflow days
+    let nextDay = 1;
     while (days.length < totalCells) {
-      days.push(null);
+      days.push(new Date(year, month + 1, nextDay++));
     }
 
     return { year, month, days, monthWeekRows: totalCells / 7 };
@@ -799,27 +803,28 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
             </div>
           ) : (
             days.map((date, index) => {
-              const dayBookings = date ? getBookingsForDate(date) : [];
-              return (
+               const dayBookings = getBookingsForDate(date);
+               const isOutsideMonth = date.getMonth() !== month;
+               return (
                 <DroppableDay
                   key={index}
-                  id={date ? `day-${format(date, 'yyyy-MM-dd')}` : `empty-${index}`}
-                  disabled={!date}
+                  id={`day-${format(date, 'yyyy-MM-dd')}`}
+                  disabled={isOutsideMonth}
                   className={cn(
                     'calendar-day min-h-0 overflow-hidden',
                     viewMode === 'week'
                       ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]')
                       : '',
-                    date && isToday(date) && 'today',
-                    !date && 'bg-muted/30'
+                    isToday(date) && 'today',
+                    isOutsideMonth && 'bg-muted/20 opacity-40'
                   )}
                 >
-                  {date && (
                     <>
                       <span
                         className={cn(
                           'text-[10px] md:text-sm font-medium mb-0.5 md:mb-1',
-                          isToday(date) && 'text-primary'
+                          isToday(date) && 'text-primary',
+                          isOutsideMonth && 'text-muted-foreground'
                         )}
                       >
                         {viewMode === 'week' ? (isMobile ? format(date, 'd') : format(date, 'MMM d')) : date.getDate()}
