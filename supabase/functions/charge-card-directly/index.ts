@@ -358,6 +358,20 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     if (paymentIntent.status === 'succeeded') {
+      // Save payment_intent_id to the booking record server-side
+      if (bookingId) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+        const { error: updateError } = await supabaseAdmin
+          .from("bookings")
+          .update({ payment_intent_id: paymentIntent.id, payment_status: 'paid' })
+          .eq("id", bookingId);
+        if (updateError) {
+          console.error("[charge-card-directly] Failed to save payment_intent_id to booking:", updateError);
+        }
+      }
+
       await logAudit({
         action: AuditActions.PAYMENT_CAPTURE,
         userId: authResult.userId!,
