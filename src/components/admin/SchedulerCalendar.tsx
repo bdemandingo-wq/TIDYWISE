@@ -839,7 +839,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       </span>
                         <div
                           className={cn(
-                            'w-full space-y-0.5 md:space-y-1 overflow-y-auto scrollbar-thin min-h-0',
+                            'w-full space-y-0.5 md:space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin min-h-0',
                             viewMode === 'week'
                               ? (isMobile ? 'max-h-[80px]' : 'max-h-[200px]')
                               : 'flex-1'
