@@ -601,7 +601,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     <>
       {/* Mobile Sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar md:hidden z-[60] pointer-events-auto touch-manipulation">
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar border-r border-sidebar-border md:hidden z-[60] pointer-events-auto touch-manipulation">
           <div className="flex flex-col h-full">
             <SidebarContent isMobile />
           </div>
@@ -621,7 +621,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar flex-col transition-all duration-300",
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border flex-col transition-all duration-300 shadow-sm",
         "hidden md:flex",
         isOpen ? "w-64" : "w-16"
       )}>
