@@ -2,19 +2,18 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
-import { usePlatform } from "@/hooks/usePlatform";
 
 const cardVariants = cva(
   "rounded-xl border bg-card text-card-foreground transition-all duration-200",
   {
     variants: {
       variant: {
-        default: "shadow-sm hover:shadow-md",
-        elevated: "shadow-md hover:shadow-xl hover:-translate-y-1",
-        glass: "bg-card/80 backdrop-blur-xl border-white/20 shadow-lg",
-        gradient: "bg-gradient-to-br from-card to-secondary/50 shadow-md hover:shadow-lg",
-        interactive: "shadow-md hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30 cursor-pointer",
-        feature: "shadow-md hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 overflow-hidden relative before:absolute before:-top-20 before:-right-20 before:w-40 before:h-40 before:rounded-full before:bg-primary/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        default: "shadow-sm border-border/50",
+        elevated: "shadow-md hover:shadow-lg hover:-translate-y-1",
+        glass: "backdrop-blur-xl border-white/20 shadow-md",
+        gradient: "bg-gradient-to-br from-card to-muted/30 shadow-sm",
+        interactive: "shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-primary/20 cursor-pointer",
+        feature: "shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-primary/20 overflow-hidden relative",
       },
     },
     defaultVariants: {
@@ -29,14 +28,10 @@ export interface CardProps
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, ...props }, ref) => {
-    const { isNative } = usePlatform();
     return (
       <div
         ref={ref}
-        className={cn(
-          cardVariants({ variant, className }),
-          isNative && "rounded-2xl shadow-none border-border/40"
-        )}
+        className={cn(cardVariants({ variant, className }))}
         {...props}
       />
     );
@@ -46,33 +41,33 @@ Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1 md:space-y-1.5 p-2.5 md:p-5", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
   ),
 );
 CardHeader.displayName = "CardHeader";
 
 const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn("text-sm md:text-xl font-semibold leading-none tracking-tight", className)} {...props} />
+    <h3 ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props} />
   ),
 );
 CardTitle.displayName = "CardTitle";
 
 const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-xs md:text-sm text-muted-foreground", className)} {...props} />
+    <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
   ),
 );
 CardDescription.displayName = "CardDescription";
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn("p-2.5 pt-0 md:p-5 md:pt-0", className)} {...props} />,
+  ({ className, ...props }, ref) => <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />,
 );
 CardContent.displayName = "CardContent";
 
 const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center p-2.5 pt-0 md:p-5 md:pt-0", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
   ),
 );
 CardFooter.displayName = "CardFooter";

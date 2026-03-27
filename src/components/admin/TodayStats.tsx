@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { DollarSign, CreditCard, Users } from 'lucide-react';
 
 interface TodayStatsProps {
   grossVolume: number;
@@ -13,7 +14,6 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
   const [prevValues, setPrevValues] = useState({ grossVolume, payments, customers });
   const { isTestMode } = useTestMode();
 
-  // Detect changes and trigger pulse animation
   useEffect(() => {
     if (
       prevValues.grossVolume !== grossVolume ||
@@ -22,53 +22,55 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
     ) {
       setIsPulsing(true);
       setPrevValues({ grossVolume, payments, customers });
-      
-      const timeout = setTimeout(() => {
-        setIsPulsing(false);
-      }, 1000);
-      
+      const timeout = setTimeout(() => setIsPulsing(false), 1000);
       return () => clearTimeout(timeout);
     }
   }, [grossVolume, payments, customers, prevValues]);
 
+  const stats = [
+    {
+      label: 'Gross Volume',
+      value: isTestMode ? '$X,XXX.XX' : `$${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: DollarSign,
+    },
+    {
+      label: 'Payments',
+      value: isTestMode ? 'XX' : payments,
+      icon: CreditCard,
+    },
+    {
+      label: 'Customers',
+      value: isTestMode ? 'XX' : customers,
+      icon: Users,
+    },
+  ];
+
   return (
     <div className="mb-6">
-      <h2 className="text-lg font-bold md:font-semibold text-primary md:text-foreground mb-3">Today</h2>
-      <div 
-        className={cn(
-          "bg-card border border-border rounded-xl p-4 transition-all duration-300",
-          isPulsing && "ring-2 ring-primary/50 animate-pulse"
-        )}
-      >
-        <div className="grid grid-cols-3 divide-x divide-border">
-          <div className="text-center px-4">
-            <p className="text-sm text-muted-foreground mb-1">Gross Volume</p>
+      <h2 className="text-lg font-semibold text-foreground mb-3">Today</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className={cn(
+              "bg-card border border-border/50 border-l-4 border-l-primary rounded-xl p-4 shadow-sm transition-all duration-200 hover:shadow-md",
+              isPulsing && "ring-2 ring-primary/30"
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <stat.icon className="w-4 h-4 text-primary" />
+              </div>
+            </div>
             <p className={cn(
-              "text-lg md:text-2xl font-bold transition-colors duration-300",
+              "text-2xl font-bold text-foreground transition-colors duration-200",
               isPulsing && "text-primary"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `$${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {stat.value}
             </p>
           </div>
-          <div className="text-center px-4">
-            <p className="text-sm text-muted-foreground mb-1">Payments</p>
-            <p className={cn(
-              "text-lg md:text-2xl font-bold transition-colors duration-300",
-              isPulsing && "text-primary"
-            )}>
-              {isTestMode ? 'XX' : payments}
-            </p>
-          </div>
-          <div className="text-center px-4">
-            <p className="text-sm text-muted-foreground mb-1">Customers</p>
-            <p className={cn(
-              "text-lg md:text-2xl font-bold transition-colors duration-300",
-              isPulsing && "text-primary"
-            )}>
-              {isTestMode ? 'XX' : customers}
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ export function StatCard({ title, value, change, changeLabel, icon, trend = 'neu
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+          <p className="text-2xl font-bold mt-2 text-foreground">{value}</p>
           {change !== undefined && (
             <div className="flex items-center gap-1 mt-2">
               {trend === 'up' && <TrendingUp className="w-4 h-4 text-success" />}
