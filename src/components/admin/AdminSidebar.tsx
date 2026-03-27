@@ -306,8 +306,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   // Items to hide on native apps (App Store compliance - no payment flows)
   const nativeHiddenItems = useMemo(() => {
     if (canShowPaymentFlows) return [];
-    // Hide payment-related items on native platforms
-    return ['/dashboard/payment-integration'];
+    // Hide payment-related items on native platforms (App Store compliance)
+    return ['/dashboard/payment-integration', '/dashboard/subscription'];
   }, [canShowPaymentFlows]);
 
   // Filter out hidden items and add badges
