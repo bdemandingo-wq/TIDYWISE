@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Calendar, Users, CreditCard, BarChart3, Bell, Zap, CheckCircle2, ArrowRight,
   Star, Menu, X, Play, ClipboardList, Settings, Home, Send, FileText, UserCircle,
-  Clock, MapPin, Sparkles, ArrowRightLeft, ChevronUp,
+  Clock, MapPin, Sparkles, ArrowRightLeft, ChevronUp, MessageSquare, PieChart,
+  TrendingUp, Phone, DollarSign, GripVertical, ChevronDown,
 } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
@@ -32,7 +33,6 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: number;
   const [progress, setProgress] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -55,14 +55,10 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: number;
     obs.observe(el);
     return () => obs.disconnect();
   }, [target]);
-
   return (
     <span ref={ref} className="relative">
       {prefix}{count}{suffix}
-      <span
-        className="absolute -bottom-2 left-0 h-0.5 bg-primary rounded-full transition-all duration-100"
-        style={{ width: `${progress}%` }}
-      />
+      <span className="absolute -bottom-2 left-0 h-0.5 bg-primary rounded-full transition-all duration-100" style={{ width: `${progress}%` }} />
     </span>
   );
 }
@@ -71,203 +67,505 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }: { target: number;
 function FloatingParticles() {
   const particles = useRef(
     Array.from({ length: 10 }, () => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      duration: Math.random() * 7 + 8,
-      delay: Math.random() * -15,
+      x: Math.random() * 100, y: Math.random() * 100,
+      size: Math.random() * 3 + 1, duration: Math.random() * 7 + 8, delay: Math.random() * -15,
     }))
   ).current;
-
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {particles.map((p, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-emerald-400/30"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: `${p.size * 2}px`,
-            height: `${p.size * 2}px`,
-            animation: `floatParticle ${p.duration}s ease-in-out ${p.delay}s infinite alternate`,
-          }}
-        />
+        <div key={i} className="absolute rounded-full bg-emerald-400/30"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.size * 2}px`, height: `${p.size * 2}px`,
+            animation: `floatParticle ${p.duration}s ease-in-out ${p.delay}s infinite alternate` }} />
       ))}
     </div>
   );
 }
 
-/* ─── Dashboard Preview ─── */
-type PreviewTab = "Dashboard" | "Bookings" | "Reports";
+/* ─── Wordmark ─── */
+function Wordmark({ className = "", dark = false }: { className?: string; dark?: boolean }) {
+  return (
+    <span className={`font-bold text-xl tracking-tight ${className}`}>
+      <span className={dark ? "text-white" : "text-slate-900"}>Tidy</span>
+      <span className="text-emerald-500">Wise</span>
+    </span>
+  );
+}
 
-function DashboardPreview() {
-  const [activeTab, setActiveTab] = useState<PreviewTab>("Dashboard");
+/* ─── Back to top ─── */
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const h = () => setShow(window.scrollY > 400);
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+  if (!show) return null;
+  return (
+    <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all duration-200 animate-fade-in"
+      aria-label="Back to top">
+      <ChevronUp className="h-5 w-5" />
+    </button>
+  );
+}
 
-  const sideNavItems = [
-    { name: "Dashboard", icon: Home, active: true },
-    { name: "Bookings", icon: ClipboardList, active: false },
-    { name: "Clients", icon: Users, active: false },
-    { name: "Staff", icon: UserCircle, active: false },
-    { name: "Reports", icon: BarChart3, active: false },
-    { name: "Settings", icon: Settings, active: false },
-  ];
+/* ═══ HERO — Split layout: left = booking UI, right = result ═══ */
+function HeroBookingCard() {
+  const [status, setStatus] = useState<"unscheduled" | "animating" | "confirmed">("unscheduled");
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStatus("animating"), 2000);
+    const t2 = setTimeout(() => setStatus("confirmed"), 3200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
 
   return (
-    <div className="mt-16 max-w-5xl mx-auto relative">
-      <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-3xl" />
-
-      <div className="relative flex justify-center gap-1 mb-4">
-        {(["Dashboard", "Bookings", "Reports"] as PreviewTab[]).map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
-              activeTab === tab ? "text-primary border-b-2 border-primary bg-primary/5" : "text-slate-500 hover:text-slate-300"
-            }`}>
-            {tab}
-          </button>
+    <div className="bg-slate-900 rounded-2xl border border-slate-700/50 p-5 w-full max-w-sm"
+      style={{ boxShadow: "0 0 0 1px rgba(16,185,129,0.15), 0 20px 60px rgba(0,0,0,0.4), 0 0 60px rgba(16,185,129,0.06)" }}>
+      <div className="flex items-center gap-2 mb-4">
+        <Calendar className="h-4 w-4 text-primary" />
+        <span className="text-white text-sm font-semibold">Schedule Booking</span>
+      </div>
+      {/* Booking card */}
+      <div className={`relative bg-slate-800 rounded-xl p-4 border transition-all duration-700 ${
+        status === "confirmed" ? "border-emerald-500/50 shadow-lg shadow-emerald-500/10" : "border-slate-700/50"
+      }`}>
+        <div className="flex items-start gap-3">
+          <div className={`mt-0.5 transition-opacity duration-300 ${status === "animating" ? "opacity-50" : ""}`}>
+            <GripVertical className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium">Maria Chen</p>
+            <p className="text-slate-400 text-xs mt-0.5">Deep Clean · 3 hours</p>
+            <p className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> 742 Evergreen Terrace
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <Clock className="h-3 w-3 text-slate-500" />
+              <span className="text-slate-400 text-xs">Thursday, 9:00 AM</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all duration-500 ${
+            status === "confirmed"
+              ? "bg-emerald-500/20 text-emerald-400"
+              : status === "animating"
+              ? "bg-amber-500/20 text-amber-400"
+              : "bg-slate-700 text-slate-400"
+          }`}>
+            {status === "confirmed" ? "✓ Confirmed" : status === "animating" ? "Assigning..." : "Unscheduled"}
+          </span>
+          <span className="text-slate-500 text-xs">$280</span>
+        </div>
+        {/* Green flash */}
+        {status === "confirmed" && (
+          <div className="absolute inset-0 rounded-xl bg-emerald-400/10 animate-[ping_0.5s_ease-out_1] pointer-events-none" />
+        )}
+      </div>
+      {/* Mini calendar strip */}
+      <div className="mt-4 grid grid-cols-5 gap-1">
+        {["Mon","Tue","Wed","Thu","Fri"].map((d, i) => (
+          <div key={d} className={`rounded-lg py-1.5 text-center text-[10px] transition-all duration-500 ${
+            i === 3 && status === "confirmed"
+              ? "bg-primary/20 text-primary font-bold border border-primary/30"
+              : "bg-slate-800 text-slate-500"
+          }`}>
+            {d}
+            {i === 3 && status === "confirmed" && <div className="w-1.5 h-1.5 rounded-full bg-primary mx-auto mt-0.5" />}
+          </div>
         ))}
       </div>
+    </div>
+  );
+}
 
-      <div className="relative bg-slate-900 rounded-2xl border border-slate-700/50 overflow-hidden"
-        style={{ boxShadow: "0 0 0 1px rgba(16,185,129,0.2), 0 20px 60px rgba(0,0,0,0.5), 0 0 80px rgba(16,185,129,0.08)" }}>
-        <div className="bg-slate-800 px-4 py-3 flex items-center gap-3">
-          <div className="flex gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-          </div>
-          <div className="bg-slate-700 rounded text-slate-400 text-xs px-3 py-1 ml-4 flex-1 max-w-xs">app.tidywise.com/dashboard</div>
+function HeroResultCard() {
+  const [revenue, setRevenue] = useState(0);
+  const [showPayment, setShowPayment] = useState(false);
+  const targets = [0, 450, 1200, 2800];
+  const idx = useRef(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      idx.current = (idx.current + 1) % targets.length;
+      setRevenue(targets[idx.current]);
+      if (idx.current === targets.length - 1) setShowPayment(true);
+    }, 1800);
+    const t = setTimeout(() => setShowPayment(false), 8000);
+    return () => { clearInterval(interval); clearTimeout(t); };
+  }, []);
+
+  return (
+    <div className="w-full max-w-xs space-y-3">
+      {/* Phone SMS mockup */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-700/50 p-4"
+        style={{ boxShadow: "0 0 0 1px rgba(16,185,129,0.15), 0 20px 60px rgba(0,0,0,0.4)" }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Phone className="h-4 w-4 text-primary" />
+          <span className="text-white text-xs font-semibold">SMS Sent</span>
+          <span className="text-slate-500 text-xs ml-auto">Just now</span>
         </div>
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3">
+          <p className="text-slate-200 text-xs leading-relaxed">
+            Hi Sarah! Your cleaning is confirmed for Friday 10AM. Reply STOP to cancel. 🧹
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 mt-2">
+          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+          <span className="text-emerald-400 text-[10px] font-medium">Delivered</span>
+        </div>
+      </div>
 
-        <div className="flex min-h-[340px]">
-          <div className="hidden sm:block w-48 bg-slate-900 border-r border-slate-700/50 py-4 px-3 space-y-1">
-            <div className="flex items-center gap-2 px-3 mb-4">
-              <span className="font-bold text-sm text-white">Tidy<span className="text-emerald-400">Wise</span></span>
-            </div>
-            {sideNavItems.map((item) => (
-              <div key={item.name} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                item.active ? "bg-primary/15 text-primary" : "text-slate-400 hover:text-slate-300"
-              }`}>
-                <item.icon className="w-4 h-4" />
-                {item.name}
-              </div>
-            ))}
-          </div>
+      {/* Revenue ticker */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-700/50 p-4">
+        <p className="text-slate-400 text-xs mb-1">This week's revenue</p>
+        <p className="text-3xl font-bold text-white transition-all duration-700">
+          ${revenue.toLocaleString()}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1">
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="text-emerald-400 text-xs font-medium">+23% vs last week</span>
+        </div>
+      </div>
 
-          <div className="flex-1 p-5 bg-slate-950 transition-opacity duration-200">
-            {activeTab === "Dashboard" && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[
-                    { label: "Today's Cleans", value: "12", sub: "+3 vs yesterday", color: "text-primary" },
-                    { label: "Revenue", value: "$2,450", sub: "This week", color: "text-green-400" },
-                    { label: "Active Clients", value: "87", sub: "+5 new", color: "text-sky-400" },
-                    { label: "Team Available", value: "6/8", sub: "2 on job", color: "text-amber-400" },
-                  ].map((s, i) => (
-                    <div key={i} className="bg-slate-900 rounded-xl p-4 border border-slate-700/30">
-                      <p className="text-slate-400 text-xs mb-1">{s.label}</p>
-                      <p className="text-xl font-bold text-white">{s.value}</p>
-                      <p className={`text-xs mt-1 ${s.color}`}>{s.sub}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
-                    <div key={d} className="flex-1 bg-slate-900 rounded-lg p-2 text-center border border-slate-700/30">
-                      <p className="text-slate-500 text-[10px] mb-1">{d}</p>
-                      <p className="text-white text-xs font-medium">{10+i}</p>
-                      <div className="flex gap-0.5 justify-center mt-1">
-                        {i < 5 && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                        {i < 3 && <div className="w-1.5 h-1.5 rounded-full bg-sky-400" />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-slate-900 rounded-xl border border-slate-700/30 overflow-hidden">
-                  <div className="px-4 py-2 border-b border-slate-700/30"><p className="text-white text-xs font-medium">Upcoming Bookings</p></div>
-                  {[
-                    { name: "Sarah Johnson", addr: "123 Oak St", status: "Confirmed", badge: "bg-green-500/20 text-green-400" },
-                    { name: "Mike Chen", addr: "456 Pine Ave", status: "In Progress", badge: "bg-primary/20 text-primary" },
-                    { name: "Lisa Park", addr: "789 Elm Dr", status: "Complete", badge: "bg-slate-600/30 text-slate-400" },
-                  ].map((r, i) => (
-                    <div key={i} className="flex items-center px-4 py-2.5 border-b border-slate-700/20 last:border-0">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 flex items-center justify-center text-white text-[10px] font-bold mr-3">{r.name[0]}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-xs font-medium truncate">{r.name}</p>
-                        <p className="text-slate-500 text-[10px]">{r.addr}</p>
-                      </div>
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${r.badge}`}>{r.status}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {activeTab === "Bookings" && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <p className="text-white text-sm font-medium">This Week's Schedule</p>
-                  <div className="bg-primary/20 text-primary text-xs px-3 py-1 rounded-full font-medium">+ New Booking</div>
-                </div>
-                {[
-                  { time: "9:00 AM", client: "Sarah Johnson", service: "Deep Clean", duration: "3h", status: "Confirmed" },
-                  { time: "10:30 AM", client: "David Wilson", service: "Standard Clean", duration: "2h", status: "In Progress" },
-                  { time: "1:00 PM", client: "Emma Davis", service: "Move-Out Clean", duration: "4h", status: "Pending" },
-                  { time: "3:00 PM", client: "James Brown", service: "Standard Clean", duration: "2h", status: "Confirmed" },
-                ].map((b, i) => (
-                  <div key={i} className="bg-slate-900 rounded-xl p-3 border border-slate-700/30 flex items-center gap-3">
-                    <div className="text-center min-w-[56px]">
-                      <p className="text-primary text-xs font-bold">{b.time}</p>
-                      <p className="text-slate-500 text-[10px]">{b.duration}</p>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-xs font-medium">{b.client}</p>
-                      <p className="text-slate-400 text-[10px]">{b.service}</p>
-                    </div>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                      b.status === "Confirmed" ? "bg-green-500/20 text-green-400" :
-                      b.status === "In Progress" ? "bg-primary/20 text-primary" : "bg-amber-500/20 text-amber-400"
-                    }`}>{b.status}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {activeTab === "Reports" && (
-              <div className="space-y-4 animate-fade-in">
-                <p className="text-white text-sm font-medium">Revenue Overview</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "This Month", value: "$12,450", change: "+12%" },
-                    { label: "Avg Job Value", value: "$185", change: "+8%" },
-                    { label: "Bookings", value: "67", change: "+15%" },
-                  ].map((s, i) => (
-                    <div key={i} className="bg-slate-900 rounded-xl p-3 border border-slate-700/30">
-                      <p className="text-slate-400 text-[10px]">{s.label}</p>
-                      <p className="text-white text-lg font-bold">{s.value}</p>
-                      <p className="text-green-400 text-[10px]">{s.change}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-slate-900 rounded-xl p-4 border border-slate-700/30">
-                  <p className="text-slate-400 text-xs mb-3">Weekly Revenue</p>
-                  <div className="flex items-end gap-2 h-24">
-                    {[40, 65, 55, 80, 70, 90, 60].map((h, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="w-full rounded-t bg-gradient-to-t from-primary to-primary/60 transition-all duration-500" style={{ height: `${h}%` }} />
-                        <span className="text-slate-500 text-[9px]">{["M","T","W","T","F","S","S"][i]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Payment toast */}
+      <div className={`bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2 transition-all duration-500 ${
+        showPayment ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+      }`}>
+        <DollarSign className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+        <div>
+          <p className="text-emerald-300 text-xs font-semibold">Payment received</p>
+          <p className="text-emerald-400/70 text-[10px]">$280.00 — Maria Chen</p>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Competitor Comparison ─── */
+/* ═══ INTERACTIVE FEATURE DEMOS ═══ */
+type FeatureTab = "Scheduling" | "Reminders" | "Client Portal" | "Reports" | "Invoicing";
+
+function SchedulingDemo() {
+  const [assigned, setAssigned] = useState(false);
+  return (
+    <div className="bg-slate-950 rounded-2xl border border-slate-700/50 p-5 h-full min-h-[320px]">
+      <div className="grid grid-cols-7 gap-1 mb-4">
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+          <div key={d} className="text-center text-[10px] text-slate-500 font-medium py-1">{d}</div>
+        ))}
+        {/* Calendar slots */}
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="bg-slate-900 rounded-lg p-1.5 min-h-[60px] border border-slate-800">
+            {i === 0 && <div className="bg-emerald-500/20 text-emerald-400 text-[8px] rounded px-1 py-0.5 font-medium">9AM Kim L.</div>}
+            {i === 2 && <div className="bg-sky-500/20 text-sky-400 text-[8px] rounded px-1 py-0.5 font-medium">10AM Davis</div>}
+            {i === 4 && <div className="bg-violet-500/20 text-violet-400 text-[8px] rounded px-1 py-0.5 font-medium">2PM Park</div>}
+            {i === 3 && assigned && (
+              <div className="bg-emerald-500/20 text-emerald-400 text-[8px] rounded px-1 py-0.5 font-medium animate-fade-in">9AM Maria C. ✓</div>
+            )}
+          </div>
+        ))}
+      </div>
+      {/* Unscheduled card + button */}
+      <div className={`bg-slate-900 rounded-xl p-3 border transition-all duration-500 ${assigned ? "border-emerald-500/30 opacity-50" : "border-slate-700/50"}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-white text-xs font-medium">Maria Chen — Deep Clean</p>
+            <p className="text-slate-500 text-[10px]">3h · $280</p>
+          </div>
+          <button onClick={() => setAssigned(true)} disabled={assigned}
+            className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all ${
+              assigned ? "bg-emerald-500/20 text-emerald-400" : "bg-primary text-white hover:bg-primary/90"
+            }`}>
+            {assigned ? "✓ Assigned" : "Auto-assign"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RemindersDemo() {
+  const [sent, setSent] = useState(false);
+  const [typing, setTyping] = useState(false);
+
+  const handleSend = () => {
+    setTyping(true);
+    setTimeout(() => { setTyping(false); setSent(true); }, 1500);
+  };
+
+  return (
+    <div className="bg-slate-950 rounded-2xl border border-slate-700/50 p-5 h-full min-h-[320px] flex flex-col">
+      {/* Phone frame */}
+      <div className="bg-slate-900 rounded-xl border border-slate-800 flex-1 p-4 flex flex-col">
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">
+          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+            <MessageSquare className="h-3 w-3 text-primary" />
+          </div>
+          <span className="text-white text-xs font-medium">Sarah Johnson</span>
+        </div>
+        <div className="flex-1 space-y-2">
+          <div className="bg-slate-800 rounded-xl rounded-tl-sm p-2.5 max-w-[75%]">
+            <p className="text-slate-300 text-[11px]">Can you confirm my Friday appointment?</p>
+          </div>
+          <div className="bg-primary/20 rounded-xl rounded-tr-sm p-2.5 max-w-[75%] ml-auto">
+            <p className="text-slate-200 text-[11px]">Of course! You're confirmed for Friday 10 AM. 🧹</p>
+          </div>
+          {typing && (
+            <div className="bg-primary/10 rounded-xl rounded-tr-sm p-2.5 max-w-[50%] ml-auto animate-pulse">
+              <p className="text-slate-400 text-[11px]">...</p>
+            </div>
+          )}
+          {sent && (
+            <div className="bg-primary/20 rounded-xl rounded-tr-sm p-2.5 max-w-[80%] ml-auto animate-fade-in">
+              <p className="text-slate-200 text-[11px]">Hi! Just a reminder your cleaning is tomorrow at 10AM 🧹</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center justify-between mt-3">
+        <button onClick={handleSend} disabled={sent}
+          className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all ${
+            sent ? "bg-emerald-500/20 text-emerald-400" : "bg-primary text-white hover:bg-primary/90"
+          }`}>
+          {sent ? "✓ Reminder Sent" : "Send Reminder"}
+        </button>
+        <span className="text-emerald-400 text-[10px] font-medium">✓ 98% open rate vs 22% email</span>
+      </div>
+    </div>
+  );
+}
+
+function ClientPortalDemo() {
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [notif, setNotif] = useState(false);
+
+  const handleSubmit = () => {
+    setLoading(true);
+    setTimeout(() => { setLoading(false); setSubmitted(true); setNotif(true); }, 1500);
+  };
+
+  return (
+    <div className="bg-slate-950 rounded-2xl border border-slate-700/50 p-5 h-full min-h-[320px]">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+        <p className="text-white text-sm font-semibold mb-3">Book a Cleaning</p>
+        <div className="space-y-2.5">
+          <div className="bg-slate-800 rounded-lg p-2 text-slate-300 text-xs">Sarah Morrison</div>
+          <div className="bg-slate-800 rounded-lg p-2 text-slate-300 text-xs flex items-center gap-1">
+            <MapPin className="h-3 w-3 text-slate-500" /> 123 Oak Street, Apt 4B
+          </div>
+          <div className="bg-slate-800 rounded-lg p-2 text-slate-300 text-xs flex items-center justify-between">
+            <span>Deep Clean</span>
+            <ChevronDown className="h-3 w-3 text-slate-500" />
+          </div>
+          <div className="bg-slate-800 rounded-lg p-2 text-slate-300 text-xs flex items-center gap-1">
+            <Calendar className="h-3 w-3 text-slate-500" /> Friday, March 28 · 10:00 AM
+          </div>
+        </div>
+        {!submitted ? (
+          <button onClick={handleSubmit} disabled={loading}
+            className="w-full mt-4 bg-primary text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+            {loading ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Book Now"}
+          </button>
+        ) : (
+          <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center animate-fade-in">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 mx-auto mb-1" />
+            <p className="text-emerald-300 text-xs font-semibold">Booking confirmed!</p>
+            <p className="text-emerald-400/60 text-[10px]">See you Friday.</p>
+          </div>
+        )}
+      </div>
+      {notif && (
+        <div className="mt-3 bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center gap-2 animate-fade-in">
+          <Bell className="h-4 w-4 text-primary flex-shrink-0" />
+          <p className="text-slate-300 text-xs">New booking from <strong className="text-white">Sarah M.</strong></p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReportsDemo() {
+  const [period, setPeriod] = useState<"week" | "month" | "year">("week");
+  const barData: Record<string, number[]> = {
+    week: [40, 65, 55, 80, 70, 90, 60],
+    month: [55, 70, 80, 65, 90, 75, 85],
+    year: [30, 45, 60, 55, 70, 85, 95],
+  };
+  return (
+    <div className="bg-slate-950 rounded-2xl border border-slate-700/50 p-5 h-full min-h-[320px]">
+      <div className="flex items-center gap-2 mb-4">
+        {(["week", "month", "year"] as const).map((p) => (
+          <button key={p} onClick={() => setPeriod(p)}
+            className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all ${
+              period === p ? "bg-primary text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+            }`}>
+            This {p}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[
+          { label: "Revenue", value: period === "week" ? "$2,450" : period === "month" ? "$12,450" : "$148k", change: "+12%" },
+          { label: "Bookings", value: period === "week" ? "18" : period === "month" ? "67" : "812", change: "+15%" },
+          { label: "Avg Job", value: "$185", change: "+8%" },
+        ].map((s, i) => (
+          <div key={i} className="bg-slate-900 rounded-xl p-2.5 border border-slate-800">
+            <p className="text-slate-500 text-[9px]">{s.label}</p>
+            <p className="text-white text-sm font-bold">{s.value}</p>
+            <p className="text-emerald-400 text-[9px]">{s.change}</p>
+          </div>
+        ))}
+      </div>
+      {/* Bar chart */}
+      <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+        <p className="text-slate-500 text-[10px] mb-2">Revenue trend</p>
+        <div className="flex items-end gap-1.5 h-20">
+          {barData[period].map((h, i) => (
+            <div key={`${period}-${i}`} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full rounded-t bg-gradient-to-t from-primary to-primary/60 transition-all duration-500" style={{ height: `${h}%` }} />
+              <span className="text-slate-600 text-[8px]">{["M","T","W","T","F","S","S"][i]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Donut placeholder */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {[{ label: "Regular", pct: 55, color: "bg-primary" }, { label: "Deep", pct: 30, color: "bg-sky-400" }, { label: "Move-out", pct: 15, color: "bg-violet-400" }].map((s) => (
+          <div key={s.label} className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-full ${s.color}`} />
+            <span className="text-slate-400 text-[9px]">{s.label} {s.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InvoicingDemo() {
+  const [sent, setSent] = useState(false);
+  const [paid, setPaid] = useState(false);
+
+  const handleSend = () => {
+    setSent(true);
+    setTimeout(() => setPaid(true), 2000);
+  };
+
+  return (
+    <div className="bg-slate-950 rounded-2xl border border-slate-700/50 p-5 h-full min-h-[320px] flex flex-col">
+      <div className={`bg-slate-900 rounded-xl border border-slate-800 p-4 flex-1 transition-all duration-500 ${sent ? "opacity-70 scale-95" : ""}`}>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-white text-sm font-semibold">Invoice #1047</span>
+          <span className="text-slate-400 text-xs">Mar 28, 2026</span>
+        </div>
+        <div className="border-t border-slate-800 pt-3 space-y-2">
+          <div className="flex justify-between text-xs"><span className="text-slate-400">Deep Clean (3hrs)</span><span className="text-white">$280.00</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-400">Inside oven</span><span className="text-white">$45.00</span></div>
+          <div className="flex justify-between text-xs"><span className="text-slate-400">Inside fridge</span><span className="text-white">$25.00</span></div>
+        </div>
+        <div className="border-t border-slate-700 mt-3 pt-3 flex justify-between">
+          <span className="text-white text-sm font-bold">Total</span>
+          <span className="text-white text-sm font-bold">$350.00</span>
+        </div>
+        <p className="text-slate-500 text-[10px] mt-2">To: Johnson Family · johnson@email.com</p>
+      </div>
+
+      {!sent ? (
+        <button onClick={handleSend}
+          className="mt-3 w-full bg-primary text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+          <Send className="h-3.5 w-3.5" /> Send Invoice
+        </button>
+      ) : (
+        <div className="mt-3 space-y-2 animate-fade-in">
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-2.5 text-center">
+            <p className="text-primary text-xs font-semibold">✓ Invoice sent · $350.00</p>
+          </div>
+          {paid && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 flex items-center gap-2 animate-fade-in">
+              <DollarSign className="h-4 w-4 text-emerald-400" />
+              <p className="text-emerald-300 text-xs font-medium">Payment received from Johnson Family</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const featureTabsData: { tab: FeatureTab; icon: typeof Calendar; title: string; desc: string; bullets: string[] }[] = [
+  { tab: "Scheduling", icon: Calendar, title: "Smart Scheduling", desc: "Drag-and-drop calendar with auto-assignment by location, skills, and availability. Recurring bookings run on autopilot.", bullets: ["Auto-assign by cleaner availability", "Recurring & one-time bookings", "Conflict detection & alerts"] },
+  { tab: "Reminders", icon: Bell, title: "Automated Reminders", desc: "SMS and email reminders sent automatically before every appointment. Reduce no-shows by 80% without lifting a finger.", bullets: ["Customizable reminder intervals", "SMS + email delivery", "98% open rate on SMS reminders"] },
+  { tab: "Client Portal", icon: Users, title: "Client Self-Booking", desc: "Clients book online, view history, and manage appointments. Your booking page, your brand — zero phone calls.", bullets: ["Branded booking page", "Instant confirmation & notifications", "Client login with booking history"] },
+  { tab: "Reports", icon: BarChart3, title: "Revenue Reports", desc: "Real-time P&L, revenue forecasting, and AI-powered business intelligence dashboards that show you what's working.", bullets: ["Revenue trends & forecasting", "Per-service profitability", "Weekly automated reports"] },
+  { tab: "Invoicing", icon: FileText, title: "One-Tap Invoicing", desc: "Generate and send professional invoices with one click. Auto-charge saved cards after each job for instant payment.", bullets: ["Auto-generate from bookings", "Stripe payment collection", "Payment tracking & reminders"] },
+];
+
+function FeatureDemoSection() {
+  const [activeTab, setActiveTab] = useState<FeatureTab>("Scheduling");
+  const reveal = useScrollReveal();
+  const current = featureTabsData.find((f) => f.tab === activeTab)!;
+
+  const demos: Record<FeatureTab, JSX.Element> = {
+    Scheduling: <SchedulingDemo />,
+    Reminders: <RemindersDemo />,
+    "Client Portal": <ClientPortalDemo />,
+    Reports: <ReportsDemo />,
+    Invoicing: <InvoicingDemo />,
+  };
+
+  return (
+    <section id="features" ref={reveal.ref}
+      className={`bg-white py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${reveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <p className="text-primary text-xs font-bold tracking-widest mb-3">FEATURES</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Everything you need, nothing you don't</h2>
+          <p className="text-slate-500 text-lg mt-4">Purpose-built tools for cleaning businesses that actually work the way you do.</p>
+        </div>
+
+        {/* Tab bar */}
+        <div className="flex flex-wrap justify-center gap-2 mb-10 overflow-x-auto pb-2 scrollbar-none">
+          {featureTabsData.map((f) => (
+            <button key={f.tab} onClick={() => setActiveTab(f.tab)}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                activeTab === f.tab ? "bg-primary text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}>
+              <f.icon className="h-4 w-4" /> {f.tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Split panel */}
+        <div className="grid md:grid-cols-5 gap-8 items-start">
+          {/* Left: description */}
+          <div className="md:col-span-2 space-y-5">
+            <current.icon className="h-8 w-8 text-primary" />
+            <h3 className="text-2xl font-bold text-slate-900">{current.title}</h3>
+            <p className="text-slate-600 leading-relaxed">{current.desc}</p>
+            <ul className="space-y-2">
+              {current.bullets.map((b) => (
+                <li key={b} className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" /> {b}
+                </li>
+              ))}
+            </ul>
+            <button className="text-primary text-sm font-medium hover:underline inline-flex items-center gap-1">
+              See it in action <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {/* Right: demo */}
+          <div className="md:col-span-3" key={activeTab}>
+            <div className="animate-fade-in">{demos[activeTab]}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══ COMPETITOR COMPARISON ═══ */
 function CompetitorComparisonSection() {
   const reveal = useScrollReveal();
   const comparisonData = [
@@ -282,31 +580,20 @@ function CompetitorComparisonSection() {
     { feature: "Cleaner-facing mobile app", tw: true, jobber: true, housecall: true, bk: false },
     { feature: "Starting price", tw: "$49/mo", jobber: "$69/mo", housecall: "$65/mo", bk: "$39/mo" },
   ];
-
   const renderCell = (val: boolean | string) => {
     if (typeof val === "string") return <span className="text-sm font-semibold text-slate-700">{val}</span>;
-    if (val) return (
-      <div className="w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
-        <span className="text-emerald-500 font-bold text-lg">✓</span>
-      </div>
-    );
+    if (val) return <div className="w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center mx-auto"><span className="text-emerald-500 font-bold text-lg">✓</span></div>;
     return <span className="text-slate-300 text-lg mx-auto block text-center">✗</span>;
   };
-
   return (
-    <section
-      ref={reveal.ref}
-      className={`bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-        reveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-      }`}
-    >
+    <section ref={reveal.ref}
+      className={`bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${reveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
       <div className="max-w-5xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-primary text-xs font-bold tracking-widest mb-3">WHY TIDYWISE</p>
           <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">The smarter choice for cleaning businesses</h2>
           <p className="text-slate-500 text-lg mt-4">See how TidyWise stacks up against the competition</p>
         </div>
-
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -315,8 +602,7 @@ function CompetitorComparisonSection() {
                   <th className="text-left p-4 text-sm font-medium text-slate-500">Feature</th>
                   <th className="p-4 text-center">
                     <div className="bg-emerald-500 text-white font-bold text-sm rounded-lg px-3 py-2 inline-block">
-                      TidyWise
-                      <div className="text-[10px] font-medium bg-white/20 rounded-full px-2 py-0.5 mt-1">⭐ Best Value</div>
+                      TidyWise<div className="text-[10px] font-medium bg-white/20 rounded-full px-2 py-0.5 mt-1">⭐ Best Value</div>
                     </div>
                   </th>
                   <th className="p-4 text-center text-sm font-medium text-slate-500">Jobber</th>
@@ -338,8 +624,6 @@ function CompetitorComparisonSection() {
             </table>
           </div>
         </div>
-
-        {/* Switch-from cards */}
         <div className="grid md:grid-cols-3 gap-4 mt-10">
           {["Jobber", "Housecall Pro", "Booking Koala"].map((name) => (
             <div key={name} className="bg-white rounded-xl border border-slate-200 p-5 text-center hover:shadow-md hover:border-slate-300 transition-all duration-200">
@@ -355,85 +639,128 @@ function CompetitorComparisonSection() {
   );
 }
 
-/* ─── Features data ─── */
-const features = [
-  { icon: Calendar, title: "Smart Scheduling", description: "Drag-and-drop calendar with auto-assignment by location, skills, and availability. Recurring bookings run on autopilot.", large: true },
-  { icon: Bell, title: "Automated Reminders", description: "SMS and email reminders sent automatically. Reduce no-shows by 80%.", large: false },
-  { icon: Users, title: "Client Portal", description: "Clients book online, view history, manage appointments, and track loyalty rewards — all self-service.", large: true },
-  { icon: UserCircle, title: "Staff Management", description: "Track your team's schedule, performance, GPS check-ins, and payroll in one place.", large: false },
-  { icon: BarChart3, title: "Revenue Reports", description: "Real-time P&L, revenue forecasting, and AI-powered business intelligence dashboards.", large: false },
-  { icon: FileText, title: "One-tap Invoicing", description: "Generate and send professional invoices with one click. Auto-charge saved cards after each job.", large: false },
-];
+/* ═══ USE CASES SECTION ═══ */
+function UseCasesSection() {
+  const reveal = useScrollReveal();
+  const cases = [
+    {
+      title: "Solo Cleaner",
+      left: "Running 15 clients solo? Stop texting reminders manually.",
+      stat: "Saves 3 hours/week",
+      right: (
+        <div className="space-y-2">
+          {["Sarah J. — Fri 10AM ✓", "Mike C. — Fri 1PM ✓", "Lisa P. — Sat 9AM ✓", "David W. — Sat 2PM ✓"].map((m) => (
+            <div key={m} className="bg-primary/10 border border-primary/20 rounded-lg p-2">
+              <p className="text-slate-200 text-[10px]">📱 Reminder sent: {m}</p>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      title: "Growing Team (2–10)",
+      left: "Dispatching 6 cleaners across the city every morning?",
+      stat: "40% fewer scheduling conflicts",
+      right: (
+        <div className="space-y-2">
+          {[{ name: "Maria", zone: "Downtown", jobs: 4, color: "bg-primary" }, { name: "Alex", zone: "East Side", jobs: 3, color: "bg-sky-400" }, { name: "James", zone: "North", jobs: 5, color: "bg-violet-400" }].map((c) => (
+            <div key={c.name} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2">
+              <div className={`w-3 h-3 rounded-full ${c.color}`} />
+              <span className="text-white text-[11px] font-medium">{c.name}</span>
+              <span className="text-slate-500 text-[10px]">· {c.zone}</span>
+              <span className="text-slate-400 text-[10px] ml-auto">{c.jobs} jobs</span>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      title: "Established Company (10+)",
+      left: "Need real numbers to make business decisions?",
+      stat: "$12k+ tracked monthly on average",
+      right: (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-slate-800 rounded-lg p-2">
+              <p className="text-slate-500 text-[9px]">Revenue</p>
+              <p className="text-white text-sm font-bold">$14.2k</p>
+              <p className="text-emerald-400 text-[9px]">+18%</p>
+            </div>
+            <div className="bg-slate-800 rounded-lg p-2">
+              <p className="text-slate-500 text-[9px]">Profit</p>
+              <p className="text-white text-sm font-bold">$8.7k</p>
+              <p className="text-emerald-400 text-[9px]">61% margin</p>
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-2">
+            <p className="text-slate-500 text-[9px]">Top client: Anderson Corp — $2,400/mo</p>
+          </div>
+        </div>
+      ),
+    },
+  ];
 
-const testimonials = [
-  { quote: "This platform transformed how we run our cleaning business. Bookings increased 40% in the first month and we've never looked back.", author: "Sarah M.", role: "Owner, Sparkle Clean Co.", avatar: "SM" },
-  { quote: "The staff portal is incredible. My team manages their own schedules and I track everything in real-time. It's like having an extra manager.", author: "Michael R.", role: "Founder, Fresh Start Services", avatar: "MR" },
-  { quote: "Finally, software that understands cleaning businesses. The automated invoicing alone saves me 5 hours every single week.", author: "Jennifer L.", role: "CEO, Elite Home Care", avatar: "JL" },
-];
+  return (
+    <section ref={reveal.ref}
+      className={`bg-white py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${reveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <p className="text-primary text-xs font-bold tracking-widest mb-3">USE CASES</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Built for every cleaning business</h2>
+          <p className="text-slate-500 text-lg mt-4">Whether you're solo or running a full team, TidyWise adapts to you.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {cases.map((c, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-250"
+              style={{ transitionDelay: reveal.isVisible ? `${i * 100}ms` : "0ms", opacity: reveal.isVisible ? 1 : 0, transform: reveal.isVisible ? "translateY(0)" : "translateY(24px)", transition: "all 0.5s ease" }}>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">{c.title}</h3>
+              <p className="text-slate-500 text-sm mb-4">{c.left}</p>
+              <div className="bg-slate-950 rounded-xl p-3 mb-4">{c.right}</div>
+              <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-semibold px-3 py-1 rounded-full">
+                <Zap className="h-3 w-3" /> {c.stat}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-/* ─── Mini visuals for large feature cards ─── */
-function MiniCalendar() {
-  const blocks = [
-    { col: 0, row: 0, h: 2, color: "bg-emerald-400" },
-    { col: 1, row: 1, h: 1, color: "bg-sky-400" },
-    { col: 2, row: 0, h: 3, color: "bg-emerald-400" },
-    { col: 3, row: 2, h: 1, color: "bg-violet-400" },
-    { col: 4, row: 0, h: 2, color: "bg-sky-400" },
+/* ═══ SOCIAL PROOF ═══ */
+function SocialProofSection() {
+  const reveal = useScrollReveal();
+  const stories = [
+    { name: "Sarah K.", company: "Sparkle Clean Co.", avatar: "SK", headline: "Sarah cut no-shows by 80%", quote: "Before TidyWise, I was losing $400/month to no-shows. Now automated reminders handle it." },
+    { name: "Marcus T.", company: "Fresh Start Services", avatar: "MT", headline: "Marcus went from 8 to 23 clients in 4 months", quote: "The client portal lets new customers book without calling me." },
+    { name: "Priya R.", company: "Elite Home Care", avatar: "PR", headline: "Priya's team saves 12 hours/week on admin", quote: "Scheduling 9 cleaners used to take my whole Monday morning." },
   ];
   return (
-    <div className="mt-4 grid grid-cols-5 gap-1 h-20">
-      {blocks.map((b, i) => (
-        <div key={i} className="relative">
-          <div className={`absolute left-0 right-0 rounded ${b.color} opacity-70`}
-            style={{ top: `${b.row * 25}%`, height: `${b.h * 25}%` }} />
-          <div className="text-[8px] text-slate-400 text-center">{["Mon","Tue","Wed","Thu","Fri"][i]}</div>
+    <section ref={reveal.ref}
+      className={`bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${reveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <p className="text-primary text-xs font-bold tracking-widest mb-3">RESULTS</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Real results from real cleaning businesses</h2>
         </div>
-      ))}
-    </div>
-  );
-}
-
-function MiniClientCard() {
-  return (
-    <div className="mt-4 bg-slate-50 rounded-lg border border-slate-200 p-3 text-left max-w-[220px]">
-      <p className="text-[10px] text-slate-400 font-medium">YOUR UPCOMING CLEANING</p>
-      <p className="text-xs font-semibold text-slate-900 mt-1">Deep Clean — Mar 28</p>
-      <p className="text-[10px] text-slate-500">Cleaner: Maria S.</p>
-      <div className="flex items-center gap-1 mt-1.5">
-        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-        <span className="text-[10px] font-medium text-emerald-600">Confirmed</span>
+        <div className="grid md:grid-cols-3 gap-6">
+          {stories.map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-8 hover:shadow-md hover:border-slate-300 transition-all duration-200"
+              style={{ transitionDelay: reveal.isVisible ? `${i * 100}ms` : "0ms", opacity: reveal.isVisible ? 1 : 0, transform: reveal.isVisible ? "translateY(0)" : "translateY(24px)", transition: "all 0.5s ease" }}>
+              <p className="text-primary text-sm font-bold mb-3">{s.headline}</p>
+              <p className="text-slate-600 text-sm leading-relaxed italic">"{s.quote}"</p>
+              <div className="flex items-center gap-3 mt-6">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">{s.avatar}</div>
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm">{s.name}</p>
+                  <p className="text-slate-400 text-xs">{s.company}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Back to top button ─── */
-function BackToTop() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const handleScroll = () => setShow(window.scrollY > 400);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-  if (!show) return null;
-  return (
-    <button
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all duration-200 animate-fade-in"
-      aria-label="Back to top"
-    >
-      <ChevronUp className="h-5 w-5" />
-    </button>
-  );
-}
-
-/* ─── Wordmark component ─── */
-function Wordmark({ className = "", dark = false }: { className?: string; dark?: boolean }) {
-  return (
-    <span className={`font-bold text-xl tracking-tight ${className}`}>
-      <span className={dark ? "text-white" : "text-slate-900"}>Tidy</span>
-      <span className="text-emerald-500">Wise</span>
-    </span>
+    </section>
   );
 }
 
@@ -446,15 +773,14 @@ export default function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
 
-  const featuresReveal = useScrollReveal();
   const stepsReveal = useScrollReveal();
   const testimonialsReveal = useScrollReveal();
   const statsReveal = useScrollReveal();
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const h = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
   }, []);
 
   useEffect(() => {
@@ -493,7 +819,6 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Wordmark dark={!isScrolled} />
-
             <div className="hidden md:flex items-center gap-8">
               {["Features", "Pricing", "Blog", "Testimonials"].map((item) => (
                 <a key={item} href={`#${item.toLowerCase()}`}
@@ -502,7 +827,6 @@ export default function LandingPage() {
                 </a>
               ))}
             </div>
-
             <div className="hidden md:flex items-center gap-4">
               <button onClick={() => navigate("/login")}
                 className={`text-sm font-medium transition-colors ${isScrolled ? "text-slate-600 hover:text-slate-900" : "text-slate-300 hover:text-white"}`}>
@@ -512,15 +836,12 @@ export default function LandingPage() {
                 Start Free Trial <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
-
             <button className="md:hidden p-2 rounded-lg" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu">
               {mobileMenuOpen
                 ? <X className={`h-6 w-6 ${isScrolled ? "text-slate-900" : "text-white"}`} />
-                : <Menu className={`h-6 w-6 ${isScrolled ? "text-slate-900" : "text-white"}`} />
-              }
+                : <Menu className={`h-6 w-6 ${isScrolled ? "text-slate-900" : "text-white"}`} />}
             </button>
           </div>
-
           {mobileMenuOpen && (
             <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true">
               <button className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} aria-label="Close" />
@@ -528,15 +849,11 @@ export default function LandingPage() {
                 <div className="rounded-2xl bg-white shadow-xl border border-slate-200 p-3 space-y-1">
                   {["Features", "Pricing", "Blog", "Testimonials"].map((item) => (
                     <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">
-                      {item}
-                    </a>
+                      className="block px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">{item}</a>
                   ))}
                   <hr className="my-2 border-slate-100" />
                   <button onClick={() => { setMobileMenuOpen(false); navigate("/login"); }}
-                    className="block w-full text-left px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-sm font-medium">
-                    Log in
-                  </button>
+                    className="block w-full text-left px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-sm font-medium">Log in</button>
                   <Button className="w-full mt-1" onClick={() => { setMobileMenuOpen(false); navigate("/signup"); }}>
                     Start Free Trial <ArrowRight className="ml-1 h-4 w-4" />
                   </Button>
@@ -547,58 +864,58 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ────── HERO ────── */}
-      <section className="relative bg-slate-950 pt-[calc(7rem+env(safe-area-inset-top))] pb-0 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Animated gradient mesh */}
+      {/* ────── HERO — Split layout in first viewport ────── */}
+      <section className="relative bg-slate-950 min-h-screen flex flex-col justify-center pt-[calc(5rem+env(safe-area-inset-top))] pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden hero-gradient-bg" />
         <FloatingParticles />
 
-        <div className="relative max-w-4xl mx-auto text-center py-16 md:py-24">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold rounded-full mb-6">
-            <Sparkles className="h-3.5 w-3.5" />
-            Built for cleaning businesses
+        <div className="relative max-w-6xl mx-auto w-full">
+          {/* Headline */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-semibold rounded-full mb-6">
+              <Sparkles className="h-3.5 w-3.5" /> Built for cleaning businesses
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold text-white tracking-tight leading-[1.1] mb-5">
+              Your cleaning business, on <span className="text-primary">autopilot</span>.
+            </h1>
+            <p className="text-slate-400 text-lg sm:text-xl max-w-xl mx-auto leading-relaxed mb-8">
+              Schedule, remind, get paid — all without lifting a finger. TidyWise handles the busywork so you can focus on growing.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+              <Button size="xl" onClick={handleGetStarted} className="shadow-lg shadow-primary/25 hover:shadow-primary/40">
+                Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 transition-all duration-200 font-medium">
+                <Play className="h-4 w-4" /> Watch Demo
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-slate-500 text-sm">
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Free 60 days</span>
+              <span>·</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> No credit card</span>
+              <span>·</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Cancel anytime</span>
+            </div>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1] mb-6">
-            Run your cleaning business{" "}
-            <br className="hidden sm:block" />
-            like a <span className="text-primary">well-oiled machine</span>
-          </h1>
-
-          <p className="text-slate-400 text-lg sm:text-xl max-w-xl mx-auto leading-relaxed mb-10">
-            TidyWise gives you scheduling, client management, automated reminders, and real-time reporting — everything your team needs in one place.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="xl" onClick={handleGetStarted} className="shadow-lg shadow-primary/25 hover:shadow-primary/40">
-              Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 transition-all duration-200 font-medium">
-              <Play className="h-4 w-4" /> Watch Demo
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-slate-500 text-sm">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Free 60 days</span>
-            <span>·</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> No credit card</span>
-            <span>·</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Cancel anytime</span>
+          {/* Split: Cause → Effect */}
+          <div className="grid md:grid-cols-2 gap-6 items-start max-w-4xl mx-auto">
+            <div className="flex flex-col items-center">
+              <p className="text-slate-500 text-xs font-semibold tracking-widest mb-3">WHAT YOU DO</p>
+              <HeroBookingCard />
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="text-slate-500 text-xs font-semibold tracking-widest mb-3">WHAT HAPPENS</p>
+              <HeroResultCard />
+            </div>
           </div>
         </div>
-
-        <DashboardPreview />
-        <div className="h-32 bg-gradient-to-b from-slate-950 to-white" />
       </section>
 
       {/* ────── STATS BAR ────── */}
-      <section
-        ref={statsReveal.ref}
-        className={`bg-white py-16 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-          statsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-        }`}
-      >
+      <section ref={statsReveal.ref}
+        className={`bg-white py-16 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${statsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-slate-200">
           {[
             { value: 500, suffix: "+", label: "Cleaning businesses" },
@@ -616,93 +933,36 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ────── FEATURES ────── */}
-      <section
-        id="features"
-        ref={featuresReveal.ref}
-        className={`bg-white py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-          featuresReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-primary text-xs font-bold tracking-widest mb-3">FEATURES</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Everything you need, nothing you don't</h2>
-            <p className="text-slate-500 text-lg mt-4">Purpose-built tools for cleaning businesses that actually work the way you do.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                className={`group relative bg-white rounded-2xl border border-slate-200 p-8 overflow-hidden transition-all duration-250 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-100/50 ${
-                  feature.large ? "md:col-span-2" : ""
-                }`}
-                style={{
-                  transitionDelay: featuresReveal.isVisible ? `${index * 100}ms` : "0ms",
-                  opacity: featuresReveal.isVisible ? 1 : 0,
-                  transform: featuresReveal.isVisible ? "translateY(0)" : "translateY(24px)",
-                }}
-              >
-                {/* Hover gradient line at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-300 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                {/* Hover glow */}
-                <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                <div className="relative">
-                  <feature.icon className="h-8 w-8 text-primary mb-5 group-hover:scale-110 transition-transform duration-200" />
-                  <h3 className="text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-slate-500 leading-relaxed">{feature.description}</p>
-                  {feature.title === "Smart Scheduling" && feature.large && <MiniCalendar />}
-                  {feature.title === "Client Portal" && feature.large && <MiniClientCard />}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ────── INTERACTIVE FEATURES ────── */}
+      <FeatureDemoSection />
 
       {/* ────── COMPETITOR COMPARISON ────── */}
       <CompetitorComparisonSection />
 
+      {/* ────── USE CASES ────── */}
+      <UseCasesSection />
+
       {/* ────── HOW IT WORKS ────── */}
-      <section
-        ref={stepsReveal.ref}
-        className={`bg-white py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-          stepsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-        }`}
-      >
+      <section ref={stepsReveal.ref}
+        className={`bg-white py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${stepsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-primary text-xs font-bold tracking-widest mb-3">HOW IT WORKS</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Up and running in minutes</h2>
             <p className="text-slate-500 text-lg mt-4">Three simple steps to transform your cleaning business.</p>
           </div>
-
           <div className="grid md:grid-cols-3 gap-8 relative">
-            {/* Connecting animated dashed line */}
             <div className="hidden md:block absolute top-6 left-[16.67%] right-[16.67%] h-[2px] overflow-hidden">
               <div className="h-full w-full animated-dash-line" />
             </div>
-
             {[
               { num: "1", title: "Add your clients & team", desc: "Import contacts from a CSV or add them one by one. Set up staff profiles with skills, availability, and pay rates." },
               { num: "2", title: "Schedule & automate", desc: "Drag bookings onto the calendar, set up recurring appointments, and let automated reminders handle the rest." },
               { num: "3", title: "Get paid & grow", desc: "Track revenue, send one-tap invoices, read AI-powered insights, and watch your business scale." },
             ].map((step, i) => (
-              <div
-                key={i}
-                className="text-center relative"
-                style={{
-                  transitionDelay: stepsReveal.isVisible ? `${i * 150}ms` : "0ms",
-                  opacity: stepsReveal.isVisible ? 1 : 0,
-                  transform: stepsReveal.isVisible ? "translateY(0)" : "translateY(24px)",
-                  transition: "opacity 0.5s ease, transform 0.5s ease",
-                }}
-              >
-                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto relative step-pulse-ring">
-                  {step.num}
-                </div>
+              <div key={i} className="text-center relative"
+                style={{ transitionDelay: stepsReveal.isVisible ? `${i * 150}ms` : "0ms", opacity: stepsReveal.isVisible ? 1 : 0, transform: stepsReveal.isVisible ? "translateY(0)" : "translateY(24px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}>
+                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center font-bold text-lg mx-auto relative step-pulse-ring">{step.num}</div>
                 <h3 className="text-xl font-semibold text-slate-900 mt-6">{step.title}</h3>
                 <p className="text-slate-500 text-base mt-2 max-w-xs mx-auto">{step.desc}</p>
               </div>
@@ -712,43 +972,29 @@ export default function LandingPage() {
       </section>
 
       {/* ────── TESTIMONIALS ────── */}
-      <section
-        id="testimonials"
-        ref={testimonialsReveal.ref}
-        className={`bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-          testimonialsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-        }`}
-      >
+      <section id="testimonials" ref={testimonialsReveal.ref}
+        className={`bg-slate-50 py-24 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${testimonialsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-primary text-xs font-bold tracking-widest mb-3">TESTIMONIALS</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Loved by cleaning businesses everywhere</h2>
           </div>
-
           <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, index) => (
-              <div key={index}
-                className="relative bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200"
-                style={{
-                  transitionDelay: testimonialsReveal.isVisible ? `${index * 100}ms` : "0ms",
-                  opacity: testimonialsReveal.isVisible ? 1 : 0,
-                  transform: testimonialsReveal.isVisible ? "translateY(0)" : "translateY(24px)",
-                  transition: "opacity 0.5s ease, transform 0.5s ease",
-                }}
-              >
+            {[
+              { quote: "This platform transformed how we run our cleaning business. Bookings increased 40% in the first month.", author: "Sarah M.", role: "Owner, Sparkle Clean Co.", avatar: "SM" },
+              { quote: "The staff portal is incredible. My team manages their own schedules and I track everything in real-time.", author: "Michael R.", role: "Founder, Fresh Start Services", avatar: "MR" },
+              { quote: "Finally, software that understands cleaning businesses. The automated invoicing alone saves me 5 hours weekly.", author: "Jennifer L.", role: "CEO, Elite Home Care", avatar: "JL" },
+            ].map((t, i) => (
+              <div key={i} className="relative bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200"
+                style={{ transitionDelay: testimonialsReveal.isVisible ? `${i * 100}ms` : "0ms", opacity: testimonialsReveal.isVisible ? 1 : 0, transform: testimonialsReveal.isVisible ? "translateY(0)" : "translateY(24px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}>
                 <span className="absolute top-4 right-6 text-8xl font-serif text-primary/10 leading-none select-none">"</span>
                 <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                  ))}
+                  {Array.from({ length: 5 }).map((_, j) => <Star key={j} className="h-5 w-5 fill-amber-400 text-amber-400" />)}
                 </div>
                 <p className="text-slate-700 leading-relaxed italic relative z-10">"{t.quote}"</p>
                 <div className="flex items-center gap-3 mt-6">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
-                  <div>
-                    <p className="font-semibold text-slate-900 text-sm">{t.author}</p>
-                    <p className="text-slate-400 text-xs">{t.role}</p>
-                  </div>
+                  <div><p className="font-semibold text-slate-900 text-sm">{t.author}</p><p className="text-slate-400 text-xs">{t.role}</p></div>
                 </div>
               </div>
             ))}
@@ -756,14 +1002,16 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ────── PRICING ────── */}
+      {/* ────── SOCIAL PROOF ────── */}
+      <SocialProofSection />
+
+      {/* ────── PRICING — 3 tiers ────── */}
       <section id="pricing" className="bg-slate-950 py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-primary text-xs font-bold tracking-widest mb-3">PRICING</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Simple, transparent pricing</h2>
-            <p className="text-slate-400 text-lg mt-4">No hidden fees. No per-user charges. Just one flat price.</p>
-
+            <p className="text-slate-400 text-lg mt-4">No hidden fees. No per-user charges.</p>
             <div className="flex items-center justify-center gap-3 mt-8">
               <span className={`text-sm font-medium ${!isAnnual ? "text-white" : "text-slate-500"}`}>Monthly</span>
               <button onClick={() => setIsAnnual(!isAnnual)}
@@ -775,16 +1023,17 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 items-stretch">
+          <div className="grid md:grid-cols-3 gap-6 items-stretch">
+            {/* Starter */}
             <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8">
               <h3 className="text-white text-xl font-semibold">Starter</h3>
-              <p className="text-slate-400 text-sm mt-1">For solo operators</p>
+              <p className="text-slate-400 text-sm mt-1">Solo operators & part-time cleaners</p>
               <div className="mt-6">
                 <span className="text-white text-4xl font-bold">${isAnnual ? "39" : "49"}</span>
                 <span className="text-slate-400 text-sm">/mo</span>
               </div>
               <ul className="mt-6 space-y-3">
-                {["Unlimited bookings", "Client portal", "SMS reminders", "Basic reports", "1 staff member"].map((f) => (
+                {["Up to 3 staff", "50 bookings/month", "SMS reminders", "Client portal", "Basic reports"].map((f) => (
                   <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /> {f}
                   </li>
@@ -796,16 +1045,17 @@ export default function LandingPage() {
               </button>
             </div>
 
+            {/* Pro — highlighted */}
             <div className="relative bg-primary rounded-2xl p-8 shadow-2xl shadow-primary/30 md:scale-105">
               <div className="absolute top-4 right-4 bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Most Popular</div>
               <h3 className="text-white text-xl font-semibold">Pro</h3>
-              <p className="text-white/70 text-sm mt-1">For growing teams</p>
+              <p className="text-white/70 text-sm mt-1">Growing teams</p>
               <div className="mt-6">
                 <span className="text-white text-4xl font-bold">${isAnnual ? "79" : "99"}</span>
                 <span className="text-white/60 text-sm">/mo</span>
               </div>
               <ul className="mt-6 space-y-3">
-                {["Everything in Starter", "Unlimited staff", "AI intelligence", "Advanced reports", "Payroll & expenses", "Priority support"].map((f) => (
+                {["Up to 15 staff", "Unlimited bookings", "Everything in Starter", "AI insights", "Revenue reports", "Priority support"].map((f) => (
                   <li key={f} className="flex items-center gap-2 text-white text-sm">
                     <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" /> {f}
                   </li>
@@ -816,9 +1066,30 @@ export default function LandingPage() {
                 Start Free Trial
               </button>
             </div>
+
+            {/* Business */}
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8">
+              <h3 className="text-white text-xl font-semibold">Business</h3>
+              <p className="text-slate-400 text-sm mt-1">Established companies</p>
+              <div className="mt-6">
+                <span className="text-white text-4xl font-bold">${isAnnual ? "159" : "199"}</span>
+                <span className="text-slate-400 text-sm">/mo</span>
+              </div>
+              <ul className="mt-6 space-y-3">
+                {["Unlimited staff", "Unlimited bookings", "Everything in Pro", "Custom branding", "API access", "Dedicated account manager"].map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /> {f}
+                  </li>
+                ))}
+              </ul>
+              <button onClick={() => window.location.href = "mailto:support@tidywisecleaning.com?subject=Business%20Plan"}
+                className="w-full mt-8 border border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl px-6 py-3 font-semibold transition-all duration-150">
+                Contact Sales
+              </button>
+            </div>
           </div>
 
-          <p className="text-slate-400 text-sm text-center mt-8">All plans include 60-day free trial · No credit card required</p>
+          <p className="text-slate-400 text-sm text-center mt-8">No contracts. Cancel anytime. 60-day free trial on all plans.</p>
         </div>
       </section>
 
@@ -867,7 +1138,6 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-
           <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 text-sm">© {new Date().getFullYear()} TidyWise. All rights reserved.</p>
             <p className="text-slate-600 text-sm">Made for cleaning professionals</p>
