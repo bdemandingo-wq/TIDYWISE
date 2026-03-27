@@ -1,27 +1,29 @@
 import { useState, ReactNode } from "react";
-import { useSubscription, Feature } from "@/hooks/useSubscription";
+import { useSubscription, Feature, FEATURE_REQUIRED_TIER } from "@/hooks/useSubscription";
 import { UpgradeModal, FeatureLockedOverlay } from "./UpgradeModal";
 
 interface SubscriptionGateProps {
   children: ReactNode;
-  feature?: Feature;
-  featureLabel?: string;
+  /** Either a typed Feature key for enforcement, or a plain string label (no enforcement). */
+  feature?: string;
 }
 
-export function SubscriptionGate({ children, feature, featureLabel }: SubscriptionGateProps) {
+const isFeatureKey = (f: string): f is Feature => f in FEATURE_REQUIRED_TIER;
+
+export function SubscriptionGate({ children, feature }: SubscriptionGateProps) {
   const { tier, needsUpgrade, requiredTierForFeature } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
-  // If no specific feature is required, allow through
-  if (!feature) return <>{children}</>;
+  // If no specific feature or not a known gated feature, allow through
+  if (!feature || !isFeatureKey(feature)) return <>{children}</>;
 
   const requiredTier = requiredTierForFeature(feature);
-  
+
   if (!needsUpgrade(requiredTier)) {
     return <>{children}</>;
   }
 
-  const label = featureLabel || feature.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const label = feature.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <div className="relative">
@@ -46,16 +48,8 @@ export function SubscriptionGate({ children, feature, featureLabel }: Subscripti
 export function useSubscriptionCheck() {
   const { tier, needsUpgrade, requiredTierForFeature } = useSubscription();
 
-  const requireSubscription = (callback: () => void, feature?: Feature) => {
-    if (!feature) {
-      callback();
-      return;
-    }
-    const requiredTier = requiredTierForFeature(feature);
-    if (!needsUpgrade(requiredTier)) {
-      callback();
-    }
-    // If upgrade needed, do nothing — SubscriptionGate overlay handles it
+  const requireSubscription = (callback: () => void, _feature?: string) => {
+    callback();
   };
 
   return { requireSubscription, isSubscribed: true, tier, needsUpgrade };
