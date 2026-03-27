@@ -2,6 +2,7 @@ import { ReactNode, Suspense, lazy, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
+import { TrialBanner } from './TrialBanner';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      <TrialBanner />
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={cn(

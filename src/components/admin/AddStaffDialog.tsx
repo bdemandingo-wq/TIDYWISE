@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useSubscription, useStaffCount } from '@/hooks/useSubscription';
+import { UpgradeModal } from './UpgradeModal';
 
 interface AddStaffDialogProps {
   open: boolean;
@@ -30,6 +32,9 @@ interface AddStaffDialogProps {
 export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
+  const { tier, limits } = useSubscription();
+  const { data: staffCount = 0 } = useStaffCount();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
@@ -47,8 +52,15 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     tax_classification: 'w2' as 'w2' | '1099',
   });
 
+  // Check if staff limit reached
+  const atStaffLimit = limits.maxStaff !== -1 && staffCount >= limits.maxStaff;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (atStaffLimit) {
+      setUpgradeOpen(true);
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -152,6 +164,25 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  if (atStaffLimit && !showCredentials) {
+    return (
+      <>
+        <UpgradeModal
+          open={open}
+          onOpenChange={onOpenChange}
+          featureName={`more than ${limits.maxStaff} staff members`}
+          requiredTier={tier === 'starter' ? 'pro' : 'business'}
+          currentTier={tier}
+          upgradeFeatures={[
+            `Up to ${tier === 'starter' ? '15' : 'unlimited'} staff members`,
+            'Unlimited bookings per month',
+            tier === 'starter' ? 'AI-powered business insights' : 'Custom branding & white-label',
+          ]}
+        />
+      </>
+    );
+  }
 
   if (showCredentials && credentials) {
     return (
