@@ -52,8 +52,15 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     tax_classification: 'w2' as 'w2' | '1099',
   });
 
+  // Check if staff limit reached
+  const atStaffLimit = limits.maxStaff !== -1 && staffCount >= limits.maxStaff;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (atStaffLimit) {
+      setUpgradeOpen(true);
+      return;
+    }
     setIsLoading(true);
 
     try {
