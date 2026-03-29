@@ -41,6 +41,7 @@ export default function SubscriptionPage() {
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   const checkSubscription = async () => {
     try {
