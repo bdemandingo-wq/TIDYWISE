@@ -482,6 +482,7 @@ function CompetitorComparisonSection() {
     { feature: "Recurring booking automation", tw: true, jobber: true, housecall: true, bk: true },
     { feature: "Cleaner-facing mobile app", tw: true, jobber: true, housecall: true, bk: false },
     { feature: "Starting price", tw: "$49/mo", jobber: "$69/mo", housecall: "$65/mo", bk: "$39/mo" },
+    { feature: "Unlimited bookings (all plans)", tw: true, jobber: false, housecall: false, bk: true },
   ];
   const renderCell = (val: boolean | string) => {
     if (typeof val === "string") return <span className="text-sm font-semibold text-slate-700">{val}</span>;
