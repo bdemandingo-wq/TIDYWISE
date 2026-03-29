@@ -79,6 +79,22 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleUpgradeNow = async () => {
+    setUpgrading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("upgrade-now");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Trial ended! Your paid subscription is now active.");
+      await checkSubscription();
+    } catch (error: any) {
+      console.error("Error upgrading:", error);
+      toast.error(error.message || "Failed to upgrade subscription");
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   const handleManageSubscription = async () => {
     setOpeningPortal(true);
     try {
