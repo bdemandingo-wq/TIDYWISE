@@ -827,12 +827,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
     try {
       const bookingData = pendingBookingData?.bookingData || await buildBookingData(isDraft);
+      let persistedBookingId: string | undefined = booking?.id;
 
       // Check for valid UUID - empty string means this is a duplicate (new booking)
       const isExistingBooking = booking?.id && booking.id.length > 10;
       
       if (isExistingBooking) {
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
+        persistedBookingId = booking.id;
 
         // ALWAYS sync team assignments on update to prevent stale/duplicate entries
         // Delete all existing team assignments for this booking first
@@ -975,6 +977,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         };
 
         const newBooking = await createBooking.mutateAsync(finalBookingData);
+        persistedBookingId = newBooking?.id;
 
         // Save team assignments based on mode
         if (newBooking?.id) {
@@ -1127,10 +1130,17 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 const scheduledDate = new Date(selectedDate!);
                 scheduledDate.setHours(hours, minutes, 0, 0);
                 
-                const response = await supabase.functions.invoke('send-openphone-sms', {
+                const response = await supabase.functions.invoke('send-booking-reminder', {
                   body: {
-                    to: customerPhone,
-                    message: `Hi ${customerName}! Your ${selectedService?.name || 'cleaning'} appointment is confirmed for ${format(scheduledDate, 'MMMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}. Address: ${address}${city ? `, ${city}` : ''}. Reply to this message with any questions!`,
+                    bookingId: persistedBookingId,
+                    customerPhone,
+                    customerName,
+                    serviceName: selectedService?.name || 'cleaning',
+                    scheduledAt: bookingData.scheduled_at,
+                    formattedDate: format(scheduledDate, 'MMMM d, yyyy'),
+                    formattedTime: format(scheduledDate, 'h:mm a'),
+                    address: `${address}${city ? `, ${city}` : ''}`,
+                    messageType: 'confirmation',
                     organizationId: organizationId ?? undefined,
                   },
                 });
