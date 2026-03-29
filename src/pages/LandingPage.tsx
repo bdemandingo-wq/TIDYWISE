@@ -998,23 +998,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ────── STATS BAR ────── */}
+      {/* ────── TRUSTED BY / STATS BAR ────── */}
       <section ref={statsReveal.ref}
-        className={`bg-white py-16 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${statsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-slate-200">
-          {[
-            { value: 500, suffix: "+", label: "Cleaning businesses" },
-            { value: 98, suffix: "%", label: "Client satisfaction" },
-            { value: 3, suffix: "hrs", label: "Saved per week on average" },
-            { prefix: "$", value: 12, suffix: "k+", label: "Revenue tracked monthly" },
-          ].map((stat, i) => (
-            <div key={i} className="text-center px-4">
-              <p className="text-4xl font-bold text-slate-900 relative inline-block">
-                <AnimatedCounter target={stat.value} suffix={stat.suffix} prefix={stat.prefix || ""} />
-              </p>
-              <p className="text-slate-500 text-sm mt-1">{stat.label}</p>
-            </div>
-          ))}
+        className={`bg-white py-16 px-4 sm:px-6 lg:px-8 border-b border-slate-100 transition-all duration-700 ${statsReveal.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+        <div className="max-w-5xl mx-auto">
+          <p className="text-center text-slate-400 text-xs font-semibold tracking-widest mb-8">TRUSTED BY CLEANING BUSINESSES ACROSS THE US, UK & AUSTRALIA</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-slate-200">
+            {[
+              { value: 500, suffix: "+", label: "Active businesses" },
+              { value: 98, suffix: "%", label: "Client satisfaction" },
+              { value: 12, suffix: "hrs", label: "Saved per week avg." },
+              { prefix: "$", value: 2, suffix: "M+", label: "Revenue tracked monthly" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center px-4">
+                <p className="text-4xl font-bold text-slate-900 relative inline-block">
+                  <AnimatedCounter target={stat.value} suffix={stat.suffix} prefix={stat.prefix || ""} />
+                </p>
+                <p className="text-slate-500 text-sm mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1069,17 +1072,18 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { quote: "This platform transformed how we run our cleaning business. Bookings increased 40% in the first month.", author: "Sarah M.", role: "Owner, Sparkle Clean Co.", avatar: "SM" },
-              { quote: "The staff portal is incredible. My team manages their own schedules and I track everything in real-time.", author: "Michael R.", role: "Founder, Fresh Start Services", avatar: "MR" },
-              { quote: "Finally, software that understands cleaning businesses. The automated invoicing alone saves me 5 hours weekly.", author: "Jennifer L.", role: "CEO, Elite Home Care", avatar: "JL" },
+              { headline: "Cut no-shows by 80%", quote: "Before TidyWise, I was losing $400/month to no-shows. Automated reminders changed everything — now clients actually show up.", author: "Sarah K.", role: "Owner, Sparkle Clean Co.", avatar: "SK" },
+              { headline: "Went from 8 to 23 clients in 4 months", quote: "The client portal lets new customers book without calling me. I wake up to bookings instead of voicemails.", author: "Marcus T.", role: "Founder, Fresh Start Services", avatar: "MT" },
+              { headline: "Saves 12 hours/week on admin", quote: "Scheduling 9 cleaners used to take my whole Monday morning. Now it's done in 5 minutes with auto-assign.", author: "Priya R.", role: "CEO, Elite Home Care", avatar: "PR" },
             ].map((t, i) => (
               <div key={i} className="relative bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200"
                 style={{ transitionDelay: testimonialsReveal.isVisible ? `${i * 100}ms` : "0ms", opacity: testimonialsReveal.isVisible ? 1 : 0, transform: testimonialsReveal.isVisible ? "translateY(0)" : "translateY(24px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}>
                 <span className="absolute top-4 right-6 text-8xl font-serif text-primary/10 leading-none select-none">"</span>
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, j) => <Star key={j} className="h-5 w-5 fill-amber-400 text-amber-400" />)}
+                <p className="text-primary text-sm font-bold mb-3">{t.headline}</p>
+                <div className="flex gap-1 mb-3">
+                  {Array.from({ length: 5 }).map((_, j) => <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
                 </div>
-                <p className="text-slate-700 leading-relaxed italic relative z-10">"{t.quote}"</p>
+                <p className="text-slate-600 text-sm leading-relaxed italic relative z-10">"{t.quote}"</p>
                 <div className="flex items-center gap-3 mt-6">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
                   <div><p className="font-semibold text-slate-900 text-sm">{t.author}</p><p className="text-slate-400 text-xs">{t.role}</p></div>
@@ -1090,16 +1094,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ────── SOCIAL PROOF ────── */}
-      <SocialProofSection />
-
       {/* ────── PRICING ────── */}
       <section id="pricing" className="bg-slate-950 py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-primary text-xs font-bold tracking-widest mb-3">PRICING</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Simple, transparent pricing</h2>
-            <p className="text-slate-400 text-lg mt-4">No hidden fees. No per-user charges.</p>
+            <p className="text-slate-400 text-lg mt-4">No hidden fees. No per-user charges. Unlimited bookings on every plan.</p>
             <div className="flex items-center justify-center gap-3 mt-8">
               <span className={`text-sm font-medium ${!isAnnual ? "text-white" : "text-slate-500"}`}>Monthly</span>
               <button onClick={() => setIsAnnual(!isAnnual)}
@@ -1114,10 +1115,10 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6 items-stretch">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8">
               <h3 className="text-white text-xl font-semibold">Starter</h3>
-              <p className="text-slate-400 text-sm mt-1">Solo operators & part-time cleaners</p>
+              <p className="text-slate-400 text-sm mt-1">Solo operators & small teams</p>
               <div className="mt-6"><span className="text-white text-4xl font-bold">${isAnnual ? "39" : "49"}</span><span className="text-slate-400 text-sm">/mo</span></div>
               <ul className="mt-6 space-y-3">
-                {["Up to 3 staff", "50 bookings/month", "SMS reminders", "Client portal", "Basic reports"].map((f) => (
+                {["Up to 5 staff members", "Unlimited bookings", "SMS reminders", "Client portal", "Basic reports"].map((f) => (
                   <li key={f} className="flex items-center gap-2 text-slate-300 text-sm"><CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" /> {f}</li>
                 ))}
               </ul>
@@ -1130,7 +1131,7 @@ export default function LandingPage() {
               <p className="text-white/70 text-sm mt-1">Growing teams</p>
               <div className="mt-6"><span className="text-white text-4xl font-bold">${isAnnual ? "79" : "99"}</span><span className="text-white/60 text-sm">/mo</span></div>
               <ul className="mt-6 space-y-3">
-                {["Up to 15 staff", "Unlimited bookings", "Everything in Starter", "AI insights", "Revenue reports", "Priority support"].map((f) => (
+                {["Up to 15 staff members", "Unlimited bookings", "Everything in Starter", "AI insights", "Revenue reports", "Priority support"].map((f) => (
                   <li key={f} className="flex items-center gap-2 text-white text-sm"><CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" /> {f}</li>
                 ))}
               </ul>
