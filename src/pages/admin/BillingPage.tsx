@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 const TIERS: { tier: SubscriptionTier; name: string; desc: string; features: string[] }[] = [
   {
     tier: 'starter', name: 'Starter', desc: 'Solo operators & part-time cleaners',
-    features: ['Up to 3 staff', '50 bookings/month', 'SMS reminders', 'Client portal', 'Basic reports'],
+    features: ['Up to 5 staff', 'Unlimited bookings', 'SMS reminders', 'Client portal', 'Basic reports'],
   },
   {
     tier: 'pro', name: 'Pro', desc: 'Growing teams',

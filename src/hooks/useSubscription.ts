@@ -24,8 +24,8 @@ interface TierLimits {
 
 const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
   starter: {
-    maxStaff: 3,
-    maxBookingsPerMonth: 50,
+    maxStaff: 5,
+    maxBookingsPerMonth: -1,
     features: [],
   },
   pro: {
