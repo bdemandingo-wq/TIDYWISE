@@ -10,8 +10,20 @@ import {
   ArrowRight,
   Loader2,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  Zap
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -29,6 +41,7 @@ export default function SubscriptionPage() {
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   const checkSubscription = async () => {
     try {
@@ -63,6 +76,22 @@ export default function SubscriptionPage() {
       toast.error(error.message || "Failed to start subscription");
     } finally {
       setCheckingOut(false);
+    }
+  };
+
+  const handleUpgradeNow = async () => {
+    setUpgrading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("upgrade-now");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Trial ended! Your paid subscription is now active.");
+      await checkSubscription();
+    } catch (error: any) {
+      console.error("Error upgrading:", error);
+      toast.error(error.message || "Failed to upgrade subscription");
+    } finally {
+      setUpgrading(false);
     }
   };
 
@@ -156,6 +185,35 @@ export default function SubscriptionPage() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {status.trial_active && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button disabled={upgrading} size="lg" className="w-full">
+                        {upgrading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Zap className="mr-2 h-4 w-4" />
+                        )}
+                        Upgrade Now
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>End free trial and upgrade?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will end your free trial immediately and charge your card $50 today. Continue?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleUpgradeNow}>
+                          Yes, Upgrade Now
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
 
                 <Button onClick={handleManageSubscription} disabled={openingPortal} variant="outline">

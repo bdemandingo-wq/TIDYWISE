@@ -4347,29 +4347,41 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          billing_cycle: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
           phone: string | null
+          subscription_status: string
+          subscription_tier: string
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          billing_cycle?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
           phone?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          billing_cycle?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
