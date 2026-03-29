@@ -173,20 +173,23 @@ const handler = async (req: Request): Promise<Response> => {
       recipientName: string,
       bookingId: string,
       reminderType: string,
+      options?: { skipDedup?: boolean },
     ): Promise<{ success: boolean; error?: string }> => {
       const formattedPhone = formatPhone(to);
 
       // Check if already sent (dedup)
-      const { data: existing } = await supabase
-        .from("booking_reminder_log")
-        .select("id")
-        .eq("booking_id", bookingId)
-        .eq("reminder_type", reminderType)
-        .maybeSingle();
+      if (!options?.skipDedup) {
+        const { data: existing } = await supabase
+          .from("booking_reminder_log")
+          .select("id")
+          .eq("booking_id", bookingId)
+          .eq("reminder_type", reminderType)
+          .maybeSingle();
 
-      if (existing) {
-        console.log(`[send-booking-reminder] Already sent ${reminderType} for booking ${bookingId}`);
-        return { success: true }; // Already sent, skip
+        if (existing) {
+          console.log(`[send-booking-reminder] Already sent ${reminderType} for booking ${bookingId}`);
+          return { success: true }; // Already sent, skip
+        }
       }
 
       // Send via OpenPhone
@@ -285,6 +288,7 @@ const handler = async (req: Request): Promise<Response> => {
         customerName,
         payload.bookingId || "manual",
         "client_manual",
+        { skipDedup: true },
       );
 
       return new Response(JSON.stringify(result), {
