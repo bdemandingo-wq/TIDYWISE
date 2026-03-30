@@ -54,6 +54,7 @@ export function BulkEditBookingsDialog({
   const [editTime, setEditTime] = useState<string>('');
   const [editPrice, setEditPrice] = useState<string>('');
   const [editCleanerPay, setEditCleanerPay] = useState<string>('');
+  const [editIndividualPay, setEditIndividualPay] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   // Unique customers from bookings
@@ -89,7 +90,8 @@ export function BulkEditBookingsDialog({
     });
   };
 
-  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice || editCleanerPay;
+  const hasIndividualPay = Object.values(editIndividualPay).some(v => v !== '');
+  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice || editCleanerPay || hasIndividualPay;
 
   const handleApply = async () => {
     if (!hasChanges) {
@@ -153,16 +155,21 @@ export function BulkEditBookingsDialog({
           // Update team assignments if staff changed
           if (editStaffIds.length > 0) {
             await supabase.from('booking_team_assignments').delete().eq('booking_id', booking.id);
-            const perCleanerPay = editCleanerPay 
-              ? parseFloat(editCleanerPay) / editStaffIds.length 
-              : undefined;
-            const payShare = editStaffIds.length > 1 ? 1 / editStaffIds.length : 1;
             for (let i = 0; i < editStaffIds.length; i++) {
+              const individualPay = editIndividualPay[editStaffIds[i]];
+              let payShare: number;
+              if (individualPay) {
+                payShare = parseFloat(individualPay);
+              } else if (editCleanerPay) {
+                payShare = parseFloat(editCleanerPay) / editStaffIds.length;
+              } else {
+                payShare = 1 / editStaffIds.length;
+              }
               await supabase.from('booking_team_assignments').insert({
                 booking_id: booking.id,
                 staff_id: editStaffIds[i],
                 is_primary: i === 0,
-                pay_share: perCleanerPay ?? payShare,
+                pay_share: payShare,
                 organization_id: (booking as any).organization_id,
               });
             }
@@ -186,6 +193,7 @@ export function BulkEditBookingsDialog({
       setEditTime('');
       setEditPrice('');
       setEditCleanerPay('');
+      setEditIndividualPay({});
       onOpenChange(false);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Bulk edit failed', variant: 'destructive' });
@@ -391,7 +399,7 @@ export function BulkEditBookingsDialog({
             <div className="space-y-1.5">
               <Label className="text-xs flex items-center gap-1.5">
                 <Banknote className="w-3.5 h-3.5" />
-                Change Cleaner Pay
+                {editStaffIds.length > 1 ? 'Change Cleaner Pay (Total)' : 'Change Cleaner Pay'}
               </Label>
               <Input
                 type="number"
@@ -402,12 +410,44 @@ export function BulkEditBookingsDialog({
                 className="h-10 rounded-xl"
                 placeholder="Keep current"
               />
-              {editCleanerPay && editStaffIds.length > 1 && (
+              {editCleanerPay && editStaffIds.length > 1 && !hasIndividualPay && (
                 <p className="text-xs text-muted-foreground">
-                  Each cleaner's pay_share will be set to ${(parseFloat(editCleanerPay) / editStaffIds.length).toFixed(2)}
+                  Split equally: ${(parseFloat(editCleanerPay) / editStaffIds.length).toFixed(2)} each
                 </p>
               )}
             </div>
+
+            {/* Individual pay per cleaner (team mode) */}
+            {editStaffIds.length > 1 && (
+              <div className="space-y-2 bg-secondary/30 rounded-xl p-3">
+                <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                  <Users className="w-3.5 h-3.5" />
+                  Individual Pay Override (optional)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Set custom pay per cleaner. Overrides the equal split above.
+                </p>
+                {editStaffIds.map((id) => {
+                  const staff = staffList.find((s) => s.id === id);
+                  return (
+                    <div key={id} className="flex items-center gap-2">
+                      <span className="text-xs font-medium min-w-[100px] truncate">
+                        {staff?.name || 'Unknown'}
+                      </span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editIndividualPay[id] || ''}
+                        onChange={(e) => setEditIndividualPay((prev) => ({ ...prev, [id]: e.target.value }))}
+                        className="h-8 rounded-lg text-xs flex-1"
+                        placeholder="Use split"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Preview */}
