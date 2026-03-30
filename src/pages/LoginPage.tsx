@@ -208,6 +208,33 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={loading}
+                onClick={async () => {
+                  setLoading(true);
+                  const { error } = await signInWithApple();
+                  if (error) {
+                    toast.error(error.message || 'Apple sign in failed');
+                    setLoading(false);
+                  }
+                }}
+              >
+                <Apple className="mr-2 h-4 w-4" />
+                Sign in with Apple
+              </Button>
+
             </form>
 
             {/* Sign up link */}
