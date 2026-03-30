@@ -82,15 +82,17 @@ export function BulkEditBookingsDialog({
   const hasExplicitSelection = Boolean(selectedBookingIds && selectedBookingIds.size > 0);
 
   const filteredBookings = useMemo(() => {
+    // If user selected specific rows from the table, edit exactly those rows.
+    if (hasExplicitSelection) {
+      return baseBookings;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     return baseBookings.filter((b) => {
       const bookingDate = new Date(b.scheduled_at);
       if (bookingDate < today) return false;
-
-      // For explicit checkbox selection, edit those bookings directly.
-      if (hasExplicitSelection) return true;
 
       if (filterCustomerId !== 'all' && b.customer?.id !== filterCustomerId) return false;
       if (filterDays.size > 0) {
