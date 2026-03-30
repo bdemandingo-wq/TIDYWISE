@@ -53,7 +53,7 @@ export function BulkEditBookingsDialog({
   const [editStaffIds, setEditStaffIds] = useState<string[]>([]);
   const [editTime, setEditTime] = useState<string>('');
   const [editPrice, setEditPrice] = useState<string>('');
-
+  const [editCleanerPay, setEditCleanerPay] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   // Unique customers from bookings
@@ -89,7 +89,7 @@ export function BulkEditBookingsDialog({
     });
   };
 
-  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice;
+  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice || editCleanerPay;
 
   const handleApply = async () => {
     if (!hasChanges) {
@@ -127,6 +127,9 @@ export function BulkEditBookingsDialog({
         }
         if (editPrice) {
           updates.total_amount = parseFloat(editPrice);
+        }
+        if (editCleanerPay) {
+          updates.cleaner_pay_expected = parseFloat(editCleanerPay);
         }
         if (editTime) {
           // Keep same date, change time
