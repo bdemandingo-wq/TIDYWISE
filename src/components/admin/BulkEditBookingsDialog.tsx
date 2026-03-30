@@ -282,7 +282,7 @@ export function BulkEditBookingsDialog({
                   <SelectValue placeholder="Keep current" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keep current</SelectItem>
+                  <SelectItem value="__none__">Keep current</SelectItem>
                   {services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} — ${s.price.toFixed(2)}
@@ -303,7 +303,7 @@ export function BulkEditBookingsDialog({
                   <SelectValue placeholder="Keep current" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keep current</SelectItem>
+                  <SelectItem value="__none__">Keep current</SelectItem>
                   {staffList.map((s) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
