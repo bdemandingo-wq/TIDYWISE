@@ -28,6 +28,7 @@ interface BulkEditBookingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookings: BookingWithDetails[];
+  selectedBookingIds?: Set<string>;
   staffList: { id: string; name: string }[];
   services: { id: string; name: string; price: number; duration: number }[];
 }
@@ -38,6 +39,7 @@ export function BulkEditBookingsDialog({
   open,
   onOpenChange,
   bookings,
+  selectedBookingIds,
   staffList,
   services,
 }: BulkEditBookingsDialogProps) {
@@ -69,11 +71,18 @@ export function BulkEditBookingsDialog({
   }, [bookings]);
 
   // Filter bookings
+  // If specific bookings were selected via checkboxes, use only those
+  const baseBookings = useMemo(() => {
+    if (selectedBookingIds && selectedBookingIds.size > 0) {
+      return bookings.filter(b => selectedBookingIds.has(b.id));
+    }
+    return bookings;
+  }, [bookings, selectedBookingIds]);
+
   const filteredBookings = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return bookings.filter((b) => {
-      // Only include bookings from today forward
+    return baseBookings.filter((b) => {
       const bookingDate = new Date(b.scheduled_at);
       if (bookingDate < today) return false;
       if (filterCustomerId !== 'all' && b.customer?.id !== filterCustomerId) return false;
@@ -84,7 +93,7 @@ export function BulkEditBookingsDialog({
       if (filterServiceId !== 'all' && b.service?.id !== filterServiceId) return false;
       return true;
     });
-  }, [bookings, filterCustomerId, filterDays, filterServiceId]);
+  }, [baseBookings, filterCustomerId, filterDays, filterServiceId]);
 
   const toggleDay = (day: number) => {
     setFilterDays((prev) => {

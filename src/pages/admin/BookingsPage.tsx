@@ -2715,6 +2715,7 @@ export default function BookingsPage() {
         open={bulkEditOpen}
         onOpenChange={setBulkEditOpen}
         bookings={bookings}
+        selectedBookingIds={selectedBookings.size > 0 ? selectedBookings : undefined}
         staffList={staffList}
         services={servicesList as any}
       />
