@@ -155,7 +155,7 @@ export function BulkEditBookingsDialog({
               staff_id: editStaffId,
               is_primary: true,
               pay_share: 1,
-              organization_id: booking.organization_id || (booking as any).organization_id,
+              organization_id: (booking as any).organization_id,
             });
           }
           successCount++;
