@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X } from 'lucide-react';
+import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format, getDay } from 'date-fns';
 import { supabase } from '@/lib/supabase';
