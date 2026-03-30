@@ -161,16 +161,31 @@ export function useBookings() {
       if (!organizationId) {
         return [];
       }
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:customers(id, first_name, last_name, email, phone),
-          service:services(id, name, description, price, duration),
-          staff:staff(id, name, email, phone)
-        `)
-        .eq('organization_id', organizationId)
-        .order('scheduled_at', { ascending: true });
+      // Fetch all bookings (bypass default 1000-row limit)
+      let allBookings: any[] = [];
+      let from = 0;
+      const PAGE_SIZE = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            customer:customers(id, first_name, last_name, email, phone),
+            service:services(id, name, description, price, duration),
+            staff:staff(id, name, email, phone)
+          `)
+          .eq('organization_id', organizationId)
+          .order('scheduled_at', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          console.error('Error fetching bookings:', error);
+          throw error;
+        }
+        allBookings = allBookings.concat(data || []);
+        if (!data || data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
 
       if (error) {
         console.error('Error fetching bookings:', error);

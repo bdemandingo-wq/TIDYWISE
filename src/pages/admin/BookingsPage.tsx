@@ -2714,10 +2714,7 @@ export default function BookingsPage() {
       <BulkEditBookingsDialog
         open={bulkEditOpen}
         onOpenChange={setBulkEditOpen}
-        bookings={selectedBookings.size > 0 
-          ? filteredBookings.filter(b => selectedBookings.has(b.id))
-          : filteredBookings
-        }
+        bookings={bookings}
         staffList={staffList}
         services={servicesList as any}
       />
