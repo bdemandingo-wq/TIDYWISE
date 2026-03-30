@@ -74,17 +74,24 @@ export function BulkEditBookingsDialog({
   // If specific bookings were selected via checkboxes, use only those
   const baseBookings = useMemo(() => {
     if (selectedBookingIds && selectedBookingIds.size > 0) {
-      return bookings.filter(b => selectedBookingIds.has(b.id));
+      return bookings.filter((b) => selectedBookingIds.has(b.id));
     }
     return bookings;
   }, [bookings, selectedBookingIds]);
 
+  const hasExplicitSelection = Boolean(selectedBookingIds && selectedBookingIds.size > 0);
+
   const filteredBookings = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     return baseBookings.filter((b) => {
       const bookingDate = new Date(b.scheduled_at);
       if (bookingDate < today) return false;
+
+      // For explicit checkbox selection, edit those bookings directly.
+      if (hasExplicitSelection) return true;
+
       if (filterCustomerId !== 'all' && b.customer?.id !== filterCustomerId) return false;
       if (filterDays.size > 0) {
         const dayOfWeek = getDay(bookingDate);
@@ -93,7 +100,7 @@ export function BulkEditBookingsDialog({
       if (filterServiceId !== 'all' && b.service?.id !== filterServiceId) return false;
       return true;
     });
-  }, [baseBookings, filterCustomerId, filterDays, filterServiceId]);
+  }, [baseBookings, hasExplicitSelection, filterCustomerId, filterDays, filterServiceId]);
 
   const toggleDay = (day: number) => {
     setFilterDays((prev) => {
