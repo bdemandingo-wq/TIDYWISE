@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X } from 'lucide-react';
+import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X, Banknote } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format, getDay } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -53,7 +53,7 @@ export function BulkEditBookingsDialog({
   const [editStaffIds, setEditStaffIds] = useState<string[]>([]);
   const [editTime, setEditTime] = useState<string>('');
   const [editPrice, setEditPrice] = useState<string>('');
-
+  const [editCleanerPay, setEditCleanerPay] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   // Unique customers from bookings
@@ -89,7 +89,7 @@ export function BulkEditBookingsDialog({
     });
   };
 
-  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice;
+  const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice || editCleanerPay;
 
   const handleApply = async () => {
     if (!hasChanges) {
@@ -128,6 +128,9 @@ export function BulkEditBookingsDialog({
         if (editPrice) {
           updates.total_amount = parseFloat(editPrice);
         }
+        if (editCleanerPay) {
+          updates.cleaner_pay_expected = parseFloat(editCleanerPay);
+        }
         if (editTime) {
           // Keep same date, change time
           const existing = new Date(booking.scheduled_at);
@@ -150,13 +153,16 @@ export function BulkEditBookingsDialog({
           // Update team assignments if staff changed
           if (editStaffIds.length > 0) {
             await supabase.from('booking_team_assignments').delete().eq('booking_id', booking.id);
+            const perCleanerPay = editCleanerPay 
+              ? parseFloat(editCleanerPay) / editStaffIds.length 
+              : undefined;
             const payShare = editStaffIds.length > 1 ? 1 / editStaffIds.length : 1;
             for (let i = 0; i < editStaffIds.length; i++) {
               await supabase.from('booking_team_assignments').insert({
                 booking_id: booking.id,
                 staff_id: editStaffIds[i],
                 is_primary: i === 0,
-                pay_share: payShare,
+                pay_share: perCleanerPay ?? payShare,
                 organization_id: (booking as any).organization_id,
               });
             }
@@ -179,6 +185,7 @@ export function BulkEditBookingsDialog({
       setEditStaffIds([]);
       setEditTime('');
       setEditPrice('');
+      setEditCleanerPay('');
       onOpenChange(false);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Bulk edit failed', variant: 'destructive' });
@@ -378,6 +385,28 @@ export function BulkEditBookingsDialog({
                 className="h-10 rounded-xl"
                 placeholder="Keep current"
               />
+            </div>
+
+            {/* Cleaner Pay */}
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1.5">
+                <Banknote className="w-3.5 h-3.5" />
+                Change Cleaner Pay
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editCleanerPay}
+                onChange={(e) => setEditCleanerPay(e.target.value)}
+                className="h-10 rounded-xl"
+                placeholder="Keep current"
+              />
+              {editCleanerPay && editStaffIds.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  Each cleaner's pay_share will be set to ${(parseFloat(editCleanerPay) / editStaffIds.length).toFixed(2)}
+                </p>
+              )}
             </div>
           </div>
 
