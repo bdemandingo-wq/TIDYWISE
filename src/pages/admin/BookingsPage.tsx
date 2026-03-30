@@ -2703,6 +2703,16 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BulkEditBookingsDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        bookings={selectedBookings.size > 0 
+          ? filteredBookings.filter(b => selectedBookings.has(b.id))
+          : filteredBookings
+        }
+        staffList={staffList}
+        services={servicesList as any}
+      />
 
     </AdminLayout>
   );
