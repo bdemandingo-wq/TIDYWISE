@@ -5,6 +5,13 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Json } from '@/integrations/supabase/types';
 
+export interface TeamAssignment {
+  staff_id: string;
+  pay_share: number | null;
+  is_primary: boolean | null;
+  staff: { id: string; name: string } | null;
+}
+
 export interface BookingWithDetails {
   id: string;
   booking_number: number;
@@ -50,6 +57,7 @@ export interface BookingWithDetails {
     email: string;
     phone: string | null;
   } | null;
+  booking_team_assignments?: TeamAssignment[];
 }
 
 export interface CreateBookingData {
@@ -172,7 +180,8 @@ export function useBookings() {
             *,
             customer:customers(id, first_name, last_name, email, phone),
             service:services(id, name, description, price, duration),
-            staff:staff(id, name, email, phone)
+            staff:staff(id, name, email, phone),
+            booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
           `)
           .eq('organization_id', organizationId)
           .order('scheduled_at', { ascending: true })
@@ -210,7 +219,8 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
           *,
           customer:customers(id, first_name, last_name, email, phone),
           service:services(id, name, description, price, duration),
-          staff:staff(id, name, email, phone)
+          staff:staff(id, name, email, phone),
+          booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
         `)
         .eq('organization_id', organizationId)
         .gte('scheduled_at', startDate.toISOString())

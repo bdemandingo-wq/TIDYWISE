@@ -1735,9 +1735,17 @@ export default function BookingsPage() {
                   
                   {/* Staff */}
                   <div className="text-xs text-muted-foreground mb-2">
-                    <span className={cn(!booking.staff?.name && "italic")}>
-                      {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
-                    </span>
+                    {(() => {
+                      const team = booking.booking_team_assignments?.filter(a => a.staff?.name) || [];
+                      if (team.length > 1) {
+                        return <span>{team.map(a => maskName(a.staff!.name)).join(', ')}</span>;
+                      }
+                      return (
+                        <span className={cn(!booking.staff?.name && "italic")}>
+                          {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
+                        </span>
+                      );
+                    })()}
                   </div>
                   
                   {/* Badges row */}
@@ -1902,12 +1910,28 @@ export default function BookingsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className={cn(
-                          "text-sm",
-                          booking.staff?.name ? "text-foreground" : "text-muted-foreground italic"
-                        )}>
-                          {booking.staff?.name || 'Unassigned'}
-                        </span>
+                        {(() => {
+                          const team = booking.booking_team_assignments?.filter(a => a.staff?.name) || [];
+                          if (team.length > 1) {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                {team.map(a => (
+                                  <span key={a.staff_id} className="text-sm text-foreground">
+                                    {maskName(a.staff!.name)}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return (
+                            <span className={cn(
+                              "text-sm",
+                              booking.staff?.name ? "text-foreground" : "text-muted-foreground italic"
+                            )}>
+                              {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className={cn(
