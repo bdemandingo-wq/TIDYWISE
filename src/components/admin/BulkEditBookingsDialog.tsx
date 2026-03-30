@@ -153,13 +153,16 @@ export function BulkEditBookingsDialog({
           // Update team assignments if staff changed
           if (editStaffIds.length > 0) {
             await supabase.from('booking_team_assignments').delete().eq('booking_id', booking.id);
+            const perCleanerPay = editCleanerPay 
+              ? parseFloat(editCleanerPay) / editStaffIds.length 
+              : undefined;
             const payShare = editStaffIds.length > 1 ? 1 / editStaffIds.length : 1;
             for (let i = 0; i < editStaffIds.length; i++) {
               await supabase.from('booking_team_assignments').insert({
                 booking_id: booking.id,
                 staff_id: editStaffIds[i],
                 is_primary: i === 0,
-                pay_share: payShare,
+                pay_share: perCleanerPay ?? payShare,
                 organization_id: (booking as any).organization_id,
               });
             }
