@@ -122,8 +122,8 @@ export function BulkEditBookingsDialog({
             updates.total_amount = svc.price;
           }
         }
-        if (editStaffId) {
-          updates.staff_id = editStaffId;
+        if (editStaffIds.length > 0) {
+          updates.staff_id = editStaffIds[0]; // Primary cleaner
         }
         if (editPrice) {
           updates.total_amount = parseFloat(editPrice);
@@ -147,16 +147,19 @@ export function BulkEditBookingsDialog({
           console.error('Bulk edit error for booking', booking.id, error);
           failCount++;
         } else {
-          // Also update team assignments if staff changed
-          if (editStaffId) {
+          // Update team assignments if staff changed
+          if (editStaffIds.length > 0) {
             await supabase.from('booking_team_assignments').delete().eq('booking_id', booking.id);
-            await supabase.from('booking_team_assignments').insert({
-              booking_id: booking.id,
-              staff_id: editStaffId,
-              is_primary: true,
-              pay_share: 1,
-              organization_id: (booking as any).organization_id,
-            });
+            const payShare = editStaffIds.length > 1 ? 1 / editStaffIds.length : 1;
+            for (let i = 0; i < editStaffIds.length; i++) {
+              await supabase.from('booking_team_assignments').insert({
+                booking_id: booking.id,
+                staff_id: editStaffIds[i],
+                is_primary: i === 0,
+                pay_share: payShare,
+                organization_id: (booking as any).organization_id,
+              });
+            }
           }
           successCount++;
         }
