@@ -182,6 +182,7 @@ export function BulkEditBookingsDialog({
       setEditStaffIds([]);
       setEditTime('');
       setEditPrice('');
+      setEditCleanerPay('');
       onOpenChange(false);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Bulk edit failed', variant: 'destructive' });
