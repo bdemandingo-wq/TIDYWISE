@@ -95,7 +95,11 @@ export function CustomerStep() {
   }, [selectedCustomerId, organizationId]);
 
   const handleAutoFill = () => {
-    if (!lastBooking) return;
+    console.log('[AutoFill] clicked, lastBooking:', lastBooking);
+    if (!lastBooking) {
+      console.log('[AutoFill] No lastBooking data, aborting');
+      return;
+    }
     if (lastBooking.address) setAddress(lastBooking.address);
     if (lastBooking.city) setCity(lastBooking.city);
     if (lastBooking.state) setState(lastBooking.state);
@@ -105,7 +109,7 @@ export function CustomerStep() {
     if (lastBooking.square_footage) setSquareFootage(lastBooking.square_footage);
     if (lastBooking.service_id) setSelectedServiceId(lastBooking.service_id);
     if (lastBooking.total_amount) setTotalAmount(lastBooking.total_amount);
-    toast.success('Auto-filled from last booking');
+    toast.success('Auto-filled from last booking — check Property & Service steps');
   };
 
   return (
