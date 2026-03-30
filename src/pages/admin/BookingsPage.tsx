@@ -1618,6 +1618,14 @@ export default function BookingsPage() {
             <>
               <Button 
                 variant="outline" 
+                className="h-11 gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                onClick={() => setBulkEditOpen(true)}
+              >
+                <Edit className="w-4 h-4" />
+                Bulk Edit ({selectedBookings.size})
+              </Button>
+              <Button 
+                variant="outline" 
                 className="h-11 gap-2 rounded-xl"
                 onClick={() => setBulkAssignDialogOpen(true)}
               >
