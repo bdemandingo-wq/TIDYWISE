@@ -70,10 +70,15 @@ export function BulkEditBookingsDialog({
 
   // Filter bookings
   const filteredBookings = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return bookings.filter((b) => {
+      // Only include bookings from today forward
+      const bookingDate = new Date(b.scheduled_at);
+      if (bookingDate < today) return false;
       if (filterCustomerId !== 'all' && b.customer?.id !== filterCustomerId) return false;
       if (filterDays.size > 0) {
-        const dayOfWeek = getDay(new Date(b.scheduled_at));
+        const dayOfWeek = getDay(bookingDate);
         if (!filterDays.has(dayOfWeek)) return false;
       }
       if (filterServiceId !== 'all' && b.service?.id !== filterServiceId) return false;
