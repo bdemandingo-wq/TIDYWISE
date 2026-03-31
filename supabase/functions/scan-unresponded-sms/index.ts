@@ -40,21 +40,42 @@ serve(async (req: Request) => {
       );
     }
 
-    const { data: ownerMembership } = await supabase
+    // Find the owner org that has SMS settings configured
+    const { data: ownerMemberships } = await supabase
       .from("org_memberships")
       .select("organization_id")
       .eq("user_id", ownerProfile.id)
-      .eq("role", "owner")
-      .maybeSingle();
+      .eq("role", "owner");
 
-    if (!ownerMembership) {
+    if (!ownerMemberships?.length) {
       return new Response(
         JSON.stringify({ success: false, error: "Owner org not found" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const orgId = ownerMembership.organization_id;
+    // Pick the org that has SMS settings with an API key
+    let orgId: string | null = null;
+    for (const mem of ownerMemberships) {
+      const { data: smsSettings } = await supabase
+        .from("organization_sms_settings")
+        .select("id")
+        .eq("organization_id", mem.organization_id)
+        .not("openphone_api_key", "is", null)
+        .maybeSingle();
+      if (smsSettings) {
+        orgId = mem.organization_id;
+        break;
+      }
+    }
+
+    if (!orgId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No org with SMS settings found" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
 
     // ── Step 1 — Find candidate conversations ──────────────────────────
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
