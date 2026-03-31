@@ -406,10 +406,38 @@ ${multiProperty ? "- IMPORTANT: This client has MULTIPLE properties. If they ask
       })
       .join("\n");
 
-    // --- Services ---
-    const servicesText = (servicesRes.data || [])
-      .map((s: any) => `- ${s.name}: $${s.price}`)
-      .join("\n");
+    // --- Services & Pricing ---
+    const pricingMap = new Map<string, any>();
+    for (const sp of servicePricingRes.data || []) {
+      pricingMap.set(sp.service_id, sp);
+    }
+
+    const servicesLines: string[] = [];
+    for (const s of servicesRes.data || []) {
+      const sp = pricingMap.get(s.id);
+      let line = `- ${s.name}: Base price $${s.price}`;
+      if (sp) {
+        if (sp.sqft_prices && typeof sp.sqft_prices === "object") {
+          const ranges = Object.entries(sp.sqft_prices as Record<string, number>)
+            .map(([range, price]) => `${range}: $${price}`)
+            .join(", ");
+          if (ranges) line += `\n  Square footage pricing: ${ranges}`;
+        }
+        if (sp.bedroom_pricing && typeof sp.bedroom_pricing === "object") {
+          const beds = Object.entries(sp.bedroom_pricing as Record<string, number>)
+            .map(([count, price]) => `${count} bed: $${price}`)
+            .join(", ");
+          if (beds) line += `\n  Bedroom pricing: ${beds}`;
+        }
+        if (sp.extras && Array.isArray(sp.extras) && sp.extras.length) {
+          const extrasStr = sp.extras.map((e: any) => `${e.name || e.label}: $${e.price}`).join(", ");
+          line += `\n  Add-ons: ${extrasStr}`;
+        }
+        if (sp.minimum_price) line += `\n  Minimum: $${sp.minimum_price}`;
+      }
+      servicesLines.push(line);
+    }
+    const servicesText = servicesLines.join("\n");
 
     // --- System prompt ---
     const toneInstruction = isStaff
@@ -425,7 +453,14 @@ CRITICAL RULES:
 - Match the tone from the style examples below exactly.
 - Never say you are an AI, bot, or automated system.
 - If CRM CONTEXT contains upcoming bookings or last cleaning info, USE IT to answer scheduling questions directly.
-- QUOTING: If someone asks for a price or quote and SERVICES OFFERED is listed above, calculate and give them an actual price based on those rates. Example: "A standard clean runs $X. Want me to get you on the schedule?" Do NOT say "reach out" or "let me check" when you have the pricing info.
+
+PRICING & QUOTING RULES:
+- IMPORTANT: Never quote a flat rate unless the customer is a returning client with a booking on file. For new clients always ask for square footage or bedroom/bathroom count before quoting. Our pricing is based on home size, not a single flat rate.
+- RETURNING CLIENTS: If CRM CONTEXT shows "Returning client: YES" and their previous booking has a price, quote based on that. Example: "Your last cleaning was $X for [service]. Want me to book the same?"
+- NEW CLIENTS: If CRM CONTEXT shows "Returning client: NO" or there is no CRM CONTEXT, and they ask about pricing, ask for their home details first. Example: "Our pricing is based on the size of your home. What's the approximate square footage?" or "How many bedrooms and bathrooms does your home have?"
+- If the conversation history already contains their square footage or bedroom/bathroom count, use the SERVICES OFFERED pricing tiers to calculate and give them the actual price. Do NOT ask again.
+- If SERVICES OFFERED has square footage or bedroom pricing tiers, use those to match the customer's info to the right price.
+
 - If asked about something NOT in CRM CONTEXT or SERVICES, say something like "Let me check on that and get back to you!"
 - If the customer seems upset, be empathetic and say you'll look into it personally.
 - Do NOT use emojis unless the style examples show the business uses them.
