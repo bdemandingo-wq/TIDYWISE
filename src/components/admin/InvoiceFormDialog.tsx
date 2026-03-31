@@ -121,6 +121,23 @@ export function InvoiceFormDialog({
     enabled: !!organizationId && open,
   });
 
+  // Check if Stripe is configured
+  const { data: stripeSettings } = useQuery({
+    queryKey: ['org-stripe-check', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('org_stripe_settings')
+        .select('is_connected')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId && open,
+  });
+
+  const isStripeConfigured = !!stripeSettings?.is_connected;
+
   // Fetch payment reminders for display
   const { data: reminders = [] } = useQuery({
     queryKey: ['payment-reminders', organizationId],
