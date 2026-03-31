@@ -677,26 +677,49 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
-    // Trigger AI SMS auto-reply for inbound messages
+    // Trigger AI SMS auto-reply for inbound messages (fire-and-forget)
     if (direction === 'inbound') {
-      try {
-        console.log(`[openphone-webhook] Triggering ai-sms-reply for conv=${conversationId}`);
-        const aiReplyResp = await fetch(`${supabaseUrl}/functions/v1/ai-sms-reply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            organizationId,
-            conversationId,
-            customerPhone,
-            incomingMessage: content,
-          }),
-        });
-        const aiResult = await aiReplyResp.json().catch(() => ({}));
-        console.log(`[openphone-webhook] ai-sms-reply result:`, JSON.stringify(aiResult));
-      } catch (aiErr) {
-        // Non-blocking — don't fail the webhook if AI reply fails
-        console.error(`[openphone-webhook] ai-sms-reply error (non-blocking):`, aiErr);
-      }
+      (async () => {
+        try {
+          const { data: aiAutomation } = await supabase
+            .from('organization_automations')
+            .select('is_enabled')
+            .eq('organization_id', organizationId)
+            .eq('automation_type', 'ai_sms_reply')
+            .maybeSingle();
+
+          if (!aiAutomation?.is_enabled) {
+            console.log(`[openphone-webhook] ai_sms_reply automation disabled for org=${organizationId}`);
+            return;
+          }
+
+          const { data: convData } = await supabase
+            .from('sms_conversations')
+            .select('customer_name')
+            .eq('id', conversationId)
+            .maybeSingle();
+
+          console.log(`[openphone-webhook] Triggering openphone-ai-sms-reply for conv=${conversationId}`);
+          const aiReplyResp = await fetch(`${supabaseUrl}/functions/v1/openphone-ai-sms-reply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              conversationId,
+              organizationId,
+              inboundMessage: content,
+              customerPhone,
+              customerName: convData?.customer_name || null,
+            }),
+          });
+          const aiResult = await aiReplyResp.json().catch(() => ({}));
+          console.log(`[openphone-webhook] openphone-ai-sms-reply result:`, JSON.stringify(aiResult));
+        } catch (aiErr) {
+          console.error(`[openphone-webhook] openphone-ai-sms-reply error (non-blocking):`, aiErr);
+        }
+      })().catch(() => {});
     }
 
     return new Response(
