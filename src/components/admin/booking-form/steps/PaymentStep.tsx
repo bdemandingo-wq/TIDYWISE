@@ -586,8 +586,56 @@ export function PaymentStep() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
             <Label className="text-sm font-medium">Customer Payment Method</Label>
           </div>
-          
-          {loadingCard ? (
+
+          {/* Payment collection method toggle */}
+          <div className="flex gap-2 mb-4">
+            <Button
+              type="button"
+              variant={paymentCollectionMethod === 'card' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPaymentCollectionMethod('card')}
+              className="flex-1"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Card on File
+            </Button>
+            <Button
+              type="button"
+              variant={paymentCollectionMethod === 'in_person' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPaymentCollectionMethod('in_person')}
+              className="flex-1"
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              In-Person Payment
+            </Button>
+          </div>
+
+          {paymentCollectionMethod === 'in_person' ? (
+            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium text-blue-800 dark:text-blue-200">In-Person Payment</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Payment will be collected in person (cash, Venmo, Zelle, etc.). No card on file required.
+                </p>
+              </div>
+            </div>
+          ) : stripeConfigured === false ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800 dark:text-amber-200">Stripe Not Connected</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    To save cards on file, connect your Stripe account in Settings → Payment Integration. Or use "In-Person Payment" to skip card collection.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : loadingCard ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
