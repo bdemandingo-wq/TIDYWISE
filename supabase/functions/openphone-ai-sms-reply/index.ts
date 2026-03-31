@@ -152,10 +152,11 @@ serve(async (req: Request) => {
     }
 
     // --- Parallel data fetch ---
-    const [smsSettingsRes, bizSettingsRes, servicesRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
+    const [smsSettingsRes, bizSettingsRes, servicesRes, servicePricingRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
       supabase.from("organization_sms_settings").select("openphone_api_key, openphone_phone_number_id").eq("organization_id", organizationId).maybeSingle(),
       supabase.from("business_settings").select("company_name, company_phone, company_email").eq("organization_id", organizationId).maybeSingle(),
-      supabase.from("services").select("name, price").eq("organization_id", organizationId).eq("is_active", true),
+      supabase.from("services").select("id, name, price, description").eq("organization_id", organizationId).eq("is_active", true),
+      supabase.from("service_pricing").select("service_id, sqft_prices, bedroom_pricing, extras, minimum_price, pet_options, home_condition_options").eq("organization_id", organizationId),
       supabase.from("sms_messages").select("direction, content, sent_at").eq("conversation_id", conversationId).order("sent_at", { ascending: true }).limit(15),
       supabase.from("sms_messages").select("content").eq("organization_id", organizationId).in("direction", ["outbound", "outgoing"]).neq("conversation_id", conversationId).order("sent_at", { ascending: false }).limit(40),
       supabase.from("staff").select("phone, name").eq("organization_id", organizationId).eq("is_active", true),
@@ -197,7 +198,7 @@ serve(async (req: Request) => {
           const [upcomingRes, lastCompletedRes, leadRes] = await Promise.all([
             supabase
               .from("bookings")
-              .select("scheduled_at, status, address, total_amount, notes, staff:staff_id(name), service:service_id(name)")
+              .select("scheduled_at, status, address, total_amount, notes, square_footage, bedrooms, bathrooms, staff:staff_id(name), service:service_id(name)")
               .eq("customer_id", matchedCustomer.id)
               .eq("organization_id", organizationId)
               .neq("status", "cancelled")
@@ -206,7 +207,7 @@ serve(async (req: Request) => {
               .limit(20),
             supabase
               .from("bookings")
-              .select("scheduled_at, address, service:service_id(name), staff:staff_id(name)")
+              .select("scheduled_at, address, total_amount, square_footage, bedrooms, bathrooms, service:service_id(name), staff:staff_id(name)")
               .eq("customer_id", matchedCustomer.id)
               .eq("organization_id", organizationId)
               .eq("status", "completed")
@@ -243,6 +244,19 @@ serve(async (req: Request) => {
           const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
           let propertyBlock: string;
+          // Helper to format property details from a booking
+          const fmtPropertyDetails = (b: any) => {
+            const parts: string[] = [];
+            if (b.square_footage) parts.push(`${b.square_footage} sqft`);
+            if (b.bedrooms) parts.push(`${b.bedrooms} bed`);
+            if (b.bathrooms) parts.push(`${b.bathrooms} bath`);
+            if (b.total_amount) parts.push(`$${b.total_amount}`);
+            return parts.length ? ` (${parts.join(", ")})` : "";
+          };
+
+          // Determine if this is a returning client with booking history
+          const hasBookingHistory = (lastCompletedRes.data || []).length > 0 || (upcomingRes.data || []).length > 0;
+
           if (multiProperty) {
             let i = 0;
             const blocks: string[] = [];
@@ -251,10 +265,10 @@ serve(async (req: Request) => {
               const upcoming = upcomingByProperty.get(addr) || [];
               const lastB = lastCompletedByProperty.get(addr);
               const upLines = upcoming.map((b: any) =>
-                `    • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}${b.notes ? ` [${b.notes.substring(0, 80)}]` : ""}`
+                `    • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"}${fmtPropertyDetails(b)}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}${b.notes ? ` [${b.notes.substring(0, 80)}]` : ""}`
               ).join("\n") || "    None scheduled";
               const lastLine = lastB
-                ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+                ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${fmtPropertyDetails(lastB)}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
                 : "No completed bookings";
               blocks.push(`  Property ${i}: ${addr}\n    - Last cleaning: ${lastLine}\n    - Upcoming:\n${upLines}`);
             }
@@ -264,10 +278,10 @@ serve(async (req: Request) => {
             const upcoming = upcomingByProperty.get(addr) || [];
             const lastB = lastCompletedByProperty.get(addr);
             const upLines = upcoming.map((b: any) =>
-              `  • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"} at ${addr}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
+              `  • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"} at ${addr}${fmtPropertyDetails(b)}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
             ).join("\n") || "  None scheduled";
             const lastLine = lastB
-              ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+              ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${fmtPropertyDetails(lastB)}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
               : "No completed bookings on file";
             propertyBlock = `- Last cleaning: ${lastLine}\n- Upcoming bookings:\n${upLines}`;
           }
@@ -275,6 +289,7 @@ serve(async (req: Request) => {
           crmContext = `\nCRM CONTEXT${multiProperty ? " — MULTIPLE PROPERTIES" : ""}:
 - Customer: ${matchedCustomer.first_name || ""} ${matchedCustomer.last_name || ""}
 - Customer since: ${new Date(matchedCustomer.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+- Returning client: ${hasBookingHistory ? "YES — quote based on their previous service pricing" : "NO — new client, no booking history"}
 ${propertyBlock}
 ${matchedLead ? `- Lead status: ${matchedLead.status}${matchedLead.notes ? ` — ${matchedLead.notes.substring(0, 200)}` : ""}` : ""}
 ${matchedCustomer.notes ? `- Notes: ${matchedCustomer.notes.substring(0, 300)}` : ""}
@@ -391,10 +406,38 @@ ${multiProperty ? "- IMPORTANT: This client has MULTIPLE properties. If they ask
       })
       .join("\n");
 
-    // --- Services ---
-    const servicesText = (servicesRes.data || [])
-      .map((s: any) => `- ${s.name}: $${s.price}`)
-      .join("\n");
+    // --- Services & Pricing ---
+    const pricingMap = new Map<string, any>();
+    for (const sp of servicePricingRes.data || []) {
+      pricingMap.set(sp.service_id, sp);
+    }
+
+    const servicesLines: string[] = [];
+    for (const s of servicesRes.data || []) {
+      const sp = pricingMap.get(s.id);
+      let line = `- ${s.name}: Base price $${s.price}`;
+      if (sp) {
+        if (sp.sqft_prices && typeof sp.sqft_prices === "object") {
+          const ranges = Object.entries(sp.sqft_prices as Record<string, number>)
+            .map(([range, price]) => `${range}: $${price}`)
+            .join(", ");
+          if (ranges) line += `\n  Square footage pricing: ${ranges}`;
+        }
+        if (sp.bedroom_pricing && typeof sp.bedroom_pricing === "object") {
+          const beds = Object.entries(sp.bedroom_pricing as Record<string, number>)
+            .map(([count, price]) => `${count} bed: $${price}`)
+            .join(", ");
+          if (beds) line += `\n  Bedroom pricing: ${beds}`;
+        }
+        if (sp.extras && Array.isArray(sp.extras) && sp.extras.length) {
+          const extrasStr = sp.extras.map((e: any) => `${e.name || e.label}: $${e.price}`).join(", ");
+          line += `\n  Add-ons: ${extrasStr}`;
+        }
+        if (sp.minimum_price) line += `\n  Minimum: $${sp.minimum_price}`;
+      }
+      servicesLines.push(line);
+    }
+    const servicesText = servicesLines.join("\n");
 
     // --- System prompt ---
     const toneInstruction = isStaff
@@ -410,7 +453,14 @@ CRITICAL RULES:
 - Match the tone from the style examples below exactly.
 - Never say you are an AI, bot, or automated system.
 - If CRM CONTEXT contains upcoming bookings or last cleaning info, USE IT to answer scheduling questions directly.
-- QUOTING: If someone asks for a price or quote and SERVICES OFFERED is listed above, calculate and give them an actual price based on those rates. Example: "A standard clean runs $X. Want me to get you on the schedule?" Do NOT say "reach out" or "let me check" when you have the pricing info.
+
+PRICING & QUOTING RULES:
+- IMPORTANT: Never quote a flat rate unless the customer is a returning client with a booking on file. For new clients always ask for square footage or bedroom/bathroom count before quoting. Our pricing is based on home size, not a single flat rate.
+- RETURNING CLIENTS: If CRM CONTEXT shows "Returning client: YES" and their previous booking has a price, quote based on that. Example: "Your last cleaning was $X for [service]. Want me to book the same?"
+- NEW CLIENTS: If CRM CONTEXT shows "Returning client: NO" or there is no CRM CONTEXT, and they ask about pricing, ask for their home details first. Example: "Our pricing is based on the size of your home. What's the approximate square footage?" or "How many bedrooms and bathrooms does your home have?"
+- If the conversation history already contains their square footage or bedroom/bathroom count, use the SERVICES OFFERED pricing tiers to calculate and give them the actual price. Do NOT ask again.
+- If SERVICES OFFERED has square footage or bedroom pricing tiers, use those to match the customer's info to the right price.
+
 - If asked about something NOT in CRM CONTEXT or SERVICES, say something like "Let me check on that and get back to you!"
 - If the customer seems upset, be empathetic and say you'll look into it personally.
 - Do NOT use emojis unless the style examples show the business uses them.
