@@ -152,10 +152,11 @@ serve(async (req: Request) => {
     }
 
     // --- Parallel data fetch ---
-    const [smsSettingsRes, bizSettingsRes, servicesRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
+    const [smsSettingsRes, bizSettingsRes, servicesRes, servicePricingRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
       supabase.from("organization_sms_settings").select("openphone_api_key, openphone_phone_number_id").eq("organization_id", organizationId).maybeSingle(),
       supabase.from("business_settings").select("company_name, company_phone, company_email").eq("organization_id", organizationId).maybeSingle(),
-      supabase.from("services").select("name, price").eq("organization_id", organizationId).eq("is_active", true),
+      supabase.from("services").select("id, name, price, description").eq("organization_id", organizationId).eq("is_active", true),
+      supabase.from("service_pricing").select("service_id, sqft_prices, bedroom_pricing, extras, minimum_price, pet_options, home_condition_options").eq("organization_id", organizationId),
       supabase.from("sms_messages").select("direction, content, sent_at").eq("conversation_id", conversationId).order("sent_at", { ascending: true }).limit(15),
       supabase.from("sms_messages").select("content").eq("organization_id", organizationId).in("direction", ["outbound", "outgoing"]).neq("conversation_id", conversationId).order("sent_at", { ascending: false }).limit(40),
       supabase.from("staff").select("phone, name").eq("organization_id", organizationId).eq("is_active", true),
