@@ -111,11 +111,8 @@ serve(async (req: Request) => {
 
     const stats = { scanned: conversations.length, layer1: 0, layer2: 0, layer3: 0, layer4: 0, triggered: 0 };
 
-    // Filter out done/archived conversations
-    const activeConvs = conversations.filter(
-      (c: any) => !c.status || !["done", "archived", "closed"].includes(c.status)
-    );
-    console.log(`[scan] ${conversations.length} in window, ${activeConvs.length} not done/archived`);
+    const activeConvs = conversations;
+    console.log(`[scan] ${conversations.length} conversations in time window`);
 
     // For each conversation check last message direction + AI dedup
     const layer1Passed: Array<{
