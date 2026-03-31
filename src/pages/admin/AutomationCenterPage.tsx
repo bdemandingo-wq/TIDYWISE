@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 import {
   Zap, Star, Clock, RotateCcw, Repeat, UserX,
   HelpCircle, Home, Calendar, ClipboardList, Users, Target,
@@ -107,6 +109,163 @@ const sidebarGuide = [
   { icon: HelpCircle, name: 'Help', description: 'Tutorial videos and help resources to get the most out of the platform.' },
 ];
 
+type AiMode = 'off' | 'always' | 'after_hours';
+
+interface AiSmsSettings {
+  mode: AiMode;
+  after_hours_start: string;
+  after_hours_end: string;
+  timezone: string;
+}
+
+const defaultAiSettings: AiSmsSettings = {
+  mode: 'off',
+  after_hours_start: '18:00',
+  after_hours_end: '08:00',
+  timezone: 'America/New_York',
+};
+
+const TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'America/Phoenix',
+  'America/Toronto',
+  'America/Vancouver',
+  'Europe/London',
+  'Europe/Paris',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => {
+  const h = i.toString().padStart(2, '0');
+  return { value: `${h}:00`, label: i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM` };
+});
+
+function AiSmsReplyControl({ auto, onUpdated }: { auto: any; onUpdated: () => void }) {
+  const settings: AiSmsSettings = { ...defaultAiSettings, ...(auto.settings as any || {}) };
+  const currentMode: AiMode = auto.is_enabled ? (settings.mode === 'after_hours' ? 'after_hours' : 'always') : 'off';
+
+  const [mode, setMode] = useState<AiMode>(currentMode);
+  const [startTime, setStartTime] = useState(settings.after_hours_start);
+  const [endTime, setEndTime] = useState(settings.after_hours_end);
+  const [timezone, setTimezone] = useState(settings.timezone);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const s: AiSmsSettings = { ...defaultAiSettings, ...(auto.settings as any || {}) };
+    const m: AiMode = auto.is_enabled ? (s.mode === 'after_hours' ? 'after_hours' : 'always') : 'off';
+    setMode(m);
+    setStartTime(s.after_hours_start);
+    setEndTime(s.after_hours_end);
+    setTimezone(s.timezone);
+  }, [auto]);
+
+  const save = async (newMode: AiMode, start?: string, end?: string, tz?: string) => {
+    setSaving(true);
+    try {
+      const newSettings: AiSmsSettings = {
+        mode: newMode,
+        after_hours_start: start ?? startTime,
+        after_hours_end: end ?? endTime,
+        timezone: tz ?? timezone,
+      };
+      const { error } = await supabase
+        .from('organization_automations')
+        .update({
+          is_enabled: newMode !== 'off',
+          settings: newSettings as any,
+        })
+        .eq('id', auto.id);
+      if (error) throw error;
+      toast.success('AI SMS Reply updated');
+      onUpdated();
+    } catch {
+      toast.error('Failed to update');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleModeChange = (newMode: AiMode) => {
+    setMode(newMode);
+    save(newMode);
+  };
+
+  const modeLabel = mode === 'off' ? 'Off' : mode === 'always' ? 'Always On' : 'After Hours';
+  const modeBadgeVariant = mode === 'off' ? 'secondary' : 'default';
+
+  return (
+    <div className="space-y-3">
+      {/* Segmented control */}
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
+        {([
+          { value: 'off', label: 'Off' },
+          { value: 'always', label: 'Always On' },
+          { value: 'after_hours', label: 'After Hours' },
+        ] as { value: AiMode; label: string }[]).map((opt) => (
+          <button
+            key={opt.value}
+            disabled={saving}
+            onClick={() => handleModeChange(opt.value)}
+            className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${
+              mode === opt.value
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* After hours config */}
+      {mode === 'after_hours' && (
+        <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+          <p className="text-xs font-medium text-muted-foreground">AI replies only between these hours:</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-muted-foreground">Start</label>
+              <Select value={startTime} onValueChange={(v) => { setStartTime(v); save('after_hours', v, endTime, timezone); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {HOURS.map((h) => <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">End</label>
+              <Select value={endTime} onValueChange={(v) => { setEndTime(v); save('after_hours', startTime, v, timezone); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {HOURS.map((h) => <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Timezone</label>
+            <Select value={timezone} onValueChange={(v) => { setTimezone(v); save('after_hours', startTime, endTime, v); }}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => <SelectItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      <Badge variant={modeBadgeVariant} className="text-xs">
+        {modeLabel}
+      </Badge>
+    </div>
+  );
+}
+
 export default function AutomationCenterPage() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
@@ -169,6 +328,8 @@ export default function AutomationCenterPage() {
                   const meta = automationMeta[auto.automation_type];
                   if (!meta) return null;
                   const Icon = meta.icon;
+                  const isAiSms = auto.automation_type === 'ai_sms_reply';
+
                   return (
                     <Card key={auto.id} className="relative overflow-hidden">
                       <div className={`absolute top-0 left-0 w-1 h-full ${auto.is_enabled ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
@@ -180,15 +341,19 @@ export default function AutomationCenterPage() {
                             </div>
                             <div>
                               <CardTitle className="text-base">{formatName(auto.automation_type)}</CardTitle>
-                              <Badge variant={auto.is_enabled ? 'default' : 'secondary'} className="mt-1 text-xs">
-                                {auto.is_enabled ? 'Auto' : 'Manual Only'}
-                              </Badge>
+                              {!isAiSms && (
+                                <Badge variant={auto.is_enabled ? 'default' : 'secondary'} className="mt-1 text-xs">
+                                  {auto.is_enabled ? 'Auto' : 'Manual Only'}
+                                </Badge>
+                              )}
                             </div>
                           </div>
-                          <Switch
-                            checked={auto.is_enabled}
-                            onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
-                          />
+                          {!isAiSms && (
+                            <Switch
+                              checked={auto.is_enabled}
+                              onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
+                            />
+                          )}
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3 text-sm">
@@ -204,16 +369,24 @@ export default function AutomationCenterPage() {
                           <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                           <span className="text-muted-foreground">{meta.benefit}</span>
                         </div>
-                        {!auto.is_enabled && (
-                          <div className="pt-2 border-t">
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Automatic sending is off. You can still trigger this manually from the relevant page (Bookings, Customers, etc.).
-                            </p>
-                            <Badge variant="outline" className="text-xs gap-1">
-                              <Send className="w-3 h-3" />
-                              Manual mode — send from booking/customer actions
-                            </Badge>
-                          </div>
+
+                        {isAiSms ? (
+                          <AiSmsReplyControl
+                            auto={auto}
+                            onUpdated={() => queryClient.invalidateQueries({ queryKey: ['organization-automations'] })}
+                          />
+                        ) : (
+                          !auto.is_enabled && (
+                            <div className="pt-2 border-t">
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Automatic sending is off. You can still trigger this manually from the relevant page (Bookings, Customers, etc.).
+                              </p>
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Send className="w-3 h-3" />
+                                Manual mode — send from booking/customer actions
+                              </Badge>
+                            </div>
+                          )
                         )}
                       </CardContent>
                     </Card>

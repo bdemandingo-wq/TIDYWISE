@@ -1,0 +1,1 @@
+ALTER TABLE public.organization_automations ADD COLUMN IF NOT EXISTS settings jsonb DEFAULT '{}'::jsonb;
