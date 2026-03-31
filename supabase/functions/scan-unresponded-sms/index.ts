@@ -88,7 +88,7 @@ serve(async (req: Request) => {
 
     const { data: conversations, error: convErr } = await supabase
       .from("sms_conversations")
-      .select("id, customer_name, customer_phone, last_message_at, status")
+      .select("id, customer_name, customer_phone, last_message_at")
       .eq("organization_id", orgId)
       .lt("last_message_at", fifteenMinAgo)
       .gt("last_message_at", seventyTwoHoursAgo);
@@ -111,11 +111,8 @@ serve(async (req: Request) => {
 
     const stats = { scanned: conversations.length, layer1: 0, layer2: 0, layer3: 0, layer4: 0, triggered: 0 };
 
-    // Filter out done/archived conversations
-    const activeConvs = conversations.filter(
-      (c: any) => !c.status || !["done", "archived", "closed"].includes(c.status)
-    );
-    console.log(`[scan] ${conversations.length} in window, ${activeConvs.length} not done/archived`);
+    const activeConvs = conversations;
+    console.log(`[scan] ${conversations.length} conversations in time window`);
 
     // For each conversation check last message direction + AI dedup
     const layer1Passed: Array<{
@@ -197,8 +194,11 @@ serve(async (req: Request) => {
 
     // ── Layer 3 — AI judgment ──────────────────────────────────────────
     const layer3Passed: typeof layer2Passed = [];
+    // Cap at 15 per run to avoid timeouts
+    const layer2Batch = layer2Passed.slice(0, 10);
+    console.log(`[scan] Processing ${layer2Batch.length} of ${layer2Passed.length} through AI`);
 
-    for (const cand of layer2Passed) {
+    for (const cand of layer2Batch) {
       const { data: recentMsgs } = await supabase
         .from("sms_messages")
         .select("direction, content")
@@ -222,7 +222,7 @@ serve(async (req: Request) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
+            model: "google/gemini-2.5-flash",
             messages: [
               {
                 role: "user",
