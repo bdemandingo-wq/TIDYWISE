@@ -121,6 +121,23 @@ export function InvoiceFormDialog({
     enabled: !!organizationId && open,
   });
 
+  // Check if Stripe is configured
+  const { data: stripeSettings } = useQuery({
+    queryKey: ['org-stripe-check', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('org_stripe_settings')
+        .select('is_connected')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId && open,
+  });
+
+  const isStripeConfigured = !!stripeSettings?.is_connected;
+
   // Fetch payment reminders for display
   const { data: reminders = [] } = useQuery({
     queryKey: ['payment-reminders', organizationId],
@@ -313,6 +330,9 @@ export function InvoiceFormDialog({
 
       // If we should send the invoice, call the edge function
       if (sendMethod !== 'none') {
+        if (!isStripeConfigured) {
+          throw new Error('Stripe is not connected. Go to Settings → Payment Integration to add your Stripe API key before sending invoices.');
+        }
         const customerEmail = selectedCustomer.email;
         const customerName = formData.customer_type === 'customer' 
           ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
