@@ -15,7 +15,7 @@ import {
   HelpCircle, Home, Calendar, ClipboardList, Users, Target,
   MessageSquare, Briefcase, UserCircle, CheckSquare, Package, DollarSign,
   Receipt, BarChart3, Sparkles, CreditCard, Tag, MapPin, Globe, Brain,
-  Activity, Lightbulb, Send,
+  Activity, Lightbulb, Send, PhoneMissed, Bot,
 } from 'lucide-react';
 import { AutomationHealthMonitor } from '@/components/admin/automation/AutomationHealthMonitor';
 import { CRMSuggestionsPanel } from '@/components/admin/automation/CRMSuggestionsPanel';
@@ -61,6 +61,20 @@ const automationMeta: Record<string, {
     action: 'Sends win-back message to re-engage dormant customers',
     benefit: 'Revives old clients automatically and reduces churn.',
     color: 'text-orange-500',
+  },
+  missed_call_textback: {
+    icon: PhoneMissed,
+    trigger: 'Incoming call missed on your OpenPhone number',
+    action: 'Instantly texts the caller back letting them know you\'ll follow up soon',
+    benefit: 'Never lose a lead from a missed call — auto-follow-up keeps prospects engaged.',
+    color: 'text-red-500',
+  },
+  ai_sms_reply: {
+    icon: Bot,
+    trigger: 'Incoming SMS received from a customer',
+    action: 'AI reads your past messages and call transcripts, then replies in your tone and style',
+    benefit: 'Never miss a lead or leave a client waiting — AI handles replies 24/7 exactly how you would.',
+    color: 'text-violet-500',
   },
 };
 
