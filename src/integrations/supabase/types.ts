@@ -3656,6 +3656,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           organization_id: string
+          settings: Json | null
           updated_at: string
         }
         Insert: {
@@ -3665,6 +3666,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           organization_id: string
+          settings?: Json | null
           updated_at?: string
         }
         Update: {
@@ -3674,6 +3676,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           organization_id?: string
+          settings?: Json | null
           updated_at?: string
         }
         Relationships: [
