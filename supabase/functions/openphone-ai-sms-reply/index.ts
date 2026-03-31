@@ -90,7 +90,31 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Schedule enforcement ---
+    // --- Human handoff check ---
+    if (needsHumanHandoff(inboundMessage)) {
+      console.log(`[openphone-ai-sms-reply] ESCALATION detected, handing off to human`);
+      
+      // Create admin notification
+      try {
+        await supabase.from("staff_event_notifications").insert({
+          organization_id: organizationId,
+          staff_id: null,
+          event_type: "ai_escalation",
+          title: "⚠️ AI Escalation — Human Needed",
+          message: `${customerName || customerPhone} sent a message that needs personal attention: "${inboundMessage.substring(0, 200)}"`,
+        });
+      } catch (e) {
+        console.warn("[openphone-ai-sms-reply] Failed to create escalation notification:", e);
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        skipped: true, 
+        reason: "escalation",
+        message: "Message flagged for human review" 
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { data: automationRow } = await supabase
       .from("organization_automations")
       .select("settings")
