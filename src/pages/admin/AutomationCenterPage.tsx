@@ -62,6 +62,20 @@ const automationMeta: Record<string, {
     benefit: 'Revives old clients automatically and reduces churn.',
     color: 'text-orange-500',
   },
+  missed_call_textback: {
+    icon: PhoneMissed,
+    trigger: 'Incoming call missed on your OpenPhone number',
+    action: 'Instantly texts the caller back letting them know you\'ll follow up soon',
+    benefit: 'Never lose a lead from a missed call — auto-follow-up keeps prospects engaged.',
+    color: 'text-red-500',
+  },
+  ai_sms_reply: {
+    icon: Bot,
+    trigger: 'Incoming SMS received from a customer',
+    action: 'AI reads your past messages and call transcripts, then replies in your tone and style',
+    benefit: 'Never miss a lead or leave a client waiting — AI handles replies 24/7 exactly how you would.',
+    color: 'text-violet-500',
+  },
 };
 
 const sidebarGuide = [
