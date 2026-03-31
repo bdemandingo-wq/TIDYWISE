@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const OWNER_EMAIL = "support@tidywisecleaning.com";
+
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
@@ -39,6 +41,21 @@ serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // --- Owner lock ---
+    const { data: ownerCheck } = await supabase
+      .from("org_memberships")
+      .select("user_id, profiles!inner(email)")
+      .eq("organization_id", organizationId)
+      .eq("role", "owner")
+      .limit(1)
+      .maybeSingle();
+
+    if (!ownerCheck || (ownerCheck as any).profiles?.email !== OWNER_EMAIL) {
+      console.log(`[openphone-ai-sms-reply] Owner lock: org=${organizationId} not owned by ${OWNER_EMAIL}`);
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
 
     // --- Cooldown check ---
@@ -60,14 +77,7 @@ serve(async (req: Request) => {
     }
 
     // --- Parallel data fetch ---
-    const [
-      smsSettingsRes,
-      bizSettingsRes,
-      servicesRes,
-      convHistoryRes,
-      orgOutboundRes,
-      staffRes,
-    ] = await Promise.all([
+    const [smsSettingsRes, bizSettingsRes, servicesRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
       supabase.from("organization_sms_settings").select("openphone_api_key, openphone_phone_number_id").eq("organization_id", organizationId).maybeSingle(),
       supabase.from("business_settings").select("company_name, company_phone, company_email").eq("organization_id", organizationId).maybeSingle(),
       supabase.from("services").select("name, price").eq("organization_id", organizationId).eq("is_active", true),
@@ -104,18 +114,16 @@ serve(async (req: Request) => {
       );
       if (transcriptResp.ok) {
         const transcriptData = await transcriptResp.json();
-        const items = transcriptData.data || [];
-        const summaries = items.map((item: any) => {
+        const summaries = (transcriptData.data || []).map((item: any) => {
           if (item.summary) return item.summary.substring(0, 600);
           if (item.transcript?.length) {
-            return item.transcript
-              .map((t: any) => `${t.speaker || "Unknown"}: ${t.text || ""}`)
-              .join("\n")
-              .substring(0, 600);
+            return item.transcript.map((t: any) => `${t.speaker || "Unknown"}: ${t.text || ""}`).join("\n").substring(0, 600);
           }
           return null;
         }).filter(Boolean);
         if (summaries.length) callSummaries = "\nRECENT CALL SUMMARIES:\n" + summaries.join("\n---\n");
+      } else {
+        await transcriptResp.text();
       }
     } catch (e) {
       console.warn("[openphone-ai-sms-reply] Failed to fetch call transcripts:", e);
@@ -139,7 +147,7 @@ serve(async (req: Request) => {
               `https://api.openphone.com/v1/messages?phoneNumberId=${phoneNumberId}&participants=${encodeURIComponent(participant)}&maxResults=10`,
               { headers: { Authorization: authHeader } }
             );
-            if (!msgResp.ok) return [];
+            if (!msgResp.ok) { await msgResp.text(); return []; }
             const msgData = await msgResp.json();
             return (msgData.data || [])
               .filter((m: any) => m.direction === "outgoing" && m.body)
@@ -148,6 +156,8 @@ serve(async (req: Request) => {
         });
         const results = await Promise.all(msgFetches);
         doneConvExamples = results.flat().filter((c: string) => c.length > 10 && c.length < 500);
+      } else {
+        await convResp.text();
       }
     } catch (e) {
       console.warn("[openphone-ai-sms-reply] Failed to fetch done conversations:", e);
@@ -157,7 +167,6 @@ serve(async (req: Request) => {
     const dbExamples = (orgOutboundRes.data || [])
       .map((m: any) => m.content)
       .filter((c: string) => c && c.length > 10 && c.length < 500);
-
     const allExamples = [...dbExamples, ...doneConvExamples].slice(0, 25);
     const styleBlock = allExamples.length
       ? `\nSTYLE EXAMPLES (match this exact tone and style):\n${allExamples.join("\n---\n")}\n`
