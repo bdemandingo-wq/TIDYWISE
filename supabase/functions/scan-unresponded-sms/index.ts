@@ -7,6 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const CLOSED_ENDERS = new Set([
+  "ok", "okay", "thanks", "thank", "thank you", "got it", "sounds good",
+  "sounds great", "perfect", "great", "good", "sure", "yep", "yes", "no",
+  "noted", "done", "bye", "talk later", "will do", "received", "np",
+  "no problem", "see you then", "see you", "kk", "k", "cool", "bet",
+  "awesome", "alright", "all good",
+]);
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -40,7 +48,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Find the owner org that has SMS settings configured
     const { data: ownerMemberships } = await supabase
       .from("org_memberships")
       .select("organization_id")
@@ -54,7 +61,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Pick the org that has SMS settings with an API key
     let orgId: string | null = null;
     for (const mem of ownerMemberships) {
       const { data: smsSettings } = await supabase
@@ -76,20 +82,19 @@ serve(async (req: Request) => {
       );
     }
 
-
-    // ── Step 1 — Find candidate conversations ──────────────────────────
-    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    // ── Layer 1 — Hard filters (DB queries, no AI) ─────────────────────
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
 
     const { data: conversations, error: convErr } = await supabase
       .from("sms_conversations")
-      .select("id, customer_name, customer_phone, last_message_at")
+      .select("id, customer_name, customer_phone, last_message_at, status")
       .eq("organization_id", orgId)
-      .lt("last_message_at", tenMinAgo)
-      .gt("last_message_at", fortyEightHoursAgo);
+      .lt("last_message_at", fifteenMinAgo)
+      .gt("last_message_at", seventyTwoHoursAgo);
 
     if (convErr) {
-      console.error("[scan-unresponded] Error fetching conversations:", convErr.message);
+      console.error("[scan] Error fetching conversations:", convErr.message);
       return new Response(
         JSON.stringify({ success: false, error: convErr.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -97,22 +102,33 @@ serve(async (req: Request) => {
     }
 
     if (!conversations?.length) {
-      console.log("[scan-unresponded] No candidate conversations found");
+      console.log("[scan] No candidate conversations in time window");
       return new Response(
-        JSON.stringify({ success: true, scanned: 0, filtered: 0, triggered: 0 }),
+        JSON.stringify({ success: true, scanned: 0, layer1: 0, layer2: 0, layer3: 0, layer4: 0, triggered: 0 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // For each conversation, check if the last message is inbound
-    const candidates: Array<{
+    const stats = { scanned: conversations.length, layer1: 0, layer2: 0, layer3: 0, layer4: 0, triggered: 0 };
+
+    // Filter out done/archived conversations
+    const activeConvs = conversations.filter(
+      (c: any) => !c.status || !["done", "archived", "closed"].includes(c.status)
+    );
+    console.log(`[scan] ${conversations.length} in window, ${activeConvs.length} not done/archived`);
+
+    // For each conversation check last message direction + AI dedup
+    const layer1Passed: Array<{
       id: string;
       customer_name: string | null;
       customer_phone: string | null;
       lastInboundContent: string;
     }> = [];
 
-    for (const conv of conversations) {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    for (const conv of activeConvs) {
+      // Get last message
       const { data: lastMsg } = await supabase
         .from("sms_messages")
         .select("direction, content")
@@ -121,48 +137,78 @@ serve(async (req: Request) => {
         .limit(1)
         .maybeSingle();
 
-      if (
-        lastMsg &&
-        (lastMsg.direction === "inbound" || lastMsg.direction === "incoming") &&
-        lastMsg.content
-      ) {
-        candidates.push({
-          id: conv.id,
-          customer_name: conv.customer_name,
-          customer_phone: conv.customer_phone,
-          lastInboundContent: lastMsg.content,
-        });
+      if (!lastMsg) continue;
+      // Skip if last message is outbound
+      if (lastMsg.direction !== "inbound" && lastMsg.direction !== "incoming") continue;
+      if (!lastMsg.content) continue;
+
+      // Check if AI already replied in last 24h
+      const { data: recentAiMsg } = await supabase
+        .from("sms_messages")
+        .select("id")
+        .eq("conversation_id", conv.id)
+        .in("direction", ["outbound", "outgoing"])
+        .gte("sent_at", twentyFourHoursAgo)
+        .eq("metadata->>ai_generated", "true")
+        .limit(1)
+        .maybeSingle();
+
+      if (recentAiMsg) {
+        continue; // AI already replied recently
       }
+
+      layer1Passed.push({
+        id: conv.id,
+        customer_name: conv.customer_name,
+        customer_phone: conv.customer_phone,
+        lastInboundContent: lastMsg.content,
+      });
     }
 
-    console.log(
-      `[scan-unresponded] Scanned ${conversations.length} conversations, ${candidates.length} have unanswered inbound`
-    );
+    stats.layer1 = layer1Passed.length;
+    console.log(`[scan] Layer 1 passed: ${layer1Passed.length}`);
 
-    if (!candidates.length) {
-      return new Response(
-        JSON.stringify({ success: true, scanned: conversations.length, filtered: 0, triggered: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!layer1Passed.length) {
+      return new Response(JSON.stringify({ success: true, ...stats }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Step 2 — AI filter for closed-ended conversations ──────────────
-    const needsReply: typeof candidates = [];
+    // ── Layer 2 — Keyword pre-filter (no AI) ───────────────────────────
+    const layer2Passed = layer1Passed.filter((cand) => {
+      const msg = cand.lastInboundContent.trim().toLowerCase().replace(/[.!?,]/g, "");
+      const words = msg.split(/\s+/);
+      if (words.length <= 3 && CLOSED_ENDERS.has(msg)) return false;
+      // Also check individual short phrases
+      if (words.length <= 3) {
+        for (const w of words) {
+          if (CLOSED_ENDERS.has(w) && words.length === 1) return false;
+        }
+      }
+      return true;
+    });
 
-    for (const cand of candidates) {
+    stats.layer2 = layer2Passed.length;
+    console.log(`[scan] Layer 2 passed: ${layer2Passed.length} (keyword filter dropped ${layer1Passed.length - layer2Passed.length})`);
+
+    if (!layer2Passed.length) {
+      return new Response(JSON.stringify({ success: true, ...stats }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Layer 3 — AI judgment ──────────────────────────────────────────
+    const layer3Passed: typeof layer2Passed = [];
+
+    for (const cand of layer2Passed) {
       const { data: recentMsgs } = await supabase
         .from("sms_messages")
         .select("direction, content")
         .eq("conversation_id", cand.id)
         .order("sent_at", { ascending: true })
-        .limit(6);
+        .limit(8);
 
       const transcript = (recentMsgs || [])
         .map((m: any) => {
-          const role =
-            m.direction === "inbound" || m.direction === "incoming"
-              ? "Customer"
-              : "Business";
+          const role = m.direction === "inbound" || m.direction === "incoming" ? "Customer" : "Business";
           return `${role}: ${m.content}`;
         })
         .join("\n");
@@ -180,7 +226,26 @@ serve(async (req: Request) => {
             messages: [
               {
                 role: "user",
-                content: `Review this SMS conversation. The last message is from the customer/staff. Does this conversation clearly require a follow-up response? Answer only YES or NO. Say NO if the last message is a closed-ended statement like 'ok', 'thanks', 'got it', 'sounds good', 'no problem', 'perfect', a one-word reply, or anything that naturally ends the conversation. Say YES only if there is an unanswered question, a request that hasn't been addressed, a complaint, pricing inquiry, scheduling request, or anything that clearly expects a reply.\n\nConversation:\n${transcript}`,
+                content: `You are reviewing an SMS conversation for TidyWise, a professional cleaning company. The last message is from the other person and has not been replied to. Determine if this conversation needs a follow-up reply.
+
+Say YES only if the person is:
+- A potential client asking about booking, pricing, availability, or a cleaning service
+- Someone who sent their address or details expecting a quote or follow-up
+- A cleaner or job applicant asking about work, availability, or a job opening
+- Someone with an unresolved question, complaint, or pending request
+- A client or cleaner waiting on a confirmation, schedule, or assignment
+- Someone expressing interest in booking but the conversation stopped
+
+Say NO if:
+- The conversation is clearly finished (confirmed, closed, thanked)
+- The last message is a simple acknowledgment with nothing pending
+- This looks like spam, a wrong number, or an irrelevant message
+- The topic has nothing to do with cleaning services or staffing
+
+Conversation:
+${transcript}
+
+Reply only YES or NO.`,
               },
             ],
             max_tokens: 10,
@@ -189,34 +254,61 @@ serve(async (req: Request) => {
       );
 
       if (!aiResp.ok) {
-        console.error(
-          `[scan-unresponded] AI filter error for conv ${cand.id}: ${aiResp.status}`
-        );
+        console.error(`[scan] AI filter error for conv ${cand.id}: ${aiResp.status}`);
         continue;
       }
 
       const aiResult = await aiResp.json();
-      const answer = (aiResult.choices?.[0]?.message?.content || "")
-        .trim()
-        .toUpperCase();
+      const answer = (aiResult.choices?.[0]?.message?.content || "").trim().toUpperCase();
 
       if (answer.startsWith("YES")) {
-        needsReply.push(cand);
+        layer3Passed.push(cand);
       } else {
-        console.log(
-          `[scan-unresponded] Filtered out conv ${cand.id} — AI said NO`
-        );
+        console.log(`[scan] Layer 3 filtered conv ${cand.id} — AI said NO`);
       }
     }
 
-    console.log(
-      `[scan-unresponded] ${needsReply.length} conversations passed AI filter`
-    );
+    stats.layer3 = layer3Passed.length;
+    console.log(`[scan] Layer 3 passed: ${layer3Passed.length}`);
 
-    // ── Step 3 — Trigger AI reply ──────────────────────────────────────
-    let triggered = 0;
+    if (!layer3Passed.length) {
+      return new Response(JSON.stringify({ success: true, ...stats }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
-    for (const conv of needsReply) {
+    // ── Layer 4 — Rate limit per contact (3h window) ───────────────────
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const layer4Passed: typeof layer3Passed = [];
+
+    for (const cand of layer3Passed) {
+      if (!cand.customer_phone) {
+        layer4Passed.push(cand);
+        continue;
+      }
+
+      // Check if any outbound message was sent to this phone in last 3h across all convos
+      const { data: recentOutbound } = await supabase
+        .from("sms_messages")
+        .select("id")
+        .eq("conversation_id", cand.id)
+        .in("direction", ["outbound", "outgoing"])
+        .gte("sent_at", threeHoursAgo)
+        .limit(1)
+        .maybeSingle();
+
+      if (recentOutbound) {
+        console.log(`[scan] Layer 4 rate-limited conv ${cand.id} — outbound in last 3h`);
+        continue;
+      }
+
+      layer4Passed.push(cand);
+    }
+
+    stats.layer4 = layer4Passed.length;
+    console.log(`[scan] Layer 4 passed: ${layer4Passed.length}`);
+
+    // ── Trigger AI replies ─────────────────────────────────────────────
+    for (const conv of layer4Passed) {
       try {
         const resp = await fetch(
           `${supabaseUrl}/functions/v1/openphone-ai-sms-reply`,
@@ -238,38 +330,25 @@ serve(async (req: Request) => {
 
         const result = await resp.json();
         if (result.success && !result.skipped) {
-          triggered++;
-          console.log(`[scan-unresponded] Triggered reply for conv ${conv.id}`);
+          stats.triggered++;
+          console.log(`[scan] Triggered reply for conv ${conv.id}`);
         } else {
-          console.log(
-            `[scan-unresponded] Skipped conv ${conv.id}: ${result.reason || "already handled"}`
-          );
+          console.log(`[scan] Skipped conv ${conv.id}: ${result.reason || "already handled"}`);
         }
       } catch (err) {
-        console.error(
-          `[scan-unresponded] Error triggering reply for conv ${conv.id}:`,
-          err
-        );
+        console.error(`[scan] Error triggering reply for conv ${conv.id}:`, err);
       }
     }
 
-    console.log(
-      `[scan-unresponded] Done — scanned=${conversations.length}, filtered=${needsReply.length}, triggered=${triggered}`
-    );
+    console.log(`[scan] Done — scanned=${stats.scanned} L1=${stats.layer1} L2=${stats.layer2} L3=${stats.layer3} L4=${stats.layer4} triggered=${stats.triggered}`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        scanned: conversations.length,
-        candidates: candidates.length,
-        filtered: needsReply.length,
-        triggered,
-      }),
+      JSON.stringify({ success: true, ...stats }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
-    console.error("[scan-unresponded] Fatal error:", msg);
+    console.error("[scan] Fatal error:", msg);
     return new Response(
       JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
