@@ -56,15 +56,23 @@ serve(async (req: Request) => {
     }
 
     // --- Owner lock ---
-    const { data: ownerCheck } = await supabase
+    const { data: ownerMembership } = await supabase
       .from("org_memberships")
-      .select("user_id, profiles!inner(email)")
+      .select("user_id")
       .eq("organization_id", organizationId)
       .eq("role", "owner")
       .limit(1)
       .maybeSingle();
 
-    if (!ownerCheck || (ownerCheck as any).profiles?.email !== OWNER_EMAIL) {
+    const { data: ownerProfile } = ownerMembership?.user_id
+      ? await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", ownerMembership.user_id)
+          .maybeSingle()
+      : { data: null };
+
+    if (!ownerMembership || ownerProfile?.email !== OWNER_EMAIL) {
       console.log(`[openphone-ai-sms-reply] Owner lock: org=${organizationId} not owned by ${OWNER_EMAIL}`);
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
