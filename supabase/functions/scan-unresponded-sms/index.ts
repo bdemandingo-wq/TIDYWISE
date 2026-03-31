@@ -195,7 +195,7 @@ serve(async (req: Request) => {
     // ── Layer 3 — AI judgment ──────────────────────────────────────────
     const layer3Passed: typeof layer2Passed = [];
     // Cap at 15 per run to avoid timeouts
-    const layer2Batch = layer2Passed.slice(0, 15);
+    const layer2Batch = layer2Passed.slice(0, 5);
     console.log(`[scan] Processing ${layer2Batch.length} of ${layer2Passed.length} through AI`);
 
     for (const cand of layer2Batch) {
