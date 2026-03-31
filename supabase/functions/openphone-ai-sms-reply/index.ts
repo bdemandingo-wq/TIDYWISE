@@ -81,6 +81,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[ai-sms-reply] Processing reply for org=${organizationId} conv=${conversationId}`);
 
+    // Cooldown check: don't reply if we already sent an outbound message in the last 5 minutes
+    const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentOutbound } = await supabase
+      .from('sms_messages')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .eq('direction', 'outbound')
+      .gte('sent_at', cooldownCutoff)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentOutbound) {
+      console.log(`[ai-sms-reply] Cooldown active — outbound message sent within last 5 min, skipping`);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Fetch all context in parallel
     const [
       smsSettingsRes,
