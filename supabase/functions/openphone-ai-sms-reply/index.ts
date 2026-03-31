@@ -244,6 +244,19 @@ serve(async (req: Request) => {
           const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
           let propertyBlock: string;
+          // Helper to format property details from a booking
+          const fmtPropertyDetails = (b: any) => {
+            const parts: string[] = [];
+            if (b.square_footage) parts.push(`${b.square_footage} sqft`);
+            if (b.bedrooms) parts.push(`${b.bedrooms} bed`);
+            if (b.bathrooms) parts.push(`${b.bathrooms} bath`);
+            if (b.total_amount) parts.push(`$${b.total_amount}`);
+            return parts.length ? ` (${parts.join(", ")})` : "";
+          };
+
+          // Determine if this is a returning client with booking history
+          const hasBookingHistory = (lastCompletedRes.data || []).length > 0 || (upcomingRes.data || []).length > 0;
+
           if (multiProperty) {
             let i = 0;
             const blocks: string[] = [];
@@ -252,10 +265,10 @@ serve(async (req: Request) => {
               const upcoming = upcomingByProperty.get(addr) || [];
               const lastB = lastCompletedByProperty.get(addr);
               const upLines = upcoming.map((b: any) =>
-                `    • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}${b.notes ? ` [${b.notes.substring(0, 80)}]` : ""}`
+                `    • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"}${fmtPropertyDetails(b)}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}${b.notes ? ` [${b.notes.substring(0, 80)}]` : ""}`
               ).join("\n") || "    None scheduled";
               const lastLine = lastB
-                ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+                ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${fmtPropertyDetails(lastB)}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
                 : "No completed bookings";
               blocks.push(`  Property ${i}: ${addr}\n    - Last cleaning: ${lastLine}\n    - Upcoming:\n${upLines}`);
             }
@@ -265,10 +278,10 @@ serve(async (req: Request) => {
             const upcoming = upcomingByProperty.get(addr) || [];
             const lastB = lastCompletedByProperty.get(addr);
             const upLines = upcoming.map((b: any) =>
-              `  • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"} at ${addr}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
+              `  • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"} at ${addr}${fmtPropertyDetails(b)}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
             ).join("\n") || "  None scheduled";
             const lastLine = lastB
-              ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+              ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${fmtPropertyDetails(lastB)}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
               : "No completed bookings on file";
             propertyBlock = `- Last cleaning: ${lastLine}\n- Upcoming bookings:\n${upLines}`;
           }
@@ -276,6 +289,7 @@ serve(async (req: Request) => {
           crmContext = `\nCRM CONTEXT${multiProperty ? " — MULTIPLE PROPERTIES" : ""}:
 - Customer: ${matchedCustomer.first_name || ""} ${matchedCustomer.last_name || ""}
 - Customer since: ${new Date(matchedCustomer.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+- Returning client: ${hasBookingHistory ? "YES — quote based on their previous service pricing" : "NO — new client, no booking history"}
 ${propertyBlock}
 ${matchedLead ? `- Lead status: ${matchedLead.status}${matchedLead.notes ? ` — ${matchedLead.notes.substring(0, 200)}` : ""}` : ""}
 ${matchedCustomer.notes ? `- Notes: ${matchedCustomer.notes.substring(0, 300)}` : ""}
