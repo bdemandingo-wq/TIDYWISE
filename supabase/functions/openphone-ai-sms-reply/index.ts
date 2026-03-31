@@ -158,7 +158,101 @@ serve(async (req: Request) => {
 
     // --- Detect staff ---
     const normalizedCustomer = normalizePhone(customerPhone);
-    const isStaff = (staffRes.data || []).some((s: any) => s.phone && normalizePhone(s.phone) === normalizedCustomer);
+    const staffMatch = (staffRes.data || []).find((s: any) => s.phone && normalizePhone(s.phone) === normalizedCustomer);
+    const isStaff = !!staffMatch;
+
+    // --- CRM context lookup ---
+    let crmContext = "";
+    try {
+      if (!isStaff) {
+        // Client CRM: find customer by phone
+        const { data: customers } = await supabase
+          .from("customers")
+          .select("id, first_name, last_name, notes, created_at, phone")
+          .eq("organization_id", organizationId);
+
+        const matchedCustomer = (customers || []).find((c: any) => c.phone && normalizePhone(c.phone) === normalizedCustomer);
+
+        if (matchedCustomer) {
+          const [upcomingRes, lastCompletedRes, leadRes] = await Promise.all([
+            supabase
+              .from("bookings")
+              .select("scheduled_at, status, address, total_amount, notes, staff:staff_id(name), service:service_id(name)")
+              .eq("customer_id", matchedCustomer.id)
+              .eq("organization_id", organizationId)
+              .neq("status", "cancelled")
+              .gte("scheduled_at", new Date().toISOString())
+              .order("scheduled_at", { ascending: true })
+              .limit(5),
+            supabase
+              .from("bookings")
+              .select("scheduled_at, service:service_id(name), staff:staff_id(name)")
+              .eq("customer_id", matchedCustomer.id)
+              .eq("organization_id", organizationId)
+              .eq("status", "completed")
+              .order("scheduled_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("leads")
+              .select("name, status, notes, phone")
+              .eq("organization_id", organizationId),
+          ]);
+
+          const matchedLead = (leadRes.data || []).find((l: any) => l.phone && normalizePhone(l.phone) === normalizedCustomer);
+
+          const upcomingList = (upcomingRes.data || []).map((b: any) =>
+            `  • ${new Date(b.scheduled_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${new Date(b.scheduled_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — ${(b.service as any)?.name || "Service"} at ${b.address || "address TBD"}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
+          ).join("\n") || "  None scheduled";
+
+          const last = lastCompletedRes.data;
+          const lastCleaning = last
+            ? `${new Date(last.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(last.service as any)?.name || "Service"}${(last.staff as any)?.name ? ` by ${(last.staff as any).name}` : ""}`
+            : "No completed bookings on file";
+
+          crmContext = `\nCRM CONTEXT:
+- Customer: ${matchedCustomer.first_name || ""} ${matchedCustomer.last_name || ""}
+- Customer since: ${new Date(matchedCustomer.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+- Last cleaning: ${lastCleaning}
+- Upcoming bookings:\n${upcomingList}
+${matchedLead ? `- Lead status: ${matchedLead.status}${matchedLead.notes ? ` — ${matchedLead.notes.substring(0, 200)}` : ""}` : ""}
+${matchedCustomer.notes ? `- Notes: ${matchedCustomer.notes.substring(0, 300)}` : ""}\n`;
+        }
+      } else {
+        // Staff CRM: get staff details and upcoming assignments
+        const { data: staffDetail } = await supabase
+          .from("staff")
+          .select("id, name, is_active, phone")
+          .eq("organization_id", organizationId)
+          .eq("is_active", true);
+
+        const matchedStaffRow = (staffDetail || []).find((s: any) => s.phone && normalizePhone(s.phone) === normalizedCustomer);
+
+        if (matchedStaffRow) {
+          const { data: staffBookings } = await supabase
+            .from("bookings")
+            .select("scheduled_at, address, notes, customer:customer_id(first_name, last_name), service:service_id(name)")
+            .eq("staff_id", matchedStaffRow.id)
+            .eq("organization_id", organizationId)
+            .in("status", ["pending", "confirmed"])
+            .gte("scheduled_at", new Date().toISOString())
+            .order("scheduled_at", { ascending: true })
+            .limit(5);
+
+          const jobList = (staffBookings || []).map((b: any) => {
+            const cust = b.customer as any;
+            const custName = cust ? `${cust.first_name || ""} ${cust.last_name || ""}`.trim() : "TBD";
+            return `  • ${new Date(b.scheduled_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${new Date(b.scheduled_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — ${(b.service as any)?.name || "Job"} for ${custName} at ${b.address || "TBD"}`;
+          }).join("\n") || "  No upcoming jobs";
+
+          crmContext = `\nCRM CONTEXT:
+- Staff member: ${matchedStaffRow.name}
+- Upcoming jobs:\n${jobList}\n`;
+        }
+      }
+    } catch (e) {
+      console.warn("[openphone-ai-sms-reply] CRM context fetch failed:", e);
+    }
 
     // --- Call transcripts from OpenPhone ---
     let callSummaries = "";
@@ -253,7 +347,8 @@ CRITICAL RULES:
 - Keep replies SHORT (1-3 sentences max). This is SMS, not email.
 - Match the tone from the style examples below exactly.
 - Never say you are an AI, bot, or automated system.
-- If asked about pricing, scheduling, or anything you're unsure about, say something like "Let me check on that and get back to you!"
+- If CRM CONTEXT contains upcoming bookings or last cleaning info, USE IT to answer scheduling questions directly.
+- If asked about pricing, scheduling, or anything NOT in CRM CONTEXT, say something like "Let me check on that and get back to you!"
 - Do NOT make up prices, availability, or specific details you don't have.
 - If the customer seems upset, be empathetic and say you'll look into it personally.
 - Do NOT use emojis unless the style examples show the business uses them.
@@ -269,7 +364,7 @@ ${companyPhone ? `Phone: ${companyPhone}` : ""}
 ${companyEmail ? `Email: ${companyEmail}` : ""}
 
 ${servicesText ? `SERVICES OFFERED:\n${servicesText}\n` : ""}
-
+${crmContext}
 CONVERSATION HISTORY:
 ${historyText}`;
 
