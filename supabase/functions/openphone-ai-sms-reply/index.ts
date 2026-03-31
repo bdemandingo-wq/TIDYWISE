@@ -1,0 +1,296 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+}
+
+function formatPhoneForSend(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (!digits.startsWith("+")) return `+${digits}`;
+  return digits;
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ success: false, error: "LOVABLE_API_KEY not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { conversationId, organizationId, inboundMessage, customerPhone, customerName } = await req.json();
+
+    if (!conversationId || !organizationId || !inboundMessage || !customerPhone) {
+      return new Response(JSON.stringify({ success: false, error: "Missing required fields" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
+
+    // --- Cooldown check ---
+    const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: cooldownHit } = await supabase
+      .from("sms_messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("direction", "outbound")
+      .gte("sent_at", cooldownCutoff)
+      .eq("metadata->>ai_generated", "true")
+      .limit(1)
+      .maybeSingle();
+
+    if (cooldownHit) {
+      console.log("[openphone-ai-sms-reply] Cooldown active, skipping");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "cooldown" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Parallel data fetch ---
+    const [
+      smsSettingsRes,
+      bizSettingsRes,
+      servicesRes,
+      convHistoryRes,
+      orgOutboundRes,
+      staffRes,
+    ] = await Promise.all([
+      supabase.from("organization_sms_settings").select("openphone_api_key, openphone_phone_number_id").eq("organization_id", organizationId).maybeSingle(),
+      supabase.from("business_settings").select("company_name, company_phone, company_email").eq("organization_id", organizationId).maybeSingle(),
+      supabase.from("services").select("name, price").eq("organization_id", organizationId).eq("is_active", true),
+      supabase.from("sms_messages").select("direction, content, sent_at").eq("conversation_id", conversationId).order("sent_at", { ascending: true }).limit(15),
+      supabase.from("sms_messages").select("content").eq("organization_id", organizationId).in("direction", ["outbound", "outgoing"]).neq("conversation_id", conversationId).order("sent_at", { ascending: false }).limit(40),
+      supabase.from("staff").select("phone, name").eq("organization_id", organizationId).eq("is_active", true),
+    ]);
+
+    const smsSettings = smsSettingsRes.data;
+    if (!smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
+      return new Response(JSON.stringify({ success: false, error: "OpenPhone not configured" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, "");
+    let phoneNumberId = smsSettings.openphone_phone_number_id;
+    const pnMatch = phoneNumberId.match(/(PN[A-Za-z0-9]+)/);
+    if (pnMatch) phoneNumberId = pnMatch[1];
+
+    const companyName = bizSettingsRes.data?.company_name || "Our company";
+    const companyPhone = bizSettingsRes.data?.company_phone || "";
+    const companyEmail = bizSettingsRes.data?.company_email || "";
+
+    // --- Detect staff ---
+    const normalizedCustomer = normalizePhone(customerPhone);
+    const isStaff = (staffRes.data || []).some((s: any) => s.phone && normalizePhone(s.phone) === normalizedCustomer);
+
+    // --- Call transcripts from OpenPhone ---
+    let callSummaries = "";
+    try {
+      const transcriptResp = await fetch(
+        `https://api.openphone.com/v1/call-transcripts?phoneNumberId=${phoneNumberId}&participants=${encodeURIComponent(customerPhone)}&maxResults=5`,
+        { headers: { Authorization: authHeader } }
+      );
+      if (transcriptResp.ok) {
+        const transcriptData = await transcriptResp.json();
+        const items = transcriptData.data || [];
+        const summaries = items.map((item: any) => {
+          if (item.summary) return item.summary.substring(0, 600);
+          if (item.transcript?.length) {
+            return item.transcript
+              .map((t: any) => `${t.speaker || "Unknown"}: ${t.text || ""}`)
+              .join("\n")
+              .substring(0, 600);
+          }
+          return null;
+        }).filter(Boolean);
+        if (summaries.length) callSummaries = "\nRECENT CALL SUMMARIES:\n" + summaries.join("\n---\n");
+      }
+    } catch (e) {
+      console.warn("[openphone-ai-sms-reply] Failed to fetch call transcripts:", e);
+    }
+
+    // --- Done conversation style examples from OpenPhone ---
+    let doneConvExamples: string[] = [];
+    try {
+      const convResp = await fetch(
+        `https://api.openphone.com/v1/conversations?phoneNumbers=${phoneNumberId}&status=done&maxResults=20`,
+        { headers: { Authorization: authHeader } }
+      );
+      if (convResp.ok) {
+        const convData = await convResp.json();
+        const conversations = convData.data || [];
+        const msgFetches = conversations.slice(0, 10).map(async (conv: any) => {
+          try {
+            const participant = conv.participants?.[0];
+            if (!participant) return [];
+            const msgResp = await fetch(
+              `https://api.openphone.com/v1/messages?phoneNumberId=${phoneNumberId}&participants=${encodeURIComponent(participant)}&maxResults=10`,
+              { headers: { Authorization: authHeader } }
+            );
+            if (!msgResp.ok) return [];
+            const msgData = await msgResp.json();
+            return (msgData.data || [])
+              .filter((m: any) => m.direction === "outgoing" && m.body)
+              .map((m: any) => m.body);
+          } catch { return []; }
+        });
+        const results = await Promise.all(msgFetches);
+        doneConvExamples = results.flat().filter((c: string) => c.length > 10 && c.length < 500);
+      }
+    } catch (e) {
+      console.warn("[openphone-ai-sms-reply] Failed to fetch done conversations:", e);
+    }
+
+    // --- Build style examples ---
+    const dbExamples = (orgOutboundRes.data || [])
+      .map((m: any) => m.content)
+      .filter((c: string) => c && c.length > 10 && c.length < 500);
+
+    const allExamples = [...dbExamples, ...doneConvExamples].slice(0, 25);
+    const styleBlock = allExamples.length
+      ? `\nSTYLE EXAMPLES (match this exact tone and style):\n${allExamples.join("\n---\n")}\n`
+      : "";
+
+    // --- Conversation history ---
+    const historyText = (convHistoryRes.data || [])
+      .map((msg: any) => {
+        const role = msg.direction === "inbound" || msg.direction === "incoming" ? (customerName || "Customer") : companyName;
+        return `${role}: ${msg.content}`;
+      })
+      .join("\n");
+
+    // --- Services ---
+    const servicesText = (servicesRes.data || [])
+      .map((s: any) => `- ${s.name}: $${s.price}`)
+      .join("\n");
+
+    // --- System prompt ---
+    const toneInstruction = isStaff
+      ? "This contact is a STAFF MEMBER. Be direct, operational, and brief. No marketing language."
+      : "This contact is a CLIENT. Be warm, professional, and helpful. Match the style examples closely.";
+
+    const systemPrompt = `You are the AI assistant for "${companyName}". You reply to SMS messages exactly as the business owner would.
+
+${toneInstruction}
+
+CRITICAL RULES:
+- Keep replies SHORT (1-3 sentences max). This is SMS, not email.
+- Match the tone from the style examples below exactly.
+- Never say you are an AI, bot, or automated system.
+- If asked about pricing, scheduling, or anything you're unsure about, say something like "Let me check on that and get back to you!"
+- Do NOT make up prices, availability, or specific details you don't have.
+- If the customer seems upset, be empathetic and say you'll look into it personally.
+- Do NOT use emojis unless the style examples show the business uses them.
+- Do NOT include any greeting label like "Customer:" or "${companyName}:" in your output.
+- Do NOT wrap your reply in quotes.
+- Output ONLY the reply text, nothing else.
+${styleBlock}
+${callSummaries}
+
+BUSINESS INFO:
+Company: ${companyName}
+${companyPhone ? `Phone: ${companyPhone}` : ""}
+${companyEmail ? `Email: ${companyEmail}` : ""}
+
+${servicesText ? `SERVICES OFFERED:\n${servicesText}\n` : ""}
+
+CONVERSATION HISTORY:
+${historyText}`;
+
+    // --- Call AI ---
+    console.log("[openphone-ai-sms-reply] Calling AI gateway");
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-001",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: inboundMessage },
+        ],
+        max_tokens: 300,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error(`[openphone-ai-sms-reply] AI error: ${aiResponse.status} - ${errText}`);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ success: false, error: "AI rate limited" }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ success: false, error: "AI credits exhausted" }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ success: false, error: "AI generation failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const aiResult = await aiResponse.json();
+    const generatedReply = aiResult.choices?.[0]?.message?.content?.trim();
+
+    if (!generatedReply) {
+      return new Response(JSON.stringify({ success: false, error: "AI returned empty response" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    console.log(`[openphone-ai-sms-reply] Reply: ${generatedReply.substring(0, 80)}...`);
+
+    // --- Send via OpenPhone ---
+    const formattedPhone = formatPhoneForSend(customerPhone);
+    const smsResp = await fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: phoneNumberId, to: [formattedPhone], content: generatedReply }),
+    });
+
+    if (!smsResp.ok) {
+      const errText = await smsResp.text();
+      console.error(`[openphone-ai-sms-reply] OpenPhone send failed: ${smsResp.status} - ${errText}`);
+      return new Response(JSON.stringify({ success: false, error: "Failed to send via OpenPhone" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const smsResult = await smsResp.json();
+
+    // --- Save to DB ---
+    await Promise.all([
+      supabase.from("sms_messages").insert({
+        conversation_id: conversationId,
+        organization_id: organizationId,
+        direction: "outbound",
+        content: generatedReply,
+        status: "sent",
+        openphone_message_id: smsResult?.data?.id || null,
+        sent_at: new Date().toISOString(),
+        metadata: { ai_generated: true },
+      }),
+      supabase.from("sms_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId),
+    ]);
+
+    return new Response(JSON.stringify({ success: true, reply: generatedReply }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[openphone-ai-sms-reply] Error:", msg);
+    return new Response(JSON.stringify({ success: false, error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+});
