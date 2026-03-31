@@ -518,10 +518,21 @@ ${historyText}`;
         status: "sent",
         openphone_message_id: smsResult?.data?.id || null,
         sent_at: new Date().toISOString(),
-        metadata: { ai_generated: true },
+        metadata: { ai_generated: true, customer_phone: customerPhone },
       }),
       supabase.from("sms_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId),
     ]);
+
+    // --- Lead conversion tracking ---
+    // Tag the conversation so that when a booking is later created for this customer,
+    // we can attribute it to AI. We store the conversation ID in sms_conversations metadata.
+    try {
+      await supabase.from("sms_conversations")
+        .update({ metadata: { ai_engaged: true, ai_last_reply_at: new Date().toISOString() } })
+        .eq("id", conversationId);
+    } catch (e) {
+      console.warn("[openphone-ai-sms-reply] Failed to tag conversation for lead tracking:", e);
+    }
 
     return new Response(JSON.stringify({ success: true, reply: generatedReply }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
