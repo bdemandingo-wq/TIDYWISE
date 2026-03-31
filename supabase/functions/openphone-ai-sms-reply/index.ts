@@ -75,12 +75,11 @@ serve(async (req: Request) => {
       .eq("conversation_id", conversationId)
       .eq("direction", "outbound")
       .gte("sent_at", cooldownCutoff)
-      .eq("metadata->>ai_generated", "true")
       .limit(1)
       .maybeSingle();
 
     if (cooldownHit) {
-      console.log("[openphone-ai-sms-reply] Cooldown active, skipping");
+      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 2 min), skipping");
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "cooldown" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
