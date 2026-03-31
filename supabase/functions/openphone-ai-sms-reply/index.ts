@@ -6,8 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OWNER_EMAIL = "support@tidywisecleaning.com";
-
 // --- Human handoff: keywords that signal escalation ---
 const ESCALATION_KEYWORDS = [
   "refund", "dispute", "lawyer", "attorney", "sue", "legal", "bbb",
@@ -53,29 +51,6 @@ serve(async (req: Request) => {
     if (!conversationId || !organizationId || !inboundMessage || !customerPhone) {
       return new Response(JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // --- Owner lock ---
-    const { data: ownerMembership } = await supabase
-      .from("org_memberships")
-      .select("user_id")
-      .eq("organization_id", organizationId)
-      .eq("role", "owner")
-      .limit(1)
-      .maybeSingle();
-
-    const { data: ownerProfile } = ownerMembership?.user_id
-      ? await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", ownerMembership.user_id)
-          .maybeSingle()
-      : { data: null };
-
-    if (!ownerMembership || ownerProfile?.email !== OWNER_EMAIL) {
-      console.log(`[openphone-ai-sms-reply] Owner lock: org=${organizationId} not owned by ${OWNER_EMAIL}`);
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
