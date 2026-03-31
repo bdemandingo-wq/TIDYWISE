@@ -55,8 +55,20 @@ serve(async (req: Request) => {
 
     console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
 
-    // --- Cooldown check ---
-    const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // --- Fix 1: Skip message reactions (iMessage/OpenPhone tapbacks) ---
+    const REACTION_PREFIXES = [
+      "Liked", "Loved", "Laughed at", "Emphasized", "Disliked", "Questioned",
+      "Le gustó", "Le encantó", "Se rió de", "Enfatizó", "No le gustó",
+      "Liked \"", "Loved \"", "Laughed at \"", "Emphasized \"",
+    ];
+    if (REACTION_PREFIXES.some((prefix) => inboundMessage.startsWith(prefix))) {
+      console.log(`[openphone-ai-sms-reply] Reaction message detected, skipping: "${inboundMessage.substring(0, 40)}"`);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "reaction" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Fix 2: Tighter cooldown — any outbound in last 2 minutes ---
+    const cooldownCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data: cooldownHit } = await supabase
       .from("sms_messages")
       .select("id")
