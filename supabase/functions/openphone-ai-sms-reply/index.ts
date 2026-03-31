@@ -76,6 +76,61 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // --- Schedule enforcement ---
+    const { data: automationRow } = await supabase
+      .from("organization_automations")
+      .select("settings")
+      .eq("organization_id", organizationId)
+      .eq("automation_type", "ai_sms_reply")
+      .maybeSingle();
+
+    const aiSettings = (automationRow?.settings as any) || {};
+    const mode = aiSettings.mode || "off";
+
+    if (mode === "off") {
+      console.log("[openphone-ai-sms-reply] Mode is off, skipping");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "disabled" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (mode === "after_hours") {
+      const tz = aiSettings.timezone || "America/New_York";
+      const startStr = aiSettings.after_hours_start || "18:00";
+      const endStr = aiSettings.after_hours_end || "08:00";
+
+      // Get current hour/minute in the org's timezone
+      const nowParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz, hour: "numeric", minute: "numeric", hour12: false,
+      }).formatToParts(new Date());
+      const nowHour = parseInt(nowParts.find((p: any) => p.type === "hour")?.value || "0");
+      const nowMin = parseInt(nowParts.find((p: any) => p.type === "minute")?.value || "0");
+      const nowTotal = nowHour * 60 + nowMin;
+
+      const [startH, startM] = startStr.split(":").map(Number);
+      const [endH, endM] = endStr.split(":").map(Number);
+      const startTotal = startH * 60 + (startM || 0);
+      const endTotal = endH * 60 + (endM || 0);
+
+      // After-hours window: e.g. 18:00 → 08:00 (wraps midnight)
+      // Business hours = between endTotal and startTotal
+      let isDuringBusinessHours: boolean;
+      if (endTotal <= startTotal) {
+        // Normal case: business hours are endTotal..startTotal (e.g. 08:00-18:00)
+        isDuringBusinessHours = nowTotal >= endTotal && nowTotal < startTotal;
+      } else {
+        // Inverted: business hours wrap midnight (unusual but handle it)
+        isDuringBusinessHours = nowTotal >= endTotal || nowTotal < startTotal;
+      }
+
+      if (isDuringBusinessHours) {
+        console.log(`[openphone-ai-sms-reply] Business hours (${endStr}-${startStr} ${tz}), current=${nowHour}:${nowMin}, skipping`);
+        return new Response(JSON.stringify({ success: true, skipped: true, reason: "business_hours" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      console.log(`[openphone-ai-sms-reply] After hours active (${startStr}-${endStr} ${tz}), current=${nowHour}:${nowMin}, proceeding`);
+    }
+
     // --- Parallel data fetch ---
     const [smsSettingsRes, bizSettingsRes, servicesRes, convHistoryRes, orgOutboundRes, staffRes] = await Promise.all([
       supabase.from("organization_sms_settings").select("openphone_api_key, openphone_phone_number_id").eq("organization_id", organizationId).maybeSingle(),
