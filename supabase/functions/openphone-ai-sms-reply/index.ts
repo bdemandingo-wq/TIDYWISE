@@ -363,7 +363,7 @@ ${companyPhone ? `Phone: ${companyPhone}` : ""}
 ${companyEmail ? `Email: ${companyEmail}` : ""}
 
 ${servicesText ? `SERVICES OFFERED:\n${servicesText}\n` : ""}
-
+${crmContext}
 CONVERSATION HISTORY:
 ${historyText}`;
 
