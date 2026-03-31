@@ -94,17 +94,16 @@ serve(async (req: Request) => {
     if (needsHumanHandoff(inboundMessage)) {
       console.log(`[openphone-ai-sms-reply] ESCALATION detected, handing off to human`);
       
-      // Create admin notification
+      // Mark conversation as needing human attention + increment unread
       try {
-        await supabase.from("staff_event_notifications").insert({
-          organization_id: organizationId,
-          staff_id: null,
-          event_type: "ai_escalation",
-          title: "⚠️ AI Escalation — Human Needed",
-          message: `${customerName || customerPhone} sent a message that needs personal attention: "${inboundMessage.substring(0, 200)}"`,
-        });
+        await supabase.from("sms_conversations")
+          .update({ 
+            metadata: { escalation: true, escalation_reason: inboundMessage.substring(0, 200), escalated_at: new Date().toISOString() },
+            unread_count: 999, // High number to catch admin's attention
+          })
+          .eq("id", conversationId);
       } catch (e) {
-        console.warn("[openphone-ai-sms-reply] Failed to create escalation notification:", e);
+        console.warn("[openphone-ai-sms-reply] Failed to flag escalation:", e);
       }
 
       return new Response(JSON.stringify({ 
