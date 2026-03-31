@@ -15,41 +15,111 @@ interface AIReplyRequest {
 }
 
 /**
- * Fetch recent call transcripts from OpenPhone API to learn communication style.
+ * Fetch call summaries for a specific participant from OpenPhone API.
+ * These are the "Powered by Quo AI" bullet-point summaries visible in the app.
  */
-async function fetchCallTranscripts(apiKey: string, phoneNumberId: string): Promise<string[]> {
+async function fetchCallSummaries(
+  apiKey: string,
+  phoneNumberId: string,
+  participantPhone: string
+): Promise<string[]> {
   try {
     const url = new URL('https://api.openphone.com/v1/call-transcripts');
     url.searchParams.set('phoneNumberId', phoneNumberId);
-    url.searchParams.set('maxResults', '10');
+    url.searchParams.set('participants', participantPhone);
+    url.searchParams.set('maxResults', '5');
 
     const resp = await fetch(url.toString(), {
       headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
     });
 
     if (!resp.ok) {
-      console.log(`[ai-sms-reply] Transcripts API returned ${resp.status}, skipping`);
+      console.log(`[ai-sms-reply] Call transcripts API ${resp.status}, skipping`);
       return [];
     }
 
     const data = await resp.json();
-    const transcripts: string[] = [];
+    const summaries: string[] = [];
 
-    for (const item of (data.data || []).slice(0, 5)) {
-      // transcript may be a string or array of dialogue turns
-      if (typeof item.transcript === 'string' && item.transcript.trim()) {
-        transcripts.push(item.transcript.trim().substring(0, 800));
-      } else if (Array.isArray(item.transcript)) {
+    for (const item of (data.data || [])) {
+      // Prefer the AI summary if available
+      if (item.summary && typeof item.summary === 'string' && item.summary.trim()) {
+        summaries.push(item.summary.trim().substring(0, 600));
+        continue;
+      }
+      // Fall back to dialogue transcript
+      if (Array.isArray(item.transcript)) {
         const lines = item.transcript
-          .map((t: any) => `${t.speaker || 'Agent'}: ${t.text || ''}`)
+          .map((t: any) => `${t.speaker || 'Speaker'}: ${t.text || ''}`)
           .join('\n');
-        if (lines.trim()) transcripts.push(lines.substring(0, 800));
+        if (lines.trim()) summaries.push(lines.substring(0, 600));
+      } else if (typeof item.transcript === 'string' && item.transcript.trim()) {
+        summaries.push(item.transcript.trim().substring(0, 600));
       }
     }
 
-    return transcripts;
+    return summaries;
   } catch (err) {
-    console.error('[ai-sms-reply] Error fetching transcripts:', err);
+    console.error('[ai-sms-reply] Error fetching call summaries:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch messages from "Done" (archived) conversations to use as style training.
+ * These show how the team has handled and closed out real situations.
+ */
+async function fetchDoneConversationStyle(
+  apiKey: string,
+  phoneNumberId: string
+): Promise<string[]> {
+  try {
+    const url = new URL('https://api.openphone.com/v1/conversations');
+    url.searchParams.set('phoneNumbers', phoneNumberId);
+    url.searchParams.set('status', 'done');
+    url.searchParams.set('maxResults', '20');
+
+    const resp = await fetch(url.toString(), {
+      headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+    });
+
+    if (!resp.ok) {
+      console.log(`[ai-sms-reply] Done conversations API ${resp.status}, skipping`);
+      return [];
+    }
+
+    const data = await resp.json();
+    const styleMessages: string[] = [];
+
+    for (const conv of (data.data || []).slice(0, 10)) {
+      const participants: string[] = conv.participants || [];
+      if (participants.length === 0) continue;
+
+      try {
+        const msgUrl = new URL('https://api.openphone.com/v1/messages');
+        msgUrl.searchParams.set('phoneNumberId', phoneNumberId);
+        for (const p of participants) msgUrl.searchParams.append('participants', p);
+        msgUrl.searchParams.set('maxResults', '10');
+
+        const msgResp = await fetch(msgUrl.toString(), {
+          headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+        });
+
+        if (!msgResp.ok) continue;
+
+        const msgData = await msgResp.json();
+        for (const msg of (msgData.data || [])) {
+          const dir = msg.direction === 'incoming' || msg.direction === 'inbound' ? 'in' : 'out';
+          if (dir === 'out' && msg.body?.trim()) {
+            styleMessages.push(msg.body.trim());
+          }
+        }
+      } catch (_) { /* skip this conversation */ }
+    }
+
+    return styleMessages;
+  } catch (err) {
+    console.error('[ai-sms-reply] Error fetching done conversations:', err);
     return [];
   }
 }
@@ -81,72 +151,79 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[ai-sms-reply] Processing reply for org=${organizationId} conv=${conversationId}`);
 
-    // Cooldown check: don't reply if we already sent an outbound message in the last 5 minutes
+    // Cooldown check: only block if an AI-generated reply was sent in the last 5 minutes.
+    // Manual replies by the owner do NOT block the AI from responding to follow-up messages.
     const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: recentOutbound } = await supabase
+    const { data: recentAiReply } = await supabase
       .from('sms_messages')
       .select('id')
       .eq('conversation_id', conversationId)
       .eq('direction', 'outbound')
       .gte('sent_at', cooldownCutoff)
+      .filter('metadata->>ai_generated', 'eq', 'true')
       .limit(1)
       .maybeSingle();
 
-    if (recentOutbound) {
-      console.log(`[ai-sms-reply] Cooldown active — outbound message sent within last 5 min, skipping`);
+    if (recentAiReply) {
+      console.log(`[ai-sms-reply] Cooldown active — AI already replied within last 5 min, skipping`);
       return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Fetch all context in parallel
+    // Fetch all DB context in parallel
     const [
       smsSettingsRes,
       businessSettingsRes,
       servicesRes,
       conversationHistoryRes,
-      styleExamplesRes,
+      dbStyleExamplesRes,
+      staffPhonesRes,
     ] = await Promise.all([
-      // OpenPhone settings (for API key + phone number)
       supabase.from('organization_sms_settings')
         .select('openphone_api_key, openphone_phone_number_id')
         .eq('organization_id', organizationId)
         .maybeSingle(),
 
-      // Business info
       supabase.from('business_settings')
-        .select('company_name, company_phone, company_email, business_address')
+        .select('company_name, company_phone, company_email')
         .eq('organization_id', organizationId)
         .maybeSingle(),
 
-      // Services offered
       supabase.from('services')
         .select('name, description, price')
         .eq('organization_id', organizationId)
         .eq('is_active', true)
         .limit(10),
 
-      // This conversation's history (last 12 messages for context)
+      // This conversation's full history for context
       supabase.from('sms_messages')
         .select('direction, content, sent_at')
         .eq('conversation_id', conversationId)
         .order('sent_at', { ascending: false })
-        .limit(12),
+        .limit(15),
 
-      // Past OUTBOUND messages from this org across conversations (style examples)
+      // Past outbound messages from DB as style examples
       supabase.from('sms_messages')
-        .select('content, sent_at')
+        .select('content')
         .eq('organization_id', organizationId)
         .eq('direction', 'outbound')
         .not('conversation_id', 'eq', conversationId)
         .order('sent_at', { ascending: false })
-        .limit(50),
+        .limit(40),
+
+      // Staff phone numbers so we can detect if this is a staff conversation
+      supabase.from('staff')
+        .select('phone, name')
+        .eq('organization_id', organizationId)
+        .not('phone', 'is', null),
     ]);
 
     const smsSettings = smsSettingsRes.data;
     const business = businessSettingsRes.data;
     const services = servicesRes.data || [];
     const conversationHistory = (conversationHistoryRes.data || []).reverse();
-    const styleExamples = styleExamplesRes.data || [];
+    const dbStyleExamples = dbStyleExamplesRes.data || [];
+    const staffPhones = staffPhonesRes.data || [];
 
     if (!smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
       console.error('[ai-sms-reply] OpenPhone not configured for org:', organizationId);
@@ -159,65 +236,80 @@ const handler = async (req: Request): Promise<Response> => {
     const phoneNumberId = pnMatch ? pnMatch[1] : smsSettings.openphone_phone_number_id;
     const companyName = business?.company_name || 'our company';
 
-    // Fetch call transcripts (non-blocking, best-effort)
-    const transcripts = await fetchCallTranscripts(apiKey, phoneNumberId);
+    // Detect if this is a staff member or a client
+    const normalizePhone = (p: string) => p.replace(/\D/g, '').replace(/^1/, '');
+    const normalizedCustomerPhone = normalizePhone(customerPhone);
+    const matchedStaff = staffPhones.find(s => s.phone && normalizePhone(s.phone) === normalizedCustomerPhone);
+    const isStaff = !!matchedStaff;
+    const contactLabel = matchedStaff?.name || customerName || (isStaff ? 'Staff member' : 'Customer');
 
-    // Build style examples section
-    const styleSection = styleExamples.length > 0
-      ? `Here are examples of how ${companyName} typically texts customers (most recent first):\n` +
-        styleExamples
-          .slice(0, 30)
-          .map(m => `• "${m.content}"`)
-          .join('\n')
+    // Fetch OpenPhone data in parallel: call summaries for this contact + done conversation style
+    const [callSummaries, doneStyleMessages] = await Promise.all([
+      fetchCallSummaries(apiKey, phoneNumberId, customerPhone),
+      fetchDoneConversationStyle(apiKey, phoneNumberId),
+    ]);
+
+    // Merge style examples: DB outbound messages + done conversation messages
+    const allStyleExamples = [
+      ...dbStyleExamples.map(m => m.content),
+      ...doneStyleMessages,
+    ].filter(Boolean).slice(0, 50);
+
+    // Build prompt sections
+    const styleSection = allStyleExamples.length > 0
+      ? `Here are real examples of how ${companyName} texts people (from both active and completed conversations):\n` +
+        allStyleExamples.map(m => `• "${m}"`).join('\n')
       : '';
 
-    // Build transcript section
-    const transcriptSection = transcripts.length > 0
-      ? `\nHere are excerpts from recent call transcripts showing how the team communicates:\n` +
-        transcripts.map((t, i) => `[Call ${i + 1}]:\n${t}`).join('\n\n')
+    const callContext = callSummaries.length > 0
+      ? `\nRECENT CALL HISTORY WITH THIS PERSON:\n` +
+        callSummaries.map((s, i) => `[Call ${i + 1}]: ${s}`).join('\n\n')
       : '';
 
-    // Build conversation context
     const conversationContext = conversationHistory.length > 0
       ? conversationHistory.map(m =>
-          `${m.direction === 'inbound' ? (customerName || 'Customer') : companyName}: ${m.content}`
+          `${m.direction === 'inbound' ? contactLabel : companyName}: ${m.content}`
         ).join('\n')
       : '(No prior messages in this conversation)';
 
-    // Build services info
     const servicesInfo = services.length > 0
       ? services.map(s => `• ${s.name}${s.price ? ` – $${s.price}` : ''}`).join('\n')
       : '';
 
-    const systemPrompt = `You are the customer service representative for ${companyName}, a professional cleaning company. Your job is to reply to incoming text messages from customers.
+    const contactTypeNote = isStaff
+      ? `NOTE: You are texting a STAFF MEMBER / CLEANER named ${contactLabel}. Keep the tone direct and operational — scheduling, job assignments, check-ins, logistics.`
+      : `NOTE: You are texting a CLIENT named ${contactLabel}. Be warm, professional, and helpful.`;
+
+    const systemPrompt = `You are the messaging assistant for ${companyName}, a professional cleaning company. You reply to incoming texts on behalf of the owner.
+
+${contactTypeNote}
 
 ${styleSection}
-${transcriptSection}
+${callContext}
 
 BUSINESS INFO:
 - Company: ${companyName}
 ${business?.company_phone ? `- Phone: ${business.company_phone}` : ''}
 ${business?.company_email ? `- Email: ${business.company_email}` : ''}
-${servicesInfo ? `\nSERVICES:\n${servicesInfo}` : ''}
+${servicesInfo ? `\nSERVICES OFFERED:\n${servicesInfo}` : ''}
 
-INSTRUCTIONS:
-- Match the tone and style shown in the examples above (casual yet professional, warm, concise)
-- Keep replies SHORT (1-3 sentences max) — this is SMS, not email
-- Be helpful and friendly
-- If they ask about pricing/booking, invite them to book or provide a quick answer
-- Do NOT use emojis unless you see them in the examples above
-- Do NOT start with "Hi [name]!" unless that pattern appears in the examples
-- Reply ONLY with the SMS text — no quotes, no explanation, no "Reply:" prefix`;
+RULES:
+- Match the exact tone and style shown in the examples — study how short, casual, or formal those messages are
+- This is SMS — keep it SHORT (1-3 sentences max)
+- Use the call history above to understand any ongoing situation or context with this person
+- Do NOT use emojis unless they appear in the style examples above
+- Do NOT add greetings like "Hi [name]!" unless that pattern shows up in the examples
+- Reply ONLY with the SMS message text — no labels, no quotes, no explanation`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `CONVERSATION HISTORY:\n${conversationContext}\n\nNEW MESSAGE FROM ${customerName || 'CUSTOMER'}:\n${inboundMessage}\n\nWrite a reply:`,
+        content: `CONVERSATION SO FAR:\n${conversationContext}\n\nNEW MESSAGE FROM ${contactLabel.toUpperCase()}:\n${inboundMessage}\n\nWrite the reply:`,
       },
     ];
 
-    console.log(`[ai-sms-reply] Calling AI API for org=${organizationId}`);
+    console.log(`[ai-sms-reply] Calling AI (isStaff=${isStaff}, hasCalls=${callSummaries.length}, styleExamples=${allStyleExamples.length})`);
 
     const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -251,12 +343,12 @@ INSTRUCTIONS:
 
     console.log(`[ai-sms-reply] Generated reply: "${generatedReply}"`);
 
-    // Format customer phone
+    // Format phone
     let formattedPhone = customerPhone.replace(/\D/g, '');
     if (formattedPhone.length === 10) formattedPhone = `+1${formattedPhone}`;
     else if (!formattedPhone.startsWith('+')) formattedPhone = `+${formattedPhone}`;
 
-    // Send the reply via OpenPhone
+    // Send via OpenPhone
     const sendResp = await fetch('https://api.openphone.com/v1/messages', {
       method: 'POST',
       headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
@@ -277,9 +369,9 @@ INSTRUCTIONS:
     const sendResult = await sendResp.json();
     const openphoneMessageId = sendResult.data?.id;
 
-    console.log(`[ai-sms-reply] Reply sent successfully, openphoneMessageId=${openphoneMessageId}`);
+    console.log(`[ai-sms-reply] Reply sent, openphoneMessageId=${openphoneMessageId}`);
 
-    // Save the sent reply to the DB
+    // Save to DB with ai_generated flag for cooldown tracking
     await supabase.from('sms_messages').insert({
       conversation_id: conversationId,
       organization_id: organizationId,
@@ -291,7 +383,6 @@ INSTRUCTIONS:
       metadata: { ai_generated: true },
     });
 
-    // Update conversation timestamp
     await supabase.from('sms_conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
