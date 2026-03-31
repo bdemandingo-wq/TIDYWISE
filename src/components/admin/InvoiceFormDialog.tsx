@@ -330,6 +330,9 @@ export function InvoiceFormDialog({
 
       // If we should send the invoice, call the edge function
       if (sendMethod !== 'none') {
+        if (!isStripeConfigured) {
+          throw new Error('Stripe is not connected. Go to Settings → Payment Integration to add your Stripe API key before sending invoices.');
+        }
         const customerEmail = selectedCustomer.email;
         const customerName = formData.customer_type === 'customer' 
           ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
