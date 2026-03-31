@@ -677,6 +677,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
+    // Trigger AI SMS auto-reply for inbound messages
+    if (direction === 'inbound') {
+      try {
+        console.log(`[openphone-webhook] Triggering ai-sms-reply for conv=${conversationId}`);
+        const aiReplyResp = await fetch(`${supabaseUrl}/functions/v1/ai-sms-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organizationId,
+            conversationId,
+            customerPhone,
+            incomingMessage: content,
+          }),
+        });
+        const aiResult = await aiReplyResp.json().catch(() => ({}));
+        console.log(`[openphone-webhook] ai-sms-reply result:`, JSON.stringify(aiResult));
+      } catch (aiErr) {
+        // Non-blocking — don't fail the webhook if AI reply fails
+        console.error(`[openphone-webhook] ai-sms-reply error (non-blocking):`, aiErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
