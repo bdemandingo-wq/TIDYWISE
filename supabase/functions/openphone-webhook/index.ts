@@ -682,31 +682,44 @@ const handler = async (req: Request): Promise<Response> => {
       (async () => {
         try {
           // Check automation enabled AND owner lock in parallel
-          const [automationRes, ownerRes] = await Promise.all([
-            supabase
-              .from('organization_automations')
-              .select('is_enabled')
-              .eq('organization_id', organizationId)
-              .eq('automation_type', 'ai_sms_reply')
-              .maybeSingle(),
-            supabase
-              .from('org_memberships')
-              .select('user_id, profiles!inner(email)')
-              .eq('organization_id', organizationId)
-              .eq('role', 'owner')
-              .limit(1)
-              .maybeSingle(),
-          ]);
+          const automationRes = await supabase
+            .from('organization_automations')
+            .select('is_enabled')
+            .eq('organization_id', organizationId)
+            .eq('automation_type', 'ai_sms_reply')
+            .maybeSingle();
 
           if (!automationRes.data?.is_enabled) {
             console.log(`[openphone-webhook] ai_sms_reply disabled for org=${organizationId}`);
             return;
           }
 
-          if (!ownerRes.data || (ownerRes.data as any).profiles?.email !== 'support@tidywisecleaning.com') {
-            console.log(`[openphone-webhook] ai_sms_reply owner lock: org=${organizationId} not authorized`);
+          // Owner lock: get org owner's user_id, then check their email in profiles
+          const ownerRes = await supabase
+            .from('org_memberships')
+            .select('user_id')
+            .eq('organization_id', organizationId)
+            .eq('role', 'owner')
+            .limit(1)
+            .maybeSingle();
+
+          if (!ownerRes.data?.user_id) {
+            console.log(`[openphone-webhook] ai_sms_reply owner lock: no owner found for org=${organizationId}`);
             return;
           }
+
+          const profileRes = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', ownerRes.data.user_id)
+            .maybeSingle();
+
+          if (!profileRes.data || profileRes.data.email !== 'support@tidywisecleaning.com') {
+            console.log(`[openphone-webhook] ai_sms_reply owner lock: org=${organizationId} owner=${profileRes.data?.email} not authorized`);
+            return;
+          }
+
+          console.log(`[openphone-webhook] ai_sms_reply owner lock PASSED for org=${organizationId}`);
 
           const { data: convData } = await supabase
             .from('sms_conversations')
