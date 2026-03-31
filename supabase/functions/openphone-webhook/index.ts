@@ -721,6 +721,21 @@ const handler = async (req: Request): Promise<Response> => {
 
           console.log(`[openphone-webhook] ai_sms_reply owner lock PASSED for org=${organizationId}`);
 
+          // Fix 3: Deduplicate — skip if any outbound sent in last 2 minutes
+          const dedupeCheck = await supabase
+            .from('sms_messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .eq('direction', 'outbound')
+            .gte('sent_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+            .limit(1)
+            .maybeSingle();
+
+          if (dedupeCheck.data) {
+            console.log(`[openphone-webhook] Skipping AI trigger — outbound message sent within 2 min for conv=${conversationId}`);
+            return;
+          }
+
           const { data: convData } = await supabase
             .from('sms_conversations')
             .select('customer_name')
