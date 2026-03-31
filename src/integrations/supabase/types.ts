@@ -5116,6 +5116,7 @@ export type Database = {
           customer_phone: string
           id: string
           last_message_at: string
+          metadata: Json | null
           organization_id: string
           unread_count: number | null
           updated_at: string
@@ -5128,6 +5129,7 @@ export type Database = {
           customer_phone: string
           id?: string
           last_message_at?: string
+          metadata?: Json | null
           organization_id: string
           unread_count?: number | null
           updated_at?: string
@@ -5140,6 +5142,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           last_message_at?: string
+          metadata?: Json | null
           organization_id?: string
           unread_count?: number | null
           updated_at?: string
