@@ -183,16 +183,15 @@ serve(async (req: Request) => {
               .neq("status", "cancelled")
               .gte("scheduled_at", new Date().toISOString())
               .order("scheduled_at", { ascending: true })
-              .limit(5),
+              .limit(20),
             supabase
               .from("bookings")
-              .select("scheduled_at, service:service_id(name), staff:staff_id(name)")
+              .select("scheduled_at, address, service:service_id(name), staff:staff_id(name)")
               .eq("customer_id", matchedCustomer.id)
               .eq("organization_id", organizationId)
               .eq("status", "completed")
               .order("scheduled_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
+              .limit(50),
             supabase
               .from("leads")
               .select("name, status, notes, phone")
@@ -201,22 +200,65 @@ serve(async (req: Request) => {
 
           const matchedLead = (leadRes.data || []).find((l: any) => l.phone && normalizePhone(l.phone) === normalizedCustomer);
 
-          const upcomingList = (upcomingRes.data || []).map((b: any) =>
-            `  • ${new Date(b.scheduled_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${new Date(b.scheduled_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — ${(b.service as any)?.name || "Service"} at ${b.address || "address TBD"}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
-          ).join("\n") || "  None scheduled";
+          // Group upcoming bookings by address (property)
+          const upcomingByProperty = new Map<string, any[]>();
+          for (const b of upcomingRes.data || []) {
+            const addr = b.address || "Address TBD";
+            if (!upcomingByProperty.has(addr)) upcomingByProperty.set(addr, []);
+            upcomingByProperty.get(addr)!.push(b);
+          }
 
-          const last = lastCompletedRes.data;
-          const lastCleaning = last
-            ? `${new Date(last.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(last.service as any)?.name || "Service"}${(last.staff as any)?.name ? ` by ${(last.staff as any).name}` : ""}`
-            : "No completed bookings on file";
+          // Group last completed booking per property
+          const lastCompletedByProperty = new Map<string, any>();
+          for (const b of lastCompletedRes.data || []) {
+            const addr = b.address || "Address TBD";
+            if (!lastCompletedByProperty.has(addr)) lastCompletedByProperty.set(addr, b);
+          }
 
-          crmContext = `\nCRM CONTEXT:
+          // Collect all unique property addresses
+          const allAddresses = new Set([...upcomingByProperty.keys(), ...lastCompletedByProperty.keys()]);
+          const multiProperty = allAddresses.size > 1;
+
+          const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+          let propertyBlock: string;
+          if (multiProperty) {
+            let i = 0;
+            const blocks: string[] = [];
+            for (const addr of allAddresses) {
+              i++;
+              const upcoming = upcomingByProperty.get(addr) || [];
+              const lastB = lastCompletedByProperty.get(addr);
+              const upLines = upcoming.map((b: any) =>
+                `    • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}${b.notes ? ` [${b.notes.substring(0, 80)}]` : ""}`
+              ).join("\n") || "    None scheduled";
+              const lastLine = lastB
+                ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+                : "No completed bookings";
+              blocks.push(`  Property ${i}: ${addr}\n    - Last cleaning: ${lastLine}\n    - Upcoming:\n${upLines}`);
+            }
+            propertyBlock = blocks.join("\n");
+          } else {
+            const addr = [...allAddresses][0] || "Address TBD";
+            const upcoming = upcomingByProperty.get(addr) || [];
+            const lastB = lastCompletedByProperty.get(addr);
+            const upLines = upcoming.map((b: any) =>
+              `  • ${fmtDate(b.scheduled_at)} at ${fmtTime(b.scheduled_at)} — ${(b.service as any)?.name || "Service"} at ${addr}${(b.staff as any)?.name ? ` (Cleaner: ${(b.staff as any).name})` : ""}`
+            ).join("\n") || "  None scheduled";
+            const lastLine = lastB
+              ? `${new Date(lastB.scheduled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}, ${(lastB.service as any)?.name || "Service"}${(lastB.staff as any)?.name ? ` by ${(lastB.staff as any).name}` : ""}`
+              : "No completed bookings on file";
+            propertyBlock = `- Last cleaning: ${lastLine}\n- Upcoming bookings:\n${upLines}`;
+          }
+
+          crmContext = `\nCRM CONTEXT${multiProperty ? " — MULTIPLE PROPERTIES" : ""}:
 - Customer: ${matchedCustomer.first_name || ""} ${matchedCustomer.last_name || ""}
 - Customer since: ${new Date(matchedCustomer.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-- Last cleaning: ${lastCleaning}
-- Upcoming bookings:\n${upcomingList}
+${propertyBlock}
 ${matchedLead ? `- Lead status: ${matchedLead.status}${matchedLead.notes ? ` — ${matchedLead.notes.substring(0, 200)}` : ""}` : ""}
-${matchedCustomer.notes ? `- Notes: ${matchedCustomer.notes.substring(0, 300)}` : ""}\n`;
+${matchedCustomer.notes ? `- Notes: ${matchedCustomer.notes.substring(0, 300)}` : ""}
+${multiProperty ? "- IMPORTANT: This client has MULTIPLE properties. If they ask about scheduling without specifying an address, ask which property they mean and list the addresses." : ""}\n`;
         }
       } else {
         // Staff CRM: get staff details and upcoming assignments
