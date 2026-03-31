@@ -88,7 +88,7 @@ serve(async (req: Request) => {
 
     const { data: conversations, error: convErr } = await supabase
       .from("sms_conversations")
-      .select("id, customer_name, customer_phone, last_message_at, status")
+      .select("id, customer_name, customer_phone, last_message_at")
       .eq("organization_id", orgId)
       .lt("last_message_at", fifteenMinAgo)
       .gt("last_message_at", seventyTwoHoursAgo);
