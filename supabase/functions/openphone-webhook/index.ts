@@ -677,6 +677,53 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
+    // Trigger AI auto-reply for inbound messages if automation is enabled
+    if (direction === 'inbound') {
+      try {
+        const { data: aiAutomation } = await supabase
+          .from('organization_automations')
+          .select('is_enabled')
+          .eq('organization_id', organizationId)
+          .eq('automation_type', 'ai_sms_reply')
+          .maybeSingle();
+
+        if (aiAutomation?.is_enabled === true) {
+          // Fetch customer name for the AI context
+          const { data: convData } = await supabase
+            .from('sms_conversations')
+            .select('customer_name')
+            .eq('id', conversationId)
+            .maybeSingle();
+
+          const supabasePublicUrl = Deno.env.get("SUPABASE_URL");
+          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+          // Fire-and-forget: don't await so webhook returns immediately
+          fetch(`${supabasePublicUrl}/functions/v1/openphone-ai-sms-reply`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              conversationId,
+              organizationId,
+              inboundMessage: content,
+              customerPhone,
+              customerName: convData?.customer_name || null,
+            }),
+          }).catch((err) => {
+            console.error('[openphone-webhook] AI reply trigger error:', err);
+          });
+
+          console.log(`[openphone-webhook] AI auto-reply triggered for conversation ${conversationId}`);
+        }
+      } catch (aiErr) {
+        // Non-fatal: log but don't fail the webhook
+        console.error('[openphone-webhook] Error checking AI automation:', aiErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
