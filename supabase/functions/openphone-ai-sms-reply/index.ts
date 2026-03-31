@@ -8,6 +8,20 @@ const corsHeaders = {
 
 const OWNER_EMAIL = "support@tidywisecleaning.com";
 
+// --- Human handoff: keywords that signal escalation ---
+const ESCALATION_KEYWORDS = [
+  "refund", "dispute", "lawyer", "attorney", "sue", "legal", "bbb",
+  "better business bureau", "complaint", "stolen", "damage", "broke",
+  "ruined", "furious", "unacceptable", "worst", "scam", "rip off",
+  "ripoff", "disgusting", "threatening", "harassment", "police",
+  "insurance claim", "small claims", "court",
+];
+
+function needsHumanHandoff(message: string): boolean {
+  const lower = message.toLowerCase();
+  return ESCALATION_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
@@ -76,7 +90,30 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Schedule enforcement ---
+    // --- Human handoff check ---
+    if (needsHumanHandoff(inboundMessage)) {
+      console.log(`[openphone-ai-sms-reply] ESCALATION detected, handing off to human`);
+      
+      // Mark conversation as needing human attention + increment unread
+      try {
+        await supabase.from("sms_conversations")
+          .update({ 
+            metadata: { escalation: true, escalation_reason: inboundMessage.substring(0, 200), escalated_at: new Date().toISOString() },
+            unread_count: 999, // High number to catch admin's attention
+          })
+          .eq("id", conversationId);
+      } catch (e) {
+        console.warn("[openphone-ai-sms-reply] Failed to flag escalation:", e);
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        skipped: true, 
+        reason: "escalation",
+        message: "Message flagged for human review" 
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { data: automationRow } = await supabase
       .from("organization_automations")
       .select("settings")
@@ -390,8 +427,8 @@ CRITICAL RULES:
 - Match the tone from the style examples below exactly.
 - Never say you are an AI, bot, or automated system.
 - If CRM CONTEXT contains upcoming bookings or last cleaning info, USE IT to answer scheduling questions directly.
-- If asked about pricing, scheduling, or anything NOT in CRM CONTEXT, say something like "Let me check on that and get back to you!"
-- Do NOT make up prices, availability, or specific details you don't have.
+- QUOTING: If someone asks for a price or quote and SERVICES OFFERED is listed above, calculate and give them an actual price based on those rates. Example: "A standard clean runs $X. Want me to get you on the schedule?" Do NOT say "reach out" or "let me check" when you have the pricing info.
+- If asked about something NOT in CRM CONTEXT or SERVICES, say something like "Let me check on that and get back to you!"
 - If the customer seems upset, be empathetic and say you'll look into it personally.
 - Do NOT use emojis unless the style examples show the business uses them.
 - Do NOT include any greeting label like "Customer:" or "${companyName}:" in your output.
@@ -480,10 +517,21 @@ ${historyText}`;
         status: "sent",
         openphone_message_id: smsResult?.data?.id || null,
         sent_at: new Date().toISOString(),
-        metadata: { ai_generated: true },
+        metadata: { ai_generated: true, customer_phone: customerPhone },
       }),
       supabase.from("sms_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId),
     ]);
+
+    // --- Lead conversion tracking ---
+    // Tag the conversation so that when a booking is later created for this customer,
+    // we can attribute it to AI. We store the conversation ID in sms_conversations metadata.
+    try {
+      await supabase.from("sms_conversations")
+        .update({ metadata: { ai_engaged: true, ai_last_reply_at: new Date().toISOString() } })
+        .eq("id", conversationId);
+    } catch (e) {
+      console.warn("[openphone-ai-sms-reply] Failed to tag conversation for lead tracking:", e);
+    }
 
     return new Response(JSON.stringify({ success: true, reply: generatedReply }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -892,6 +892,8 @@ export type Database = {
       bookings: {
         Row: {
           address: string | null
+          ai_converted: boolean | null
+          ai_source_conversation_id: string | null
           apt_suite: string | null
           bathrooms: string | null
           bedrooms: string | null
@@ -943,6 +945,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          ai_converted?: boolean | null
+          ai_source_conversation_id?: string | null
           apt_suite?: string | null
           bathrooms?: string | null
           bedrooms?: string | null
@@ -994,6 +998,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          ai_converted?: boolean | null
+          ai_source_conversation_id?: string | null
           apt_suite?: string | null
           bathrooms?: string | null
           bedrooms?: string | null
@@ -5110,6 +5116,7 @@ export type Database = {
           customer_phone: string
           id: string
           last_message_at: string
+          metadata: Json | null
           organization_id: string
           unread_count: number | null
           updated_at: string
@@ -5122,6 +5129,7 @@ export type Database = {
           customer_phone: string
           id?: string
           last_message_at?: string
+          metadata?: Json | null
           organization_id: string
           unread_count?: number | null
           updated_at?: string
@@ -5134,6 +5142,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           last_message_at?: string
+          metadata?: Json | null
           organization_id?: string
           unread_count?: number | null
           updated_at?: string
