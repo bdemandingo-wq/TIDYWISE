@@ -76,14 +76,6 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!ownerMembership) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Owner org not found" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const orgId = ownerMembership.organization_id;
 
     // ── Step 1 — Find candidate conversations ──────────────────────────
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
