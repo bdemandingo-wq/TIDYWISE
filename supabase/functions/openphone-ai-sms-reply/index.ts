@@ -198,7 +198,7 @@ serve(async (req: Request) => {
           const [upcomingRes, lastCompletedRes, leadRes] = await Promise.all([
             supabase
               .from("bookings")
-              .select("scheduled_at, status, address, total_amount, notes, staff:staff_id(name), service:service_id(name)")
+              .select("scheduled_at, status, address, total_amount, notes, square_footage, bedrooms, bathrooms, staff:staff_id(name), service:service_id(name)")
               .eq("customer_id", matchedCustomer.id)
               .eq("organization_id", organizationId)
               .neq("status", "cancelled")
@@ -207,7 +207,7 @@ serve(async (req: Request) => {
               .limit(20),
             supabase
               .from("bookings")
-              .select("scheduled_at, address, service:service_id(name), staff:staff_id(name)")
+              .select("scheduled_at, address, total_amount, square_footage, bedrooms, bathrooms, service:service_id(name), staff:staff_id(name)")
               .eq("customer_id", matchedCustomer.id)
               .eq("organization_id", organizationId)
               .eq("status", "completed")
