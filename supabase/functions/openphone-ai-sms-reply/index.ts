@@ -8,6 +8,20 @@ const corsHeaders = {
 
 const OWNER_EMAIL = "support@tidywisecleaning.com";
 
+// --- Human handoff: keywords that signal escalation ---
+const ESCALATION_KEYWORDS = [
+  "refund", "dispute", "lawyer", "attorney", "sue", "legal", "bbb",
+  "better business bureau", "complaint", "stolen", "damage", "broke",
+  "ruined", "furious", "unacceptable", "worst", "scam", "rip off",
+  "ripoff", "disgusting", "threatening", "harassment", "police",
+  "insurance claim", "small claims", "court",
+];
+
+function needsHumanHandoff(message: string): boolean {
+  const lower = message.toLowerCase();
+  return ESCALATION_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
