@@ -94,6 +94,23 @@ export function PaymentStep() {
   const [couponCode, setCouponCode] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const [paymentCollectionMethod, setPaymentCollectionMethod] = useState<'card' | 'in_person'>('card');
+  const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
+
+  // Check if Stripe is configured for this org
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+    supabase
+      .from('org_stripe_settings')
+      .select('is_connected')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setStripeConfigured(!!data?.is_connected);
+      });
+    return () => { cancelled = true; };
+  }, [organizationId]);
   
   // Autosave state for cleaner pay
   const [paySaveStatus, setPaySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
