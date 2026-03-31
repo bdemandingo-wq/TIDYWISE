@@ -681,15 +681,30 @@ const handler = async (req: Request): Promise<Response> => {
     if (direction === 'inbound') {
       (async () => {
         try {
-          const { data: aiAutomation } = await supabase
-            .from('organization_automations')
-            .select('is_enabled')
-            .eq('organization_id', organizationId)
-            .eq('automation_type', 'ai_sms_reply')
-            .maybeSingle();
+          // Check automation enabled AND owner lock in parallel
+          const [automationRes, ownerRes] = await Promise.all([
+            supabase
+              .from('organization_automations')
+              .select('is_enabled')
+              .eq('organization_id', organizationId)
+              .eq('automation_type', 'ai_sms_reply')
+              .maybeSingle(),
+            supabase
+              .from('org_memberships')
+              .select('user_id, profiles!inner(email)')
+              .eq('organization_id', organizationId)
+              .eq('role', 'owner')
+              .limit(1)
+              .maybeSingle(),
+          ]);
 
-          if (!aiAutomation?.is_enabled) {
-            console.log(`[openphone-webhook] ai_sms_reply automation disabled for org=${organizationId}`);
+          if (!automationRes.data?.is_enabled) {
+            console.log(`[openphone-webhook] ai_sms_reply disabled for org=${organizationId}`);
+            return;
+          }
+
+          if (!ownerRes.data || (ownerRes.data as any).profiles?.email !== 'support@tidywisecleaning.com') {
+            console.log(`[openphone-webhook] ai_sms_reply owner lock: org=${organizationId} not authorized`);
             return;
           }
 
