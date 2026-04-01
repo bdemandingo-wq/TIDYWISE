@@ -311,8 +311,7 @@ export default function InvoicesPage() {
       title="Invoices"
       subtitle={`${invoices.length} total invoices`}
       actions={
-        <Button className="gap-2" onClick={() =>
-      <SEOHead title="Invoices | TidyWise" description="Create and manage invoices" noIndex /> {
+        <Button className="gap-2" onClick={() => {
           setEditingInvoice(null);
           setFormDialogOpen(true);
         }}>
