@@ -169,7 +169,6 @@ export default function CleaningBusinessCRM() {
         description="Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, and customer management. Find the right fit for your maid service."
         canonical="/blog/crm-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        ogType="article"
         article={{ publishedTime: "2026-02-01", modifiedTime: "2026-02-04", section: "CRM Software" }}
       />
 
