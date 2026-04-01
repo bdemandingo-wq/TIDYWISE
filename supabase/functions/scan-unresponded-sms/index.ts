@@ -16,6 +16,12 @@ const CLOSED_ENDERS = new Set([
 ]);
 
 serve(async (req: Request) => {
+  // Function disabled — AI replies are now triggered only via openphone-webhook
+  return new Response(JSON.stringify({ disabled: true }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

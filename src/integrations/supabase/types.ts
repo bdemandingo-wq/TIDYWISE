@@ -345,6 +345,21 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_reply_log: {
+        Row: {
+          created_at: string | null
+          inbound_message_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          inbound_message_id: string
+        }
+        Update: {
+          created_at?: string | null
+          inbound_message_id?: string
+        }
+        Relationships: []
+      }
       appointment_reminder_intervals: {
         Row: {
           created_at: string
