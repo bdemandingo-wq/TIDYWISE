@@ -145,6 +145,7 @@ serve(async (req: Request) => {
         console.warn("[openphone-ai-sms-reply] Failed to flag escalation:", e);
       }
 
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ 
         success: true, 
         skipped: true, 
