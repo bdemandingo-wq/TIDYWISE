@@ -110,21 +110,21 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Cooldown: any outbound in last 15 minutes ---
-    const cooldownCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { data: cooldownHit } = await supabase
-      .from("sms_messages")
-      .select("id")
-      .eq("conversation_id", conversationId)
-      .eq("direction", "outbound")
-      .gte("sent_at", cooldownCutoff)
-      .limit(1)
-      .maybeSingle();
+    // --- Cooldown: only block if AI already replied AFTER the last inbound ---
+    const [lastInboundRes, lastAiOutboundRes] = await Promise.all([
+      supabase.from("sms_messages").select("sent_at").eq("conversation_id", conversationId)
+        .in("direction", ["inbound", "incoming"]).order("sent_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("sms_messages").select("sent_at").eq("conversation_id", conversationId)
+        .eq("direction", "outbound").order("sent_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
 
-    if (cooldownHit) {
-      // Release lock before returning
+    const lastInboundAt = lastInboundRes.data?.sent_at ? new Date(lastInboundRes.data.sent_at).getTime() : 0;
+    const lastOutboundAt = lastAiOutboundRes.data?.sent_at ? new Date(lastAiOutboundRes.data.sent_at).getTime() : 0;
+
+    if (lastOutboundAt > 0 && lastOutboundAt > lastInboundAt) {
+      // AI already replied after the customer's last message — skip
       await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
-      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 15 min), skipping");
+      console.log("[openphone-ai-sms-reply] Cooldown active — AI already replied after last inbound, skipping");
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "cooldown" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
