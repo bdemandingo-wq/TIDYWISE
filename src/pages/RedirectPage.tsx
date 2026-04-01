@@ -41,6 +41,7 @@ export default function RedirectPage() {
 
   if (error) {
     return (
+      <>
       <SEOHead title="Redirecting... | TidyWise" description="You are being redirected." noIndex />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">
@@ -48,6 +49,7 @@ export default function RedirectPage() {
           <p className="text-muted-foreground">{error}</p>
         </div>
       </div>
+    </>
     );
   }
 

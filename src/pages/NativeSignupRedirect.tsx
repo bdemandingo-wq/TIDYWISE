@@ -23,10 +23,12 @@ export default function NativeSignupRedirect() {
   }, [navigate, signupUrl]);
 
   return (
-    <SEOHead title="Sign Up | TidyWise" description="Create your TidyWise account on the web." noIndex />
+    <>
+      <SEOHead title="Sign Up | TidyWise" description="Create your TidyWise account on the web." noIndex />
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
       <p className="text-muted-foreground">Opening signup page in your browser...</p>
     </div>
+    </>
   );
 }

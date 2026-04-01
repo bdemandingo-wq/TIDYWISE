@@ -532,7 +532,8 @@ export default function StaffPortal() {
   }
 
   return (
-    <SEOHead title="Staff Portal | TidyWise" description="Manage your jobs, availability, and earnings." noIndex />
+    <>
+      <SEOHead title="Staff Portal | TidyWise" description="Manage your jobs, availability, and earnings." noIndex />
       <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
@@ -813,5 +814,6 @@ export default function StaffPortal() {
         </Tabs>
       </main>
     </div>
+    </>
   );
 }

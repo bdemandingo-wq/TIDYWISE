@@ -9,7 +9,8 @@ export default function CardSavedPage() {
   const cancelled = searchParams.get('cancelled') === 'true';
 
   return (
-    <SEOHead title="Card Saved | TidyWise" description="Your payment card has been securely saved." noIndex />
+    <>
+      <SEOHead title="Card Saved | TidyWise" description="Your payment card has been securely saved." noIndex />
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -45,5 +46,6 @@ export default function CardSavedPage() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }
