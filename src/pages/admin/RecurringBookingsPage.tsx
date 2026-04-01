@@ -556,8 +556,7 @@ export default function RecurringBookingsPage() {
       title="Recurring Bookings"
       subtitle={`${recurringBookings.length} recurring schedules`}
       actions={
-        <Button className="gap-2" onClick={() =>
-      <SEOHead title="Recurring Bookings | TidyWise" description="Manage recurring cleaning schedules" noIndex /> setDialogOpen(true)}>
+        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
           <Plus className="w-4 h-4" />
           Add Recurring
         </Button>
