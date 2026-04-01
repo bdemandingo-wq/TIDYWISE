@@ -198,10 +198,10 @@ export default function PortalRequestPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Seo
+      <SEOHead
         title="Request a Booking | Client Portal"
         description="Submit a booking request for your preferred date and service."
-        canonicalPath="/portal/request"
+        canonical="/portal/request"
       />
 
       {/* Header */}

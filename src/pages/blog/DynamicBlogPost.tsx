@@ -64,10 +64,10 @@ export default function DynamicBlogPost() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title={post.meta_title || `${post.title} | TIDYWISE Blog`}
         description={post.meta_description || post.excerpt}
-        canonicalPath={`/blog/post/${post.slug}`}
+        canonical={`/blog/post/${post.slug}`}
       />
 
       {/* Navigation */}

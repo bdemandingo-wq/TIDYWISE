@@ -11,14 +11,14 @@ export default function AutomateCleaningCompany() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo
+      <SEOHead
         title="How to Automate Your Cleaning Company (2025 Guide)"
         description="Learn how to automate booking, scheduling, invoicing, and client communication for your cleaning company. Save 15+ hours per week with the right tools."
-        canonicalPath="/blog/how-to-automate-cleaning-company"
+        canonical="/blog/how-to-automate-cleaning-company"
         ogImage="/images/tidywise-og.png"
         ogType="article"
         article={{ publishedTime: "2025-10-10", section: "Automation" }}
-        jsonLd={{
+        schemaJson={{
           "@type": "BlogPosting",
           "headline": "How to Automate Your Cleaning Company",
           "description": "Learn how to automate your cleaning company and save 15+ hours per week.",

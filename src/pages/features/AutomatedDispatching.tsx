@@ -73,10 +73,10 @@ export default function AutomatedDispatching() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Automated Dispatching for Cleaning Businesses | TIDYWISE"
         description="Smart dispatching software for cleaning companies. GPS-based cleaner assignment, route optimization, and real-time job tracking. Start your free trial."
-        canonicalPath="/features/automated-dispatching"
+        canonical="/features/automated-dispatching"
       />
 
       {/* Navigation */}

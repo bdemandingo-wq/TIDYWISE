@@ -59,10 +59,10 @@ export default function DeleteAccountPage() {
 
   return (
     <>
-      <Seo
+      <SEOHead
         title="Delete Your TidyWise Account | Data Deletion Request"
         description="Request deletion of your TidyWise account and all associated data. Required for Google Play Store data safety compliance."
-        canonicalPath="/delete-account"
+        canonical="/delete-account"
         noIndex={false}
       />
 

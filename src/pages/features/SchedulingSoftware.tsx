@@ -34,12 +34,12 @@ export default function SchedulingSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Cleaning Business Scheduling Software | TidyWise"
         description="Schedule your cleaning team in minutes with TidyWise. Drag-and-drop scheduling, automatic reminders, and real-time updates for your whole team."
-        canonicalPath="/features/scheduling-software"
+        canonical="/features/scheduling-software"
         ogImage="/images/tidywise-og.png"
-        jsonLd={{
+        schemaJson={{
           "@type": "SoftwareApplication",
           "name": "TidyWise Scheduling Software",
           "applicationCategory": "BusinessApplication",

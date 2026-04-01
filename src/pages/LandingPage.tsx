@@ -200,12 +200,12 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <Seo 
+      <SEOHead 
         title="Cleaning Business Software | TIDYWISE"
         description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Start your 60-day free trial today."
-        canonicalPath="/"
+        canonical="/"
         ogImage="/images/tidywise-og.png"
-        jsonLd={[
+        schemaJson={[
           {
             "@type": "Organization",
             "name": "TIDYWISE",

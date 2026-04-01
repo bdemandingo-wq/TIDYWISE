@@ -43,14 +43,14 @@ const features = [
 export default function BookingKoalaVsJobberVsTidywise() {
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Booking Koala vs Jobber vs TIDYWISE (2026)"
         description="Side-by-side comparison of Booking Koala, Jobber, and TIDYWISE. Pricing, features, and support for cleaning businesses."
-        canonicalPath="/blog/booking-koala-vs-jobber-vs-tidywise"
+        canonical="/blog/booking-koala-vs-jobber-vs-tidywise"
         ogImage="/images/tidywise-og.png"
         ogType="article"
         article={{ publishedTime: "2026-01-10", section: "Comparison" }}
-        jsonLd={{
+        schemaJson={{
           "@type": "Article",
           "headline": "Booking Koala vs Jobber vs TIDYWISE: 2026 Comparison",
           "datePublished": "2026-01-10",

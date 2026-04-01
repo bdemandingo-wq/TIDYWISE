@@ -72,10 +72,10 @@ export default function QuoteSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Cleaning Quote Software | Instant Estimates | TIDYWISE"
         description="Professional quote software for cleaning businesses. Auto-calculate prices, send branded estimates, and convert leads to bookings. Start free trial."
-        canonicalPath="/features/quote-software"
+        canonical="/features/quote-software"
       />
 
       {/* Navigation */}

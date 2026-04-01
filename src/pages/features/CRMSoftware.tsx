@@ -28,12 +28,12 @@ export default function CRMSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="CRM for Cleaning Companies | Manage Clients & Jobs | TidyWise"
         description="TidyWise CRM keeps all your cleaning clients, job history, and notes in one place. Stay organized and grow your cleaning business faster."
-        canonicalPath="/features/crm"
+        canonical="/features/crm"
         ogImage="/images/tidywise-og.png"
-        jsonLd={{
+        schemaJson={{
           "@type": "SoftwareApplication",
           "name": "TidyWise CRM",
           "applicationCategory": "BusinessApplication",

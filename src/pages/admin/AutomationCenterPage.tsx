@@ -290,7 +290,7 @@ export default function AutomationCenterPage() {
 
   return (
     <AdminLayout title="Automation Center">
-      <Seo title="Automation Center" description="Manage your automated workflows and learn about platform features." />
+      <SEOHead title="Automation Center" description="Manage your automated workflows and learn about platform features." />
       <SubscriptionGate feature="Automation Center">
       <div className="space-y-6">
         <Tabs defaultValue="automations" className="space-y-4">
