@@ -68,6 +68,7 @@ serve(async (req: Request) => {
       customerPhone,
       customerName,
       openphoneMessageId,
+      inboundToPhone,
     } = await req.json();
 
     // ── Hard stop 1: required fields ────────────────────────────────────
@@ -76,8 +77,17 @@ serve(async (req: Request) => {
     }
 
     // ── Test mode lock ──────────────────────────────────────────────────
-    if (testMode && customerPhone !== TEST_PHONE) {
-      console.log(`[ai-reply] Test mode — skipping non-test phone ${customerPhone}`);
+    const normalizedTestPhone = TEST_PHONE.replace(/\D/g, "");
+    const normalizedInboundToPhone = String(inboundToPhone || "").replace(/\D/g, "");
+    const normalizedCustomerPhone = String(customerPhone || "").replace(/\D/g, "");
+    const isTestPhoneMatch =
+      normalizedInboundToPhone === normalizedTestPhone ||
+      normalizedCustomerPhone === normalizedTestPhone;
+
+    if (testMode && !isTestPhoneMatch) {
+      console.log(
+        `[ai-reply] Test mode — skipping non-test numbers to=${inboundToPhone || "n/a"} from=${customerPhone || "n/a"}`,
+      );
       return json({ success: true, skipped: true, reason: "test_mode" });
     }
 

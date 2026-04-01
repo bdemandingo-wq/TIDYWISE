@@ -755,6 +755,8 @@ const handler = async (req: Request): Promise<Response> => {
               inboundMessage: content,
               customerPhone,
               customerName: convData?.customer_name || null,
+              openphoneMessageId,
+              inboundToPhone: message.to,
             }),
           });
           const aiResult = await aiReplyResp.json().catch(() => ({}));
