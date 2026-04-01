@@ -242,8 +242,7 @@ export default function StaffPage() {
       title="Staff"
       subtitle={`${staff.length} team members`}
       actions={
-        <Button className="gap-2" onClick={() =>
-      <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex /> setAddDialogOpen(true)}>
+        <Button className="gap-2" onClick={() => setAddDialogOpen(true)}>
           <Plus className="w-4 h-4" />
           Add Staff
         </Button>
