@@ -55,6 +55,21 @@ serve(async (req: Request) => {
 
     console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
 
+    // --- Bug 2 Fix: Verify last message is actually inbound ---
+    const { data: lastMsg } = await supabase
+      .from("sms_messages")
+      .select("direction")
+      .eq("conversation_id", conversationId)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!lastMsg || (lastMsg.direction !== "inbound" && lastMsg.direction !== "incoming")) {
+      console.log(`[openphone-ai-sms-reply] Last message is not inbound (${lastMsg?.direction || "none"}), skipping`);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "no_inbound_message" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // --- Fix 1: Skip message reactions (iMessage/OpenPhone tapbacks) ---
     const REACTION_PREFIXES = [
       "Liked", "Loved", "Laughed at", "Emphasized", "Disliked", "Questioned",
