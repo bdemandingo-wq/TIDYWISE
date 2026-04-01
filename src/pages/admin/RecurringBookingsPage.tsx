@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { format, addDays, addWeeks, addMonths, isBefore, startOfDay } from 'date-fns';
 import { useCustomers, useServices, useStaff } from '@/hooks/useBookings';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 
 interface RecurringBooking {
   id: string;
@@ -555,7 +556,8 @@ export default function RecurringBookingsPage() {
       title="Recurring Bookings"
       subtitle={`${recurringBookings.length} recurring schedules`}
       actions={
-        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+        <Button className="gap-2" onClick={() =>
+      <SEOHead title="Recurring Bookings | TidyWise" description="Manage recurring cleaning schedules" noIndex /> setDialogOpen(true)}>
           <Plus className="w-4 h-4" />
           Add Recurring
         </Button>

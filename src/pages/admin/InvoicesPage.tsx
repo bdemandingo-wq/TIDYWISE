@@ -38,6 +38,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { InvoiceViewDialog } from '@/components/admin/InvoiceViewDialog';
 import { InvoiceFormDialog } from '@/components/admin/InvoiceFormDialog';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Invoice {
   id: string;
@@ -310,7 +311,8 @@ export default function InvoicesPage() {
       title="Invoices"
       subtitle={`${invoices.length} total invoices`}
       actions={
-        <Button className="gap-2" onClick={() => {
+        <Button className="gap-2" onClick={() =>
+      <SEOHead title="Invoices | TidyWise" description="Create and manage invoices" noIndex /> {
           setEditingInvoice(null);
           setFormDialogOpen(true);
         }}>

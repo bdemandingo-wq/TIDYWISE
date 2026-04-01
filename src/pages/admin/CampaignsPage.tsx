@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { SEOHead } from '@/components/SEOHead';
 
 interface AITemplate {
   name: string;
@@ -406,6 +407,7 @@ export default function CampaignsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Campaigns" subtitle="Loading...">
+      <SEOHead title="Campaigns | TidyWise" description="Create and manage marketing campaigns" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>

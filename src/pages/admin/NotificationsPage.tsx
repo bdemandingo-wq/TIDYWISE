@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SEOHead } from '@/components/SEOHead';
 
 interface NotificationSettings {
   notify_new_booking: boolean;
@@ -82,6 +83,7 @@ export default function NotificationsPage() {
       title="Notifications"
       subtitle="Manage how you receive notifications"
     >
+      <SEOHead title="Notifications | TidyWise" description="Configure notification preferences" noIndex />
       {loading ? (
         <div className="space-y-6">
           {[1, 2].map(i => (

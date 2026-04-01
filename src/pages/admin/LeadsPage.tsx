@@ -43,6 +43,7 @@ import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, formatDi
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
+import { SEOHead } from '@/components/SEOHead';
 
 
 
@@ -351,6 +352,7 @@ export default function LeadsPage() {
       subtitle={`${leads.length} total leads`}
       actions={
         <div className="flex gap-2 flex-wrap">
+      <SEOHead title="Leads | TidyWise" description="Track and manage your sales leads" noIndex />
           <div className="flex border rounded-md overflow-hidden">
             <Button
               variant={viewMode === 'pipeline' ? 'default' : 'ghost'}

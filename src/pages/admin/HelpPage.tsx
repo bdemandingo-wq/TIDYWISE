@@ -29,6 +29,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
+import { SEOHead } from '@/components/SEOHead';
 
 const PLATFORM_ADMIN_EMAIL = 'support@tidywisecleaning.com';
 
@@ -178,6 +179,7 @@ export default function HelpPage() {
   if (loading) {
     return (
       <AdminLayout title="Help Center" subtitle="Tutorial videos and support">
+      <SEOHead title="Help Center | TidyWise" description="Get help and support for your account" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>

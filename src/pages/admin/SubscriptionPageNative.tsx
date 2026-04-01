@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { SEOHead } from '@/components/SEOHead';
 
 interface SubscriptionStatus {
   subscribed: boolean;
@@ -73,6 +74,7 @@ export default function SubscriptionPageNative() {
   if (loading) {
     return (
       <AdminLayout title="Subscription" subtitle="Your TIDYWISE subscription status">
+      <SEOHead title="Subscription | TidyWise" description="Manage your TidyWise subscription" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>

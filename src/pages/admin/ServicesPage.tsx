@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { squareFootageRanges } from '@/data/pricingData';
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function ServicesPage() {
   const { organization } = useOrganization();
@@ -137,6 +138,7 @@ export default function ServicesPage() {
           onClick={handleDownloadCSV}
           disabled={downloading || pricingLoading}
         >
+      <SEOHead title="Services | TidyWise" description="Manage your cleaning service offerings" noIndex />
           {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Download CSV
         </Button>

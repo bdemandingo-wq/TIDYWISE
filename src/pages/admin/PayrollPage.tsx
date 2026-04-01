@@ -29,6 +29,7 @@ import { calculateBookingWage } from '@/lib/wageCalculation';
 import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
 import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
+import { SEOHead } from '@/components/SEOHead';
 
 interface StaffWithPayroll {
   id: string;
@@ -694,6 +695,7 @@ export default function PayrollPage() {
       subtitle="Staff wages, profitability, and forecasting"
       actions={
         <Button onClick={exportCSV} className="gap-2">
+      <SEOHead title="Payroll | TidyWise" description="Manage staff payroll and wages" noIndex />
           <Download className="w-4 h-4" />
           Export CSV
         </Button>

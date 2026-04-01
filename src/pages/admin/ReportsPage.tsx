@@ -34,6 +34,7 @@ import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useOrgId } from '@/hooks/useOrgId';
+import { SEOHead } from '@/components/SEOHead';
 
 // Helper to fetch data - uses any to break TS2589 type depth chain
 // Includes pagination limits for performance
@@ -245,6 +246,7 @@ export default function ReportsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Reports" subtitle="Loading...">
+      <SEOHead title="Reports | TidyWise" description="View business reports and analytics" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>

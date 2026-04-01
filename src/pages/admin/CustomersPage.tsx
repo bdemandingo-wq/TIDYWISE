@@ -43,6 +43,7 @@ import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { hapticImpact } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { SEOHead } from '@/components/SEOHead';
 
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
@@ -389,6 +390,7 @@ export default function CustomersPage() {
       subtitle={`${customers.length} total`}
       actions={
         <div className="flex gap-2">
+      <SEOHead title="Customers | TidyWise" description="Manage your customer database" noIndex />
           <Button variant="outline" size="sm" className="gap-2" onClick={exportToCsv}>
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Export</span>

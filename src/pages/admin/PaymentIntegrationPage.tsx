@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { SEOHead } from '@/components/SEOHead';
 
 function normalizeKeyInput(value: string): string {
   return value.trim().replace(/\s+/g, "");
@@ -208,6 +209,7 @@ export default function PaymentIntegrationPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
+      <SEOHead title="Payment Integration | TidyWise" description="Connect and manage payment processing" noIndex />
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>

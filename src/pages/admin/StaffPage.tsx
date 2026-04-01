@@ -46,6 +46,7 @@ import { StaffEventNotifications } from '@/components/admin/StaffEventNotificati
 import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDashboard';
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
+import { SEOHead } from '@/components/SEOHead';
 
 interface StaffMember {
   id: string;
@@ -241,7 +242,8 @@ export default function StaffPage() {
       title="Staff"
       subtitle={`${staff.length} team members`}
       actions={
-        <Button className="gap-2" onClick={() => setAddDialogOpen(true)}>
+        <Button className="gap-2" onClick={() =>
+      <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex /> setAddDialogOpen(true)}>
           <Plus className="w-4 h-4" />
           Add Staff
         </Button>
