@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -198,10 +198,10 @@ export default function PortalRequestPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Seo
+      <SEOHead
         title="Request a Booking | Client Portal"
         description="Submit a booking request for your preferred date and service."
-        canonicalPath="/portal/request"
+        canonical="/portal/request"
       />
 
       {/* Header */}

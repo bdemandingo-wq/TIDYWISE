@@ -42,6 +42,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { SEOHead } from '@/components/SEOHead';
 
 interface ChecklistItem {
   id?: string;
@@ -390,6 +391,7 @@ export default function ChecklistsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Cleaning Checklists" subtitle="Loading...">
+      <SEOHead title="Checklists | TidyWise" description="Create and manage cleaning checklists for your team" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>

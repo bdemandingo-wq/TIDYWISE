@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 
 const loginSchema = z.object({
@@ -71,10 +71,10 @@ export default function PortalLoginPage() {
         <ArrowLeft className="h-5 w-5" />
       </Button>
       
-      <Seo
+      <SEOHead
         title="Client Portal | Sign In"
         description="Sign in to your client portal to view bookings, request appointments, and more."
-        canonicalPath="/portal"
+        canonical="/portal"
       />
 
       <section className="w-full max-w-md">

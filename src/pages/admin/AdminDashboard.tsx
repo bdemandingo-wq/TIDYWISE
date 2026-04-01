@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageSkeleton, BookingCardSkeleton } from '@/components/ui/page-skeleton';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 
 // Lazy load the heavy ReportsOverview component
 const ReportsOverview = lazy(() => import('@/components/admin/ReportsOverview').then(m => ({ default: m.ReportsOverview })));
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <AdminLayout title="Dashboard" subtitle="Loading your data...">
+      <SEOHead title="Dashboard | TidyWise" description="Manage your cleaning business from one dashboard" noIndex />
         <DashboardSkeleton />
       </AdminLayout>
     );

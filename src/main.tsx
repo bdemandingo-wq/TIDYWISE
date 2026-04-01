@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { setupDeepLinkListener } from "@/lib/nativeOAuth";
@@ -7,4 +8,8 @@ import { setupDeepLinkListener } from "@/lib/nativeOAuth";
 // Must run before React renders so we don't miss the callback
 setupDeepLinkListener();
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>
+);

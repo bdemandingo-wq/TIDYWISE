@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, Calendar, Globe, CheckCircle2,
@@ -27,12 +27,12 @@ export default function BookingSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Online Booking Software for Cleaning Businesses | TidyWise"
         description="Let clients book cleaning services online 24/7. TidyWise automates your booking process so you never miss a job. Try free today."
-        canonicalPath="/features/booking"
+        canonical="/features/booking"
         ogImage="/images/tidywise-og.png"
-        jsonLd={{
+        schemaJson={{
           "@type": "SoftwareApplication",
           "name": "TidyWise Booking Software",
           "applicationCategory": "BusinessApplication",

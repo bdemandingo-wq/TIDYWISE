@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { SEOHead } from '@/components/SEOHead';
 
 interface BookingPhoto {
   id: string;
@@ -101,6 +102,7 @@ export default function BookingPhotosPage() {
 
   return (
     <AdminLayout title="Booking Photos">
+      <SEOHead title="Booking Photos | TidyWise" description="View and manage photos from your cleaning bookings" noIndex />
       <SubscriptionGate feature="Booking Photos">
       <div className="space-y-6">
         <div>

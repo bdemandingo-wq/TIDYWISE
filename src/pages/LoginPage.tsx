@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
@@ -117,7 +117,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Seo title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonicalPath="/login" noIndex />
+      <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
       <div className="w-full max-w-md">
         {/* Back to home link */}
         <Link 

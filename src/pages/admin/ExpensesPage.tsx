@@ -49,6 +49,7 @@ import {
 
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Expense {
   id: string;
@@ -249,6 +250,7 @@ export default function ExpensesPage() {
       subtitle="Track business expenses for tax deductions"
       actions={
         <div className="flex gap-2">
+      <SEOHead title="Expenses | TidyWise" description="Track business expenses and supplies" noIndex />
           <Button variant="outline" className="gap-2" onClick={exportCSV}>
             <Download className="w-4 h-4" />
             Export CSV

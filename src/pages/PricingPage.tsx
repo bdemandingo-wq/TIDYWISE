@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 import {
   CheckCircle2,
   ArrowRight,
@@ -72,12 +72,12 @@ const faqs = [
 export default function PricingPage() {
   return (
     <>
-      <Seo
+      <SEOHead
         title="TidyWise Pricing | Cleaning Business Software Plans"
         description="Simple, transparent pricing for cleaning business owners. Start free and scale as you grow. No hidden fees."
-        canonicalPath="/pricing"
+        canonical="/pricing"
         ogImage="/images/tidywise-og.png"
-        jsonLd={[
+        schemaJson={[
           {
             "@type": "Product",
             "name": "TidyWise Pro",

@@ -107,6 +107,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
+import { SEOHead } from '@/components/SEOHead';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -1408,6 +1409,7 @@ export default function BookingsPage() {
   if (error) {
     return (
       <AdminLayout title="Bookings" subtitle="Error loading bookings">
+      <SEOHead title="Bookings | TidyWise" description="Manage all your cleaning bookings in one place" noIndex />
         <div className="flex items-center justify-center h-64">
           <p className="text-destructive">Failed to load bookings. Please try again.</p>
         </div>

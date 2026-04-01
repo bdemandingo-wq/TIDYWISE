@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, CreditCard, Shield, DollarSign, CheckCircle2,
@@ -28,12 +28,12 @@ export default function PaymentProcessing() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Automated Payments for Cleaning Businesses | TidyWise"
         description="Get paid faster with TidyWise. Send invoices, accept online payments, and set up recurring billing — all in one place."
-        canonicalPath="/features/payment-processing"
+        canonical="/features/payment-processing"
         ogImage="/images/tidywise-og.png"
-        jsonLd={{
+        schemaJson={{
           "@type": "SoftwareApplication",
           "name": "TidyWise Payment Processing",
           "applicationCategory": "BusinessApplication",

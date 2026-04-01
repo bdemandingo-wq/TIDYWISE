@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 // Import functionality has been removed
 
 
@@ -204,6 +205,7 @@ export default function OperationsTrackerPage() {
       subtitle="Track daily calls, deals, and revenue"
       actions={
         <div className="flex gap-2 flex-wrap">
+      <SEOHead title="Operations | TidyWise" description="Track daily cleaning operations" noIndex />
           {/* Date Range Picker */}
           <Popover>
             <PopoverTrigger asChild>

@@ -25,6 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Subscriber {
   id: string;
@@ -189,6 +190,7 @@ export default function PlatformAnalyticsPage() {
   if (user?.email !== 'support@tidywisecleaning.com') {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
+      <SEOHead title="Platform Analytics | TidyWise" description="View platform usage and engagement analytics" noIndex />
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">This page is only accessible to platform administrators.</p>

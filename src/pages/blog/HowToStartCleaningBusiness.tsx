@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
@@ -18,14 +18,12 @@ import {
 export default function HowToStartCleaningBusiness() {
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="How to Start a Cleaning Business (2026)"
         description="Step-by-step guide to starting a cleaning business. Covers payroll, scheduling, inventory management, pricing, and lead generation for maid services."
-        canonicalPath="/blog/how-to-start-a-cleaning-business"
+        canonical="/blog/how-to-start-a-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        ogType="article"
-        article={{ publishedTime: "2026-01-15", section: "Business Guide" }}
-        jsonLd={{
+        schemaJson={{
           "@type": "Article",
           "headline": "How to Start a Cleaning Business in 2026",
           "datePublished": "2026-01-15",

@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
 import { Loader2 } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function LogoutPage() {
   const navigate = useNavigate();
@@ -42,11 +43,14 @@ export default function LogoutPage() {
   }, [signOut, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <>
+      <SEOHead title="Logging Out | TidyWise" description="You are being logged out." noIndex />
+      <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">Signing out...</p>
       </div>
     </div>
+    </>
   );
 }

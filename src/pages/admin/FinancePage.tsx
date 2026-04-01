@@ -32,6 +32,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { PnLCalendar } from '@/components/admin/PnLCalendar';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Transaction {
   id: string;
@@ -305,6 +306,7 @@ export default function FinancePage() {
       title="Finance & Taxes"
       subtitle="Profit & loss, transactions, and tax exports"
     >
+      <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
       <SubscriptionGate feature="Finance & Tax reports">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">

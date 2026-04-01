@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Badge } from '@/components/ui/badge';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function ClientPortalPage() {
   const { organization } = useOrganization();
@@ -34,6 +35,7 @@ export default function ClientPortalPage() {
       title="Client Portal"
       subtitle="Manage customer portal access and booking requests"
     >
+      <SEOHead title="Client Portal | TidyWise" description="Manage your client portal settings and users" noIndex />
       <SubscriptionGate feature="Client Portal">
       <Tabs defaultValue="requests" className="w-full">
         <TabsList className="grid w-full max-w-lg grid-cols-3">

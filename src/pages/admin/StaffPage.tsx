@@ -46,6 +46,7 @@ import { StaffEventNotifications } from '@/components/admin/StaffEventNotificati
 import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDashboard';
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
+import { SEOHead } from '@/components/SEOHead';
 
 interface StaffMember {
   id: string;
@@ -247,6 +248,7 @@ export default function StaffPage() {
         </Button>
       }
     >
+      <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3 mb-4">
           <TabsTrigger value="team" className="gap-2">

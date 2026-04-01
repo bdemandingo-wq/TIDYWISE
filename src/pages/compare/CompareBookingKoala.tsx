@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   CheckCircle2, 
@@ -72,10 +72,10 @@ export default function CompareBookingKoala() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="TIDYWISE vs BookingKoala (2026)"
         description="Compare TIDYWISE vs BookingKoala for cleaning businesses. Payroll, P&L reports, and AI tools for $50/mo vs BookingKoala's $79–$379/mo."
-        canonicalPath="/compare/booking-koala"
+        canonical="/compare/booking-koala"
         ogImage="/images/tidywise-og.png"
       />
 

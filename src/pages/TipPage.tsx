@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 
 interface TipDetails {
   id: string;
@@ -99,7 +99,7 @@ export default function TipPage() {
   if (paymentStatus === 'success' || tipDetails?.status === 'paid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-        <Seo title="Thank You for Your Tip!" description="Your tip has been received." />
+        <SEOHead title="Thank You for Your Tip!" description="Your tip has been received." />
         <Card className="w-full max-w-md text-center shadow-xl border-emerald-200">
           <CardContent className="pt-8 pb-8 space-y-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 flex items-center justify-center">
@@ -121,7 +121,7 @@ export default function TipPage() {
   if (error || !tipDetails) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-        <Seo title="Tip" description="Leave a tip for your cleaner." />
+        <SEOHead title="Tip" description="Leave a tip for your cleaner." />
         <Card className="w-full max-w-md text-center shadow-xl">
           <CardContent className="pt-8 pb-8 space-y-4">
             <p className="text-muted-foreground">{error || 'This tip link is no longer valid.'}</p>
@@ -133,7 +133,7 @@ export default function TipPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-      <Seo title={`Leave a Tip - ${tipDetails.companyName}`} description="Thank your cleaner with a tip." />
+      <SEOHead title={`Leave a Tip - ${tipDetails.companyName}`} description="Thank your cleaner with a tip." />
       <Card className="w-full max-w-md shadow-xl border-emerald-200/50">
         <CardHeader className="text-center pb-2">
           {tipDetails.logoUrl && (

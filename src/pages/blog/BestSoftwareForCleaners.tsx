@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { ArrowRight, ArrowLeft, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -11,14 +11,12 @@ export default function BestSoftwareForCleaners() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo
+      <SEOHead
         title="Best Software for Cleaning Business Owners (2025)"
         description="Compare the best cleaning business software in 2025. Scheduling, CRM, invoicing, and automation tools reviewed for maid services and janitorial companies."
-        canonicalPath="/blog/best-software-for-cleaning-business"
+        canonical="/blog/best-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        ogType="article"
-        article={{ publishedTime: "2025-11-20", section: "Software Reviews" }}
-        jsonLd={{
+        schemaJson={{
           "@type": "BlogPosting",
           "headline": "Best Software for Cleaning Business Owners",
           "description": "Compare the best cleaning business software in 2025.",

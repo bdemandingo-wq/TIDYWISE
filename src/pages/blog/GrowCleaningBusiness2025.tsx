@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { ArrowRight, ArrowLeft, TrendingUp, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -11,14 +11,12 @@ export default function GrowCleaningBusiness2025() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo
+      <SEOHead
         title="How to Grow Your Cleaning Business in 2025"
         description="Proven strategies to grow your cleaning business in 2025. From marketing tips to software automation, learn how to scale your maid service profitably."
-        canonicalPath="/blog/how-to-grow-cleaning-business-2025"
+        canonical="/blog/how-to-grow-cleaning-business-2025"
         ogImage="/images/tidywise-og.png"
-        ogType="article"
-        article={{ publishedTime: "2025-12-15", section: "Business Growth" }}
-        jsonLd={{
+        schemaJson={{
           "@type": "BlogPosting",
           "headline": "How to Grow Your Cleaning Business in 2025",
           "description": "Proven strategies to grow your cleaning business in 2025.",

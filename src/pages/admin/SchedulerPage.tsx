@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { SEOHead } from '@/components/SEOHead';
 
 type StatusFilter = 'all' | 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -88,6 +89,7 @@ export default function SchedulerPage() {
       subtitle="Manage your bookings and appointments"
       actions={
         <div className="flex items-center gap-2">
+      <SEOHead title="Scheduler | TidyWise" description="Schedule and assign cleaning jobs" noIndex />
           {/* Staff Filter Dropdown */}
           <Select
             value={staffFilter || 'all'}

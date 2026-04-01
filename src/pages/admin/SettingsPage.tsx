@@ -44,6 +44,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { SEOHead } from '@/components/SEOHead';
 
 interface BusinessSettings {
   id?: string;
@@ -486,6 +487,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <AdminLayout title="Settings" subtitle="Manage your business preferences">
+      <SEOHead title="Settings | TidyWise" description="Configure your business settings" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>

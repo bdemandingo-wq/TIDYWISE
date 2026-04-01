@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-background">
-      <Seo
+      <SEOHead
         title="Privacy Policy | TidyWise"
         description="Read TidyWise's Privacy Policy. Learn what information we collect and how we use it to provide app functionality."
-        canonicalPath="/privacy-policy"
+        canonical="/privacy-policy"
       />
 
       <header className="border-b border-border bg-background/80 backdrop-blur-md">

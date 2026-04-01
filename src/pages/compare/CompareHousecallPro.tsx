@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   CheckCircle2, 
@@ -72,10 +72,10 @@ export default function CompareHousecallPro() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="TIDYWISE vs Housecall Pro (2026)"
         description="Compare TIDYWISE vs Housecall Pro for cleaning businesses. Cleaning-specific features, payroll, and $50/mo flat pricing vs Housecall Pro's $59–$199/mo."
-        canonicalPath="/compare/housecall-pro"
+        canonical="/compare/housecall-pro"
         ogImage="/images/tidywise-og.png"
       />
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function RedirectPage() {
   const { code } = useParams<{ code: string }>();
@@ -40,12 +41,15 @@ export default function RedirectPage() {
 
   if (error) {
     return (
+      <>
+      <SEOHead title="Redirecting... | TidyWise" description="You are being redirected." noIndex />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">
           <h1 className="text-2xl font-bold text-destructive mb-2">Link Error</h1>
           <p className="text-muted-foreground">{error}</p>
         </div>
       </div>
+    </>
     );
   }
 

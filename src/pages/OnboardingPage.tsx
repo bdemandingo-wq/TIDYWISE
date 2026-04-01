@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { getIndustryTemplate } from '@/data/industryTemplates';
 import { cn } from '@/lib/utils';
+import { SEOHead } from '@/components/SEOHead';
 
 function slugify(input: string) {
   return input
@@ -329,9 +330,12 @@ export default function OnboardingPage() {
   // Show loading spinner while checking organization status
   if (orgLoading) {
     return (
+      <>
+      <SEOHead title="Set Up Your Business | TidyWise" description="Complete your business setup to start using TidyWise." noIndex />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+      </>
     );
   }
 

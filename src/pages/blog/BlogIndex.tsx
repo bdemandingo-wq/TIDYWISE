@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, BookOpen, Clock, Calendar, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -170,10 +170,10 @@ export default function BlogIndex() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Cleaning Business Resources & Guides | TIDYWISE Blog"
         description="Expert guides on starting and growing a cleaning business. Learn about automated payroll software for maid services, inventory management, scheduling tips, and more."
-        canonicalPath="/blog"
+        canonical="/blog"
         ogImage="/images/tidywise-og.png"
       />
 

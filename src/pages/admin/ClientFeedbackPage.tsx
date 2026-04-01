@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 
 interface FeedbackEntry {
   id: string;
@@ -150,6 +151,7 @@ export default function ClientFeedbackPage() {
       subtitle="Track and resolve customer issues"
       actions={
         <div className="flex gap-2">
+      <SEOHead title="Client Feedback | TidyWise" description="View and manage client reviews and feedback" noIndex />
           <Button variant="outline" onClick={exportToExcel} className="gap-2">
             <Download className="w-4 h-4" />
             Export

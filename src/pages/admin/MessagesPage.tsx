@@ -54,6 +54,7 @@ import { EmailTemplateLibrary } from '@/components/admin/EmailTemplateLibrary';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { BookOpen, Filter } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Conversation {
   id: string;
@@ -976,6 +977,7 @@ export default function MessagesPage() {
       subtitle="Text & email your customers"
       actions={
         <div className="flex items-center gap-2">
+      <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
           
           <Button variant="outline" size="icon" onClick={fetchConversations}>
             <RefreshCw className="h-4 w-4" />

@@ -13,6 +13,7 @@ import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 
 export default function AuthPage() {
@@ -194,9 +195,12 @@ export default function AuthPage() {
 
   if (authLoading) {
     return (
+      <>
+      <SEOHead title="Sign In | TidyWise" description="Sign in or create your TidyWise account." noIndex />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+      </>
     );
   }
 

@@ -39,7 +39,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
@@ -288,10 +288,10 @@ export default function PortalDashboardPage() {
   if (isNative) {
     return (
       <main className="min-h-screen bg-background">
-        <Seo
+        <SEOHead
           title="My Dashboard | Client Portal"
           description="View your bookings, loyalty status, and manage appointments."
-          canonicalPath="/portal/dashboard"
+          canonical="/portal/dashboard"
         />
 
         {/* Native header */}
@@ -480,10 +480,10 @@ export default function PortalDashboardPage() {
   // ─── WEB / DESKTOP LAYOUT (unchanged) ───
   return (
     <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <Seo
+      <SEOHead
         title="My Dashboard | Client Portal"
         description="View your bookings, loyalty status, and manage appointments."
-        canonicalPath="/portal/dashboard"
+        canonical="/portal/dashboard"
       />
 
       {/* Header */}

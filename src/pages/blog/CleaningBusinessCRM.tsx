@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, 
@@ -164,13 +164,11 @@ const benefits = [
 export default function CleaningBusinessCRM() {
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Best CRM for Cleaning Business (2026)"
         description="Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, and customer management. Find the right fit for your maid service."
-        canonicalPath="/blog/crm-for-cleaning-business"
+        canonical="/blog/crm-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        ogType="article"
-        article={{ publishedTime: "2026-02-01", modifiedTime: "2026-02-04", section: "CRM Software" }}
       />
 
       {/* Navigation */}

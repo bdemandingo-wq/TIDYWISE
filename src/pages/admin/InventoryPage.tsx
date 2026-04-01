@@ -41,6 +41,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { SEOHead } from '@/components/SEOHead';
 
 interface InventoryItem {
   id: string;
@@ -180,6 +181,7 @@ export default function InventoryPage() {
       subtitle={`${items.length} items tracked`}
       actions={
         <div className="flex gap-2">
+      <SEOHead title="Inventory | TidyWise" description="Track cleaning supplies and inventory" noIndex />
           <Button variant="outline" className="gap-2" onClick={() => setSettingsDialogOpen(true)}>
             <Settings className="w-4 h-4" />
             Settings

@@ -33,6 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { SortableTaskList } from '@/components/admin/tasks/SortableTaskList';
+import { SEOHead } from '@/components/SEOHead';
 
 type TaskType = 'daily' | 'weekly' | 'monthly' | 'note';
 
@@ -210,6 +211,7 @@ export default function TasksPage() {
       subtitle="Manage your reminders, tasks, and notes"
       actions={
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <SEOHead title="Tasks | TidyWise" description="Manage and assign tasks" noIndex />
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" />Add New</Button>
           </DialogTrigger>

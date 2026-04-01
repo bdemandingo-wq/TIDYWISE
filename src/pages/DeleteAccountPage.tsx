@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,11 +59,10 @@ export default function DeleteAccountPage() {
 
   return (
     <>
-      <Seo
+      <SEOHead
         title="Delete Your TidyWise Account | Data Deletion Request"
         description="Request deletion of your TidyWise account and all associated data. Required for Google Play Store data safety compliance."
-        canonicalPath="/delete-account"
-        noIndex={false}
+        canonical="/delete-account"
       />
 
       <div className="min-h-screen bg-background">

@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
@@ -73,10 +73,10 @@ export default function RouteOptimization() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title="Route Optimization for Cleaning Teams"
         description="Reduce drive time by 30% and save on fuel with AI-powered route planning for cleaning businesses. Fit more jobs per day."
-        canonicalPath="/features/route-optimization"
+        canonical="/features/route-optimization"
       />
 
       {/* Navigation */}

@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Calendar, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -64,10 +64,10 @@ export default function DynamicBlogPost() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo 
+      <SEOHead 
         title={post.meta_title || `${post.title} | TIDYWISE Blog`}
         description={post.meta_description || post.excerpt}
-        canonicalPath={`/blog/post/${post.slug}`}
+        canonical={`/blog/post/${post.slug}`}
       />
 
       {/* Navigation */}
