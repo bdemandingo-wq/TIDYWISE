@@ -327,6 +327,24 @@ export type Database = {
           },
         ]
       }
+      ai_reply_locks: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       appointment_reminder_intervals: {
         Row: {
           created_at: string

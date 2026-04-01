@@ -55,6 +55,21 @@ serve(async (req: Request) => {
 
     console.log(`[openphone-ai-sms-reply] org=${organizationId} conv=${conversationId}`);
 
+    // --- Bug 2 Fix: Verify last message is actually inbound ---
+    const { data: lastMsg } = await supabase
+      .from("sms_messages")
+      .select("direction")
+      .eq("conversation_id", conversationId)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!lastMsg || (lastMsg.direction !== "inbound" && lastMsg.direction !== "incoming")) {
+      console.log(`[openphone-ai-sms-reply] Last message is not inbound (${lastMsg?.direction || "none"}), skipping`);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "no_inbound_message" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // --- Fix 1: Skip message reactions (iMessage/OpenPhone tapbacks) ---
     const REACTION_PREFIXES = [
       "Liked", "Loved", "Laughed at", "Emphasized", "Disliked", "Questioned",
@@ -67,8 +82,36 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Fix 2: Tighter cooldown — any outbound in last 2 minutes ---
-    const cooldownCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    // --- Bug 3 Fix: Database-level lock to prevent duplicate sends ---
+    const lockCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    // Check for existing lock
+    const { data: existingLock } = await supabase
+      .from("ai_reply_locks")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .gte("created_at", lockCutoff)
+      .maybeSingle();
+
+    if (existingLock) {
+      console.log("[openphone-ai-sms-reply] Lock active for conversation, skipping duplicate");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "locked" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Acquire lock (upsert to handle unique constraint)
+    const { error: lockError } = await supabase
+      .from("ai_reply_locks")
+      .upsert({ conversation_id: conversationId, created_at: new Date().toISOString() }, { onConflict: "conversation_id" });
+
+    if (lockError) {
+      console.log("[openphone-ai-sms-reply] Failed to acquire lock, another instance likely running");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "lock_contention" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Cooldown: any outbound in last 15 minutes ---
+    const cooldownCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { data: cooldownHit } = await supabase
       .from("sms_messages")
       .select("id")
@@ -79,7 +122,9 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (cooldownHit) {
-      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 2 min), skipping");
+      // Release lock before returning
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
+      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 15 min), skipping");
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "cooldown" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -100,6 +145,7 @@ serve(async (req: Request) => {
         console.warn("[openphone-ai-sms-reply] Failed to flag escalation:", e);
       }
 
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ 
         success: true, 
         skipped: true, 
@@ -120,6 +166,7 @@ serve(async (req: Request) => {
 
     if (mode === "off") {
       console.log("[openphone-ai-sms-reply] Mode is off, skipping");
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "disabled" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -155,6 +202,7 @@ serve(async (req: Request) => {
 
       if (isDuringBusinessHours) {
         console.log(`[openphone-ai-sms-reply] Business hours (${endStr}-${startStr} ${tz}), current=${nowHour}:${nowMin}, skipping`);
+        await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
         return new Response(JSON.stringify({ success: true, skipped: true, reason: "business_hours" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -512,6 +560,7 @@ ${historyText}`;
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error(`[openphone-ai-sms-reply] AI error: ${aiResponse.status} - ${errText}`);
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ success: false, error: "AI rate limited" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -528,6 +577,7 @@ ${historyText}`;
     const generatedReply = aiResult.choices?.[0]?.message?.content?.trim();
 
     if (!generatedReply) {
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: false, error: "AI returned empty response" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -545,6 +595,7 @@ ${historyText}`;
     if (!smsResp.ok) {
       const errText = await smsResp.text();
       console.error(`[openphone-ai-sms-reply] OpenPhone send failed: ${smsResp.status} - ${errText}`);
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: false, error: "Failed to send via OpenPhone" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -577,12 +628,22 @@ ${historyText}`;
       console.warn("[openphone-ai-sms-reply] Failed to tag conversation for lead tracking:", e);
     }
 
+    // --- Release lock after successful send ---
+    await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
+
     return new Response(JSON.stringify({ success: true, reply: generatedReply }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[openphone-ai-sms-reply] Error:", msg);
+    // Best-effort lock cleanup on error
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sb = createClient(supabaseUrl, supabaseKey);
+      await sb.from("ai_reply_locks").delete().lt("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+    } catch (_) { /* ignore cleanup errors */ }
     return new Response(JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
