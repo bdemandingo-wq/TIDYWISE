@@ -370,6 +370,7 @@ export default function PublicBookingPage() {
 
   if (pricingLoading) {
     return (
+      <>
       <SEOHead title="Book a Cleaning Service | TidyWise" description="Book your cleaning service online in minutes." noIndex />
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -380,6 +381,7 @@ export default function PublicBookingPage() {
           <p className="text-muted-foreground">Loading booking form...</p>
         </div>
       </div>
+      </>
     );
   }
 
