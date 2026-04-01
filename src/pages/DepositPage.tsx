@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 
 interface DepositDetails {
   id: string;

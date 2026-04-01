@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';

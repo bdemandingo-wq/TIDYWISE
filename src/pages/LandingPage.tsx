@@ -20,7 +20,7 @@ import {
   Play,
   ChevronRight
 } from "lucide-react";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 
 // Lazy load below-the-fold heavy components for better LCP

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 
 interface TipDetails {
   id: string;

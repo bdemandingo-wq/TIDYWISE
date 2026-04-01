@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { CheckCircle, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 
 const schema = z
   .object({

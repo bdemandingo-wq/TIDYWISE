@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, HardHat, Loader2, Fingerprint } from "lucide-react";
 
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { hasStaffOrAdminRole, requestStaffPasswordReset, signInStaff } from "@/features/staff-auth/staffAuth";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 

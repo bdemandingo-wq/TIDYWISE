@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Seo } from "@/components/Seo";
+import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 
 export default function PrivacyPolicyPage() {
