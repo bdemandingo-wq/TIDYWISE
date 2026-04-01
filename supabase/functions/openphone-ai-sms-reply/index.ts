@@ -104,19 +104,32 @@ serve(async (req: Request) => {
       return json({ success: true, skipped: true, reason: "verification_code" });
     }
 
-    // ── Hard stop 4: any outbound in last 30 min ────────────────────────
-    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const { data: recentOutbound } = await supabase
+    // ── Hard stop 4: relative cooldown ────────────────────────────────
+    // Only block if AI already replied AFTER the last inbound message
+    const { data: lastInbound } = await supabase
       .from("sms_messages")
-      .select("id")
+      .select("sent_at")
       .eq("conversation_id", conversationId)
-      .in("direction", ["outbound", "outgoing"])
-      .gte("sent_at", thirtyMinAgo)
+      .in("direction", ["inbound", "incoming"])
+      .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (recentOutbound) {
-      console.log(`[ai-reply] Cooldown — outbound exists in last 30min for conv ${conversationId}`);
+    const { data: lastAiOutbound } = await supabase
+      .from("sms_messages")
+      .select("sent_at")
+      .eq("conversation_id", conversationId)
+      .in("direction", ["outbound", "outgoing"])
+      .eq("metadata->>ai_generated", "true")
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lastInboundAt = lastInbound?.sent_at ? new Date(lastInbound.sent_at).getTime() : 0;
+    const lastAiAt = lastAiOutbound?.sent_at ? new Date(lastAiOutbound.sent_at).getTime() : 0;
+
+    if (lastAiAt > 0 && lastAiAt > lastInboundAt) {
+      console.log(`[ai-reply] Cooldown — AI already replied after last inbound for conv ${conversationId}`);
       return json({ success: true, skipped: true, reason: "cooldown" });
     }
 
