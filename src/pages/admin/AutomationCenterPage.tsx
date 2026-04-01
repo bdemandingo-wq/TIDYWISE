@@ -17,7 +17,7 @@ import {
   HelpCircle, Home, Calendar, ClipboardList, Users, Target,
   MessageSquare, Briefcase, UserCircle, CheckSquare, Package, DollarSign,
   Receipt, BarChart3, Sparkles, CreditCard, Tag, MapPin, Globe, Brain,
-  Activity, Lightbulb, Send, PhoneMissed, Bot,
+  Activity, Lightbulb, Send, PhoneMissed,
 } from 'lucide-react';
 import { AutomationHealthMonitor } from '@/components/admin/automation/AutomationHealthMonitor';
 import { CRMSuggestionsPanel } from '@/components/admin/automation/CRMSuggestionsPanel';
