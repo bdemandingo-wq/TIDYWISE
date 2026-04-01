@@ -202,6 +202,7 @@ serve(async (req: Request) => {
 
       if (isDuringBusinessHours) {
         console.log(`[openphone-ai-sms-reply] Business hours (${endStr}-${startStr} ${tz}), current=${nowHour}:${nowMin}, skipping`);
+        await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
         return new Response(JSON.stringify({ success: true, skipped: true, reason: "business_hours" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
