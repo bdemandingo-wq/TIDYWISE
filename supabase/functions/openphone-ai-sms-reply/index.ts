@@ -560,6 +560,7 @@ ${historyText}`;
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error(`[openphone-ai-sms-reply] AI error: ${aiResponse.status} - ${errText}`);
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ success: false, error: "AI rate limited" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -576,6 +577,7 @@ ${historyText}`;
     const generatedReply = aiResult.choices?.[0]?.message?.content?.trim();
 
     if (!generatedReply) {
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: false, error: "AI returned empty response" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
