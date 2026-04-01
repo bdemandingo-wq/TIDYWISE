@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
+import { SEOHead } from '@/components/SEOHead';
 
 interface AvailabilitySlot {
   time: string; // "HH:mm" in org timezone
@@ -369,6 +370,7 @@ export default function PublicBookingPage() {
 
   if (pricingLoading) {
     return (
+      <SEOHead title="Book a Cleaning Service | TidyWise" description="Book your cleaning service online in minutes." noIndex />
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto animate-pulse">

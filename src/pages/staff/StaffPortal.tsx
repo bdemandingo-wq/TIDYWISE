@@ -23,6 +23,7 @@ import { StaffDocumentUpload } from '@/components/staff/StaffDocumentUpload';
 import { StaffSignatureManager } from '@/components/staff/StaffSignatureManager';
 import { StaffPayoutSetup } from '@/components/staff/StaffPayoutSetup';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
+import { SEOHead } from '@/components/SEOHead';
 
 interface Booking {
   id: string;
@@ -531,7 +532,8 @@ export default function StaffPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <SEOHead title="Staff Portal | TidyWise" description="Manage your jobs, availability, and earnings." noIndex />
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">

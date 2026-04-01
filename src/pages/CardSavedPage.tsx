@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Check, X } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function CardSavedPage() {
   const [searchParams] = useSearchParams();
@@ -8,7 +9,8 @@ export default function CardSavedPage() {
   const cancelled = searchParams.get('cancelled') === 'true';
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <SEOHead title="Card Saved | TidyWise" description="Your payment card has been securely saved." noIndex />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
           {success ? (
