@@ -82,8 +82,36 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Fix 2: Tighter cooldown — any outbound in last 2 minutes ---
-    const cooldownCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    // --- Bug 3 Fix: Database-level lock to prevent duplicate sends ---
+    const lockCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    // Check for existing lock
+    const { data: existingLock } = await supabase
+      .from("ai_reply_locks")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .gte("created_at", lockCutoff)
+      .maybeSingle();
+
+    if (existingLock) {
+      console.log("[openphone-ai-sms-reply] Lock active for conversation, skipping duplicate");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "locked" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Acquire lock (upsert to handle unique constraint)
+    const { error: lockError } = await supabase
+      .from("ai_reply_locks")
+      .upsert({ conversation_id: conversationId, created_at: new Date().toISOString() }, { onConflict: "conversation_id" });
+
+    if (lockError) {
+      console.log("[openphone-ai-sms-reply] Failed to acquire lock, another instance likely running");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "lock_contention" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Cooldown: any outbound in last 15 minutes ---
+    const cooldownCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const { data: cooldownHit } = await supabase
       .from("sms_messages")
       .select("id")
@@ -94,7 +122,9 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (cooldownHit) {
-      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 2 min), skipping");
+      // Release lock before returning
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
+      console.log("[openphone-ai-sms-reply] Cooldown active (outbound within 15 min), skipping");
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "cooldown" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
