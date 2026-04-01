@@ -590,6 +590,7 @@ ${historyText}`;
     if (!smsResp.ok) {
       const errText = await smsResp.text();
       console.error(`[openphone-ai-sms-reply] OpenPhone send failed: ${smsResp.status} - ${errText}`);
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: false, error: "Failed to send via OpenPhone" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
