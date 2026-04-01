@@ -48,7 +48,6 @@ export default function BookingKoalaVsJobberVsTidywise() {
         description="Side-by-side comparison of Booking Koala, Jobber, and TIDYWISE. Pricing, features, and support for cleaning businesses."
         canonical="/blog/booking-koala-vs-jobber-vs-tidywise"
         ogImage="/images/tidywise-og.png"
-        article={{ publishedTime: "2026-01-10", section: "Comparison" }}
         schemaJson={{
           "@type": "Article",
           "headline": "Booking Koala vs Jobber vs TIDYWISE: 2026 Comparison",

@@ -16,7 +16,6 @@ export default function GrowCleaningBusiness2025() {
         description="Proven strategies to grow your cleaning business in 2025. From marketing tips to software automation, learn how to scale your maid service profitably."
         canonical="/blog/how-to-grow-cleaning-business-2025"
         ogImage="/images/tidywise-og.png"
-        article={{ publishedTime: "2025-12-15", section: "Business Growth" }}
         schemaJson={{
           "@type": "BlogPosting",
           "headline": "How to Grow Your Cleaning Business in 2025",

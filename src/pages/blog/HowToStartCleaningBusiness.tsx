@@ -23,7 +23,6 @@ export default function HowToStartCleaningBusiness() {
         description="Step-by-step guide to starting a cleaning business. Covers payroll, scheduling, inventory management, pricing, and lead generation for maid services."
         canonical="/blog/how-to-start-a-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        article={{ publishedTime: "2026-01-15", section: "Business Guide" }}
         schemaJson={{
           "@type": "Article",
           "headline": "How to Start a Cleaning Business in 2026",

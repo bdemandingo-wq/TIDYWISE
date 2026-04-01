@@ -16,7 +16,6 @@ export default function BestSoftwareForCleaners() {
         description="Compare the best cleaning business software in 2025. Scheduling, CRM, invoicing, and automation tools reviewed for maid services and janitorial companies."
         canonical="/blog/best-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
-        article={{ publishedTime: "2025-11-20", section: "Software Reviews" }}
         schemaJson={{
           "@type": "BlogPosting",
           "headline": "Best Software for Cleaning Business Owners",

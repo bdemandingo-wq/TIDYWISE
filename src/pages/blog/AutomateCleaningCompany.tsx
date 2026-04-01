@@ -16,7 +16,6 @@ export default function AutomateCleaningCompany() {
         description="Learn how to automate booking, scheduling, invoicing, and client communication for your cleaning company. Save 15+ hours per week with the right tools."
         canonical="/blog/how-to-automate-cleaning-company"
         ogImage="/images/tidywise-og.png"
-        article={{ publishedTime: "2025-10-10", section: "Automation" }}
         schemaJson={{
           "@type": "BlogPosting",
           "headline": "How to Automate Your Cleaning Company",
