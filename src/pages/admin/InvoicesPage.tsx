@@ -320,6 +320,7 @@ export default function InvoicesPage() {
         </Button>
       }
     >
+      <SEOHead title="Invoices | TidyWise" description="Create and manage invoices" noIndex />
       <SubscriptionGate feature="Invoices">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">

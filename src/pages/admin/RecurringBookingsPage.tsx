@@ -562,6 +562,7 @@ export default function RecurringBookingsPage() {
         </Button>
       }
     >
+      <SEOHead title="Recurring Bookings | TidyWise" description="Manage recurring cleaning schedules" noIndex />
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>

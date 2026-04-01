@@ -248,6 +248,7 @@ export default function StaffPage() {
         </Button>
       }
     >
+      <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-3 mb-4">
           <TabsTrigger value="team" className="gap-2">
