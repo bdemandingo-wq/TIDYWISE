@@ -623,12 +623,22 @@ ${historyText}`;
       console.warn("[openphone-ai-sms-reply] Failed to tag conversation for lead tracking:", e);
     }
 
+    // --- Release lock after successful send ---
+    await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
+
     return new Response(JSON.stringify({ success: true, reply: generatedReply }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[openphone-ai-sms-reply] Error:", msg);
+    // Best-effort lock cleanup on error
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sb = createClient(supabaseUrl, supabaseKey);
+      await sb.from("ai_reply_locks").delete().lt("created_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+    } catch (_) { /* ignore cleanup errors */ }
     return new Response(JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
