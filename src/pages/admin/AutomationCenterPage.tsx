@@ -71,13 +71,6 @@ const automationMeta: Record<string, {
     benefit: 'Never lose a lead from a missed call — auto-follow-up keeps prospects engaged.',
     color: 'text-red-500',
   },
-  ai_sms_reply: {
-    icon: Bot,
-    trigger: 'Incoming SMS received from a customer or staff member',
-    action: 'AI reads your past messages, done conversations, and call summaries then replies in your tone',
-    benefit: 'Never miss a reply — AI handles texts 24/7 exactly how you would, for both clients and staff.',
-    color: 'text-violet-500',
-  },
 };
 
 const sidebarGuide = [
