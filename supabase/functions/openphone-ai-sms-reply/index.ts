@@ -166,6 +166,7 @@ serve(async (req: Request) => {
 
     if (mode === "off") {
       console.log("[openphone-ai-sms-reply] Mode is off, skipping");
+      await supabase.from("ai_reply_locks").delete().eq("conversation_id", conversationId);
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "disabled" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
