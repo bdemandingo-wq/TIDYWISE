@@ -29,13 +29,13 @@ Never say 'déjame saber', 'I acknowledge', 'as an AI', or any robotic phrases.
 
 Never repeat what was already said in the conversation.
 
-For pricing questions: ask for square footage and number of bedrooms/bathrooms before quoting.
+For pricing questions: ask for square footage before quoting. Do NOT ask for bedrooms or bathrooms — our pricing is based on square footage only.
 
 For staff/cleaner messages: be direct and operational — jobs, schedules, addresses.
 
 For clients: be warm and helpful — bookings, pricing, availability.
 
-IMPORTANT: Never quote a flat rate unless the customer is a returning client with a booking on file. For new clients always ask for square footage or bedroom/bathroom count before quoting. Our pricing is based on home size, not a single flat rate.`;
+IMPORTANT: Never quote a flat rate unless the customer is a returning client with a booking on file. For new clients always ask for square footage before quoting. If the customer already provided their square footage in the conversation, look up the exact price from the pricing table and quote it — do not ask again.`;
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -104,19 +104,32 @@ serve(async (req: Request) => {
       return json({ success: true, skipped: true, reason: "verification_code" });
     }
 
-    // ── Hard stop 4: any outbound in last 30 min ────────────────────────
-    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const { data: recentOutbound } = await supabase
+    // ── Hard stop 4: relative cooldown ────────────────────────────────
+    // Only block if AI already replied AFTER the last inbound message
+    const { data: lastInbound } = await supabase
       .from("sms_messages")
-      .select("id")
+      .select("sent_at")
       .eq("conversation_id", conversationId)
-      .in("direction", ["outbound", "outgoing"])
-      .gte("sent_at", thirtyMinAgo)
+      .in("direction", ["inbound", "incoming"])
+      .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (recentOutbound) {
-      console.log(`[ai-reply] Cooldown — outbound exists in last 30min for conv ${conversationId}`);
+    const { data: lastAiOutbound } = await supabase
+      .from("sms_messages")
+      .select("sent_at")
+      .eq("conversation_id", conversationId)
+      .in("direction", ["outbound", "outgoing"])
+      .eq("metadata->>ai_generated", "true")
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lastInboundAt = lastInbound?.sent_at ? new Date(lastInbound.sent_at).getTime() : 0;
+    const lastAiAt = lastAiOutbound?.sent_at ? new Date(lastAiOutbound.sent_at).getTime() : 0;
+
+    if (lastAiAt > 0 && lastAiAt > lastInboundAt) {
+      console.log(`[ai-reply] Cooldown — AI already replied after last inbound for conv ${conversationId}`);
       return json({ success: true, skipped: true, reason: "cooldown" });
     }
 
@@ -176,18 +189,90 @@ serve(async (req: Request) => {
       }
     }
 
-    // ── Fetch org services for pricing reference ────────────────────────
+    // ── Fetch org services WITH sqft pricing ──────────────────────────
+    const SQFT_RANGES = [
+      { label: "Up to 750 sf", max: 750 },
+      { label: "Up to 1000 sf", max: 1000 },
+      { label: "Up to 1250 sf", max: 1250 },
+      { label: "Up to 1500 sf", max: 1500 },
+      { label: "Up to 1800 sf", max: 1800 },
+      { label: "Up to 2100 sf", max: 2100 },
+      { label: "Up to 2400 sf", max: 2400 },
+      { label: "Up to 2700 sf", max: 2700 },
+      { label: "Up to 3000 sf", max: 3000 },
+      { label: "Up to 3300 sf", max: 3300 },
+      { label: "Up to 3600 sf", max: 3600 },
+      { label: "Up to 4000 sf", max: 4000 },
+      { label: "Up to 4400 sf", max: 4400 },
+    ];
+
     const { data: services } = await supabase
       .from("services")
-      .select("name, price, duration")
+      .select("id, name, price, duration")
       .eq("organization_id", organizationId)
       .eq("is_active", true)
       .limit(10);
 
+    const serviceIds = (services || []).map((s: any) => s.id);
+    let pricingMap: Record<string, number[]> = {};
+
+    if (serviceIds.length) {
+      const { data: pricingRows } = await supabase
+        .from("service_pricing")
+        .select("service_id, sqft_prices")
+        .eq("organization_id", organizationId)
+        .in("service_id", serviceIds);
+
+      for (const row of pricingRows || []) {
+        if (Array.isArray(row.sqft_prices)) {
+          pricingMap[row.service_id] = row.sqft_prices as number[];
+        }
+      }
+    }
+
+    // Build pricing context with actual sqft prices
     let servicesContext = "";
     if (services?.length) {
-      servicesContext = "\n\nAvailable services:\n" +
-        services.map((s: any) => `- ${s.name}: starting at $${s.price} (${s.duration} min)`).join("\n");
+      const lines = services.map((s: any) => {
+        const prices = pricingMap[s.id];
+        if (prices?.length) {
+          // Show a few key price points
+          const examples = [
+            { idx: 0, label: "up to 750sf" },
+            { idx: 2, label: "up to 1250sf" },
+            { idx: 4, label: "up to 1800sf" },
+            { idx: 6, label: "up to 2400sf" },
+            { idx: 8, label: "up to 3000sf" },
+          ]
+            .filter(({ idx }) => prices[idx] != null)
+            .map(({ idx, label }) => `${label}: $${prices[idx]}`)
+            .join(", ");
+          return `- ${s.name}: ${examples}`;
+        }
+        return `- ${s.name}: starting at $${s.price}`;
+      });
+      servicesContext = "\n\nPricing by square footage:\n" + lines.join("\n");
+      servicesContext += "\n\nUse these exact prices when quoting. Match the customer's square footage to the closest bracket.";
+
+      // If the conversation mentions a sqft number, pre-resolve the price
+      const sqftMatch = transcript.match(/(\d{3,5})\s*(?:sq\s*ft|sqft|sf|square\s*feet)/i);
+      if (sqftMatch) {
+        const customerSqft = parseInt(sqftMatch[1]);
+        let bracketIdx = SQFT_RANGES.length - 1;
+        for (let i = 0; i < SQFT_RANGES.length; i++) {
+          if (customerSqft <= SQFT_RANGES[i].max) {
+            bracketIdx = i;
+            break;
+          }
+        }
+        const resolvedPrices = (services || [])
+          .filter((s: any) => pricingMap[s.id]?.[bracketIdx] != null)
+          .map((s: any) => `${s.name}: $${pricingMap[s.id][bracketIdx]}`)
+          .join(", ");
+        if (resolvedPrices) {
+          servicesContext += `\n\nCustomer said ${customerSqft} sqft (bracket: ${SQFT_RANGES[bracketIdx].label}). Exact prices: ${resolvedPrices}. Quote these prices directly.`;
+        }
+      }
     }
 
     // ── Call AI ─────────────────────────────────────────────────────────
