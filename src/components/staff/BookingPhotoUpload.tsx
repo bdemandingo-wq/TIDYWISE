@@ -21,6 +21,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isNative, isLoading: cameraLoading, takePicture, pickFromGallery } = useNativeCamera();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
