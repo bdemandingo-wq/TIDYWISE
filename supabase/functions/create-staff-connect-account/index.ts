@@ -80,16 +80,24 @@ serve(async (req: Request) => {
       });
     }
 
-    // Get org Stripe client
+    // Get org Stripe client, fall back to platform key for Connect operations
     const stripeResult = await getOrgStripeClient(organizationId);
-    if (!stripeResult.success || !stripeResult.stripe) {
-      return new Response(JSON.stringify({ error: stripeResult.error || "Stripe not configured" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let stripe;
+    if (stripeResult.success && stripeResult.stripe) {
+      stripe = stripeResult.stripe;
+      console.log("[create-staff-connect-account] Using org-specific Stripe key");
+    } else {
+      const platformKey = Deno.env.get("STRIPE_SECRET_KEY");
+      if (!platformKey) {
+        return new Response(JSON.stringify({ error: "Stripe not configured for this organization and no platform key available" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
+      stripe = new Stripe(platformKey, { apiVersion: "2025-08-27.basil" });
+      console.log("[create-staff-connect-account] Using platform Stripe key as fallback for org:", organizationId);
     }
-
-    const stripe = stripeResult.stripe;
 
     // Check if account already exists
     const { data: existingAccount } = await supabase

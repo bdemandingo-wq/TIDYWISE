@@ -75,16 +75,25 @@ serve(async (req: Request) => {
       });
     }
 
-    // Fetch latest status from Stripe
+    // Fetch latest status from Stripe - fall back to platform key for Connect operations
     const stripeResult = await getOrgStripeClient(organizationId);
-    if (!stripeResult.success || !stripeResult.stripe) {
-      return new Response(JSON.stringify({ error: stripeResult.error }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let stripe;
+    if (stripeResult.success && stripeResult.stripe) {
+      stripe = stripeResult.stripe;
+    } else {
+      const platformKey = Deno.env.get("STRIPE_SECRET_KEY");
+      if (!platformKey) {
+        return new Response(JSON.stringify({ error: "Stripe not configured" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const StripeLib = (await import("https://esm.sh/stripe@18.5.0")).default;
+      stripe = new StripeLib(platformKey, { apiVersion: "2025-08-27.basil" });
+      console.log("[check-staff-payout-status] Using platform Stripe key as fallback for org:", organizationId);
     }
 
-    const account = await stripeResult.stripe.accounts.retrieve(payoutAccount.stripe_account_id);
+    const account = await stripe.accounts.retrieve(payoutAccount.stripe_account_id);
 
     const newStatus = account.details_submitted
       ? (account.payouts_enabled ? "active" : "pending_verification")
