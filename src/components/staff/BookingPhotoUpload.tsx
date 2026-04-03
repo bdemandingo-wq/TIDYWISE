@@ -173,17 +173,40 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
               </div>
             ) : (
               /* Web file input fallback */
-              <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to select or take a photo</p>
+              <div className="flex flex-col gap-3">
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
                   className="hidden"
                   onChange={handleFileSelect}
                 />
-              </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Camera className="w-8 h-8" />
+                  <span>Take Photo</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-24 flex flex-col gap-2"
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.removeAttribute('capture');
+                      fileInputRef.current.click();
+                      fileInputRef.current.setAttribute('capture', 'environment');
+                    }
+                  }}
+                >
+                  <ImageIcon className="w-8 h-8" />
+                  <span>Choose from Gallery</span>
+                </Button>
+              </div>
             )
           ) : (
             <div className="relative">
