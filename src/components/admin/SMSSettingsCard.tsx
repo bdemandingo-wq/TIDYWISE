@@ -22,15 +22,6 @@ interface SMSSettings {
   reminder_hours_before: number;
 }
 
-interface ReminderInterval {
-  id?: string;
-  label: string;
-  hours_before: number;
-  is_active: boolean;
-  send_to_client: boolean;
-  send_to_cleaner: boolean;
-}
-
 const defaultSettings: SMSSettings = {
   openphone_api_key: '',
   openphone_phone_number_id: '',
