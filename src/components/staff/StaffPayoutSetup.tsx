@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, ShieldCheck, RefreshCw, History } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface StaffPayoutSetupProps {
   staffId: string;
@@ -17,7 +19,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Check current payout status
-  const { data: payoutStatus, isLoading } = useQuery({
+  const { data: payoutStatus, isLoading, refetch } = useQuery({
     queryKey: ['staff-payout-status', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('check-staff-payout-status', {
@@ -33,8 +35,46 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         accountHolderName: string | null;
       };
     },
-    refetchInterval: 30000, // Refresh every 30s to catch onboarding completion
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true, // Refresh when returning from Stripe tab
   });
+
+  // Fetch payout history from bookings
+  const { data: payoutHistory = [] } = useQuery({
+    queryKey: ['staff-payout-history', staffId, organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id, booking_number, scheduled_at, total_amount,
+          cleaner_actual_payment, cleaner_wage, cleaner_wage_type,
+          payment_status, status,
+          customer:customers(first_name, last_name)
+        `)
+        .eq('staff_id', staffId)
+        .eq('organization_id', organizationId)
+        .eq('status', 'completed')
+        .order('scheduled_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: payoutStatus?.status === 'active',
+  });
+
+  // Detect return from Stripe onboarding via window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isRedirecting) {
+        setIsRedirecting(false);
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ['onboarding-payout', staffId, organizationId] });
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isRedirecting, refetch, queryClient, staffId, organizationId]);
 
   // Start or resume Stripe Connect onboarding
   const startOnboarding = useMutation({
@@ -62,12 +102,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       if (data.url) {
         setIsRedirecting(true);
         window.open(data.url, '_blank');
-        toast.success('Opening payout setup in a new tab');
-        // Refresh status after a delay
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] });
-          setIsRedirecting(false);
-        }, 5000);
+        toast.success('Opening payout setup in a new tab. Complete the form there and return here.');
       }
     },
     onError: (error: any) => {
@@ -118,7 +153,18 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Payment Account</CardTitle>
-            {getStatusBadge()}
+            <div className="flex items-center gap-2">
+              {getStatusBadge()}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => refetch()}
+                title="Refresh status"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -128,7 +174,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-8 h-8 text-green-500" />
                   <div>
-                    <p className="font-medium">Payouts Active</p>
+                    <p className="font-medium">✅ Payout Account Connected</p>
                     <p className="text-sm text-muted-foreground">
                       Your bank account is connected and payouts are enabled.
                     </p>
@@ -140,9 +186,18 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                   <div>
                     <p className="text-sm text-muted-foreground">Bank Account</p>
-                    <p className="font-medium">•••• •••• •••• {payoutStatus.bankLast4}</p>
+                    <p className="font-medium">•••• {payoutStatus.bankLast4}</p>
                   </div>
                   <Banknote className="w-5 h-5 text-muted-foreground" />
+                </div>
+              )}
+
+              {payoutStatus.accountHolderName && (
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Account Holder</p>
+                    <p className="font-medium">{payoutStatus.accountHolderName}</p>
+                  </div>
                 </div>
               )}
 
@@ -157,7 +212,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 ) : (
                   <ExternalLink className="w-4 h-4 mr-2" />
                 )}
-                Update Payment Info
+                Update Bank Account
               </Button>
             </>
           ) : isPending ? (
@@ -177,8 +232,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] })}
+                onClick={() => refetch()}
               >
+                <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh Status
               </Button>
             </>
@@ -206,23 +262,92 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 </ul>
               </div>
 
+              {isRedirecting && (
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-center">
+                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                  Complete the setup in the new tab, then return here. Status will update automatically.
+                </div>
+              )}
+
               <Button
                 className="w-full"
                 onClick={() => startOnboarding.mutate()}
                 disabled={startOnboarding.isPending || isRedirecting}
                 size="lg"
               >
-                {startOnboarding.isPending || isRedirecting ? (
+                {startOnboarding.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Banknote className="w-4 h-4 mr-2" />
                 )}
-                {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
+                {isOnboarding ? 'Complete Payout Setup' : 'Set Up Payouts'}
               </Button>
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Payout History */}
+      {isSetUp && payoutHistory.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Payout History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payoutHistory.map((booking: any) => {
+                    const payAmount = booking.cleaner_actual_payment || booking.cleaner_wage || 0;
+                    return (
+                      <TableRow key={booking.id}>
+                        <TableCell className="text-sm">
+                          {format(new Date(booking.scheduled_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">
+                          #{booking.booking_number}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {booking.customer
+                            ? `${booking.customer.first_name} ${booking.customer.last_name}`
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-right font-medium">
+                          ${payAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              booking.payment_status === 'paid'
+                                ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {booking.payment_status === 'paid' ? 'Paid' : booking.payment_status || 'Pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

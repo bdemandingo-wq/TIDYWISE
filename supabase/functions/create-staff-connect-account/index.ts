@@ -136,12 +136,12 @@ serve(async (req: Request) => {
     }
 
     // Create an account link for onboarding
-    const baseReturnUrl = returnUrl || req.headers.get("origin") || "https://jointidywise.lovable.app";
+    const baseReturnUrl = returnUrl || req.headers.get("origin") || "https://jointidywise.com";
 
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${baseReturnUrl}/staff?tab=payouts`,
-      return_url: `${baseReturnUrl}/staff?tab=payouts&setup=complete`,
+      refresh_url: `${baseReturnUrl}/staff?payout=refresh`,
+      return_url: `${baseReturnUrl}/staff?payout=success`,
       type: "account_onboarding",
     });
 

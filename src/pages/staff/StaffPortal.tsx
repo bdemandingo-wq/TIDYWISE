@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,12 +75,38 @@ interface StaffInfo {
 export default function StaffPortal() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const [newJobAlert, setNewJobAlert] = useState(false);
   const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [hasSetAvailability, setHasSetAvailability] = useState<boolean | null>(null);
+
+  // Handle URL params for Stripe return
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const setupParam = searchParams.get('setup');
+    const payoutParam = searchParams.get('payout');
+
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+    if (payoutParam === 'success' || setupParam === 'complete') {
+      setActiveTab('payouts');
+      // Refresh payout status immediately
+      queryClient.invalidateQueries({ queryKey: ['staff-payout-status'] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-payout'] });
+      toast.success('Payout setup updated! Checking status...');
+      // Clean up URL params
+      setSearchParams({}, { replace: true });
+    }
+    if (payoutParam === 'refresh') {
+      setActiveTab('payouts');
+      toast.info('Please complete your payout setup to start receiving payments.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
 
   // Get staff record for current user
   useEffect(() => {
