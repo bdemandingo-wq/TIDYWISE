@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Star, Send, CheckCircle, Heart } from 'lucide-react';
+import { Star, Send, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SEOHead } from '@/components/SEOHead';
@@ -27,26 +27,21 @@ export default function ReviewPage() {
     const validateToken = async () => {
       if (!token) { setIsLoading(false); return; }
       try {
-        const { data, error } = await supabase
-          .from('review_requests')
-          .select('*')
-          .eq('review_link_token', token)
-          .single();
+        // Use secure RPC function instead of direct table access
+        const { data, error } = await supabase.rpc('get_review_request_by_token' as any, {
+          p_token: token,
+        });
 
-        if (error || !data) { setIsLoading(false); return; }
+        if (error || !data || data.length === 0) { setIsLoading(false); return; }
 
+        const reviewRecord = data[0];
         setIsValid(true);
-        setGoogleUrl(data.google_review_url);
-        setReviewData(data);
-
-        await supabase
-          .from('review_requests')
-          .update({ opened_at: new Date().toISOString() })
-          .eq('review_link_token', token);
+        setGoogleUrl(reviewRecord.google_review_url);
+        setReviewData(reviewRecord);
 
         // If user clicked a star from email (4-5), auto-redirect to Google
-        if (initialRating >= 4 && data.google_review_url) {
-          await handleHighRating(initialRating, data);
+        if (initialRating >= 4 && reviewRecord.google_review_url) {
+          await handleHighRating(initialRating, reviewRecord);
         } else if (initialRating >= 1 && initialRating <= 3) {
           setRating(initialRating);
         }
@@ -61,16 +56,12 @@ export default function ReviewPage() {
   }, [token]);
 
   const handleHighRating = async (stars: number, data?: any) => {
-    const reqData = data || reviewData;
-    // Save rating internally
-    await supabase
-      .from('review_requests')
-      .update({
-        rating: stars,
-        responded_at: new Date().toISOString(),
-        status: 'completed'
-      })
-      .eq('review_link_token', token);
+    // Use secure RPC function to submit rating
+    await supabase.rpc('submit_review_by_token' as any, {
+      p_token: token,
+      p_rating: stars,
+      p_review_text: null,
+    });
 
     // Redirect to Google immediately
     const url = data?.google_review_url || googleUrl;
@@ -78,7 +69,6 @@ export default function ReviewPage() {
       setRedirectedToGoogle(true);
       window.location.href = url;
     } else {
-      // No Google URL, just show thank you
       setIsSubmitted(true);
       setRating(stars);
     }
@@ -89,7 +79,6 @@ export default function ReviewPage() {
     if (stars >= 4 && googleUrl) {
       await handleHighRating(stars);
     }
-    // 1-3 stars: just set rating, user fills feedback form
   };
 
   const handleSubmitLowRating = async () => {
@@ -99,25 +88,21 @@ export default function ReviewPage() {
     }
     setIsSubmitting(true);
     try {
-      const { data: updatedReview, error } = await supabase
-        .from('review_requests')
-        .update({
-          rating,
-          review_text: feedback || null,
-          responded_at: new Date().toISOString(),
-          status: 'completed'
-        })
-        .eq('review_link_token', token)
-        .select('booking_id, customer_id, staff_id')
-        .single();
+      // Use secure RPC function to submit review
+      const { data: success, error } = await supabase.rpc('submit_review_by_token' as any, {
+        p_token: token,
+        p_rating: rating,
+        p_review_text: feedback || null,
+      });
 
       if (error) throw error;
 
-      if (updatedReview) {
+      // Get review data for client_feedback insertion (via the already-loaded data)
+      if (reviewData?.customer_id) {
         const { data: customerData } = await supabase
           .from('customers')
           .select('first_name, last_name, organization_id')
-          .eq('id', updatedReview.customer_id)
+          .eq('id', reviewData.customer_id)
           .single();
 
         if (customerData) {
@@ -198,7 +183,6 @@ export default function ReviewPage() {
           <p className="text-gray-600 mt-2">Your feedback helps us serve you better</p>
         </div>
 
-        {/* Star Rating */}
         <div className="flex justify-center gap-2 mb-8">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -219,7 +203,6 @@ export default function ReviewPage() {
           ))}
         </div>
 
-        {/* Low rating feedback form (1-3 stars) */}
         {rating >= 1 && rating <= 3 && (
           <>
             <div className="text-center mb-6">
