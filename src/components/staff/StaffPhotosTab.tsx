@@ -186,9 +186,9 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             photo_url: filePath,
             photo_type: photoType,
             media_type: isVid ? 'video' : 'photo',
-          } as any);
+          });
 
-        if (dbError) throw dbError;
+        if (dbError) throw new Error(dbError.message);
 
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, progress: 100, status: 'done' } : u));
       } catch (err) {

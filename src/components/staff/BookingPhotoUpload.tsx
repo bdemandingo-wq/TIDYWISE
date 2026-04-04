@@ -117,7 +117,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
         .from('booking-photos')
         .upload(filePath, selectedFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(uploadError.message);
 
       setUploadProgress(95);
 
