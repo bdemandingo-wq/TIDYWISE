@@ -81,9 +81,11 @@ export function ClientBookingRequestsManager() {
           notes,
           admin_response_note,
           created_at,
+          location_id,
           customer:customers(first_name, last_name, email, phone),
           service:services(name),
-          client_user:client_portal_users(username)
+          client_user:client_portal_users(username),
+          location:locations(name, address, apt_suite, city, state, zip_code)
         `)
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });

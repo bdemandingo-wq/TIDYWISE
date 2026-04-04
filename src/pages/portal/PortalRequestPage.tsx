@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send, AlertTriangle, Plus, Home } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
@@ -57,6 +59,23 @@ const TIME_SLOTS = [
   { value: "17:00", label: "5:00 PM" },
 ];
 
+const LABEL_EMOJIS: Record<string, string> = {
+  home: "🏠",
+  office: "🏢",
+  airbnb: "🏡",
+  rental: "🔑",
+  other: "📍",
+  "primary address": "🏠",
+};
+
+function getAddressEmoji(label: string) {
+  return LABEL_EMOJIS[label.toLowerCase()] || "📍";
+}
+
+function formatLocationLine(loc: Location) {
+  return [loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(", ");
+}
+
 export default function PortalRequestPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -73,6 +92,11 @@ export default function PortalRequestPage() {
   const [orgTimezone, setOrgTimezone] = useState<string>("America/New_York");
   const isReschedule = searchParams.get("reschedule") === "true";
 
+  // Inline add address state
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [newAddr, setNewAddr] = useState({ name: "Home", address: "", city: "", state: "", zip_code: "" });
+  const [savingAddr, setSavingAddr] = useState(false);
+
   const isAirbnb = customer?.property_type === 'airbnb';
 
   useEffect(() => {
@@ -80,6 +104,16 @@ export default function PortalRequestPage() {
       navigate("/portal", { replace: true });
     }
   }, [user, loading, navigate]);
+
+  const refreshLocations = async () => {
+    if (!user) return;
+    const { data } = await supabase.rpc("get_client_portal_locations", {
+      p_customer_id: user.customer_id,
+    });
+    const locs = (data || []) as Location[];
+    setLocations(locs);
+    return locs;
+  };
 
   useEffect(() => {
     if (!user?.organization_id) return;
@@ -96,12 +130,8 @@ export default function PortalRequestPage() {
     };
 
     const fetchLocations = async () => {
-      const { data } = await supabase.rpc("get_client_portal_locations", {
-        p_customer_id: user.customer_id,
-      });
-      const locs = (data || []) as Location[];
-      setLocations(locs);
-      // Auto-select primary location
+      const locs = await refreshLocations();
+      if (!locs) return;
       const primary = locs.find((l) => l.is_primary);
       if (primary) setSelectedLocation(primary.id);
       else if (locs.length === 1) setSelectedLocation(locs[0].id);
@@ -122,6 +152,39 @@ export default function PortalRequestPage() {
     fetchTimezone();
   }, [user]);
 
+  const handleAddAddress = async () => {
+    if (!user || !newAddr.address.trim()) {
+      toast.error("Street address is required");
+      return;
+    }
+    setSavingAddr(true);
+    try {
+      const { error } = await supabase.rpc("add_client_portal_location", {
+        p_client_user_id: user.id,
+        p_name: newAddr.name.trim(),
+        p_address: newAddr.address.trim(),
+        p_city: newAddr.city.trim() || null,
+        p_state: newAddr.state.trim() || null,
+        p_zip_code: newAddr.zip_code.trim() || null,
+        p_is_primary: locations.length === 0,
+      });
+      if (error) throw error;
+
+      const updatedLocs = await refreshLocations();
+      if (updatedLocs) {
+        const newLoc = updatedLocs.find(l => l.address === newAddr.address.trim());
+        if (newLoc) setSelectedLocation(newLoc.id);
+      }
+      toast.success("Address added!");
+      setNewAddr({ name: "Home", address: "", city: "", state: "", zip_code: "" });
+      setShowAddAddress(false);
+    } catch {
+      toast.error("Failed to add address");
+    } finally {
+      setSavingAddr(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedDate) {
       toast.error("Please select a preferred date");
@@ -141,20 +204,12 @@ export default function PortalRequestPage() {
 
     setSubmitting(true);
 
-    // Interpret the selected date/time in the organization's timezone
     const requestedDateISO = selectedDateTimeToUTCISO(selectedDate, selectedTime, orgTimezone);
-    const dateWithTime = new Date(requestedDateISO);
 
     try {
-      // Build notes with address info
-      const selectedLoc = locations.find((l) => l.id === selectedLocation);
-      const addressLine = selectedLoc
-        ? `Address: ${[selectedLoc.name, selectedLoc.address, selectedLoc.apt_suite, selectedLoc.city, selectedLoc.state, selectedLoc.zip_code].filter(Boolean).join(", ")}`
-        : null;
       const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
-      const combinedNotes = [addressLine, turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
+      const combinedNotes = [turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
 
-      // Use security definer RPC to bypass RLS (client portal users aren't authenticated via Supabase Auth)
       const { data, error } = await supabase.rpc("submit_client_booking_request", {
         p_client_user_id: user.id,
         p_customer_id: user.customer_id,
@@ -162,11 +217,11 @@ export default function PortalRequestPage() {
         p_requested_date: requestedDateISO,
         p_service_id: selectedService || null,
         p_notes: combinedNotes,
+        p_location_id: selectedLocation || null,
       });
 
       if (error) throw error;
 
-      // Send SMS notification to organization (fire and forget)
       const serviceName = services.find((s) => s.id === selectedService)?.name;
       supabase.functions.invoke("notify-booking-request", {
         body: {
@@ -283,31 +338,115 @@ export default function PortalRequestPage() {
             </div>
 
             {/* Address Selection */}
-            {locations.length >= 1 && (
-              <div className="space-y-2">
-                <Label>Address *</Label>
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                  <SelectTrigger>
-                    <div className="flex items-center">
-                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Select an address" />
+            <div className="space-y-2">
+              <Label>Address *</Label>
+              <Select value={selectedLocation} onValueChange={(val) => {
+                if (val === '__add_new__') {
+                  setShowAddAddress(true);
+                } else {
+                  setSelectedLocation(val);
+                  setShowAddAddress(false);
+                }
+              }}>
+                <SelectTrigger>
+                  <div className="flex items-center">
+                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Select an address" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{getAddressEmoji(loc.name)}</span>
+                        <span className="font-medium">{loc.name}</span>
+                        <span className="text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                          {formatLocationLine(loc)}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <Separator className="my-1" />
+                  <SelectItem value="__add_new__">
+                    <span className="flex items-center gap-2 text-primary">
+                      <Plus className="h-4 w-4" />
+                      Add New Address
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Inline Add Address Form */}
+              {showAddAddress && (
+                <Card className="border-dashed mt-2">
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Label</Label>
+                        <Select value={newAddr.name} onValueChange={(v) => setNewAddr(prev => ({ ...prev, name: v }))}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["Home", "Office", "Airbnb", "Rental", "Other"].map(l => (
+                              <SelectItem key={l} value={l}>{getAddressEmoji(l)} {l}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">ZIP</Label>
+                        <Input
+                          placeholder="12345"
+                          value={newAddr.zip_code}
+                          onChange={(e) => setNewAddr(prev => ({ ...prev, zip_code: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
                     </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{loc.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {[loc.address, loc.city, loc.state, loc.zip_code].filter(Boolean).join(", ")}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                    <div className="space-y-1">
+                      <Label className="text-xs">Street Address *</Label>
+                      <Input
+                        placeholder="123 Main St"
+                        value={newAddr.address}
+                        onChange={(e) => setNewAddr(prev => ({ ...prev, address: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">City</Label>
+                        <Input
+                          placeholder="City"
+                          value={newAddr.city}
+                          onChange={(e) => setNewAddr(prev => ({ ...prev, city: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">State</Label>
+                        <Input
+                          placeholder="State"
+                          value={newAddr.state}
+                          onChange={(e) => setNewAddr(prev => ({ ...prev, state: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddAddress} disabled={savingAddr} size="sm">
+                        {savingAddr && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                        Save & Select
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setShowAddAddress(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
             {/* Service Selection */}
             {services.length > 0 && (
