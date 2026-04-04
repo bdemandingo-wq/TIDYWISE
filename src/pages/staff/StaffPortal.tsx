@@ -27,7 +27,17 @@ const StaffPayoutSetup = lazy(() => import('@/components/staff/StaffPayoutSetup'
 const StaffPhotosTab = lazy(() => import('@/components/staff/StaffPhotosTab').then(m => ({ default: m.StaffPhotosTab })));
 const JobHistoryCard = lazy(() => import('@/components/staff/JobHistoryCard').then(m => ({ default: m.JobHistoryCard })));
 
-const TabFallback = () => <p className="text-muted-foreground py-4">Loading...</p>;
+const TabFallback = () => (
+  <div className="space-y-4 py-4">
+    <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+    <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+      ))}
+    </div>
+  </div>
+);
 
 interface Booking {
   id: string;
@@ -559,7 +569,7 @@ export default function StaffPortal() {
   };
 
   if (!user) {
-    navigate('/auth');
+    navigate('/staff/login');
     return null;
   }
 
@@ -689,7 +699,11 @@ export default function StaffPortal() {
               <p className="text-sm text-muted-foreground">Jobs assigned to you that are coming up</p>
             </div>
             {loadingAssigned ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
             ) : assignedBookings.length === 0 ? (
               <div className="text-center py-12">
                 <CalendarCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -737,7 +751,11 @@ export default function StaffPortal() {
               </p>
             </div>
             {loadingUnassigned ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
             ) : unassignedBookings.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

@@ -496,14 +496,56 @@ export default function PortalDashboardPage() {
             <p className="text-sm text-muted-foreground">Client Portal</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative" onClick={() => {}}>
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Notifications</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 space-y-3">
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No notifications yet</p>
+                  ) : (
+                    notifications.map((notification) => (
+                      <Card
+                        key={notification.id}
+                        className={`p-3 cursor-pointer transition-colors ${!notification.is_read ? "bg-primary/5 border-primary/20" : ""}`}
+                        onClick={() => markNotificationRead(notification.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          {notification.type === "approved" ? (
+                            <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                          ) : notification.type === "rejected" ? (
+                            <XCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                          ) : (
+                            <Bell className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{notification.title}</p>
+                            <p className="text-xs text-muted-foreground">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(notification.created_at), "MMM d, h:mm a")}
+                            </p>
+                          </div>
+                          {!notification.is_read && (
+                            <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-2" />
+                          )}
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5" />
             </Button>

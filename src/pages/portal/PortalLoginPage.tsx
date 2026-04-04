@@ -143,7 +143,11 @@ export default function PortalLoginPage() {
               </Button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Forgot your password? Contact the business to reset your login.
+            </p>
+
+            <p className="mt-2 text-center text-sm text-muted-foreground">
               Need access? Contact the business to get your portal login.
             </p>
           </CardContent>
