@@ -21,12 +21,12 @@ import {
   MessageSquare, Send, Search, Plus, Phone, Loader2, RefreshCw,
   MoreHorizontal, Pencil, Trash2, Users, HardHat, X,
   Check, Mail, Link, Paperclip, ChevronLeft, Forward,
-  Mic, Video, Pin, BellOff, CheckCheck,
+  Mic, Video, Pin, BellOff, CheckCheck, MessageCircle,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { SwipeableRow } from '@/components/mobile/SwipeableRow';
+import { handleSmsError } from '@/lib/smsErrorHandler';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MessageTemplatesPicker } from '@/components/admin/MessageTemplatesPicker';
