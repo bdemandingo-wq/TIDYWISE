@@ -534,6 +534,62 @@ export default function MessagesPage() {
     setSelectedConversation(conv);
   };
 
+  // Long-press handlers for context menu
+  const handleLongPressStart = (convId: string, e: React.TouchEvent | React.MouseEvent) => {
+    if (bulkEditMode) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    longPressTimer.current = setTimeout(() => {
+      hapticImpact('medium');
+      setContextMenuConvId(convId);
+      setContextMenuPosition({ x: clientX, y: clientY });
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleLongPressMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleContextAction = (action: 'pin' | 'unread' | 'mute' | 'delete') => {
+    if (!contextMenuConvId) return;
+    switch (action) {
+      case 'pin':
+        togglePin(contextMenuConvId);
+        break;
+      case 'unread':
+        hapticImpact('light');
+        supabase.from('sms_conversations').update({ unread_count: 1 }).eq('id', contextMenuConvId).then(() => {
+          setConversations(prev => prev.map(c => c.id === contextMenuConvId ? { ...c, unread_count: Math.max(c.unread_count, 1) } : c));
+        });
+        break;
+      case 'mute':
+        hapticImpact('light');
+        setMutedIds(prev => {
+          const next = new Set(prev);
+          if (next.has(contextMenuConvId)) next.delete(contextMenuConvId);
+          else next.add(contextMenuConvId);
+          return next;
+        });
+        toast.success(mutedIds.has(contextMenuConvId) ? 'Alerts enabled' : 'Alerts hidden');
+        break;
+      case 'delete':
+        setDeleteConfirmConvId(contextMenuConvId);
+        break;
+    }
+    setContextMenuConvId(null);
+    setContextMenuPosition(null);
+  };
+
   const handleBackToList = () => { setSelectedConversation(null); setMessages([]); };
 
   // ─── Message grouping with timestamps ─────────────
