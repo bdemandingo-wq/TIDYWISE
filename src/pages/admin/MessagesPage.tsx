@@ -665,12 +665,13 @@ export default function MessagesPage() {
       </div>
     ) : (
       <div className="px-3 pt-3 pb-1">
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {pinnedConversations.map(conv => (
+        <div className="grid grid-cols-3 gap-y-4 gap-x-3 pb-2">
+          {pinnedConversations.slice(0, 6).map(conv => (
             <button
               key={conv.id}
               onClick={() => handleSelectConversation(conv)}
-              className="flex flex-col items-center gap-1 min-w-[60px] group"
+              onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
+              className="flex flex-col items-center gap-1.5 group relative active:scale-95 transition-transform"
             >
               <div className="relative">
                 <Avatar className="h-14 w-14 ring-2 ring-transparent group-hover:ring-[#007AFF]/30 transition-all">
@@ -684,12 +685,12 @@ export default function MessagesPage() {
                   </AvatarFallback>
                 </Avatar>
                 {conv.unread_count > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF3B30] text-white text-[10px] font-bold px-1 ring-2 ring-background">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[10px] font-bold px-1 ring-2 ring-background">
                     {formatUnreadCount(conv.unread_count)}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] text-muted-foreground truncate w-16 text-center">
+              <span className="text-[11px] text-muted-foreground truncate w-16 text-center font-medium">
                 {conv.customer_name?.split(' ')[0] || conv.customer_phone.slice(-4)}
               </span>
             </button>
