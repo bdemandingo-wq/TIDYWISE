@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays, Link2, Send, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays, Link2, Send, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 // Simple address input - no Google Places integration
 import {
   DropdownMenu,
