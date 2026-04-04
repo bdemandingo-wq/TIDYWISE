@@ -31,11 +31,13 @@ interface ConnectionStatus {
 
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const [oauthMessage, setOauthMessage] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   // Check for OAuth callback code
   useEffect(() => {
@@ -43,15 +45,13 @@ export default function PaymentIntegrationPage() {
     const state = searchParams.get("state");
 
     if (code && organization?.id) {
-      // Clear URL params
-      setSearchParams({}, { replace: true });
       handleOAuthCallback(code, state);
     }
   }, [searchParams, organization?.id]);
 
   // Load connection status
   useEffect(() => {
-    if (organization?.id) {
+    if (organization?.id && !searchParams.get("code")) {
       fetchConnectionStatus();
     }
   }, [organization?.id]);
@@ -76,6 +76,9 @@ export default function PaymentIntegrationPage() {
   const handleOAuthCallback = async (code: string, state: string | null) => {
     if (!organization?.id) return;
     setIsConnecting(true);
+    setIsLoading(false);
+    setOauthMessage("Connecting your Stripe account...");
+    setOauthError(null);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "exchange_code", organization_id: organization.id, code, state },
@@ -83,11 +86,17 @@ export default function PaymentIntegrationPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Stripe connected successfully!");
+      setOauthMessage(null);
+      toast.success("✅ Stripe Connected Successfully");
+      // Clear ?code= from URL
+      window.history.replaceState({}, "", window.location.pathname);
       await fetchConnectionStatus();
     } catch (err: any) {
       console.error("OAuth callback error:", err);
+      setOauthMessage(null);
+      setOauthError(err.message || "Failed to connect Stripe");
       toast.error(err.message || "Failed to connect Stripe");
+      window.history.replaceState({}, "", window.location.pathname);
     } finally {
       setIsConnecting(false);
     }
@@ -137,6 +146,20 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  // Show OAuth connecting state
+  if (oauthMessage) {
+    return (
+      <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
+        <SEOHead title="Payment Integration | TidyWise" description="Connect and manage payment processing" noIndex />
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-[#635BFF]" />
+          <p className="text-lg font-semibold text-foreground">{oauthMessage}</p>
+          <p className="text-sm text-muted-foreground">Please wait while we verify your account...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   if (isLoading) {
     return (
       <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
@@ -153,7 +176,24 @@ export default function PaymentIntegrationPage() {
       <SEOHead title="Payment Integration | TidyWise" description="Connect and manage payment processing" noIndex />
       <div className="space-y-6 max-w-3xl">
 
-        {/* Connected State */}
+        {/* OAuth error banner */}
+        {oauthError && (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">Stripe Connection Failed</p>
+                  <p className="text-sm text-muted-foreground mt-1">{oauthError}</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => setOauthError(null)}>
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {connectionStatus?.connected ? (
           <>
             <Card className="border-green-500/30 bg-green-500/5">

@@ -39,18 +39,18 @@ Deno.serve(async (req) => {
 
     // ACTION: Generate OAuth URL
     if (action === "get_oauth_url") {
-      const redirectUri = `${req.headers.get("origin") || "https://jointidywise.lovable.app"}/dashboard/payment-integration`;
+      const redirectUri = "https://jointidywise.com/dashboard/payment-integration";
       
       const params = new URLSearchParams({
         response_type: "code",
         client_id: stripeClientId,
         scope: "read_write",
         redirect_uri: redirectUri,
-        state: organization_id, // pass org ID as state for verification
+        state: organization_id,
         "stripe_user[business_type]": "company",
       });
 
-      const oauthUrl = `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
+      const oauthUrl = `https://connect.stripe.com/oauth/v2/authorize?${params.toString()}`;
 
       return new Response(
         JSON.stringify({ url: oauthUrl }),
