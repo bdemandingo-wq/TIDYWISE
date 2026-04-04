@@ -771,6 +771,15 @@ export default function CustomersPage() {
         <>
           <EditCustomerDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} customer={selectedCustomer} />
           <PaymentHistoryDialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen} customerId={selectedCustomer.id} customerName={`${selectedCustomer.first_name} ${selectedCustomer.last_name}`} />
+          {isMobile && (
+            <MobileContactProfile
+              open={mobileProfileOpen}
+              onOpenChange={setMobileProfileOpen}
+              customer={selectedCustomer}
+              onEdit={() => { setMobileProfileOpen(false); setEditDialogOpen(true); }}
+              onPaymentHistory={() => { setMobileProfileOpen(false); setPaymentHistoryOpen(true); }}
+            />
+          )}
         </>
       )}
 
