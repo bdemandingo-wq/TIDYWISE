@@ -181,11 +181,11 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
           .from('booking_photos')
           .insert({
             booking_id: selectedBookingId,
-            staff_id: staffId,
-            organization_id: organizationId,
             photo_url: filePath,
             photo_type: photoType,
             media_type: isVid ? 'video' : 'photo',
+            ...(staffId ? { staff_id: staffId } : {}),
+            ...(organizationId ? { organization_id: organizationId } : {}),
           });
 
         if (dbError) throw new Error(dbError.message);

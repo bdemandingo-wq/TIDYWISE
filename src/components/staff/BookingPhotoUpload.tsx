@@ -125,11 +125,11 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
         .from('booking_photos')
         .insert({
           booking_id: bookingId,
-          staff_id: staffId,
-          organization_id: organizationId,
           photo_url: filePath,
           photo_type: photoType,
           media_type: mediaMode,
+          ...(staffId ? { staff_id: staffId } : {}),
+          ...(organizationId ? { organization_id: organizationId } : {}),
         });
 
       if (dbError) throw new Error(dbError.message);
