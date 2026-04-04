@@ -198,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Insert booking link tracking record
+    // Insert booking link tracking record (card collection type)
     await supabase
       .from('booking_link_tracking')
       .insert({
@@ -209,6 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
         customer_email: email || null,
         link_sent_at: new Date().toISOString(),
         status: 'sent',
+        link_type: 'card_collection',
       })
       .then(({ error: trackingError }) => {
         if (trackingError) console.log('Booking link tracking insert skipped:', trackingError.message);

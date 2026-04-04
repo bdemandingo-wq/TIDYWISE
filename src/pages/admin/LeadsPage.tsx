@@ -104,7 +104,7 @@ export default function LeadsPage() {
   // Auto-run smart sync when leads load
   const [hasSynced, setHasSynced] = useState(false);
 
-  // Fetch abandoned booking link tracking data
+  // Fetch abandoned booking link tracking data — only actual booking links
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
     queryKey: ['abandoned-booking-links', organization?.id],
     queryFn: async () => {
@@ -113,6 +113,7 @@ export default function LeadsPage() {
         .from('booking_link_tracking' as any)
         .select('*')
         .eq('organization_id', organization.id)
+        .eq('link_type', 'booking')
         .in('status', ['opened', 'sent', 'abandoned'])
         .is('booking_completed_at', null)
         .order('created_at', { ascending: false });
@@ -778,6 +779,7 @@ export default function LeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Link Type</TableHead>
                   <TableHead>Link Sent</TableHead>
                   <TableHead>Link Opened</TableHead>
                   <TableHead>Time Elapsed</TableHead>
@@ -788,11 +790,11 @@ export default function LeadsPage() {
               <TableBody>
                 {abandonedLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
                   </TableRow>
                 ) : abandonedLinks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No abandoned bookings</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No abandoned bookings</TableCell>
                   </TableRow>
                 ) : (
                   abandonedLinks.map((link: any) => {
@@ -806,6 +808,11 @@ export default function LeadsPage() {
                           {link.customer_phone && (
                             <div className="text-xs text-muted-foreground">{maskPhone(link.customer_phone)}</div>
                           )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <Badge variant="outline" className="gap-1">
+                            📅 Booking Link
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {link.link_sent_at ? format(new Date(link.link_sent_at), 'MMM d, h:mm a') : '-'}

@@ -294,6 +294,7 @@ const handler = async (req: Request): Promise<Response> => {
                 campaign_id: campaignId || null,
                 link_sent_at: new Date().toISOString(),
                 status: 'sent',
+                link_type: 'booking',
               })
               .then(({ error: trackErr }) => {
                 if (trackErr) console.log('Link tracking insert skipped:', trackErr.message);
