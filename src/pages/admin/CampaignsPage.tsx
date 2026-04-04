@@ -911,11 +911,12 @@ export default function CampaignsPage() {
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">SMS Preview</Label>
                   <div className="bg-muted rounded-2xl p-4 max-w-[280px]">
-                    <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm">
+                    <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm whitespace-pre-wrap">
                       {campaignForm.smsBody
                         .replace(/\{first_name\}/g, "Sarah")
                         .replace(/\{last_name\}/g, "Johnson")
                         .replace(/\{company_name\}/g, businessSettings?.company_name || "Your Company")
+                        .replace(/\{booking_link\}/g, "jointidywise.com/book/…?ref=abc123")
                         .replace(/\{booking_date\}/g, "Jan 15")
                         .replace(/\{service_type\}/g, "Deep Clean")}
                     </div>
