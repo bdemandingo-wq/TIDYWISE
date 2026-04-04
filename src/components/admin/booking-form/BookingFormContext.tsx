@@ -115,6 +115,7 @@ interface BookingFormContextType extends BookingFormState {
   staff: ReturnType<typeof useStaff>['data'];
   
   // Computed
+  customerLocations: SavedLocation[];
   selectedService: any;
   selectedCustomer: any;
   customerEmail: string;
