@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { 
   CalendarIcon, 
@@ -26,6 +26,9 @@ import {
   Receipt,
   PiggyBank,
   Calculator,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -33,6 +36,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { PnLCalendar } from '@/components/admin/PnLCalendar';
 import { SEOHead } from '@/components/SEOHead';
+import { toast } from 'sonner';
 
 interface Transaction {
   id: string;
