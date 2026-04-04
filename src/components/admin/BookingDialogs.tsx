@@ -113,20 +113,31 @@ export function BookingDetailsDialog({
           total_amount: booking.total_amount,
           notes: booking.notes || null,
           status: 'draft',
-          valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days
+          valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         })
         .select()
         .single();
 
       if (error) throw error;
 
+      // Delete the source booking so it doesn't appear on the calendar
+      // Quotes should NOT have a corresponding booking until accepted
+      const { error: deleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', booking.id);
+
+      if (deleteError) {
+        console.error('Warning: Could not remove source booking:', deleteError);
+      }
+
       toast({
         title: "Quote created!",
-        description: `Quote #${quote.quote_number} created. Go to Leads page to send it.`,
+        description: `Quote #${quote.quote_number} created. The booking has been removed from the calendar. Go to Bookings → Quotes tab to manage it.`,
       });
       
-      // Navigate to leads/quotes page
-      window.location.href = '/dashboard/leads';
+      // Navigate to bookings page quotes tab
+      window.location.href = '/dashboard/bookings';
     } catch (error: any) {
       console.error('Error creating quote:', error);
       toast({
