@@ -995,7 +995,6 @@ export default function MessagesPage() {
           ) : (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
           )}
-          ) : null}
         </div>
       </div>
 
