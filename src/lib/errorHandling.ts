@@ -18,7 +18,6 @@ export async function logError(entry: LogEntry): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Get organization ID if user is authenticated
     let organizationId: string | null = null;
     if (user) {
       const { data: membership } = await supabase
@@ -39,59 +38,219 @@ export async function logError(entry: LogEntry): Promise<void> {
       organization_id: organizationId,
     }]);
   } catch (err) {
-    // Silently fail - don't break the app if logging fails
     console.error('Failed to log error:', err);
   }
 }
 
 /**
- * Parse edge function errors into user-friendly messages
+ * Parsed error result with optional navigation target and severity
+ */
+export interface ParsedError {
+  message: string;
+  /** Route to navigate to for fixing the issue */
+  fixRoute?: string;
+  /** Label for the fix link */
+  fixLabel?: string;
+  /** 'config' for setup issues (orange), 'error' for real failures (red) */
+  severity: 'config' | 'error';
+}
+
+/**
+ * Parse edge function errors into user-friendly messages with actionable context
  */
 export function parseEdgeFunctionError(error: unknown): string {
-  if (!error) return 'An unexpected error occurred';
+  return parseEdgeFunctionErrorDetailed(error).message;
+}
+
+/**
+ * Detailed version that returns fix routes and severity
+ */
+export function parseEdgeFunctionErrorDetailed(error: unknown): ParsedError {
+  if (!error) return { message: 'An unexpected error occurred', severity: 'error' };
   
   const errorMessage = typeof error === 'string' 
     ? error 
     : (error as Error)?.message || String(error);
   
   const lowerMsg = errorMessage.toLowerCase();
-  
-  // Common error patterns and user-friendly messages
+
+  // ── OpenPhone / SMS Errors ──
+  if (lowerMsg.includes('openphone') || lowerMsg.includes('sms not configured') || lowerMsg.includes('openphone_api_key')) {
+    return {
+      message: 'SMS not set up yet. Go to Settings → SMS and connect your OpenPhone account to send messages.',
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Open SMS Settings',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('a2p') || lowerMsg.includes('a2p_not_approved')) {
+    return {
+      message: "Your OpenPhone number isn't approved for bulk SMS yet. Complete A2P/10DLC registration in your OpenPhone dashboard.",
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('auth_failed') || lowerMsg.includes('invalid openphone')) {
+    return {
+      message: 'Your OpenPhone API key is invalid. Go to Settings → SMS to update it.',
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Update API Key',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('billing_required')) {
+    return {
+      message: 'Your OpenPhone account has a billing issue. Please check your OpenPhone account to continue sending SMS.',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('sms_enabled') || lowerMsg.includes('sms disabled')) {
+    return {
+      message: 'SMS is currently disabled. Go to Settings → SMS to turn it on.',
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Enable SMS',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('openphone_phone_number_id') || lowerMsg.includes('phone number id')) {
+    return {
+      message: 'OpenPhone Phone Number ID is missing. Go to Settings → SMS and add your Phone Number ID.',
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Add Phone Number ID',
+      severity: 'config',
+    };
+  }
+
+  // ── Stripe / Payment Errors ──
+  if ((lowerMsg.includes('stripe') && lowerMsg.includes('not configured')) || lowerMsg.includes('no stripe')) {
+    return {
+      message: "Stripe isn't connected yet. Go to Settings → Payment Setup and connect your Stripe account.",
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Connect Stripe',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('stripe_account_id') || lowerMsg.includes('no connected stripe') || lowerMsg.includes('org_stripe_not_connected')) {
+    return {
+      message: "Your Stripe account isn't connected. Go to Settings → Payment Setup to connect Stripe before charging clients.",
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Connect Stripe',
+      severity: 'config',
+    };
+  }
+  if (lowerMsg.includes('card') && lowerMsg.includes('failed')) {
+    return {
+      message: "Card charge failed. Please check the client's card details or try a different payment method.",
+      severity: 'error',
+    };
+  }
+  if (lowerMsg.includes('stripe express') || lowerMsg.includes('stripe_express') || (lowerMsg.includes('payout') && !lowerMsg.includes('complete'))) {
+    return {
+      message: 'Payout setup incomplete. Make sure your Stripe account is connected in Settings → Payment Setup.',
+      fixRoute: '/dashboard/settings',
+      fixLabel: 'Fix Payouts',
+      severity: 'config',
+    };
+  }
+
+  // ── Auth / Session Errors ──
   if (lowerMsg.includes('already exists') || lowerMsg.includes('already registered')) {
-    return 'This email is already registered. Please use a different email.';
+    return {
+      message: 'This email is already registered. Please use a different email.',
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('invalid token') || lowerMsg.includes('jwt')) {
-    return 'Your session has expired. Please log in again.';
+    return {
+      message: 'Your session has expired. Please log in again.',
+      fixRoute: '/login',
+      fixLabel: 'Log In',
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('admin access') || lowerMsg.includes('permission denied')) {
-    return 'You don\'t have permission to perform this action.';
+    return {
+      message: "You don't have permission to perform this action.",
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('organization')) {
-    return 'Unable to determine your organization. Please refresh and try again.';
+    return {
+      message: 'Unable to determine your organization. Please refresh and try again.',
+      severity: 'error',
+    };
   }
+
+  // ── Network Errors ──
   if (lowerMsg.includes('network') || lowerMsg.includes('fetch')) {
-    return 'Network error. Please check your connection and try again.';
+    return {
+      message: 'Network error. Please check your connection and try again.',
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('rate limit')) {
-    return 'Too many requests. Please wait a moment and try again.';
+    return {
+      message: 'Too many requests. Please wait a moment and try again.',
+      severity: 'error',
+    };
   }
+
+  // ── Database Errors ──
+  if (lowerMsg.includes('pgrst') || lowerMsg.includes('postgresql')) {
+    return {
+      message: 'Something went wrong saving your data. Please try again.',
+      severity: 'error',
+    };
+  }
+
+  // ── Webhook ──
+  if (lowerMsg.includes('webhook')) {
+    return {
+      message: 'Webhook configuration error. Please contact support.',
+      severity: 'error',
+    };
+  }
+
+  // ── Resource errors ──
   if (lowerMsg.includes('not found')) {
-    return 'The requested resource was not found.';
+    return {
+      message: 'The requested resource was not found.',
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('password')) {
-    return 'Password error. Please ensure it meets the requirements.';
+    return {
+      message: 'Password error. Please ensure it meets the requirements.',
+      severity: 'error',
+    };
   }
   if (lowerMsg.includes('email')) {
-    return 'Invalid email address. Please check and try again.';
+    return {
+      message: 'Invalid email address. Please check and try again.',
+      severity: 'error',
+    };
   }
-  if (lowerMsg.includes('non-2xx') || lowerMsg.includes('status code')) {
-    return 'Server error. Please try again or contact support if the issue persists.';
+
+  // ── Generic edge function / non-2xx ──
+  if (lowerMsg.includes('non-2xx') || lowerMsg.includes('edge function') || lowerMsg.includes('status code')) {
+    return {
+      message: 'Something went wrong. Please try again or contact support if the issue persists.',
+      fixRoute: '/dashboard/help',
+      fixLabel: 'Get Help',
+      severity: 'error',
+    };
   }
-  
-  // Return original message if no pattern matches but clean it up
-  return errorMessage.length > 100 
-    ? 'An error occurred. Please try again or contact support.'
-    : errorMessage;
+
+  // ── Fallback ──
+  if (errorMessage.length > 100) {
+    return {
+      message: 'An error occurred. Please try again or contact support.',
+      fixRoute: '/dashboard/help',
+      fixLabel: 'Get Help',
+      severity: 'error',
+    };
+  }
+
+  return { message: errorMessage, severity: 'error' };
 }
 
 /**
