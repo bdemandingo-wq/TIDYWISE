@@ -809,6 +809,11 @@ export default function LeadsPage() {
                             <div className="text-xs text-muted-foreground">{maskPhone(link.customer_phone)}</div>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm">
+                          <Badge variant="outline" className="gap-1">
+                            📅 Booking Link
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {link.link_sent_at ? format(new Date(link.link_sent_at), 'MMM d, h:mm a') : '-'}
                         </TableCell>
