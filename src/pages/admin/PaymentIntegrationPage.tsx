@@ -482,19 +482,22 @@ export default function PaymentIntegrationPage() {
                 {/* Quick access links */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {stripeLinks.map((link) => (
-                    <Button
+                    <a
                       key={link.label}
-                      variant="outline"
-                      className="h-auto py-3 px-3 flex flex-col items-center gap-1.5 text-center"
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground h-auto py-3 px-3 flex-col gap-1.5 text-center cursor-pointer"
                       onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openExternalUrl(link.url);
+                        if (Capacitor.isNativePlatform()) {
+                          e.preventDefault();
+                          openExternalUrl(link.url);
+                        }
                       }}
                     >
                       <span className="text-lg">{link.emoji}</span>
                       <span className="text-xs font-medium leading-tight">{link.label}</span>
-                    </Button>
+                    </a>
                   ))}
                 </div>
 
