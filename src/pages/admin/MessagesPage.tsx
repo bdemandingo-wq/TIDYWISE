@@ -810,38 +810,48 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   const renderConversationList = () => (
     <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
-      {/* iOS Header - mobile only */}
-      {isMobile && (
-        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+      {/* Header */}
+      <div className={cn(
+        "flex items-center justify-between px-4 pt-2 pb-1",
+        !isMobile && "border-b pb-2"
+      )}>
+        {isMobile ? (
           <button className="text-[#007AFF] text-[17px] font-normal flex items-center gap-0.5">
             <Filter className="h-4 w-4" />
             <span>Filters</span>
           </button>
-          <h1 className="text-[17px] font-semibold text-[#1C1C1E] dark:text-white">Messages</h1>
-          <div className="flex items-center gap-2">
-            {bulkEditMode ? (
+        ) : (
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchConversations}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        )}
+        <h1 className={cn(
+          "font-semibold text-foreground",
+          isMobile ? "text-[17px]" : "text-base"
+        )}>Messages</h1>
+        <div className="flex items-center gap-2">
+          {bulkEditMode ? (
+            <button
+              onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+              className="text-[#007AFF] text-[15px] font-medium"
+            >
+              Done
+            </button>
+          ) : (
+            <>
               <button
-                onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
-                className="text-[#007AFF] text-[15px] font-medium"
+                onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
+                className="text-[#007AFF]"
               >
-                Done
+                <Pencil className="h-5 w-5" />
               </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
-                  className="text-[#007AFF]"
-                >
-                  <Pencil className="h-5 w-5" />
-                </button>
-                <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
-                  <Plus className="h-5 w-5" />
-                </button>
-              </>
-            )}
-          </div>
+              <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
+                <Plus className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Search */}
       <div className="px-4 pt-2 pb-1">
