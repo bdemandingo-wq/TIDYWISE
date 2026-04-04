@@ -1611,22 +1611,19 @@ export default function BookingsPage() {
             <Edit className="w-4 h-4" />
             Bulk Edit
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-11 gap-2 rounded-xl border-border/50 hover:bg-secondary/50" disabled={exporting}>
+          <MobileActionSheet
+            trigger={
+              <Button variant="outline" className="h-11 gap-2 rounded-xl border-border/50 hover:bg-secondary/50 min-h-[44px]" disabled={exporting}>
                 {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 Export
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport('csv')}>
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('json')}>
-                Export as JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+            title="Export Bookings"
+            items={[
+              { label: 'Export as CSV', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('csv') },
+              { label: 'Export as JSON', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('json') },
+            ]}
+          />
           {selectedBookings.size > 0 && (
             <>
               <Button 
