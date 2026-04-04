@@ -110,6 +110,8 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [emailContacts, setEmailContacts] = useState<{ email: string; name: string }[]>([]);
