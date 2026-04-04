@@ -381,6 +381,7 @@ export default function MessagesPage() {
       const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
       if (activeTab === 'clients') return matchesSearch && conv.conversation_type === 'client';
       if (activeTab === 'cleaners') return matchesSearch && conv.conversation_type === 'cleaner';
+      if (activeTab === 'unread') return matchesSearch && conv.unread_count > 0;
       return matchesSearch;
     });
   }, [conversations, searchQuery, activeTab, contentSearchResults]);
