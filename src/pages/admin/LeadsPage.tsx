@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays, Link2, Send, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Mail, Phone, UserPlus, MoreHorizontal, Trash2, Edit, Download, Filter, TrendingDown, ArrowRight, MapPin, LayoutGrid, Table2, CalendarDays, Link2, Send, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 // Simple address input - no Google Places integration
 import {
   DropdownMenu,
@@ -44,6 +44,8 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
 import { SEOHead } from '@/components/SEOHead';
+import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 
@@ -97,6 +99,11 @@ export default function LeadsPage() {
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organization } = useOrganization();
 
+  const { runSync, isSyncing, flaggedLeadIds } = useLeadSmartSync(organization?.id);
+
+  // Auto-run smart sync when leads load
+  const [hasSynced, setHasSynced] = useState(false);
+
   // Fetch abandoned booking link tracking data
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
     queryKey: ['abandoned-booking-links', organization?.id],
@@ -130,6 +137,14 @@ export default function LeadsPage() {
     },
     enabled: !!organization?.id,
   });
+
+  // Auto-run smart sync when leads first load
+  useEffect(() => {
+    if (leads.length > 0 && !hasSynced && !isLoading) {
+      setHasSynced(true);
+      runSync(leads, true); // silent
+    }
+  }, [leads, hasSynced, isLoading, runSync]);
 
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
@@ -384,6 +399,15 @@ export default function LeadsPage() {
               Table
             </Button>
           </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => runSync(leads)}
+            disabled={isSyncing}
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            Smart Sync
+          </Button>
           <Button 
             variant={showFunnel ? "default" : "outline"} 
             className="gap-2" 
@@ -649,23 +673,37 @@ export default function LeadsPage() {
                     <TableCell>{lead.service_interest || '-'}</TableCell>
                     <TableCell className="capitalize">{lead.source}</TableCell>
                     <TableCell>
-                      <Select
-                        value={lead.status}
-                        onValueChange={(status) => updateMutation.mutate({ id: lead.id, status })}
-                      >
-                        <SelectTrigger className="w-[120px] h-8">
-                          <Badge className={STATUS_CONFIG[lead.status]?.color}>
-                            {STATUS_CONFIG[lead.status]?.label}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1.5">
+                        <Select
+                          value={lead.status}
+                          onValueChange={(status) => updateMutation.mutate({ id: lead.id, status })}
+                        >
+                          <SelectTrigger className="w-[120px] h-8">
+                            <Badge className={STATUS_CONFIG[lead.status]?.color}>
+                              {STATUS_CONFIG[lead.status]?.label}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {lead.status === 'converted' && flaggedLeadIds.has(lead.id) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>No booking found for this lead</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[200px]">
                       {lead.notes ? (
