@@ -348,7 +348,41 @@ export default function FinancePage() {
       subtitle="Profit & loss, transactions, and tax exports"
     >
       <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
-      <SubscriptionGate feature="Finance & Tax reports">
+      {/* Stripe Sync Header */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={handleSyncStripe}
+          disabled={isSyncing || stripeLoading}
+        >
+          <RefreshCw className={cn("w-4 h-4", (isSyncing || stripeLoading) && "animate-spin")} />
+          Sync with Stripe
+        </Button>
+        {stripeConnected ? (
+          <Badge variant="outline" className="gap-1 text-green-700 border-green-300 bg-green-50">
+            <CheckCircle className="w-3 h-3" /> Stripe Live
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="gap-1 text-yellow-700 border-yellow-300 bg-yellow-50">
+            <AlertTriangle className="w-3 h-3" /> {stripeError ? 'Cached Data' : 'Loading...'}
+          </Badge>
+        )}
+        {stripeData?.synced_at && (
+          <span className="text-xs text-muted-foreground">
+            Last synced: {format(new Date(stripeData.synced_at), 'MMM d, h:mm a')}
+          </span>
+        )}
+      </div>
+
+      {stripeError && (
+        <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span>Unable to fetch live Stripe data. Showing estimates from local records.</span>
+        </div>
+      )}
+
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
         <Popover>
@@ -392,29 +426,34 @@ export default function FinancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-green-500" />
               <span className="text-xs text-muted-foreground">Total Sales</span>
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-green-600">
-              {isTestMode ? '$X,XXX.XX' : `$${metrics.totalSales.toFixed(2)}`}
+              {isTestMode ? '$X,XXX.XX' : `$${(stripeConnected ? stripeData.total_revenue : metrics.totalSales).toFixed(2)}`}
             </p>
+            {stripeConnected && (
+              <p className="text-[10px] text-muted-foreground">{stripeData.successful_payments_count} payments</p>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <CreditCard className="w-4 h-4 text-orange-500" />
               <span className="text-xs text-muted-foreground">Processing Fees</span>
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-orange-600">
-              {isTestMode ? '-$XXX.XX' : `-$${metrics.totalFees.toFixed(2)}`}
+              {isTestMode ? '-$XXX.XX' : `-$${(stripeConnected ? stripeData.total_fees : metrics.totalFees).toFixed(2)}`}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <Receipt className="w-4 h-4 text-blue-500" />
               <span className="text-xs text-muted-foreground">Cleaner Pay</span>
             </div>
@@ -425,41 +464,46 @@ export default function FinancePage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <TrendingDown className="w-4 h-4 text-red-500" />
               <span className="text-xs text-muted-foreground">Refunds</span>
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-red-600">
-              {isTestMode ? '-$X.XX' : `-$${metrics.totalRefunds.toFixed(2)}`}
+              {isTestMode ? '-$X.XX' : `-$${(stripeConnected ? stripeData.total_refunds : metrics.totalRefunds).toFixed(2)}`}
             </p>
+            {stripeConnected && stripeData.disputes_count > 0 && (
+              <p className="text-[10px] text-red-500">{stripeData.disputes_count} disputes (-${stripeData.total_disputes})</p>
+            )}
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <PiggyBank className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">Net Profit</span>
             </div>
             <p className={cn(
               "text-xl font-bold",
-              metrics.netProfit >= 0 ? "text-primary" : "text-red-600"
+              (stripeConnected ? stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `$${metrics.netProfit.toFixed(2)}`}
+              {isTestMode ? '$X,XXX.XX' : `$${(stripeConnected ? (stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit).toFixed(2)}`}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <Calculator className="w-4 h-4 text-purple-500" />
-              <span className="text-xs text-muted-foreground">Profit Margin</span>
+              <span className="text-xs text-muted-foreground">Spend / Customer</span>
+              {stripeConnected && <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />}
             </div>
-            <p className={cn(
-              "text-xl font-bold",
-              metrics.profitMargin >= 20 ? "text-green-600" : metrics.profitMargin >= 10 ? "text-yellow-600" : "text-red-600"
-            )}>
-              {isTestMode ? 'XX.X%' : `${metrics.profitMargin.toFixed(1)}%`}
+            <p className="text-xl font-bold text-purple-600">
+              {isTestMode ? '$XXX.XX' : `$${(stripeConnected ? stripeData.spend_per_customer : (metrics.transactionCount > 0 ? metrics.totalSales / metrics.transactionCount : 0)).toFixed(2)}`}
             </p>
+            {stripeConnected && (
+              <p className="text-[10px] text-muted-foreground">{stripeData.new_customers_count} customers</p>
+            )}
           </CardContent>
         </Card>
       </div>
