@@ -634,6 +634,7 @@ export function BookingFormProvider({
       cardInfo,
       loadingCard,
       selectedChecklistId,
+      customerLocations,
       
       customers,
       services,
