@@ -75,54 +75,6 @@ export function SMSSettingsCard() {
     }
   };
 
-  const fetchReminderIntervals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('appointment_reminder_intervals')
-        .select('*')
-        .eq('organization_id', organization!.id)
-        .order('hours_before', { ascending: false });
-      if (error) throw error;
-      if (data) {
-        setReminderIntervals(data.map(d => ({
-          id: d.id,
-          label: d.label,
-          hours_before: Number(d.hours_before),
-          is_active: d.is_active,
-          send_to_client: d.send_to_client,
-          send_to_cleaner: d.send_to_cleaner,
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching reminder intervals:', error);
-    }
-  };
-
-  const saveReminderIntervals = async () => {
-    if (!organization?.id) return;
-    setSavingIntervals(true);
-    try {
-      for (const interval of reminderIntervals) {
-        if (interval.id) {
-          await supabase
-            .from('appointment_reminder_intervals')
-            .update({
-              is_active: interval.is_active,
-              send_to_client: interval.send_to_client,
-              send_to_cleaner: interval.send_to_cleaner,
-            })
-            .eq('id', interval.id);
-        }
-      }
-      toast.success('Reminder intervals saved');
-    } catch (error) {
-      console.error('Error saving reminder intervals:', error);
-      toast.error('Failed to save reminder intervals');
-    } finally {
-      setSavingIntervals(false);
-    }
-  };
-
   // Extract phone number ID from full URL if pasted
   const extractPhoneNumberId = (input: string): string => {
     const trimmed = input.trim();
