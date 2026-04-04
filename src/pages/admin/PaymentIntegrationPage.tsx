@@ -169,6 +169,19 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  const extractInvokeErrorMessage = async (err: any) => {
+    if (err?.context && typeof err.context.json === "function") {
+      try {
+        const body = await err.context.json();
+        if (body?.error) return body.error as string;
+      } catch {
+        // Ignore body parse failures and fall back to generic message.
+      }
+    }
+
+    return err?.message || "Failed to save API keys";
+  };
+
   const handleSaveManualKeys = async () => {
     if (!organization?.id || !manualSecretKey.trim()) return;
     setSavingKeys(true);
@@ -184,13 +197,25 @@ export default function PaymentIntegrationPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      setConnectionStatus({
+        connected: true,
+        legacy: true,
+        email: data?.email ?? undefined,
+        display_name: data?.display_name ?? undefined,
+        payouts_enabled: data?.payouts_enabled ?? true,
+        has_publishable_key: !!manualPublishableKey.trim(),
+      });
       toast.success("Stripe API keys saved successfully!");
+      if (data?.warning) {
+        toast.message(data.warning);
+      }
       setManualSecretKey("");
       setManualPublishableKey("");
       setShowManualKeys(false);
       fetchConnectionStatus();
     } catch (err: any) {
-      toast.error(err.message || "Failed to save API keys");
+      console.error("Manual key save error:", err);
+      toast.error(await extractInvokeErrorMessage(err));
     } finally {
       setSavingKeys(false);
     }

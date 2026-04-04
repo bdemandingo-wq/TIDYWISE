@@ -1,9 +1,30 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
+import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
+
+const STRIPE_API_VERSION = "2025-08-27.basil";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const jsonResponse = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const extractStripeErrorMessage = (error: unknown) => {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  try {
+    const maybeMessage = (error as { raw?: { message?: string }; message?: string }).raw?.message
+      || (error as { message?: string }).message;
+    return maybeMessage || JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
 };
 
 Deno.serve(async (req) => {
@@ -17,31 +38,26 @@ Deno.serve(async (req) => {
     const stripeClientId = Deno.env.get("STRIPE_CLIENT_ID") || "";
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 
-    if (!stripeClientId || !stripeSecretKey) {
-      return new Response(
-        JSON.stringify({ error: "Stripe Connect not configured on platform" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return jsonResponse({ error: "Backend configuration missing" }, 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false },
     });
 
-    const { action, organization_id, code, state, email, secret_key, publishable_key } = await req.json();
+    const { action, organization_id, code, email, secret_key, publishable_key } = await req.json();
 
     if (!organization_id) {
-      return new Response(
-        JSON.stringify({ error: "organization_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "organization_id is required" }, 400);
     }
 
-    // ACTION: Generate OAuth URL
     if (action === "get_oauth_url") {
+      if (!stripeClientId || !stripeSecretKey) {
+        return jsonResponse({ error: "Stripe Connect not configured on platform" }, 500);
+      }
+
       const redirectUri = "https://jointidywise.com/dashboard/payment-integration";
-      
-      
       const params = new URLSearchParams({
         response_type: "code",
         client_id: stripeClientId,
@@ -57,41 +73,30 @@ Deno.serve(async (req) => {
       }
 
       const oauthUrl = `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
-
-      return new Response(
-        JSON.stringify({ url: oauthUrl }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ url: oauthUrl });
     }
 
-    // ACTION: Exchange authorization code for access token
     if (action === "exchange_code") {
-      if (!code) {
-        return new Response(
-          JSON.stringify({ error: "Authorization code is required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (!stripeClientId || !stripeSecretKey) {
+        return jsonResponse({ error: "Stripe Connect not configured on platform" }, 500);
       }
 
-      // Exchange the code with Stripe
-      const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+      if (!code) {
+        return jsonResponse({ error: "Authorization code is required" }, 400);
+      }
 
+      const stripe = new Stripe(stripeSecretKey, { apiVersion: STRIPE_API_VERSION });
       const response = await stripe.oauth.token({
         grant_type: "authorization_code",
         code,
       });
 
       if (!response.stripe_user_id) {
-        return new Response(
-          JSON.stringify({ error: "Failed to get Stripe account ID" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: "Failed to get Stripe account ID" }, 400);
       }
 
-      // Fetch account details
       const account = await stripe.accounts.retrieve(response.stripe_user_id);
 
-      // Store in database
       const { error: upsertError } = await supabase
         .from("org_stripe_settings")
         .upsert({
@@ -100,7 +105,7 @@ Deno.serve(async (req) => {
           stripe_access_token: response.access_token,
           stripe_refresh_token: response.refresh_token,
           stripe_publishable_key: response.stripe_publishable_key || null,
-          stripe_secret_key: response.access_token || "", // Use access token as the secret key for API calls
+          stripe_secret_key: response.access_token || "",
           stripe_user_email: account.email || null,
           stripe_display_name: account.business_profile?.name || account.settings?.dashboard?.display_name || null,
           stripe_payouts_enabled: account.payouts_enabled || false,
@@ -113,25 +118,18 @@ Deno.serve(async (req) => {
 
       if (upsertError) {
         console.error("[stripe-connect-oauth] Upsert error:", upsertError);
-        return new Response(
-          JSON.stringify({ error: "Failed to save connection" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: "Failed to save connection" }, 500);
       }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          account_id: response.stripe_user_id,
-          email: account.email,
-          display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
-          payouts_enabled: account.payouts_enabled,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        success: true,
+        account_id: response.stripe_user_id,
+        email: account.email,
+        display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+        payouts_enabled: account.payouts_enabled,
+      });
     }
 
-    // ACTION: Get connection status with account details
     if (action === "get_status") {
       const { data, error } = await supabase
         .from("org_stripe_settings")
@@ -140,48 +138,32 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (error) {
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch status" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: "Failed to fetch status" }, 500);
       }
 
-      // Check if connected via OAuth OR via legacy manual API keys
-      const isConnectedViaOAuth = data?.is_connected && data?.stripe_account_id;
-      const isConnectedViaManualKeys = !data?.is_connected && data?.stripe_secret_key && !data?.stripe_account_id;
+      const isConnectedViaOAuth = !!(data?.is_connected && data?.stripe_account_id);
+      const isConnectedViaManualKeys = !!(data?.stripe_secret_key && !data?.stripe_account_id);
 
-      // If they have manual keys but no OAuth connection, mark as connected (legacy)
       if (isConnectedViaManualKeys) {
-        return new Response(
-          JSON.stringify({
-            connected: true,
-            legacy: true,
-            email: data.stripe_user_email || null,
-            display_name: data.stripe_display_name || null,
-            payouts_enabled: data.stripe_payouts_enabled ?? true,
-            connected_at: data.connected_at || null,
-            default_currency: data.stripe_default_currency || "usd",
-            has_publishable_key: !!data.stripe_publishable_key,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({
+          connected: true,
+          legacy: true,
+          email: data?.stripe_user_email || null,
+          display_name: data?.stripe_display_name || null,
+          payouts_enabled: data?.stripe_payouts_enabled ?? true,
+          connected_at: data?.connected_at || null,
+          default_currency: data?.stripe_default_currency || "usd",
+          has_publishable_key: !!data?.stripe_publishable_key,
+        });
       }
 
-      if (isConnectedViaOAuth) {
+      if (isConnectedViaOAuth && data?.stripe_account_id) {
         try {
-          // Get the org's access token to make API calls
-          const { data: fullSettings } = await supabase
-            .from("org_stripe_settings")
-            .select("stripe_access_token, stripe_secret_key")
-            .eq("organization_id", organization_id)
-            .single();
-
-          const apiKey = fullSettings?.stripe_access_token || fullSettings?.stripe_secret_key;
+          const apiKey = data.stripe_access_token || data.stripe_secret_key;
           if (apiKey) {
-            const stripe = new Stripe(apiKey, { apiVersion: "2023-10-16" });
+            const stripe = new Stripe(apiKey, { apiVersion: STRIPE_API_VERSION });
             const account = await stripe.accounts.retrieve(data.stripe_account_id);
 
-            // Update cached info
             await supabase
               .from("org_stripe_settings")
               .update({
@@ -191,47 +173,39 @@ Deno.serve(async (req) => {
               })
               .eq("organization_id", organization_id);
 
-            return new Response(
-              JSON.stringify({
-                connected: true,
-                account_id: data.stripe_account_id,
-                email: account.email,
-                display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
-                payouts_enabled: account.payouts_enabled,
-                connected_at: data.connected_at,
-                default_currency: account.default_currency || data.stripe_default_currency,
-              }),
-              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
+            return jsonResponse({
+              connected: true,
+              account_id: data.stripe_account_id,
+              email: account.email,
+              display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+              payouts_enabled: account.payouts_enabled,
+              connected_at: data.connected_at,
+              default_currency: account.default_currency || data.stripe_default_currency,
+            });
           }
-        } catch (e) {
-          console.warn("[stripe-connect-oauth] Could not refresh account details:", e);
+        } catch (refreshError) {
+          console.warn("[stripe-connect-oauth] Could not refresh account details:", refreshError);
         }
 
-        // Return cached data if live fetch fails
-        return new Response(
-          JSON.stringify({
-            connected: true,
-            account_id: data.stripe_account_id,
-            email: data.stripe_user_email,
-            display_name: data.stripe_display_name,
-            payouts_enabled: data.stripe_payouts_enabled,
-            connected_at: data.connected_at,
-            default_currency: data.stripe_default_currency,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({
+          connected: true,
+          account_id: data.stripe_account_id,
+          email: data.stripe_user_email,
+          display_name: data.stripe_display_name,
+          payouts_enabled: data.stripe_payouts_enabled,
+          connected_at: data.connected_at,
+          default_currency: data.stripe_default_currency,
+        });
       }
 
-      return new Response(
-        JSON.stringify({ connected: false }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ connected: false });
     }
 
-    // ACTION: Disconnect
     if (action === "disconnect") {
-      // Get account ID first
+      if (!stripeClientId || !stripeSecretKey) {
+        return jsonResponse({ error: "Stripe Connect not configured on platform" }, 500);
+      }
+
       const { data: settings } = await supabase
         .from("org_stripe_settings")
         .select("stripe_account_id")
@@ -240,13 +214,13 @@ Deno.serve(async (req) => {
 
       if (settings?.stripe_account_id) {
         try {
-          const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+          const stripe = new Stripe(stripeSecretKey, { apiVersion: STRIPE_API_VERSION });
           await stripe.oauth.deauthorize({
             client_id: stripeClientId,
             stripe_user_id: settings.stripe_account_id,
           });
-        } catch (e) {
-          console.warn("[stripe-connect-oauth] Deauthorize failed:", e);
+        } catch (deauthError) {
+          console.warn("[stripe-connect-oauth] Deauthorize failed:", deauthError);
         }
       }
 
@@ -256,65 +230,73 @@ Deno.serve(async (req) => {
         .eq("organization_id", organization_id);
 
       if (error) {
-        return new Response(
-          JSON.stringify({ error: "Failed to disconnect" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: "Failed to disconnect" }, 500);
       }
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ success: true });
     }
 
-    // ACTION: Save manual API keys (for platform owner's own account)
     if (action === "save_manual_keys") {
       if (!secret_key) {
-        return new Response(
-          JSON.stringify({ error: "Stripe secret key is required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: "Stripe secret key is required" }, 400);
       }
 
-      // Validate key format before making API call
       if (!secret_key.startsWith("sk_live_") && !secret_key.startsWith("sk_test_") && !secret_key.startsWith("rk_live_") && !secret_key.startsWith("rk_test_")) {
         let hint = "Stripe secret keys start with sk_live_ or sk_test_.";
         if (secret_key.startsWith("pk_")) {
           hint = "You entered a publishable key (pk_...). Please use your secret key instead (sk_live_... or sk_test_...).";
         } else if (secret_key.startsWith("mk_")) {
-          hint = "You entered a management key (mk_...). Please use your secret key instead. Go to Stripe Dashboard → Developers → API keys and copy the Secret key (sk_live_... or sk_test_...).";
+          hint = "You entered a management key (mk_...). Please use your secret key instead. Go to Stripe Dashboard → Developers → API keys and copy the Secret key.";
         }
-        return new Response(
-          JSON.stringify({ error: hint }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ error: hint }, 400);
       }
 
-      // Validate the key by making a test API call
+      if (publishable_key && !publishable_key.startsWith("pk_live_") && !publishable_key.startsWith("pk_test_")) {
+        return jsonResponse({ error: "Publishable key must start with pk_live_ or pk_test_." }, 400);
+      }
+
       try {
-        const testStripe = new Stripe(secret_key, { apiVersion: "2023-10-16" });
-        
-        // Use balance.retrieve() as a lightweight validation - works with all key permission levels
-        await testStripe.balance.retrieve();
-        
-        // Try to get account details for display info (optional - may fail with restricted keys)
-        let accountEmail = null;
-        let displayName = null;
+        const testStripe = new Stripe(secret_key, { apiVersion: STRIPE_API_VERSION });
+
+        let accountEmail: string | null = null;
+        let displayName: string | null = null;
         let payoutsEnabled = true;
         let defaultCurrency = "usd";
-        
+        let warning: string | null = null;
+
+        try {
+          await testStripe.balance.retrieve();
+        } catch (validationError) {
+          const validationMessage = extractStripeErrorMessage(validationError);
+          const lowerValidationMessage = validationMessage.toLowerCase();
+
+          if (
+            lowerValidationMessage.includes("invalid api key") ||
+            lowerValidationMessage.includes("expired api key") ||
+            lowerValidationMessage.includes("authentication") ||
+            lowerValidationMessage.includes("you did not provide an api key") ||
+            lowerValidationMessage.includes("api key provided")
+          ) {
+            return jsonResponse({
+              error: "Invalid Stripe secret key. Please copy the full Secret key from Stripe Dashboard → Developers → API keys and try again.",
+            }, 400);
+          }
+
+          warning = "Key saved, but Stripe could not fully verify all permissions for this key. If charges fail later, switch to a full-access secret key.";
+          console.warn("[stripe-connect-oauth] Non-blocking key validation warning:", validationMessage);
+        }
+
         try {
           const account = await testStripe.accounts.retrieve();
           accountEmail = account.email || null;
           displayName = account.business_profile?.name || account.settings?.dashboard?.display_name || null;
           payoutsEnabled = account.payouts_enabled ?? true;
           defaultCurrency = account.default_currency || "usd";
-        } catch (accountErr) {
-          console.warn("[stripe-connect-oauth] Could not fetch account details (restricted key), proceeding with key save");
+        } catch (accountError) {
+          console.warn("[stripe-connect-oauth] Could not fetch account details for manual key:", extractStripeErrorMessage(accountError));
+          warning = warning || "Key saved. Some Stripe account details could not be loaded because this key has limited permissions.";
         }
 
-        // Save to org_stripe_settings
         const { error: upsertError } = await supabase
           .from("org_stripe_settings")
           .upsert({
@@ -333,51 +315,30 @@ Deno.serve(async (req) => {
 
         if (upsertError) {
           console.error("[stripe-connect-oauth] Manual keys upsert error:", upsertError);
-          return new Response(
-            JSON.stringify({ error: "Failed to save keys" }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return jsonResponse({ error: "Failed to save keys" }, 500);
         }
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            connected: true,
-            legacy: true,
-            email: accountEmail,
-            display_name: displayName,
-            payouts_enabled: payoutsEnabled,
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } catch (stripeErr) {
-        console.error("[stripe-connect-oauth] Stripe key validation failed:", stripeErr);
-        const msg = stripeErr?.message || "Unknown error";
-        let hint = "Invalid Stripe secret key.";
-        if (msg.includes("restricted") || msg.includes("permission")) {
-          hint = "This key has restricted permissions. Please use a Standard secret key with full access from Stripe Dashboard → Developers → API keys.";
-        } else if (msg.includes("Invalid API Key")) {
-          hint = "Invalid API key. Please copy the full secret key (sk_live_... or sk_test_...) from your Stripe Dashboard.";
-        } else {
-          hint = `Could not validate key: ${msg}`;
-        }
-        return new Response(
-          JSON.stringify({ error: hint }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({
+          success: true,
+          connected: true,
+          legacy: true,
+          email: accountEmail,
+          display_name: displayName,
+          payouts_enabled: payoutsEnabled,
+          warning,
+        });
+      } catch (stripeError) {
+        const message = extractStripeErrorMessage(stripeError);
+        console.error("[stripe-connect-oauth] Manual key validation failed:", message);
+        return jsonResponse({
+          error: `Could not validate key: ${message}`,
+        }, 400);
       }
     }
 
-    return new Response(
-      JSON.stringify({ error: "Invalid action" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    return jsonResponse({ error: "Invalid action" }, 400);
   } catch (error) {
     console.error("[stripe-connect-oauth] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Internal error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: error instanceof Error ? error.message : "Internal error" }, 500);
   }
 });
