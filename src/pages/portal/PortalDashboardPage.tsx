@@ -496,7 +496,9 @@ export default function PortalDashboardPage() {
             <p className="text-sm text-muted-foreground">Client Portal</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative" onClick={() => {}}>
+            <Sheet>
+            <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
