@@ -11,6 +11,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
@@ -83,6 +85,11 @@ const formatConversationTime = (dateStr: string) => {
   return format(d, 'M/d/yy');
 };
 
+const formatUnreadCount = (count: number) => {
+  if (count > 99) return '99+';
+  return count;
+};
+
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
@@ -125,6 +132,12 @@ export default function MessagesPage() {
   const [forwardSelectedContact, setForwardSelectedContact] = useState<Contact | null>(null);
   const [forwardSending, setForwardSending] = useState(false);
 
+  // Bulk edit state
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -145,12 +158,71 @@ export default function MessagesPage() {
     hapticImpact('light');
     setPinnedIds(prev => {
       const next = new Set(prev);
-      if (next.has(convId)) next.delete(convId); else next.add(convId);
+      if (next.has(convId)) {
+        next.delete(convId);
+      } else {
+        if (next.size >= 6) {
+          toast.error('You can only pin up to 6 conversations');
+          return prev;
+        }
+        next.add(convId);
+      }
       if (organizationId) {
         localStorage.setItem(`pinned_conversations_${organizationId}`, JSON.stringify([...next]));
       }
       return next;
     });
+  };
+
+  // ─── Bulk edit handlers ───────────────────────────
+  const toggleBulkSelect = (convId: string) => {
+    setSelectedForBulk(prev => {
+      const next = new Set(prev);
+      if (next.has(convId)) next.delete(convId); else next.add(convId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = [...unpinnedConversations, ...pinnedConversations].map(c => c.id);
+    if (selectedForBulk.size === allIds.length) {
+      setSelectedForBulk(new Set());
+    } else {
+      setSelectedForBulk(new Set(allIds));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedForBulk.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedForBulk];
+      await supabase.from('sms_messages').delete().in('conversation_id', ids);
+      const { error } = await supabase.from('sms_conversations').delete().in('id', ids);
+      if (error) { toast.error('Failed to delete conversations'); return; }
+      setConversations(prev => prev.filter(c => !selectedForBulk.has(c.id)));
+      if (selectedConversation && selectedForBulk.has(selectedConversation.id)) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+      // Unpin deleted conversations
+      setPinnedIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        if (organizationId) {
+          localStorage.setItem(`pinned_conversations_${organizationId}`, JSON.stringify([...next]));
+        }
+        return next;
+      });
+      toast.success(`Deleted ${ids.length} conversation${ids.length > 1 ? 's' : ''}`);
+      setSelectedForBulk(new Set());
+      setBulkEditMode(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete');
+    } finally {
+      setBulkDeleting(false);
+      setBulkDeleteConfirmOpen(false);
+    }
   };
 
   // ─── Forward photo ────────────────────────────────
@@ -446,6 +518,10 @@ export default function MessagesPage() {
   const removeAttachment = (index: number) => { setEmailAttachments(prev => prev.filter((_, i) => i !== index)); };
 
   const handleSelectConversation = (conv: Conversation) => {
+    if (bulkEditMode) {
+      toggleBulkSelect(conv.id);
+      return;
+    }
     hapticImpact('light');
     setSelectedConversation(conv);
   };
@@ -506,7 +582,7 @@ export default function MessagesPage() {
                 </Avatar>
                 {conv.unread_count > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] ring-2 ring-white dark:ring-black text-white text-[10px] font-bold px-1">
-                    {conv.unread_count}
+                    {formatUnreadCount(conv.unread_count)}
                   </span>
                 )}
                 {conv.last_message_preview && (
@@ -545,7 +621,7 @@ export default function MessagesPage() {
                 </Avatar>
                 {conv.unread_count > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF3B30] text-white text-[10px] font-bold px-1 ring-2 ring-background">
-                    {conv.unread_count}
+                    {formatUnreadCount(conv.unread_count)}
                   </span>
                 )}
               </div>
@@ -597,6 +673,7 @@ export default function MessagesPage() {
   const renderConversationRow = (conv: Conversation) => {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
+    const hasMessages = !!conv.last_message_preview;
 
     const rowContent = (
       <button
@@ -607,12 +684,24 @@ export default function MessagesPage() {
           selectedConversation?.id === conv.id && !isMobile && "bg-muted/50"
         )}
       >
-        {/* Unread blue dot */}
-        <div className="w-[10px] shrink-0 flex justify-center">
-          {isUnread && (
-            <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
-          )}
-        </div>
+        {/* Bulk edit checkbox */}
+        {bulkEditMode && isMobile && (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={selectedForBulk.has(conv.id)}
+              onCheckedChange={() => toggleBulkSelect(conv.id)}
+              className="h-5 w-5 rounded-full border-2 border-[#007AFF] data-[state=checked]:bg-[#007AFF]"
+            />
+          </div>
+        )}
+        {/* Unread blue dot — only when actually unread */}
+        {!bulkEditMode && (
+          <div className="w-[10px] shrink-0 flex justify-center">
+            {isUnread && (
+              <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
+            )}
+          </div>
+        )}
         <Avatar className={cn("shrink-0", isMobile ? "h-[52px] w-[52px]" : "h-12 w-12")}>
           <AvatarFallback className={cn(
             "text-lg font-semibold",
@@ -632,26 +721,23 @@ export default function MessagesPage() {
               <span className={cn("text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
                 {formatConversationTime(conv.last_message_at)}
               </span>
-              <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />
+              {!bulkEditMode && (
+                <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />
+              )}
             </div>
           </div>
           <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
-            {conv.last_message_preview || 'No messages yet'}
+            {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
         </div>
       </button>
     );
 
-    if (isMobile) {
+    if (isMobile && !bulkEditMode) {
       return (
         <SwipeableRow
           key={conv.id}
           rightActions={[
-            {
-              label: '🔕 Mute',
-              onAction: () => { hapticImpact('light'); },
-              variant: 'muted' as const,
-            },
             {
               label: '📌 ' + (isPinned ? 'Unpin' : 'Pin'),
               onAction: () => togglePin(conv.id),
@@ -681,9 +767,28 @@ export default function MessagesPage() {
             <span>Filters</span>
           </button>
           <h1 className="text-[17px] font-semibold text-[#1C1C1E] dark:text-white">Messages</h1>
-          <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
-            <Pencil className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {bulkEditMode ? (
+              <button
+                onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+                className="text-[#007AFF] text-[15px] font-medium"
+              >
+                Done
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
+                  className="text-[#007AFF]"
+                >
+                  <Pencil className="h-5 w-5" />
+                </button>
+                <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
+                  <Plus className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -709,14 +814,29 @@ export default function MessagesPage() {
       </div>
 
       {/* Pinned */}
-      {renderPinnedRow()}
+      {!bulkEditMode && renderPinnedRow()}
 
       {/* Filter pills */}
       {renderFilterPills()}
 
+      {/* Bulk edit: Select All */}
+      {bulkEditMode && isMobile && (
+        <div className="px-4 py-2 flex items-center justify-between border-b border-[#E5E5EA] dark:border-[#3A3A3C]">
+          <button
+            onClick={toggleSelectAll}
+            className="text-[#007AFF] text-[15px] font-medium"
+          >
+            {selectedForBulk.size === [...unpinnedConversations, ...pinnedConversations].length ? 'Deselect All' : 'Select All'}
+          </button>
+          <span className="text-[13px] text-[#8E8E93]">
+            {selectedForBulk.size} selected
+          </span>
+        </div>
+      )}
+
       {/* Conversation rows */}
-      <div className="flex-1 overflow-y-auto" {...pullHandlers}>
-        <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
+      <div className="flex-1 overflow-y-auto" {...(bulkEditMode ? {} : pullHandlers)}>
+        {!bulkEditMode && <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />}
         {loading ? (
           <div className="flex items-center justify-center p-12">
             <Loader2 className="h-6 w-6 animate-spin text-[#8E8E93]" />
@@ -728,10 +848,37 @@ export default function MessagesPage() {
           </div>
         ) : (
           <div>
-            {unpinnedConversations.map(conv => renderConversationRow(conv))}
+            {bulkEditMode && pinnedConversations.map(conv => (
+              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            ))}
+            {unpinnedConversations.map(conv => (
+              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Bulk edit bottom bar */}
+      {bulkEditMode && isMobile && (
+        <div className="px-4 py-3 border-t border-[#E5E5EA] dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E] flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+          <Button
+            variant="destructive"
+            className="flex-1 h-11 text-[15px] font-semibold rounded-xl"
+            disabled={selectedForBulk.size === 0}
+            onClick={() => setBulkDeleteConfirmOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Selected ({selectedForBulk.size})
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11 text-[15px] rounded-xl"
+            onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 
@@ -740,12 +887,12 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   const renderChatView = () => {
     if (!selectedConversation) return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-background">
-        <div className="w-16 h-16 rounded-full bg-[#007AFF]/10 flex items-center justify-center mb-4">
-          <MessageSquare className="h-8 w-8 text-[#007AFF]" />
+      <div className="flex-1 flex items-center justify-center text-center p-8">
+        <div>
+          <MessageSquare className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground">Select a conversation</h3>
+          <p className="text-sm text-muted-foreground/70 mt-1">Choose from the list to start messaging</p>
         </div>
-        <h3 className="text-lg font-semibold mb-1">Select a conversation</h3>
-        <p className="text-sm text-muted-foreground max-w-sm">Choose a message thread or start a new one</p>
       </div>
     );
 
@@ -753,8 +900,11 @@ export default function MessagesPage() {
 
     return (
       <div className="flex flex-col h-full bg-background">
-        {/* Chat Header */}
-        <div className="px-3 py-2.5 border-b flex items-center gap-2 bg-background/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
+        {/* Chat Header — fixed on mobile */}
+        <div className={cn(
+          "px-3 py-2.5 border-b flex items-center gap-2 bg-background/80 backdrop-blur-xl z-20 shrink-0",
+          isMobile ? "fixed top-0 left-0 right-0 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]" : "sticky top-0"
+        )}>
           {isMobile && (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-[#007AFF]" onClick={handleBackToList}>
               <ChevronLeft className="h-6 w-6" />
@@ -807,8 +957,8 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 py-4">
+        {/* Messages — add top padding on mobile for fixed header */}
+        <div className={cn("flex-1 overflow-y-auto px-3 py-4", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")}>
           <div className="space-y-0.5">
             {groupedMessages.map((item, i) => {
               if (item.type === 'timestamp') {
@@ -827,7 +977,6 @@ export default function MessagesPage() {
                   <div className={cn(
                     "max-w-[75%] px-3.5 py-2 relative",
                     isOutbound ? 'bg-[#007AFF] text-white' : 'bg-muted text-foreground',
-                    // Bubble radius like iMessage
                     item.isFirst && item.isLast
                       ? 'rounded-2xl'
                       : item.isFirst
@@ -912,134 +1061,138 @@ export default function MessagesPage() {
       title="Messages"
       subtitle="Text & email your customers"
       actions={
-        <div className="flex items-center gap-2">
+        isMobile ? (
           <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
-          <Button variant="outline" size="icon" onClick={fetchConversations}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Message</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div>
-                  <Label className="text-sm font-medium">Contact Type</Label>
-                  <Tabs value={conversationType} onValueChange={(v) => { setConversationType(v as 'client' | 'cleaner'); setSelectedContact(null); }} className="mt-2">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="client" className="gap-2"><Users className="h-4 w-4" />Client</TabsTrigger>
-                      <TabsTrigger value="cleaner" className="gap-2"><HardHat className="h-4 w-4" />Cleaner</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}</Label>
-                  <Command className="border rounded-md mt-2">
-                    <CommandInput placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`} value={contactSearch} onValueChange={setContactSearch} />
-                    <CommandList className="max-h-40">
-                      <CommandEmpty>No {conversationType === 'client' ? 'customers' : 'staff'} found.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredContacts.slice(0, 10).map((contact) => (
-                          <CommandItem key={contact.id} value={`${contact.name} ${contact.phone}`} onSelect={() => handleSelectContact(contact)} className="cursor-pointer">
-                            <div className="flex items-center gap-2 flex-1">
-                              <Avatar className="h-6 w-6"><AvatarFallback className={cn("text-xs", contact.type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]")}>{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
-                              <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
-                              {selectedContact?.id === contact.id && <Check className="h-4 w-4 text-[#007AFF]" />}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
-                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or enter manually</span></div></div>
-                <div><Label className="text-sm font-medium">Phone Number</Label><Input placeholder="(555) 123-4567" value={newPhone} onChange={(e) => { setNewPhone(e.target.value); setSelectedContact(null); }} /></div>
-                <div><Label className="text-sm font-medium">Name (optional)</Label><Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
-                <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={emailOpen} onOpenChange={async (open) => {
-            setEmailOpen(open);
-            if (open && organizationId) {
-              const { data } = await supabase.from('customers').select('email, first_name, last_name').eq('organization_id', organizationId).not('email', 'is', null).order('first_name');
-              const allContacts = (data || []).filter(c => c.email).map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
-              const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
-              setEmailContacts(unique);
-              if (!emailTo && selectedConversation?.customer_id) {
-                const { data: convCustomer } = await supabase.from('customers').select('email').eq('id', selectedConversation.customer_id).maybeSingle();
-                if (convCustomer?.email) { setEmailTo(convCustomer.email); setEmailToSearch(convCustomer.email); }
-              }
-            }
-          }}>
-            <DialogTrigger asChild><Button variant="outline"><Mail className="h-4 w-4 mr-2" />Send Email</Button></DialogTrigger>
-            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
-              <div className="flex justify-end -mt-2"><Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}><BookOpen className="h-4 w-4" />Templates</Button></div>
-              <div className="space-y-4 pt-2">
-                <div className="relative">
-                  <Label>To</Label>
-                  <Input type="email" placeholder="Search or type email..." value={emailToSearch}
-                    onChange={(e) => { setEmailToSearch(e.target.value); setEmailTo(e.target.value); setEmailToDropdownOpen(true); }}
-                    onFocus={() => setEmailToDropdownOpen(true)} onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)} />
-                  {emailToDropdownOpen && (
-                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
-                      {emailContacts.filter(c => !emailToSearch || c.email.toLowerCase().includes(emailToSearch.toLowerCase()) || c.name.toLowerCase().includes(emailToSearch.toLowerCase())).slice(0, 30).map(c => (
-                        <button key={c.email} type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
-                          onMouseDown={(e) => e.preventDefault()} onClick={() => { setEmailTo(c.email); setEmailToSearch(c.email); setEmailToDropdownOpen(false); }}>
-                          <div className="font-medium">{c.name || 'No name'}</div><div className="text-muted-foreground text-xs">{c.email}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div><Label>Subject</Label><Input placeholder="Email subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label>Message</Label>
-                    <div className="flex items-center gap-1">
-                      {organizationId && <MessageTemplatesPicker organizationId={organizationId} showSubject onSelect={(content, subject) => { setEmailBody(content); if (emailBodyRef.current) emailBodyRef.current.innerText = content; if (subject) setEmailSubject(subject); }} />}
-                      <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
-                        <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link"><Link className="h-4 w-4" /></Button></PopoverTrigger>
-                        <PopoverContent className="w-72 space-y-3" align="end">
-                          <p className="text-sm font-medium">Insert Link</p>
-                          <div className="space-y-2"><Input placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} /><Input placeholder="Display text (optional)" value={linkText} onChange={(e) => setLinkText(e.target.value)} /></div>
-                          <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>Insert</Button>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
+            <Button variant="outline" size="icon" onClick={fetchConversations}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-2" />New Message</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <Label className="text-sm font-medium">Contact Type</Label>
+                    <Tabs value={conversationType} onValueChange={(v) => { setConversationType(v as 'client' | 'cleaner'); setSelectedContact(null); }} className="mt-2">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="client" className="gap-2"><Users className="h-4 w-4" />Client</TabsTrigger>
+                        <TabsTrigger value="cleaner" className="gap-2"><HardHat className="h-4 w-4" />Cleaner</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
-                  <div ref={emailBodyRef} contentEditable onInput={() => { if (emailBodyRef.current) setEmailBody(emailBodyRef.current.innerHTML); }}
-                    onPaste={(e) => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }}
-                    className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
-                    style={{ maxHeight: '200px' }} suppressContentEditableWarning />
+                  <div>
+                    <Label className="text-sm font-medium">Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}</Label>
+                    <Command className="border rounded-md mt-2">
+                      <CommandInput placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`} value={contactSearch} onValueChange={setContactSearch} />
+                      <CommandList className="max-h-40">
+                        <CommandEmpty>No {conversationType === 'client' ? 'customers' : 'staff'} found.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredContacts.slice(0, 10).map((contact) => (
+                            <CommandItem key={contact.id} value={`${contact.name} ${contact.phone}`} onSelect={() => handleSelectContact(contact)} className="cursor-pointer">
+                              <div className="flex items-center gap-2 flex-1">
+                                <Avatar className="h-6 w-6"><AvatarFallback className={cn("text-xs", contact.type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]")}>{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
+                                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
+                                {selectedContact?.id === contact.id && <Check className="h-4 w-4 text-[#007AFF]" />}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </div>
+                  <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or enter manually</span></div></div>
+                  <div><Label className="text-sm font-medium">Phone Number</Label><Input placeholder="(555) 123-4567" value={newPhone} onChange={(e) => { setNewPhone(e.target.value); setSelectedContact(null); }} /></div>
+                  <div><Label className="text-sm font-medium">Name (optional)</Label><Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
+                  <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
                 </div>
-                <div>
-                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileAttach} />
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}><Paperclip className="h-4 w-4" />Attach File</Button>
-                  {emailAttachments.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {emailAttachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
-                          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate flex-1">{att.name}</span>
-                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => removeAttachment(i)}><X className="h-3 w-3" /></Button>
-                        </div>
-                      ))}
+              </DialogContent>
+            </Dialog>
+            <Dialog open={emailOpen} onOpenChange={async (open) => {
+              setEmailOpen(open);
+              if (open && organizationId) {
+                const { data } = await supabase.from('customers').select('email, first_name, last_name').eq('organization_id', organizationId).not('email', 'is', null).order('first_name');
+                const allContacts = (data || []).filter(c => c.email).map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
+                const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
+                setEmailContacts(unique);
+                if (!emailTo && selectedConversation?.customer_id) {
+                  const { data: convCustomer } = await supabase.from('customers').select('email').eq('id', selectedConversation.customer_id).maybeSingle();
+                  if (convCustomer?.email) { setEmailTo(convCustomer.email); setEmailToSearch(convCustomer.email); }
+                }
+              }
+            }}>
+              <DialogTrigger asChild><Button variant="outline"><Mail className="h-4 w-4 mr-2" />Send Email</Button></DialogTrigger>
+              <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
+                <div className="flex justify-end -mt-2"><Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}><BookOpen className="h-4 w-4" />Templates</Button></div>
+                <div className="space-y-4 pt-2">
+                  <div className="relative">
+                    <Label>To</Label>
+                    <Input type="email" placeholder="Search or type email..." value={emailToSearch}
+                      onChange={(e) => { setEmailToSearch(e.target.value); setEmailTo(e.target.value); setEmailToDropdownOpen(true); }}
+                      onFocus={() => setEmailToDropdownOpen(true)} onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)} />
+                    {emailToDropdownOpen && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
+                        {emailContacts.filter(c => !emailToSearch || c.email.toLowerCase().includes(emailToSearch.toLowerCase()) || c.name.toLowerCase().includes(emailToSearch.toLowerCase())).slice(0, 30).map(c => (
+                          <button key={c.email} type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
+                            onMouseDown={(e) => e.preventDefault()} onClick={() => { setEmailTo(c.email); setEmailToSearch(c.email); setEmailToDropdownOpen(false); }}>
+                            <div className="font-medium">{c.name || 'No name'}</div><div className="text-muted-foreground text-xs">{c.email}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div><Label>Subject</Label><Input placeholder="Email subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label>Message</Label>
+                      <div className="flex items-center gap-1">
+                        {organizationId && <MessageTemplatesPicker organizationId={organizationId} showSubject onSelect={(content, subject) => { setEmailBody(content); if (emailBodyRef.current) emailBodyRef.current.innerText = content; if (subject) setEmailSubject(subject); }} />}
+                        <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
+                          <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link"><Link className="h-4 w-4" /></Button></PopoverTrigger>
+                          <PopoverContent className="w-72 space-y-3" align="end">
+                            <p className="text-sm font-medium">Insert Link</p>
+                            <div className="space-y-2"><Input placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} /><Input placeholder="Display text (optional)" value={linkText} onChange={(e) => setLinkText(e.target.value)} /></div>
+                            <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>Insert</Button>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
-                  )}
+                    <div ref={emailBodyRef} contentEditable onInput={() => { if (emailBodyRef.current) setEmailBody(emailBodyRef.current.innerHTML); }}
+                      onPaste={(e) => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }}
+                      className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
+                      style={{ maxHeight: '200px' }} suppressContentEditableWarning />
+                  </div>
+                  <div>
+                    <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileAttach} />
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}><Paperclip className="h-4 w-4" />Attach File</Button>
+                    {emailAttachments.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {emailAttachments.map((att, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
+                            <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate flex-1">{att.name}</span>
+                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => removeAttachment(i)}><X className="h-3 w-3" /></Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
-                <Button onClick={handleSendEmail} disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()} className="gap-2">
-                  {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send Email
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <EmailTemplateLibrary open={templateLibraryOpen} onOpenChange={setTemplateLibraryOpen} onSelectTemplate={(subject, body) => { setEmailSubject(subject); setEmailBody(body); if (emailBodyRef.current) emailBodyRef.current.innerText = body; }} />
-        </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSendEmail} disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()} className="gap-2">
+                    {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send Email
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <EmailTemplateLibrary open={templateLibraryOpen} onOpenChange={setTemplateLibraryOpen} onSelectTemplate={(subject, body) => { setEmailSubject(subject); setEmailBody(body); if (emailBodyRef.current) emailBodyRef.current.innerText = body; }} />
+          </div>
+        )
       }
     >
       <SubscriptionGate feature="Messages">
@@ -1104,6 +1257,73 @@ export default function MessagesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Bulk Delete Confirmation */}
+        <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedForBulk.size} conversation{selectedForBulk.size > 1 ? 's' : ''}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This cannot be undone. All messages in the selected conversations will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* New Conversation Dialog (mobile) */}
+        {isMobile && (
+          <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <Label className="text-sm font-medium">Contact Type</Label>
+                  <Tabs value={conversationType} onValueChange={(v) => { setConversationType(v as 'client' | 'cleaner'); setSelectedContact(null); }} className="mt-2">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="client" className="gap-2"><Users className="h-4 w-4" />Client</TabsTrigger>
+                      <TabsTrigger value="cleaner" className="gap-2"><HardHat className="h-4 w-4" />Cleaner</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}</Label>
+                  <Command className="border rounded-md mt-2">
+                    <CommandInput placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`} value={contactSearch} onValueChange={setContactSearch} />
+                    <CommandList className="max-h-40">
+                      <CommandEmpty>No {conversationType === 'client' ? 'customers' : 'staff'} found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredContacts.slice(0, 10).map((contact) => (
+                          <CommandItem key={contact.id} value={`${contact.name} ${contact.phone}`} onSelect={() => handleSelectContact(contact)} className="cursor-pointer">
+                            <div className="flex items-center gap-2 flex-1">
+                              <Avatar className="h-6 w-6"><AvatarFallback className={cn("text-xs", contact.type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]")}>{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
+                              <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
+                              {selectedContact?.id === contact.id && <Check className="h-4 w-4 text-[#007AFF]" />}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </div>
+                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or enter manually</span></div></div>
+                <div><Label className="text-sm font-medium">Phone Number</Label><Input placeholder="(555) 123-4567" value={newPhone} onChange={(e) => { setNewPhone(e.target.value); setSelectedContact(null); }} /></div>
+                <div><Label className="text-sm font-medium">Name (optional)</Label><Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
+                <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </SubscriptionGate>
     </AdminLayout>
   );
