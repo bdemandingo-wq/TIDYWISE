@@ -1568,6 +1568,75 @@ export default function MessagesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Keyboard Shortcuts Help Panel */}
+        {showShortcuts && !isMobile && (
+          <>
+            <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowShortcuts(false)} />
+            <div className="fixed z-[71] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover border rounded-2xl shadow-2xl w-[420px] max-h-[80vh] overflow-y-auto p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h3>
+                <button onClick={() => setShowShortcuts(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">General</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Search', '⌘ K'],
+                      ['Show shortcuts', '⌘ /'],
+                      ['Close / Clear', 'Esc'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Navigation</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Filter: All', '⌘ 1'],
+                      ['Filter: Clients', '⌘ 2'],
+                      ['Filter: Cleaners', '⌘ 3'],
+                      ['Filter: Unread', '⌘ 4'],
+                      ['Move up', '↑'],
+                      ['Move down', '↓'],
+                      ['Open conversation', 'Enter'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Messaging</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Send message', '⌘ Enter'],
+                      ['Select all (Edit mode)', '⌘ A'],
+                      ['Delete selected', 'Delete'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-4 text-center">Press <kbd className="bg-muted px-1 rounded text-[10px] font-mono">Esc</kbd> to close</p>
+            </div>
+          </>
+        )}
       </SubscriptionGate>
     </AdminLayout>
   );
