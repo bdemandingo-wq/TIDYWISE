@@ -338,7 +338,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
               <Button
                 className="w-full"
-                onClick={() => startOnboarding.mutate()}
+                onClick={handleStartOnboarding}
                 disabled={startOnboarding.isPending || isRedirecting}
                 size="lg"
               >
