@@ -695,6 +695,7 @@ export type Database = {
           id: string
           link_opened_at: string | null
           link_sent_at: string
+          link_type: string
           organization_id: string
           status: string
           tracking_ref: string
@@ -711,6 +712,7 @@ export type Database = {
           id?: string
           link_opened_at?: string | null
           link_sent_at?: string
+          link_type?: string
           organization_id: string
           status?: string
           tracking_ref: string
@@ -727,6 +729,7 @@ export type Database = {
           id?: string
           link_opened_at?: string | null
           link_sent_at?: string
+          link_type?: string
           organization_id?: string
           status?: string
           tracking_ref?: string
