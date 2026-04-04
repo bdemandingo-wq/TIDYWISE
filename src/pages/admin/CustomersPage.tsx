@@ -27,6 +27,7 @@ import { useCustomers, useDeleteCustomer } from '@/hooks/useBookings';
 import { AddCustomerDialog } from '@/components/admin/AddCustomerDialog';
 import { EditCustomerDialog } from '@/components/admin/EditCustomerDialog';
 import { PaymentHistoryDialog } from '@/components/admin/PaymentHistoryDialog';
+import { MobileContactProfile } from '@/components/admin/MobileContactProfile';
 import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -96,6 +97,7 @@ export default function CustomersPage() {
   const isMobile = useIsMobile();
   const [batchMode, setBatchMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const customersQueryKey = useMemo(() => ['customers', organization?.id], [organization?.id]);
@@ -518,7 +520,9 @@ export default function CustomersPage() {
                           onClick={() => {
                             cancelLongPress();
                             if (batchMode) { hapticImpact('light'); toggleSelect(customer.id); return; }
-                            setExpandedId(prev => prev === customer.id ? null : customer.id);
+                            hapticImpact('light');
+                            setSelectedCustomer(customer);
+                            setMobileProfileOpen(true);
                           }}
                         >
                           <div className="flex items-start gap-3">
@@ -767,6 +771,15 @@ export default function CustomersPage() {
         <>
           <EditCustomerDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} customer={selectedCustomer} />
           <PaymentHistoryDialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen} customerId={selectedCustomer.id} customerName={`${selectedCustomer.first_name} ${selectedCustomer.last_name}`} />
+          {isMobile && (
+            <MobileContactProfile
+              open={mobileProfileOpen}
+              onOpenChange={setMobileProfileOpen}
+              customer={selectedCustomer}
+              onEdit={() => { setMobileProfileOpen(false); setEditDialogOpen(true); }}
+              onPaymentHistory={() => { setMobileProfileOpen(false); setPaymentHistoryOpen(true); }}
+            />
+          )}
         </>
       )}
 
