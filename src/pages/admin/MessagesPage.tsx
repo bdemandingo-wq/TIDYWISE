@@ -881,15 +881,18 @@ export default function MessagesPage() {
       {renderFilterPills()}
 
       {/* Bulk edit: Select All */}
-      {bulkEditMode && isMobile && (
-        <div className="px-4 py-2 flex items-center justify-between border-b border-[#E5E5EA] dark:border-[#3A3A3C]">
+      {bulkEditMode && (
+        <div className={cn(
+          "px-4 py-2 flex items-center justify-between border-b",
+          isMobile ? "border-[#E5E5EA] dark:border-[#3A3A3C]" : "border-border"
+        )}>
           <button
             onClick={toggleSelectAll}
             className="text-[#007AFF] text-[15px] font-medium"
           >
             {selectedForBulk.size === [...unpinnedConversations, ...pinnedConversations].length ? 'Deselect All' : 'Select All'}
           </button>
-          <span className="text-[13px] text-[#8E8E93]">
+          <span className="text-[13px] text-muted-foreground">
             {selectedForBulk.size} selected
           </span>
         </div>
