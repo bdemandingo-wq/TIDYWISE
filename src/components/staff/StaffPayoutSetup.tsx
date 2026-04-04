@@ -18,14 +18,39 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const queryClient = useQueryClient();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Check current payout status
-  const { data: payoutStatus, isLoading, refetch } = useQuery({
+  // Instant load from local DB cache (no edge function, no Stripe API)
+  const { data: cachedStatus, isLoading: isCacheLoading } = useQuery({
+    queryKey: ['staff-payout-cached', staffId, organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff_payout_accounts')
+        .select('*')
+        .eq('staff_id', staffId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        status: data.account_status || 'not_started',
+        payoutsEnabled: data.payouts_enabled || false,
+        chargesEnabled: data.charges_enabled || false,
+        detailsSubmitted: data.details_submitted || false,
+        bankLast4: data.bank_last4 || null,
+        accountHolderName: data.account_holder_name || null,
+      };
+    },
+  });
+
+  // Background refresh from Stripe (runs after initial render, not blocking)
+  const { data: liveStatus } = useQuery({
     queryKey: ['staff-payout-status', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('check-staff-payout-status', {
         body: { staffId, organizationId },
       });
       if (error) throw error;
+      // Also update the cached query so UI stays in sync
+      queryClient.setQueryData(['staff-payout-cached', staffId, organizationId], data);
       return data as {
         status: string;
         payoutsEnabled: boolean;
@@ -36,8 +61,14 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       };
     },
     refetchInterval: 30000,
-    refetchOnWindowFocus: true, // Refresh when returning from Stripe tab
+    refetchOnWindowFocus: true,
+    // Only start after cache has loaded to avoid blocking render
+    enabled: !isCacheLoading,
   });
+
+  // Use cached data first, override with live data when available
+  const payoutStatus = liveStatus || cachedStatus;
+  const isLoading = isCacheLoading;
 
   // Fetch payout history from bookings
   const { data: payoutHistory = [] } = useQuery({
