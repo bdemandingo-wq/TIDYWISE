@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react';
-import { Camera, Upload, X, CheckCircle, Loader2, ImageIcon, Video, Play, ChevronDown } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Upload, X, CheckCircle, Loader2, ImageIcon, Video, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +33,73 @@ interface UploadItem {
   error?: string;
 }
 
+interface PhotoRecord {
+  id: string;
+  booking_id: string;
+  photo_url: string;
+  photo_type: string | null;
+  media_type: string;
+  created_at: string | null;
+  booking?: {
+    organization_id?: string | null;
+    booking_number: number;
+    scheduled_at: string;
+    customer: { first_name: string; last_name: string } | null;
+  } | null;
+}
+
 const PHOTO_MAX = 10 * 1024 * 1024;
 const VIDEO_MAX = 100 * 1024 * 1024;
 const ALLOWED_PHOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const ALLOWED_VIDEO = ['video/mp4', 'video/quicktime', 'video/x-m4v'];
+const PICKER_INPUT_CLASS = 'absolute left-0 top-0 h-px w-px opacity-0 pointer-events-none';
 
 function isVideoFile(file: File) {
   return file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mov');
+}
+
+function openPicker(input: HTMLInputElement | null) {
+  if (!input) return;
+
+  const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+
+  try {
+    if (typeof pickerInput.showPicker === 'function') {
+      pickerInput.showPicker();
+      return;
+    }
+  } catch (error) {
+    console.warn('showPicker failed, falling back to click()', error);
+  }
+
+  pickerInput.click();
+}
+
+function getUploadErrorMessage(error: unknown, isVideo: boolean) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes('security') || lowerMessage.includes('policy') || lowerMessage.includes('row-level') || lowerMessage.includes('rls') || lowerMessage.includes('violates')) {
+    return 'Photo upload not enabled yet. Contact your admin.';
+  }
+
+  if (lowerMessage.includes('payload') || lowerMessage.includes('too large') || lowerMessage.includes('size')) {
+    return isVideo
+      ? 'Video must be under 100MB. Try trimming it or recording a shorter clip.'
+      : 'Photo must be under 10MB. Please try again.';
+  }
+
+  if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('timeout')) {
+    return isVideo
+      ? 'Video upload timed out. Try on WiFi for large videos.'
+      : 'Upload failed. Check your connection and try again.';
+  }
+
+  if (lowerMessage.includes('booking') || lowerMessage.includes('uuid')) {
+    return 'Could not identify the selected booking. Refresh and try again.';
+  }
+
+  return message.length > 140 ? 'Upload failed. Please try again.' : message;
 }
 
 export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps) {
@@ -50,78 +109,101 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewItem, setPreviewItem] = useState<{ url: string; type: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch assigned bookings for dropdown
+  useEffect(() => {
+    return () => {
+      uploads.forEach((upload) => {
+        if (upload.preview.startsWith('blob:')) {
+          URL.revokeObjectURL(upload.preview);
+        }
+      });
+    };
+  }, [uploads]);
+
   const { data: bookings = [] } = useQuery({
-    queryKey: ['staff-photo-bookings', staffId],
+    queryKey: ['staff-photo-bookings', staffId, organizationId],
     queryFn: async () => {
+      if (!staffId || !organizationId) return [];
+
       const { data, error } = await supabase
         .from('bookings')
         .select('id, booking_number, scheduled_at, customer:customers(first_name, last_name), service:services(name)')
         .eq('staff_id', staffId)
+        .eq('organization_id', organizationId)
         .in('status', ['pending', 'confirmed', 'in_progress', 'completed'])
         .order('scheduled_at', { ascending: false })
         .limit(20);
+
       if (error) throw error;
       return (data || []) as BookingOption[];
     },
-    enabled: !!staffId,
+    enabled: !!staffId && !!organizationId,
   });
 
-  // Fetch uploaded photos grouped by booking
   const { data: photos = [], isLoading: loadingPhotos } = useQuery({
-    queryKey: ['staff-uploaded-photos', staffId],
+    queryKey: ['staff-uploaded-photos', staffId, organizationId],
     queryFn: async () => {
+      if (!staffId || !organizationId) return [];
+
       const { data, error } = await supabase
         .from('booking_photos')
         .select(`
           id, booking_id, photo_url, photo_type, media_type, created_at,
           booking:bookings!booking_photos_booking_id_fkey(
-            booking_number, scheduled_at,
+            organization_id,
+            booking_number,
+            scheduled_at,
             customer:customers!bookings_customer_id_fkey(first_name, last_name)
           )
         `)
         .eq('staff_id', staffId)
         .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return data || [];
+
+      return ((data || []) as PhotoRecord[]).filter((item) => item.booking?.organization_id === organizationId);
     },
-    enabled: !!staffId,
+    enabled: !!staffId && !!organizationId,
   });
 
-  // Group photos by booking
-  const groupedPhotos = photos.reduce<Record<string, { booking: any; items: typeof photos }>>((acc, p) => {
-    const key = p.booking_id;
+  const groupedPhotos = photos.reduce<Record<string, { booking: PhotoRecord['booking']; items: PhotoRecord[] }>>((acc, photo) => {
+    const key = photo.booking_id;
     if (!acc[key]) {
-      acc[key] = { booking: (p as any).booking, items: [] };
+      acc[key] = { booking: photo.booking, items: [] };
     }
-    acc[key].items.push(p);
+    acc[key].items.push(photo);
     return acc;
   }, {});
 
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
     if (!files.length) return;
 
     const newUploads: UploadItem[] = [];
+
     for (const file of files) {
-      const isVid = isVideoFile(file);
-      // Validate type
-      if (!isVid && !ALLOWED_PHOTO.includes(file.type) && !file.name.toLowerCase().endsWith('.heic')) {
-        toast.error(`${file.name}: Unsupported format. Use JPG, PNG, or HEIC.`);
+      const isVideo = isVideoFile(file);
+
+      if (!isVideo && !ALLOWED_PHOTO.includes(file.type) && !file.name.toLowerCase().endsWith('.heic')) {
+        toast.error(`${file.name}: Only JPG, PNG, WebP, and HEIC photos are supported.`);
         continue;
       }
-      if (isVid && !ALLOWED_VIDEO.includes(file.type) && !file.name.toLowerCase().endsWith('.mov')) {
-        toast.error(`${file.name}: Unsupported format. Use MP4 or MOV.`);
+
+      if (isVideo && !ALLOWED_VIDEO.includes(file.type) && !file.name.toLowerCase().endsWith('.mov')) {
+        toast.error(`${file.name}: Please upload MP4 or MOV videos only.`);
         continue;
       }
-      // Validate size
-      const maxSize = isVid ? VIDEO_MAX : PHOTO_MAX;
+
+      const maxSize = isVideo ? VIDEO_MAX : PHOTO_MAX;
       if (file.size > maxSize) {
-        toast.error(`${file.name}: Too large. ${isVid ? 'Videos must be under 100MB.' : 'Photos must be under 10MB.'}`);
+        toast.error(`${file.name}: ${isVideo ? 'Video must be under 100MB.' : 'Photo must be under 10MB.'}`);
         continue;
       }
+
       newUploads.push({
         file,
         preview: URL.createObjectURL(file),
@@ -129,15 +211,17 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
         status: 'pending',
       });
     }
-    setUploads(prev => [...prev, ...newUploads]);
-    // Reset input
-    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    setUploads((prev) => [...prev, ...newUploads]);
   };
 
   const removeUpload = (index: number) => {
-    setUploads(prev => {
+    setUploads((prev) => {
       const copy = [...prev];
-      URL.revokeObjectURL(copy[index].preview);
+      const removed = copy[index];
+      if (removed?.preview.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.preview);
+      }
       copy.splice(index, 1);
       return copy;
     });
@@ -148,46 +232,58 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
       toast.error('Please select a booking first.');
       return;
     }
-    if (uploads.filter(u => u.status === 'pending').length === 0) {
+
+    const pendingCount = uploads.filter((upload) => upload.status === 'pending').length;
+    if (!pendingCount) {
       toast.error('No files to upload.');
       return;
     }
 
     setIsUploading(true);
+    let successCount = 0;
 
-    for (let i = 0; i < uploads.length; i++) {
-      if (uploads[i].status !== 'pending') continue;
+    for (let index = 0; index < uploads.length; index += 1) {
+      if (uploads[index].status !== 'pending') continue;
 
-      setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'uploading', progress: 10 } : u));
+      setUploads((prev) => prev.map((upload, itemIndex) => (
+        itemIndex === index ? { ...upload, status: 'uploading', progress: 10, error: undefined } : upload
+      )));
+
+      const file = uploads[index].file;
+      const isVideo = isVideoFile(file);
+      const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+      let uploadedPath: string | null = null;
 
       try {
-        const file = uploads[i].file;
-        const isVid = isVideoFile(file);
-        const ext = file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg');
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .select('id, organization_id')
+          .eq('id', selectedBookingId)
+          .maybeSingle();
 
-        // Resolve org ID from the booking if not available
-        let resolvedOrgId = organizationId;
-        if (!resolvedOrgId) {
-          const { data: bookingData } = await supabase
-            .from('bookings')
-            .select('organization_id')
-            .eq('id', selectedBookingId)
-            .maybeSingle();
-          resolvedOrgId = bookingData?.organization_id || '';
+        if (bookingError) throw bookingError;
+
+        const resolvedOrgId = bookingData?.organization_id || organizationId;
+        if (!bookingData?.id || !resolvedOrgId) {
+          throw new Error('Selected booking was not found.');
         }
 
-        const pathOrgId = resolvedOrgId || 'unscoped';
-        const filePath = `${pathOrgId}/${selectedBookingId}/${staffId || 'unknown'}/${photoType}/${Date.now()}_${i}.${ext}`;
+        const filePath = `${resolvedOrgId}/${selectedBookingId}/${staffId}/${photoType}/${Date.now()}_${index}.${ext}`;
 
-        setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, progress: 30 } : u));
+        setUploads((prev) => prev.map((upload, itemIndex) => (
+          itemIndex === index ? { ...upload, progress: 30 } : upload
+        )));
 
         const { error: storageError } = await supabase.storage
           .from('booking-photos')
-          .upload(filePath, file);
+          .upload(filePath, file, { upsert: false });
 
         if (storageError) throw storageError;
+        uploadedPath = filePath;
 
-        setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, progress: 70 } : u));
+        setUploads((prev) => prev.map((upload, itemIndex) => (
+          itemIndex === index ? { ...upload, progress: 70 } : upload
+        )));
 
         const { error: dbError } = await supabase
           .from('booking_photos')
@@ -195,35 +291,47 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             booking_id: selectedBookingId,
             photo_url: filePath,
             photo_type: photoType,
-            media_type: isVid ? 'video' : 'photo',
-            ...(staffId ? { staff_id: staffId } : {}),
-            ...(resolvedOrgId ? { organization_id: resolvedOrgId } : {}),
+            media_type: isVideo ? 'video' : 'photo',
+            staff_id: staffId,
+            organization_id: resolvedOrgId,
           });
 
-        if (dbError) throw new Error(dbError.message);
+        if (dbError) throw dbError;
 
-        setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, progress: 100, status: 'done' } : u));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Upload failed';
-        setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'error', error: msg } : u));
+        successCount += 1;
+        setUploads((prev) => prev.map((upload, itemIndex) => (
+          itemIndex === index ? { ...upload, progress: 100, status: 'done' } : upload
+        )));
+      } catch (error) {
+        console.error('Staff media upload failed:', error);
+
+        if (uploadedPath) {
+          await supabase.storage.from('booking-photos').remove([uploadedPath]);
+        }
+
+        const uploadError = getUploadErrorMessage(error, isVideo);
+        setUploads((prev) => prev.map((upload, itemIndex) => (
+          itemIndex === index ? { ...upload, status: 'error', error: uploadError } : upload
+        )));
       }
     }
 
     setIsUploading(false);
     queryClient.invalidateQueries({ queryKey: ['staff-uploaded-photos'] });
+    queryClient.invalidateQueries({ queryKey: ['booking-photos'] });
 
-    const successCount = uploads.filter(u => u.status === 'done').length;
     if (successCount > 0) {
       toast.success(`${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully!`);
-      // Clear completed uploads after a moment
       setTimeout(() => {
-        setUploads(prev => prev.filter(u => u.status !== 'done'));
-      }, 2000);
+        setUploads((prev) => prev.filter((upload) => upload.status !== 'done'));
+      }, 1500);
     }
   };
 
   const retryUpload = (index: number) => {
-    setUploads(prev => prev.map((u, idx) => idx === index ? { ...u, status: 'pending', progress: 0, error: undefined } : u));
+    setUploads((prev) => prev.map((upload, itemIndex) => (
+      itemIndex === index ? { ...upload, status: 'pending', progress: 0, error: undefined } : upload
+    )));
   };
 
   return (
@@ -233,26 +341,23 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
         <p className="text-sm text-muted-foreground">Upload before & after media for your bookings</p>
       </div>
 
-      {/* Upload Section */}
       <Card>
         <CardContent className="p-4 space-y-4">
           <h3 className="font-medium">Upload Job Photos</h3>
 
-          {/* Booking Selector */}
           <Select value={selectedBookingId} onValueChange={setSelectedBookingId}>
             <SelectTrigger>
               <SelectValue placeholder="Select a booking..." />
             </SelectTrigger>
             <SelectContent>
-              {bookings.map(b => (
-                <SelectItem key={b.id} value={b.id}>
-                  #{b.booking_number} — {b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown'} — {format(new Date(b.scheduled_at), 'MMM d')}
+              {bookings.map((booking) => (
+                <SelectItem key={booking.id} value={booking.id}>
+                  #{booking.booking_number} — {booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Unknown'} — {format(new Date(booking.scheduled_at), 'MMM d')}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {/* Photo Type */}
           <div className="flex gap-2">
             <Button type="button" variant={photoType === 'before' ? 'default' : 'outline'} size="sm" onClick={() => setPhotoType('before')} className="flex-1">
               📷 Before
@@ -265,13 +370,23 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             </Button>
           </div>
 
-          {/* File Input */}
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
-            accept="image/*,video/mp4,video/quicktime,.mov"
+            accept="image/*,video/mp4,video/quicktime,video/x-m4v,.mov,.mp4"
+            capture="environment"
             multiple
-            className="hidden"
+            tabIndex={-1}
+            className={PICKER_INPUT_CLASS}
+            onChange={handleFilesSelected}
+          />
+          <input
+            ref={libraryInputRef}
+            type="file"
+            accept="image/*,video/mp4,video/quicktime,video/x-m4v,.mov,.mp4"
+            multiple
+            tabIndex={-1}
+            className={PICKER_INPUT_CLASS}
             onChange={handleFilesSelected}
           />
 
@@ -279,13 +394,8 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             <Button
               variant="outline"
               className="flex-1 gap-2"
-              onClick={() => {
-                if (fileInputRef.current) {
-                  fileInputRef.current.setAttribute('capture', 'environment');
-                  fileInputRef.current.click();
-                  setTimeout(() => fileInputRef.current?.removeAttribute('capture'), 100);
-                }
-              }}
+              onClick={() => openPicker(cameraInputRef.current)}
+              disabled={isUploading || bookings.length === 0}
             >
               <Camera className="w-4 h-4" />
               Camera
@@ -293,23 +403,18 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             <Button
               variant="outline"
               className="flex-1 gap-2"
-              onClick={() => {
-                if (fileInputRef.current) {
-                  fileInputRef.current.removeAttribute('capture');
-                  fileInputRef.current.click();
-                }
-              }}
+              onClick={() => openPicker(libraryInputRef.current)}
+              disabled={isUploading || bookings.length === 0}
             >
               <Upload className="w-4 h-4" />
               Library
             </Button>
           </div>
 
-          {/* Upload Queue */}
           {uploads.length > 0 && (
             <div className="space-y-2">
-              {uploads.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-2 border rounded-lg">
+              {uploads.map((item, index) => (
+                <div key={`${item.file.name}-${index}`} className="flex items-center gap-3 p-2 border rounded-lg">
                   <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
                     {isVideoFile(item.file) ? (
                       <div className="w-full h-full flex items-center justify-center bg-black/80">
@@ -323,16 +428,16 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                     <p className="text-xs truncate">{item.file.name}</p>
                     <p className="text-xs text-muted-foreground">{(item.file.size / (1024 * 1024)).toFixed(1)} MB</p>
                     {item.status === 'uploading' && <Progress value={item.progress} className="h-1 mt-1" />}
-                    {item.status === 'done' && <p className="text-xs text-green-600">✅ Uploaded</p>}
+                    {item.status === 'done' && <p className="text-xs text-primary">Uploaded</p>}
                     {item.status === 'error' && (
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-destructive truncate">{item.error}</p>
-                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => retryUpload(idx)}>Retry</Button>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => retryUpload(index)}>Retry</Button>
                       </div>
                     )}
                   </div>
                   {item.status === 'pending' && (
-                    <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => removeUpload(idx)}>
+                    <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => removeUpload(index)}>
                       <X className="w-3 h-3" />
                     </Button>
                   )}
@@ -341,16 +446,19 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
               <Button
                 className="w-full gap-2"
                 onClick={uploadAll}
-                disabled={isUploading || !selectedBookingId || uploads.filter(u => u.status === 'pending').length === 0}
+                disabled={isUploading || !selectedBookingId || uploads.filter((upload) => upload.status === 'pending').length === 0}
               >
-                {isUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</> : <><CheckCircle className="w-4 h-4" />Upload All ({uploads.filter(u => u.status === 'pending').length})</>}
+                {isUploading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</>
+                ) : (
+                  <><CheckCircle className="w-4 h-4" />Upload All ({uploads.filter((upload) => upload.status === 'pending').length})</>
+                )}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Photo Gallery */}
       <div>
         <h3 className="font-medium mb-3">Your Uploaded Media</h3>
         {loadingPhotos ? (
@@ -366,9 +474,9 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedPhotos).map(([bookingId, group]) => {
-              const beforeItems = group.items.filter(p => p.photo_type === 'before');
-              const afterItems = group.items.filter(p => p.photo_type === 'after');
-              const otherItems = group.items.filter(p => p.photo_type !== 'before' && p.photo_type !== 'after');
+              const beforeItems = group.items.filter((item) => item.photo_type === 'before');
+              const afterItems = group.items.filter((item) => item.photo_type === 'after');
+              const otherItems = group.items.filter((item) => item.photo_type !== 'before' && item.photo_type !== 'after');
 
               return (
                 <Card key={bookingId}>
@@ -393,8 +501,8 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">📷 Before</p>
                         <div className="flex gap-2 overflow-x-auto">
-                          {beforeItems.map(p => (
-                            <MediaThumbnail key={p.id} item={p} onClick={() => setPreviewItem({ url: p.photo_url, type: (p as any).media_type || 'photo' })} />
+                          {beforeItems.map((item) => (
+                            <MediaThumbnail key={item.id} item={item} onClick={() => setPreviewItem({ url: item.photo_url, type: item.media_type || 'photo' })} />
                           ))}
                         </div>
                       </div>
@@ -404,8 +512,8 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">✅ After</p>
                         <div className="flex gap-2 overflow-x-auto">
-                          {afterItems.map(p => (
-                            <MediaThumbnail key={p.id} item={p} onClick={() => setPreviewItem({ url: p.photo_url, type: (p as any).media_type || 'photo' })} />
+                          {afterItems.map((item) => (
+                            <MediaThumbnail key={item.id} item={item} onClick={() => setPreviewItem({ url: item.photo_url, type: item.media_type || 'photo' })} />
                           ))}
                         </div>
                       </div>
@@ -415,8 +523,8 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">📝 Other</p>
                         <div className="flex gap-2 overflow-x-auto">
-                          {otherItems.map(p => (
-                            <MediaThumbnail key={p.id} item={p} onClick={() => setPreviewItem({ url: p.photo_url, type: (p as any).media_type || 'photo' })} />
+                          {otherItems.map((item) => (
+                            <MediaThumbnail key={item.id} item={item} onClick={() => setPreviewItem({ url: item.photo_url, type: item.media_type || 'photo' })} />
                           ))}
                         </div>
                       </div>
@@ -431,8 +539,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
         )}
       </div>
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewItem} onOpenChange={open => !open && setPreviewItem(null)}>
+      <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Media Preview</DialogTitle>
@@ -456,12 +563,12 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
   );
 }
 
-function MediaThumbnail({ item, onClick }: { item: any; onClick: () => void }) {
-  const isVid = item.media_type === 'video' || item.photo_url?.toLowerCase().endsWith('.mp4') || item.photo_url?.toLowerCase().endsWith('.mov');
+function MediaThumbnail({ item, onClick }: { item: PhotoRecord; onClick: () => void }) {
+  const isVideo = item.media_type === 'video' || item.photo_url?.toLowerCase().endsWith('.mp4') || item.photo_url?.toLowerCase().endsWith('.mov');
 
   return (
     <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted cursor-pointer" onClick={onClick}>
-      {isVid ? (
+      {isVideo ? (
         <div className="w-full h-full flex items-center justify-center bg-black/80">
           <Play className="w-6 h-6 text-white fill-white" />
         </div>
@@ -475,7 +582,7 @@ function MediaThumbnail({ item, onClick }: { item: any; onClick: () => void }) {
         />
       )}
       <Badge className="absolute bottom-0.5 right-0.5 text-[9px] px-1 py-0" variant="secondary">
-        {isVid ? '🎥' : '📷'}
+        {isVideo ? '🎥' : '📷'}
       </Badge>
     </div>
   );
@@ -484,12 +591,24 @@ function MediaThumbnail({ item, onClick }: { item: any; onClick: () => void }) {
 function SignedVideo({ src, bucket, className }: { src: string; bucket: string; className?: string }) {
   const [url, setUrl] = useState<string | null>(null);
 
-  useState(() => {
-    supabase.storage.from(bucket).createSignedUrl(src, 3600).then(({ data }) => {
-      if (data?.signedUrl) setUrl(data.signedUrl);
-    });
-  });
+  useEffect(() => {
+    let active = true;
+    setUrl(null);
 
-  if (!url) return <div className={`flex items-center justify-center bg-muted ${className}`}><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    supabase.storage.from(bucket).createSignedUrl(src, 3600).then(({ data }) => {
+      if (active) {
+        setUrl(data?.signedUrl ?? null);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [bucket, src]);
+
+  if (!url) {
+    return <div className={`flex items-center justify-center bg-muted ${className}`}><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  }
+
   return <video src={url} controls playsInline className={className} />;
 }
