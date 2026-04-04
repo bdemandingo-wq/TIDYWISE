@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { action, organization_id, code, state } = await req.json();
+    const { action, organization_id, code, state, email } = await req.json();
 
     if (!organization_id) {
       return new Response(
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     // ACTION: Generate OAuth URL
     if (action === "get_oauth_url") {
       const redirectUri = "https://jointidywise.com/dashboard/payment-integration";
-      const { email } = await req.json().catch(() => ({})) || {};
+      
       
       const params = new URLSearchParams({
         response_type: "code",
