@@ -121,16 +121,18 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
 
       setUploadProgress(95);
 
-      const { error: dbError } = await supabase
-        .from('booking_photos')
-        .insert({
+      const insertData: Record<string, string> = {
           booking_id: bookingId,
-          staff_id: staffId,
-          organization_id: organizationId,
           photo_url: filePath,
           photo_type: photoType,
           media_type: mediaMode,
-        });
+        };
+      if (staffId) insertData.staff_id = staffId;
+      if (organizationId) insertData.organization_id = organizationId;
+
+      const { error: dbError } = await supabase
+        .from('booking_photos')
+        .insert(insertData);
 
       if (dbError) throw new Error(dbError.message);
 
