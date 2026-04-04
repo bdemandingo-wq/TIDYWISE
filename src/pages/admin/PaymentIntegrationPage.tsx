@@ -169,6 +169,33 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  const handleSaveManualKeys = async () => {
+    if (!organization?.id || !manualSecretKey.trim()) return;
+    setSavingKeys(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
+        body: {
+          action: "save_manual_keys",
+          organization_id: organization.id,
+          secret_key: manualSecretKey.trim(),
+          publishable_key: manualPublishableKey.trim() || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Stripe API keys saved successfully!");
+      setManualSecretKey("");
+      setManualPublishableKey("");
+      setShowManualKeys(false);
+      fetchConnectionStatus();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save API keys");
+    } finally {
+      setSavingKeys(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     if (!organization?.id) return;
     const confirmed = window.confirm(
