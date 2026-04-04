@@ -27,6 +27,7 @@ import { useCustomers, useDeleteCustomer } from '@/hooks/useBookings';
 import { AddCustomerDialog } from '@/components/admin/AddCustomerDialog';
 import { EditCustomerDialog } from '@/components/admin/EditCustomerDialog';
 import { PaymentHistoryDialog } from '@/components/admin/PaymentHistoryDialog';
+import { MobileContactProfile } from '@/components/admin/MobileContactProfile';
 import { ImportDialog, FieldMapping } from '@/components/admin/ImportDialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
