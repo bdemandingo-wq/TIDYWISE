@@ -93,7 +93,18 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       onPhotoUploaded?.();
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload photo');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const lowerMsg = errMsg.toLowerCase();
+      
+      if (lowerMsg.includes('security') || lowerMsg.includes('policy') || lowerMsg.includes('row-level') || lowerMsg.includes('rls') || lowerMsg.includes('not allowed') || lowerMsg.includes('violates')) {
+        toast.error('Upload permission denied. Please contact your admin — storage access may not be configured for your account.', { duration: 6000 });
+      } else if (lowerMsg.includes('bucket') || lowerMsg.includes('not found')) {
+        toast.error('Photo storage is not set up yet. Please contact your admin.', { duration: 6000 });
+      } else if (lowerMsg.includes('payload') || lowerMsg.includes('too large') || lowerMsg.includes('size')) {
+        toast.error('Image is too large. Please use a smaller photo (under 10MB).', { duration: 6000 });
+      } else {
+        toast.error(`Failed to upload photo: ${errMsg.length > 120 ? 'Please try again or contact support.' : errMsg}`, { duration: 6000 });
+      }
     } finally {
       setUploading(false);
     }
