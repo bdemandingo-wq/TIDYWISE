@@ -552,8 +552,10 @@ export default function CampaignsPage() {
                       <TableHead>Campaign</TableHead>
                       <TableHead className="w-[80px]">Channel</TableHead>
                       <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="w-[70px]">Sent</TableHead>
+                      <TableHead className="w-[70px]">Opened</TableHead>
                       <TableHead className="w-[80px]">Abandoned</TableHead>
-                      <TableHead className="w-[120px]">Audience</TableHead>
+                      <TableHead className="w-[70px]">Conv %</TableHead>
                       <TableHead className="w-[120px]">Date</TableHead>
                       <TableHead className="w-[120px] text-right">Actions</TableHead>
                     </TableRow>
