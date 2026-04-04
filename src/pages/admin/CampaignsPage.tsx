@@ -375,6 +375,7 @@ export default function CampaignsPage() {
       scheduledDate: undefined, scheduledTime: "09:00",
       smsBody: 'Hi {first_name}! This is {company_name}. We wanted to reach out — we\'d love to have you back! Reply STOP to opt out.',
       emailSubject: "", emailBody: "", days_inactive: 30,
+      excludeAlreadyReceived: false, excludeRecentDays: 0, onlyAfterDate: undefined,
     });
     setCreateStep(1);
     setAiTemplates([]);
