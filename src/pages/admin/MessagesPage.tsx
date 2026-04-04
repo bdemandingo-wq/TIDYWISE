@@ -1259,7 +1259,7 @@ export default function MessagesPage() {
     >
       <SubscriptionGate feature="Messages">
         {isMobile ? (
-          <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-white dark:bg-[#1C1C1E]">
+          <div className="flex flex-col h-[100dvh] -mx-1.5 -mt-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
         ) : (
