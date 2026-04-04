@@ -876,7 +876,11 @@ export default function StaffPortal() {
               {staffInfo?.id && staffInfo?.organization_id ? (
                 <StaffPayoutSetup staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
               ) : (
-                <TabFallback />
+                <div className="text-center py-8 space-y-2">
+                  <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground">Unable to load payout setup.</p>
+                  <p className="text-sm text-muted-foreground">Please sign out and sign back in.</p>
+                </div>
               )}
             </Suspense>
           </TabsContent>
