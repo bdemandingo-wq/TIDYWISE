@@ -644,43 +644,24 @@ export default function MessagesPage() {
 
     if (isMobile) {
       return (
-        <DropdownMenu key={conv.id}>
-          <DropdownMenuTrigger asChild>
-            <div
-              onContextMenu={(e) => { e.preventDefault(); }}
-              className="relative"
-            >
-              <SwipeableRow
-                rightAction={{
-                  label: '🗑️ Delete',
-                  onAction: () => handleDeleteConversation(conv.id),
-                  variant: 'destructive'
-                }}
-                className="rounded-none"
-              >
-                {rowContent}
-              </SwipeableRow>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => togglePin(conv.id)}>
-              <Pin className="h-4 w-4 mr-2" />
-              {isPinned ? 'Unpin' : 'Pin'}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleMarkAsRead(conv.id)}>
-              <Check className="h-4 w-4 mr-2" />
-              Mark as Read
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { hapticImpact('light'); }}>
-              <BellOff className="h-4 w-4 mr-2" />
-              Mute
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteConversation(conv.id)}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SwipeableRow
+          key={conv.id}
+          rightActions={[
+            {
+              label: '🔕 Mute',
+              onAction: () => { hapticImpact('light'); },
+              variant: 'muted' as const,
+            },
+            {
+              label: '📌 ' + (isPinned ? 'Unpin' : 'Pin'),
+              onAction: () => togglePin(conv.id),
+              variant: 'default' as const,
+            },
+          ]}
+          className="rounded-none"
+        >
+          {rowContent}
+        </SwipeableRow>
       );
     }
 
