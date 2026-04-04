@@ -265,97 +265,23 @@ export function SMSSettingsCard() {
             </div>
           </div>
 
-          {/* Notification Types */}
-          <div className="space-y-4">
-            <h4 className="font-semibold">Notification Types</h4>
-            
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="font-medium">Booking Confirmations</Label>
-                <p className="text-sm text-muted-foreground">
-                  Send SMS when a booking is confirmed
-                </p>
-              </div>
-              <Switch
-                checked={settings.sms_booking_confirmation}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_booking_confirmation: checked }))}
-              />
+          {/* Reminder schedule moved notice */}
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Notification & Reminder Settings</p>
+              <p className="text-xs text-muted-foreground">
+                Reminder schedules have moved to Automation Center → Automations
+              </p>
             </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="font-medium">Appointment Reminders</Label>
-                <p className="text-sm text-muted-foreground">
-                  Send reminder SMS before appointments
-                </p>
-              </div>
-              <Switch
-                checked={settings.sms_appointment_reminder}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_appointment_reminder: checked }))}
-              />
-            </div>
-
-            {settings.sms_appointment_reminder && reminderIntervals.length > 0 && (
-              <div className="space-y-3 pl-4 border-l-2 border-primary/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <Label className="font-medium">Reminder Schedule</Label>
-                </div>
-                {reminderIntervals.map((interval, index) => (
-                  <div key={interval.id || index} className="p-3 border rounded-lg bg-card space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{interval.label}</span>
-                      <Switch
-                        checked={interval.is_active}
-                        onCheckedChange={(checked) => {
-                          const updated = [...reminderIntervals];
-                          updated[index] = { ...updated[index], is_active: checked };
-                          setReminderIntervals(updated);
-                        }}
-                      />
-                    </div>
-                    {interval.is_active && (
-                      <div className="flex gap-4 text-sm">
-                        <label className="flex items-center gap-1.5">
-                          <Switch
-                            checked={interval.send_to_client}
-                            onCheckedChange={(checked) => {
-                              const updated = [...reminderIntervals];
-                              updated[index] = { ...updated[index], send_to_client: checked };
-                              setReminderIntervals(updated);
-                            }}
-                            className="scale-75"
-                          />
-                          <span className="text-muted-foreground">Client</span>
-                        </label>
-                        <label className="flex items-center gap-1.5">
-                          <Switch
-                            checked={interval.send_to_cleaner}
-                            onCheckedChange={(checked) => {
-                              const updated = [...reminderIntervals];
-                              updated[index] = { ...updated[index], send_to_cleaner: checked };
-                              setReminderIntervals(updated);
-                            }}
-                            className="scale-75"
-                          />
-                          <span className="text-muted-foreground">Cleaner</span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={saveReminderIntervals}
-                  disabled={savingIntervals}
-                  className="gap-2"
-                >
-                  {savingIntervals ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  Save Reminder Schedule
-                </Button>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => navigate('/admin/automation-center')}
+            >
+              Go to Automations
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
           </div>
 
           <Button onClick={saveSettings} disabled={saving} className="gap-2">
