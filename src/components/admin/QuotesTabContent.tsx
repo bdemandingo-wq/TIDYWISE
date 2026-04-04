@@ -154,7 +154,7 @@ export function QuotesTabContent() {
         notes: quote.notes ? `[From Quote #${quote.quote_number}] ${quote.notes}` : `[From Quote #${quote.quote_number}]`,
         status: 'confirmed',
         payment_status: 'pending',
-        duration: quote.service?.duration || 120,
+        duration: (quote.service as any)?.duration || 120,
         scheduled_at: new Date().toISOString(), // Admin should reschedule
         extras: (quote as any).extras || null,
       };
