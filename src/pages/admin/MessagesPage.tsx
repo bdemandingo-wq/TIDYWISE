@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,8 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [emailContacts, setEmailContacts] = useState<{ email: string; name: string }[]>([]);
@@ -150,6 +152,7 @@ export default function MessagesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
   // ─── Pinned contacts persistence ──────────────────
@@ -619,6 +622,112 @@ export default function MessagesPage() {
     }
   }, [newMessage]);
 
+  // ─── Navigable conversation list for arrow keys ────
+  const navigableConversations = useMemo(() => [...pinnedConversations, ...unpinnedConversations], [pinnedConversations, unpinnedConversations]);
+
+  // ─── Keyboard shortcuts (desktop only) ────────────
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tagName = target.tagName.toLowerCase();
+      const isTyping = tagName === 'input' || tagName === 'textarea' || target.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Cmd+/ → toggle shortcuts panel
+      if (mod && e.key === '/') {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+        return;
+      }
+
+      // Escape
+      if (e.key === 'Escape') {
+        if (showShortcuts) { setShowShortcuts(false); return; }
+        if (searchQuery) { setSearchQuery(''); searchInputRef.current?.blur(); return; }
+        if (selectedConversation && isTyping) {
+          // Focus back to conversation list area
+          (document.activeElement as HTMLElement)?.blur();
+          return;
+        }
+        return;
+      }
+
+      // Don't fire most shortcuts when typing
+      if (isTyping) {
+        // Cmd+Enter sends message
+        if (mod && e.key === 'Enter') {
+          e.preventDefault();
+          handleSendMessage();
+          return;
+        }
+        // Cmd+A in edit mode selects all
+        if (mod && e.key === 'a' && bulkEditMode) {
+          e.preventDefault();
+          toggleSelectAll();
+          return;
+        }
+        return;
+      }
+
+      // Cmd+K → focus search
+      if (mod && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      // Cmd+1-4 → switch filter tabs
+      if (mod && e.key >= '1' && e.key <= '4') {
+        e.preventDefault();
+        const tabs: ConversationTab[] = ['all', 'clients', 'cleaners', 'unread'];
+        setActiveTab(tabs[parseInt(e.key) - 1]);
+        return;
+      }
+
+      // Cmd+A → select all (edit mode) or focus search
+      if (mod && e.key === 'a') {
+        e.preventDefault();
+        if (bulkEditMode) {
+          toggleSelectAll();
+        } else {
+          searchInputRef.current?.focus();
+        }
+        return;
+      }
+
+      // Arrow Up/Down → navigate conversations
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.min(prev + 1, navigableConversations.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.max(prev - 1, 0));
+        return;
+      }
+
+      // Enter → open highlighted conversation
+      if (e.key === 'Enter' && highlightedIndex >= 0 && highlightedIndex < navigableConversations.length) {
+        e.preventDefault();
+        handleSelectConversation(navigableConversations[highlightedIndex]);
+        return;
+      }
+
+      // Delete/Backspace in edit mode
+      if ((e.key === 'Delete' || e.key === 'Backspace') && bulkEditMode && selectedForBulk.size > 0) {
+        e.preventDefault();
+        setBulkDeleteConfirmOpen(true);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isMobile, showShortcuts, searchQuery, selectedConversation, bulkEditMode, selectedForBulk, highlightedIndex, navigableConversations]);
+
   // ═══════════════════════════════════════════════════
   // RENDER: Pinned Row
   // ═══════════════════════════════════════════════════
@@ -735,7 +844,7 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   // RENDER: Conversation Row
   // ═══════════════════════════════════════════════════
-  const renderConversationRow = (conv: Conversation) => {
+  const renderConversationRow = (conv: Conversation, listIndex?: number) => {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
     const hasMessages = !!conv.last_message_preview;
@@ -760,7 +869,8 @@ export default function MessagesPage() {
             ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
             : cn(
                 "hover:bg-muted/50",
-                selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]"
+                selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]",
+                listIndex !== undefined && listIndex === highlightedIndex && selectedConversation?.id !== conv.id && "bg-muted/70 ring-1 ring-inset ring-[#007AFF]/30"
               )
         )}
       >
@@ -869,11 +979,13 @@ export default function MessagesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
           <Input
+            ref={searchInputRef}
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
             className={cn(
-              "pl-10 pr-10 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
+              "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
               isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
             )}
           />
@@ -881,7 +993,9 @@ export default function MessagesPage() {
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
           ) : isMobile ? (
             <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
-          ) : null}
+          ) : (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
+          )}
         </div>
       </div>
 
@@ -923,11 +1037,11 @@ export default function MessagesPage() {
           </div>
         ) : (
           <div>
-            {bulkEditMode && pinnedConversations.map(conv => (
-              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            {bulkEditMode && pinnedConversations.map((conv, i) => (
+              <div key={conv.id}>{renderConversationRow(conv, i)}</div>
             ))}
-            {unpinnedConversations.map(conv => (
-              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            {unpinnedConversations.map((conv, i) => (
+              <div key={conv.id}>{renderConversationRow(conv, pinnedConversations.length + i)}</div>
             ))}
           </div>
         )}
@@ -1454,6 +1568,75 @@ export default function MessagesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Keyboard Shortcuts Help Panel */}
+        {showShortcuts && !isMobile && (
+          <>
+            <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm" onClick={() => setShowShortcuts(false)} />
+            <div className="fixed z-[71] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover border rounded-2xl shadow-2xl w-[420px] max-h-[80vh] overflow-y-auto p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h3>
+                <button onClick={() => setShowShortcuts(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">General</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Search', '⌘ K'],
+                      ['Show shortcuts', '⌘ /'],
+                      ['Close / Clear', 'Esc'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Navigation</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Filter: All', '⌘ 1'],
+                      ['Filter: Clients', '⌘ 2'],
+                      ['Filter: Cleaners', '⌘ 3'],
+                      ['Filter: Unread', '⌘ 4'],
+                      ['Move up', '↑'],
+                      ['Move down', '↓'],
+                      ['Open conversation', 'Enter'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Messaging</p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['Send message', '⌘ Enter'],
+                      ['Select all (Edit mode)', '⌘ A'],
+                      ['Delete selected', 'Delete'],
+                    ].map(([action, key]) => (
+                      <div key={action} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-foreground">{action}</span>
+                        <kbd className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono">{key}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-4 text-center">Press <kbd className="bg-muted px-1 rounded text-[10px] font-mono">Esc</kbd> to close</p>
+            </div>
+          </>
+        )}
       </SubscriptionGate>
     </AdminLayout>
   );
