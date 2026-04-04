@@ -52,7 +52,6 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
       const avails = availResult.data || [];
       const signableDocs = signableDocsResult.data || [];
 
-      const requiredDocTypes = ['w9', 'government_id'];
       const totalSignable = signableDocs.length;
       const signableIds = signableDocs.map(d => d.id);
 
@@ -60,11 +59,11 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
         // Availability
         const hasAvailability = avails.some(a => a.staff_id === staff.id);
 
-        // Documents
-        const staffDocs = docs.filter(d => d.staff_id === staff.id && requiredDocTypes.includes(d.document_type));
+        // Documents — consider all uploaded documents, not just specific types
+        const staffDocs = docs.filter(d => d.staff_id === staff.id);
         const approvedDocs = staffDocs.filter(d => d.status === 'approved');
         const docsStatus: 'complete' | 'pending' | 'missing' =
-          approvedDocs.length >= requiredDocTypes.length ? 'complete' :
+          approvedDocs.length > 0 ? 'complete' :
           staffDocs.length > 0 ? 'pending' : 'missing';
 
         // Signatures
