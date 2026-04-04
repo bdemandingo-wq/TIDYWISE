@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         params.set("stripe_user[email]", email);
       }
 
-      const oauthUrl = `https://connect.stripe.com/oauth/v2/authorize?${params.toString()}`;
+      const oauthUrl = `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
 
       return new Response(
         JSON.stringify({ url: oauthUrl }),
