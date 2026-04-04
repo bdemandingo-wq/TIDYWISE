@@ -8,7 +8,8 @@ import {
   Clock, 
   MessageSquare,
   Loader2,
-  Filter
+  Filter,
+  MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -81,9 +82,11 @@ export function ClientBookingRequestsManager() {
           notes,
           admin_response_note,
           created_at,
+          location_id,
           customer:customers(first_name, last_name, email, phone),
           service:services(name),
-          client_user:client_portal_users(username)
+          client_user:client_portal_users(username),
+          location:locations(name, address, apt_suite, city, state, zip_code)
         `)
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
@@ -305,6 +308,16 @@ export function ClientBookingRequestsManager() {
                     </div>
                   )}
                 </div>
+
+                {(request as any).location && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">Address</p>
+                    <p className="font-medium flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {[(request as any).location.name, (request as any).location.address, (request as any).location.city, (request as any).location.state, (request as any).location.zip_code].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                )}
 
                 {request.notes && (
                   <div className="text-sm">
