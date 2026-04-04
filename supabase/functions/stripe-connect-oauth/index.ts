@@ -1,5 +1,11 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import {
+  createForbiddenResponse,
+  createUnauthorizedResponse,
+  verifyAdminAuth,
+} from "../_shared/verify-admin-auth.ts";
 
 const STRIPE_API_VERSION = "2025-08-27.basil";
 
@@ -27,7 +33,7 @@ const extractStripeErrorMessage = (error: unknown) => {
   }
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -46,10 +52,23 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { action, organization_id, code, email, secret_key, publishable_key } = await req.json();
+    const body = await req.json();
+    const { action, organization_id, code, email, secret_key, publishable_key } = body ?? {};
 
     if (!organization_id) {
       return jsonResponse({ error: "organization_id is required" }, 400);
+    }
+
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
+      requireAdmin: true,
+      requireOrganizationId: organization_id,
+    });
+
+    if (!authResult.success) {
+      if (authResult.error === "Invalid or expired token" || authResult.error === "Missing authorization header") {
+        return createUnauthorizedResponse(authResult.error, corsHeaders);
+      }
+      return createForbiddenResponse(authResult.error || "Access denied", corsHeaders);
     }
 
     if (action === "get_oauth_url") {
@@ -246,7 +265,7 @@ Deno.serve(async (req) => {
         if (secret_key.startsWith("pk_")) {
           hint = "You entered a publishable key (pk_...). Please use your secret key instead (sk_live_... or sk_test_...).";
         } else if (secret_key.startsWith("mk_")) {
-          hint = "You entered a management key (mk_...). Please use your secret key instead. Go to Stripe Dashboard → Developers → API keys and copy the Secret key.";
+          hint = "You entered a management key (mk_...). Please use your secret key instead. Go to Stripe Dashboard → Developers → API keys and copy the Secret key (sk_live_... or sk_test_...).";
         }
         return jsonResponse({ error: hint }, 400);
       }
