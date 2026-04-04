@@ -147,20 +147,22 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Conversion stats
+  // Conversion stats + per-campaign sent counts
   const { data: conversionStats } = useQuery({
     queryKey: ["campaign-conversions", orgId],
     queryFn: async () => {
       if (!orgId) return null;
       const { data: sends } = await supabase
         .from("campaign_sms_sends")
-        .select("id, converted, campaign_type")
+        .select("id, converted, campaign_type, campaign_id")
         .eq("organization_id", orgId);
-      if (!sends) return { total: 0, converted: 0, rate: 0 };
+      if (!sends) return { total: 0, converted: 0, rate: 0, byCampaign: {} as Record<string, number> };
       const total = sends.length;
       const converted = sends.filter(s => s.converted).length;
       const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-      return { total, converted, rate };
+      const byCampaign: Record<string, number> = {};
+      sends.forEach(s => { if (s.campaign_id) { byCampaign[s.campaign_id] = (byCampaign[s.campaign_id] || 0) + 1; } });
+      return { total, converted, rate, byCampaign };
     },
     enabled: !!orgId,
   });
