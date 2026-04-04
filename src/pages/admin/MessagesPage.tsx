@@ -742,7 +742,7 @@ export default function MessagesPage() {
 
     const rowContent = (
       <div
-        onClick={() => handleSelectConversation(conv)}
+        onClick={() => { console.log('CONV CLICKED', conv.id, conv.customer_name); handleSelectConversation(conv); }}
         onTouchStart={(e) => handleLongPressStart(conv.id, e)}
         onTouchEnd={handleLongPressEnd}
         onTouchMove={handleLongPressMove}
