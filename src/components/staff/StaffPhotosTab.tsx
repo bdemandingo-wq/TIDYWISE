@@ -71,7 +71,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
 
   // Fetch uploaded photos grouped by booking
   const { data: photos = [], isLoading: loadingPhotos } = useQuery({
-    queryKey: ['staff-uploaded-photos', staffId, organizationId],
+    queryKey: ['staff-uploaded-photos', staffId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('booking_photos')
@@ -83,12 +83,11 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
           )
         `)
         .eq('staff_id', staffId)
-        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!staffId && !!organizationId,
+    enabled: !!staffId,
   });
 
   // Group photos by booking
@@ -165,7 +164,20 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
         const file = uploads[i].file;
         const isVid = isVideoFile(file);
         const ext = file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg');
-        const filePath = `${organizationId}/${selectedBookingId}/${staffId}/${photoType}/${Date.now()}_${i}.${ext}`;
+
+        // Resolve org ID from the booking if not available
+        let resolvedOrgId = organizationId;
+        if (!resolvedOrgId) {
+          const { data: bookingData } = await supabase
+            .from('bookings')
+            .select('organization_id')
+            .eq('id', selectedBookingId)
+            .maybeSingle();
+          resolvedOrgId = bookingData?.organization_id || '';
+        }
+
+        const pathOrgId = resolvedOrgId || 'unscoped';
+        const filePath = `${pathOrgId}/${selectedBookingId}/${staffId || 'unknown'}/${photoType}/${Date.now()}_${i}.${ext}`;
 
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, progress: 30 } : u));
 
@@ -185,7 +197,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             photo_type: photoType,
             media_type: isVid ? 'video' : 'photo',
             ...(staffId ? { staff_id: staffId } : {}),
-            ...(organizationId ? { organization_id: organizationId } : {}),
+            ...(resolvedOrgId ? { organization_id: resolvedOrgId } : {}),
           });
 
         if (dbError) throw new Error(dbError.message);

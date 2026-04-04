@@ -110,8 +110,20 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
     }, mediaMode === 'video' ? 500 : 200);
 
     try {
+      // Resolve org ID: use prop, or look it up from the booking
+      let resolvedOrgId = organizationId;
+      if (!resolvedOrgId) {
+        const { data: bookingData } = await supabase
+          .from('bookings')
+          .select('organization_id')
+          .eq('id', bookingId)
+          .maybeSingle();
+        resolvedOrgId = bookingData?.organization_id || '';
+      }
+
       const fileExt = selectedFile.name.split('.').pop() || (mediaMode === 'video' ? 'mp4' : 'jpg');
-      const filePath = `${organizationId}/${bookingId}/${staffId}/${photoType}/${Date.now()}.${fileExt}`;
+      const pathOrgId = resolvedOrgId || 'unscoped';
+      const filePath = `${pathOrgId}/${bookingId}/${staffId || 'unknown'}/${photoType}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('booking-photos')
@@ -129,7 +141,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
           photo_type: photoType,
           media_type: mediaMode,
           ...(staffId ? { staff_id: staffId } : {}),
-          ...(organizationId ? { organization_id: organizationId } : {}),
+          ...(resolvedOrgId ? { organization_id: resolvedOrgId } : {}),
         });
 
       if (dbError) throw new Error(dbError.message);
