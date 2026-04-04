@@ -277,6 +277,20 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Validate key format before making API call
+      if (!secret_key.startsWith("sk_live_") && !secret_key.startsWith("sk_test_") && !secret_key.startsWith("rk_live_") && !secret_key.startsWith("rk_test_")) {
+        let hint = "Stripe secret keys start with sk_live_ or sk_test_.";
+        if (secret_key.startsWith("pk_")) {
+          hint = "You entered a publishable key (pk_...). Please use your secret key instead (sk_live_... or sk_test_...).";
+        } else if (secret_key.startsWith("mk_")) {
+          hint = "You entered a management key (mk_...). Please use your secret key instead. Go to Stripe Dashboard → Developers → API keys and copy the Secret key (sk_live_... or sk_test_...).";
+        }
+        return new Response(
+          JSON.stringify({ error: hint }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Validate the key by making a test API call
       try {
         const testStripe = new Stripe(secret_key, { apiVersion: "2023-10-16" });
@@ -321,7 +335,7 @@ Deno.serve(async (req) => {
       } catch (stripeErr) {
         console.error("[stripe-connect-oauth] Invalid Stripe key:", stripeErr);
         return new Response(
-          JSON.stringify({ error: "Invalid Stripe secret key. Please check and try again." }),
+          JSON.stringify({ error: "Invalid Stripe secret key. Please verify it in your Stripe Dashboard → Developers → API keys." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
