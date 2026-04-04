@@ -335,7 +335,9 @@ export default function StaffPortal() {
     enabled: !!staffInfo?.id && !!staffInfo?.organization_id,
   });
 
-  // Fetch job history (completed, cancelled, no_show)
+  const currentTab = activeTab || (hasSetAvailability === false ? 'availability' : 'my-jobs');
+
+  // Fetch job history (completed, cancelled, no_show) - only when history tab is active
   const { data: jobHistory = [], isLoading: loadingHistory } = useQuery({
     queryKey: ['staff-bookings', 'history', staffInfo?.id],
     queryFn: async () => {
@@ -357,7 +359,7 @@ export default function StaffPortal() {
       if (error) throw error;
       return data as Booking[];
     },
-    enabled: !!staffInfo?.id,
+    enabled: !!staffInfo?.id && currentTab === 'history',
   });
 
   // Self-assign mutation
