@@ -149,23 +149,15 @@ export function ClientPortalUsersManager() {
     enabled: !!organization?.id,
   });
 
-  // Create portal user mutation
+  // Create portal user mutation - uses secure RPC to avoid exposing password_hash
   const createUser = useMutation({
     mutationFn: async ({ username, password, customerId }: { username: string; password: string; customerId: string }) => {
-      // Hash the password using the database function
-      const { data: hashData, error: hashError } = await supabase.rpc('hash_client_portal_password' as any, {
+      const { data, error } = await supabase.rpc('create_client_portal_user' as any, {
+        p_username: username,
         p_password: password,
-      });
-
-      if (hashError) throw hashError;
-
-      const { error } = await supabase.from('client_portal_users').insert({
-        username: username.toLowerCase().trim(),
-        password_hash: hashData,
-        customer_id: customerId,
-        organization_id: organization?.id,
-        is_active: true,
-        must_change_password: false,
+        p_customer_id: customerId,
+        p_organization_id: organization?.id,
+        p_must_change_password: false,
       });
 
       if (error) throw error;

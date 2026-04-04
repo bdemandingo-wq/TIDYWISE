@@ -1724,6 +1724,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_booking_requests_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_booking_requests_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -1843,6 +1850,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "client_notifications_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_notifications_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -1895,6 +1909,13 @@ export type Database = {
             columns: ["client_user_id"]
             isOneToOne: false
             referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_feedback_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users_safe"
             referencedColumns: ["id"]
           },
           {
@@ -1956,6 +1977,13 @@ export type Database = {
             columns: ["client_user_id"]
             isOneToOne: false
             referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_sessions_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users_safe"
             referencedColumns: ["id"]
           },
           {
@@ -6156,6 +6184,57 @@ export type Database = {
       }
     }
     Views: {
+      client_portal_users_safe: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string | null
+          is_active: boolean | null
+          last_login_at: string | null
+          must_change_password: boolean | null
+          organization_id: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          must_change_password?: boolean | null
+          organization_id?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_login_at?: string | null
+          must_change_password?: boolean | null
+          organization_id?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_users_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_safe: {
         Row: {
           avatar_url: string | null
@@ -6262,6 +6341,16 @@ export type Database = {
           p_request_id: string
           p_scheduled_at: string
           p_service_id: string
+        }
+        Returns: string
+      }
+      create_client_portal_user: {
+        Args: {
+          p_customer_id: string
+          p_must_change_password?: boolean
+          p_organization_id: string
+          p_password: string
+          p_username: string
         }
         Returns: string
       }
