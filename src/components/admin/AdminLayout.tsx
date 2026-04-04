@@ -31,10 +31,13 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
 
-  // Hide the top header bar on mobile when viewing Messages
-  const isMessagesRoute = location.pathname.includes('/messages');
+  // Hide the top header bar on mobile for immersive tabs (Messages, Scheduler)
   const isMobileView = useIsMobile();
-  const hideHeader = isMessagesRoute && isMobileView;
+  const hideHeader = isMobileView && (
+    location.pathname.includes('/messages') ||
+    location.pathname.includes('/scheduler') ||
+    location.pathname.includes('/calendar')
+  );
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
