@@ -6356,6 +6356,18 @@ export type Database = {
           total_amount: number
         }[]
       }
+      get_deposit_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          amount: number
+          booking_id: string
+          customer_name: string
+          id: string
+          organization_id: string
+          status: string
+          token: string
+        }[]
+      }
       get_loyalty_tier_info: {
         Args: { p_organization_id: string }
         Returns: {
@@ -6365,6 +6377,18 @@ export type Database = {
           min_spending: number
           tier_name: string
           tier_order: number
+        }[]
+      }
+      get_tip_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          amount: number
+          booking_id: string
+          customer_name: string
+          id: string
+          organization_id: string
+          status: string
+          token: string
         }[]
       }
       get_user_organization_id: { Args: never; Returns: string }
