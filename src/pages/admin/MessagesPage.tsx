@@ -1386,6 +1386,86 @@ export default function MessagesPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* iOS-style Long-Press Context Menu */}
+        {contextMenuConvId && contextMenuPosition && (
+          <>
+            <div
+              className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm"
+              onClick={() => { setContextMenuConvId(null); setContextMenuPosition(null); }}
+            />
+            <div
+              className="fixed z-[61] bg-white dark:bg-[#2C2C2E] rounded-2xl shadow-2xl overflow-hidden w-[200px]"
+              style={{
+                left: Math.min(contextMenuPosition.x, window.innerWidth - 220),
+                top: Math.min(contextMenuPosition.y, window.innerHeight - 250),
+              }}
+            >
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('pin')}
+              >
+                <Pin className="h-[18px] w-[18px] text-[#007AFF]" />
+                {pinnedIds.has(contextMenuConvId) ? 'Unpin' : 'Pin'}
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('unread')}
+              >
+                <MessageCircle className="h-[18px] w-[18px] text-[#007AFF]" />
+                Mark as Unread
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('mute')}
+              >
+                <BellOff className="h-[18px] w-[18px] text-[#8E8E93]" />
+                {mutedIds.has(contextMenuConvId) ? 'Show Alerts' : 'Hide Alerts'}
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#FF3B30] active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('delete')}
+              >
+                <Trash2 className="h-[18px] w-[18px]" />
+                Delete
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Single Delete Confirmation */}
+        <AlertDialog open={!!deleteConfirmConvId} onOpenChange={(open) => { if (!open) setDeleteConfirmConvId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This cannot be undone. All messages in this conversation will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  if (!deleteConfirmConvId) return;
+                  await supabase.from('sms_messages').delete().eq('conversation_id', deleteConfirmConvId);
+                  const { error } = await supabase.from('sms_conversations').delete().eq('id', deleteConfirmConvId);
+                  if (error) { toast.error('Failed to delete'); return; }
+                  setConversations(prev => prev.filter(c => c.id !== deleteConfirmConvId));
+                  if (selectedConversation?.id === deleteConfirmConvId) { setSelectedConversation(null); setMessages([]); }
+                  setPinnedIds(prev => { const next = new Set(prev); next.delete(deleteConfirmConvId); return next; });
+                  toast.success('Conversation deleted');
+                  setDeleteConfirmConvId(null);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SubscriptionGate>
     </AdminLayout>
   );
