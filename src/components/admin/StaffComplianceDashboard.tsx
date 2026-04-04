@@ -52,7 +52,7 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
       const avails = availResult.data || [];
       const signableDocs = signableDocsResult.data || [];
 
-      const requiredDocTypes = ['w9', 'government_id'];
+      const totalSignable = signableDocs.length;
       const totalSignable = signableDocs.length;
       const signableIds = signableDocs.map(d => d.id);
 
