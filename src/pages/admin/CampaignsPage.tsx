@@ -577,6 +577,19 @@ export default function CampaignsPage() {
                         <TableCell>{getStatusBadge(campaign)}</TableCell>
                         <TableCell>
                           {(() => {
+                            const sentCount = conversionStats?.byCampaign?.[campaign.id] || 0;
+                            const trackStats = campaignTrackingStats[campaign.id];
+                            return <span className="text-sm font-medium">{sentCount || trackStats?.sent || 0}</span>;
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const stats = campaignTrackingStats[campaign.id];
+                            return <span className="text-sm">{stats?.opened || 0}</span>;
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
                             const stats = campaignTrackingStats[campaign.id];
                             if (!stats || stats.sent === 0) return <span className="text-muted-foreground text-sm">—</span>;
                             return (
@@ -587,7 +600,14 @@ export default function CampaignsPage() {
                           })()}
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm capitalize">{campaign.type?.replace(/_/g, " ")}</span>
+                          {(() => {
+                            const sentCount = conversionStats?.byCampaign?.[campaign.id] || 0;
+                            const trackStats = campaignTrackingStats[campaign.id];
+                            const total = sentCount || trackStats?.sent || 0;
+                            const completed = trackStats?.completed || 0;
+                            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                            return <span className="text-sm">{rate}%</span>;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">
