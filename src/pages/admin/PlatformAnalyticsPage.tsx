@@ -40,7 +40,7 @@ interface Subscriber {
 interface PlatformAnalytics {
   signups: {
     total: number;
-    recent: { id: string; email: string; created_at: string }[];
+    recent: { id: string; email: string; created_at: string; org_name?: string | null; org_id?: string | null; role?: string | null }[];
     last30Days: number;
   };
   organizations: {
@@ -435,6 +435,13 @@ export default function PlatformAnalyticsPage() {
                             </div>
                             <div>
                               <p className="font-medium text-sm">{signup.email}</p>
+                              {signup.org_name && (
+                                <p className="text-xs text-primary/80 font-medium flex items-center gap-1">
+                                  <Building2 className="w-3 h-3" />
+                                  {signup.org_name}
+                                  {signup.role && <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">{signup.role}</Badge>}
+                                </p>
+                              )}
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
                                 {formatDistanceToNow(new Date(signup.created_at), { addSuffix: true })}

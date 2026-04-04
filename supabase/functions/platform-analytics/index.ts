@@ -77,6 +77,36 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
+    // Enrich signups with organization names via org_memberships
+    const enrichedSignups = [];
+    if (recentSignups && recentSignups.length > 0) {
+      const userIds = recentSignups.map(s => s.id);
+      const { data: memberships } = await supabaseClient
+        .from('org_memberships')
+        .select('user_id, role, organization:organizations(id, name)')
+        .in('user_id', userIds);
+
+      const orgMap = new Map<string, { org_name: string; org_id: string; role: string }>();
+      if (memberships) {
+        for (const m of memberships) {
+          const org = m.organization as any;
+          if (org && !orgMap.has(m.user_id)) {
+            orgMap.set(m.user_id, { org_name: org.name, org_id: org.id, role: m.role });
+          }
+        }
+      }
+
+      for (const signup of recentSignups) {
+        const orgInfo = orgMap.get(signup.id);
+        enrichedSignups.push({
+          ...signup,
+          org_name: orgInfo?.org_name || null,
+          org_id: orgInfo?.org_id || null,
+          role: orgInfo?.role || null,
+        });
+      }
+    }
+
     // Get organizations count
     const { count: totalOrganizations } = await supabaseClient
       .from('organizations')
@@ -202,8 +232,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       signups: {
         total: totalSignups || 0,
-        recent: recentSignups || [],
-        last30Days: recentSignups?.length || 0,
+        recent: enrichedSignups || [],
+        last30Days: enrichedSignups?.length || 0,
       },
       organizations: {
         total: totalOrganizations || 0,
