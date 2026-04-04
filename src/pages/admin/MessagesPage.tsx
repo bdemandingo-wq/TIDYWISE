@@ -913,19 +913,31 @@ export default function MessagesPage() {
         <div className="px-4 py-3 border-t border-[#E5E5EA] dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E] flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           <Button
             variant="destructive"
-            className="flex-1 h-11 text-[15px] font-semibold rounded-xl"
+            className="h-11 text-[15px] font-semibold rounded-xl px-5"
             disabled={selectedForBulk.size === 0}
             onClick={() => setBulkDeleteConfirmOpen(true)}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Selected ({selectedForBulk.size})
+            Delete
           </Button>
+          <div className="flex-1 text-center">
+            <span className="text-[13px] text-[#8E8E93] font-medium">
+              {selectedForBulk.size} selected
+            </span>
+          </div>
           <Button
-            variant="outline"
-            className="h-11 text-[15px] rounded-xl"
-            onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+            variant="ghost"
+            className="h-11 text-[15px] rounded-xl text-[#007AFF] px-5"
+            disabled={selectedForBulk.size === 0}
+            onClick={async () => {
+              const ids = [...selectedForBulk];
+              await Promise.all(ids.map(id => supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', id)));
+              setConversations(prev => prev.map(c => selectedForBulk.has(c.id) ? { ...c, unread_count: 0 } : c));
+              toast.success(`Marked ${ids.length} as read`);
+              setSelectedForBulk(new Set());
+              setBulkEditMode(false);
+            }}
           >
-            Cancel
+            Mark as Read
           </Button>
         </div>
       )}
