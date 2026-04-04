@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { action, organization_id, code, state, email } = await req.json();
+    const { action, organization_id, code, state, email, secret_key, publishable_key } = await req.json();
 
     if (!organization_id) {
       return new Response(
