@@ -1150,138 +1150,92 @@ export default function MessagesPage() {
       title="Messages"
       subtitle="Text & email your customers"
       actions={
-        isMobile ? (
+        <>
           <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
-        ) : (
-          <div className="flex items-center gap-2">
-            <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
-            <Button variant="outline" size="icon" onClick={fetchConversations}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />New Message</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div>
-                    <Label className="text-sm font-medium">Contact Type</Label>
-                    <Tabs value={conversationType} onValueChange={(v) => { setConversationType(v as 'client' | 'cleaner'); setSelectedContact(null); }} className="mt-2">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="client" className="gap-2"><Users className="h-4 w-4" />Client</TabsTrigger>
-                        <TabsTrigger value="cleaner" className="gap-2"><HardHat className="h-4 w-4" />Cleaner</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}</Label>
-                    <Command className="border rounded-md mt-2">
-                      <CommandInput placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`} value={contactSearch} onValueChange={setContactSearch} />
-                      <CommandList className="max-h-40">
-                        <CommandEmpty>No {conversationType === 'client' ? 'customers' : 'staff'} found.</CommandEmpty>
-                        <CommandGroup>
-                          {filteredContacts.slice(0, 10).map((contact) => (
-                            <CommandItem key={contact.id} value={`${contact.name} ${contact.phone}`} onSelect={() => handleSelectContact(contact)} className="cursor-pointer">
-                              <div className="flex items-center gap-2 flex-1">
-                                <Avatar className="h-6 w-6"><AvatarFallback className={cn("text-xs", contact.type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]")}>{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
-                                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
-                                {selectedContact?.id === contact.id && <Check className="h-4 w-4 text-[#007AFF]" />}
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </div>
-                  <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or enter manually</span></div></div>
-                  <div><Label className="text-sm font-medium">Phone Number</Label><Input placeholder="(555) 123-4567" value={newPhone} onChange={(e) => { setNewPhone(e.target.value); setSelectedContact(null); }} /></div>
-                  <div><Label className="text-sm font-medium">Name (optional)</Label><Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
-                  <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={emailOpen} onOpenChange={async (open) => {
-              setEmailOpen(open);
-              if (open && organizationId) {
-                const { data } = await supabase.from('customers').select('email, first_name, last_name').eq('organization_id', organizationId).not('email', 'is', null).order('first_name');
-                const allContacts = (data || []).filter(c => c.email).map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
-                const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
-                setEmailContacts(unique);
-                if (!emailTo && selectedConversation?.customer_id) {
-                  const { data: convCustomer } = await supabase.from('customers').select('email').eq('id', selectedConversation.customer_id).maybeSingle();
-                  if (convCustomer?.email) { setEmailTo(convCustomer.email); setEmailToSearch(convCustomer.email); }
+          {!isMobile && (
+            <div className="flex items-center gap-2">
+              <Dialog open={emailOpen} onOpenChange={async (open) => {
+                setEmailOpen(open);
+                if (open && organizationId) {
+                  const { data } = await supabase.from('customers').select('email, first_name, last_name').eq('organization_id', organizationId).not('email', 'is', null).order('first_name');
+                  const allContacts = (data || []).filter(c => c.email).map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
+                  const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
+                  setEmailContacts(unique);
+                  if (!emailTo && selectedConversation?.customer_id) {
+                    const { data: convCustomer } = await supabase.from('customers').select('email').eq('id', selectedConversation.customer_id).maybeSingle();
+                    if (convCustomer?.email) { setEmailTo(convCustomer.email); setEmailToSearch(convCustomer.email); }
+                  }
                 }
-              }
-            }}>
-              <DialogTrigger asChild><Button variant="outline"><Mail className="h-4 w-4 mr-2" />Send Email</Button></DialogTrigger>
-              <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
-                <div className="flex justify-end -mt-2"><Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}><BookOpen className="h-4 w-4" />Templates</Button></div>
-                <div className="space-y-4 pt-2">
-                  <div className="relative">
-                    <Label>To</Label>
-                    <Input type="email" placeholder="Search or type email..." value={emailToSearch}
-                      onChange={(e) => { setEmailToSearch(e.target.value); setEmailTo(e.target.value); setEmailToDropdownOpen(true); }}
-                      onFocus={() => setEmailToDropdownOpen(true)} onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)} />
-                    {emailToDropdownOpen && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
-                        {emailContacts.filter(c => !emailToSearch || c.email.toLowerCase().includes(emailToSearch.toLowerCase()) || c.name.toLowerCase().includes(emailToSearch.toLowerCase())).slice(0, 30).map(c => (
-                          <button key={c.email} type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
-                            onMouseDown={(e) => e.preventDefault()} onClick={() => { setEmailTo(c.email); setEmailToSearch(c.email); setEmailToDropdownOpen(false); }}>
-                            <div className="font-medium">{c.name || 'No name'}</div><div className="text-muted-foreground text-xs">{c.email}</div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div><Label>Subject</Label><Input placeholder="Email subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label>Message</Label>
-                      <div className="flex items-center gap-1">
-                        {organizationId && <MessageTemplatesPicker organizationId={organizationId} showSubject onSelect={(content, subject) => { setEmailBody(content); if (emailBodyRef.current) emailBodyRef.current.innerText = content; if (subject) setEmailSubject(subject); }} />}
-                        <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
-                          <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link"><Link className="h-4 w-4" /></Button></PopoverTrigger>
-                          <PopoverContent className="w-72 space-y-3" align="end">
-                            <p className="text-sm font-medium">Insert Link</p>
-                            <div className="space-y-2"><Input placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} /><Input placeholder="Display text (optional)" value={linkText} onChange={(e) => setLinkText(e.target.value)} /></div>
-                            <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>Insert</Button>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+              }}>
+                <DialogTrigger asChild><Button variant="outline"><Mail className="h-4 w-4 mr-2" />Send Email</Button></DialogTrigger>
+                <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
+                  <div className="flex justify-end -mt-2"><Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}><BookOpen className="h-4 w-4" />Templates</Button></div>
+                  <div className="space-y-4 pt-2">
+                    <div className="relative">
+                      <Label>To</Label>
+                      <Input type="email" placeholder="Search or type email..." value={emailToSearch}
+                        onChange={(e) => { setEmailToSearch(e.target.value); setEmailTo(e.target.value); setEmailToDropdownOpen(true); }}
+                        onFocus={() => setEmailToDropdownOpen(true)} onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)} />
+                      {emailToDropdownOpen && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
+                          {emailContacts.filter(c => !emailToSearch || c.email.toLowerCase().includes(emailToSearch.toLowerCase()) || c.name.toLowerCase().includes(emailToSearch.toLowerCase())).slice(0, 30).map(c => (
+                            <button key={c.email} type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
+                              onMouseDown={(e) => e.preventDefault()} onClick={() => { setEmailTo(c.email); setEmailToSearch(c.email); setEmailToDropdownOpen(false); }}>
+                              <div className="font-medium">{c.name || 'No name'}</div><div className="text-muted-foreground text-xs">{c.email}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div ref={emailBodyRef} contentEditable onInput={() => { if (emailBodyRef.current) setEmailBody(emailBodyRef.current.innerHTML); }}
-                      onPaste={(e) => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }}
-                      className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
-                      style={{ maxHeight: '200px' }} suppressContentEditableWarning />
-                  </div>
-                  <div>
-                    <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileAttach} />
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}><Paperclip className="h-4 w-4" />Attach File</Button>
-                    {emailAttachments.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {emailAttachments.map((att, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
-                            <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate flex-1">{att.name}</span>
-                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => removeAttachment(i)}><X className="h-3 w-3" /></Button>
-                          </div>
-                        ))}
+                    <div><Label>Subject</Label><Input placeholder="Email subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <Label>Message</Label>
+                        <div className="flex items-center gap-1">
+                          {organizationId && <MessageTemplatesPicker organizationId={organizationId} showSubject onSelect={(content, subject) => { setEmailBody(content); if (emailBodyRef.current) emailBodyRef.current.innerText = content; if (subject) setEmailSubject(subject); }} />}
+                          <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
+                            <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link"><Link className="h-4 w-4" /></Button></PopoverTrigger>
+                            <PopoverContent className="w-72 space-y-3" align="end">
+                              <p className="text-sm font-medium">Insert Link</p>
+                              <div className="space-y-2"><Input placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} /><Input placeholder="Display text (optional)" value={linkText} onChange={(e) => setLinkText(e.target.value)} /></div>
+                              <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>Insert</Button>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
-                    )}
+                      <div ref={emailBodyRef} contentEditable onInput={() => { if (emailBodyRef.current) setEmailBody(emailBodyRef.current.innerHTML); }}
+                        onPaste={(e) => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }}
+                        className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
+                        style={{ maxHeight: '200px' }} suppressContentEditableWarning />
+                    </div>
+                    <div>
+                      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileAttach} />
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}><Paperclip className="h-4 w-4" />Attach File</Button>
+                      {emailAttachments.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {emailAttachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
+                              <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate flex-1">{att.name}</span>
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => removeAttachment(i)}><X className="h-3 w-3" /></Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSendEmail} disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()} className="gap-2">
-                    {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send Email
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <EmailTemplateLibrary open={templateLibraryOpen} onOpenChange={setTemplateLibraryOpen} onSelectTemplate={(subject, body) => { setEmailSubject(subject); setEmailBody(body); if (emailBodyRef.current) emailBodyRef.current.innerText = body; }} />
-          </div>
-        )
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSendEmail} disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()} className="gap-2">
+                      {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send Email
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <EmailTemplateLibrary open={templateLibraryOpen} onOpenChange={setTemplateLibraryOpen} onSelectTemplate={(subject, body) => { setEmailSubject(subject); setEmailBody(body); if (emailBodyRef.current) emailBodyRef.current.innerText = body; }} />
+            </div>
+          )}
+        </>
       }
     >
       <SubscriptionGate feature="Messages">
