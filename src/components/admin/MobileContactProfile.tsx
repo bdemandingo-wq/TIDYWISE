@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
-  Phone, MessageSquare, Mail, CreditCard, MapPin, Calendar,
-  DollarSign, ChevronRight, FileText, Clock, Loader2, X,
+  Phone, MessageSquare, Mail, MapPin, Calendar,
+  DollarSign, ChevronRight, FileText, Clock, Loader2, X, Check,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,7 +50,38 @@ export function MobileContactProfile({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [notes, setNotes] = useState(customer?.notes || '');
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync notes when customer changes
+  useEffect(() => {
+    setNotes(customer?.notes || '');
+    setNotesSaved(false);
+  }, [customer?.id, customer?.notes]);
+
+  // Auto-save notes with debounce
+  const autoSaveNotes = useCallback(async (value: string) => {
+    if (!customer?.id) return;
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ notes: value })
+        .eq('id', customer.id);
+      if (error) throw error;
+      setNotesSaved(true);
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setTimeout(() => setNotesSaved(false), 2000);
+    } catch {
+      toast.error('Failed to save notes');
+    }
+  }, [customer?.id, queryClient]);
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    setNotesSaved(false);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => autoSaveNotes(value), 1000);
+  };
 
   // Fetch booking stats
   const { data: bookingStats } = useQuery({
@@ -59,7 +90,7 @@ export function MobileContactProfile({
       if (!customer?.id || !organization?.id) return null;
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, scheduled_at, total_amount, status')
+        .select('id, scheduled_at, total_amount, status, payment_status')
         .eq('customer_id', customer.id)
         .eq('organization_id', organization.id)
         .order('scheduled_at', { ascending: false });
@@ -67,14 +98,18 @@ export function MobileContactProfile({
       if (!bookings || bookings.length === 0) return { total: 0, totalSpent: 0, lastDate: null, nextDate: null };
 
       const now = new Date().toISOString();
-      const completed = bookings.filter(b => b.status === 'completed' || b.status === 'confirmed');
-      const upcoming = bookings.find(b => b.scheduled_at > now && b.status !== 'cancelled');
-      const totalSpent = completed.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      const nonCancelled = bookings.filter(b => b.status !== 'cancelled');
+      const completed = bookings.filter(b => b.status === 'completed');
+      const upcoming = nonCancelled.find(b => b.scheduled_at > now && (b.status === 'pending' || b.status === 'confirmed'));
+      const totalSpent = bookings
+        .filter(b => b.payment_status === 'paid')
+        .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      const lastCompleted = completed[0]?.scheduled_at || null;
 
       return {
-        total: bookings.filter(b => b.status !== 'cancelled').length,
+        total: nonCancelled.length,
         totalSpent,
-        lastDate: completed[0]?.scheduled_at || null,
+        lastDate: lastCompleted,
         nextDate: upcoming?.scheduled_at || null,
       };
     },
@@ -105,21 +140,28 @@ export function MobileContactProfile({
     ? [primaryAddress.address, primaryAddress.city, primaryAddress.state, primaryAddress.zip_code].filter(Boolean).join(', ')
     : [customer.address, customer.city, customer.state, customer.zip_code].filter(Boolean).join(', ');
 
-  const handleSaveNotes = async () => {
-    if (!customer?.id) return;
-    setSavingNotes(true);
-    try {
-      const { error } = await supabase
-        .from('customers')
-        .update({ notes })
-        .eq('id', customer.id);
-      if (error) throw error;
-      toast.success('Notes saved');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    } catch {
-      toast.error('Failed to save notes');
-    } finally {
-      setSavingNotes(false);
+  const formatPhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    const withCountry = digits.startsWith('1') ? `+${digits}` : `+1${digits}`;
+    return withCountry;
+  };
+
+  const handleCall = () => {
+    if (!customer.phone) return;
+    const formatted = formatPhone(customer.phone);
+    // Try OpenPhone first, fall back to native dialer
+    const openPhoneUrl = `openphone://call?number=${encodeURIComponent(formatted)}`;
+    const fallbackUrl = `tel:${formatted}`;
+    
+    const w = window.open(openPhoneUrl);
+    // If window.open returns null or the protocol isn't handled, fall back
+    if (!w) {
+      window.open(fallbackUrl);
+    } else {
+      // Set a timeout — if OpenPhone didn't handle it, fall back
+      setTimeout(() => {
+        try { window.open(fallbackUrl); } catch {}
+      }, 1500);
     }
   };
 
@@ -130,7 +172,7 @@ export function MobileContactProfile({
       color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-100 dark:bg-green-900/40',
       disabled: !customer.phone,
-      onClick: () => customer.phone && window.open(`tel:${customer.phone}`),
+      onClick: handleCall,
     },
     {
       icon: MessageSquare,
@@ -146,16 +188,17 @@ export function MobileContactProfile({
       color: 'text-blue-600 dark:text-blue-400',
       bg: 'bg-blue-100 dark:bg-blue-900/40',
       disabled: !customer.email,
-      onClick: () => customer.email && window.open(`mailto:${customer.email}`),
+      onClick: () => customer.email && window.location.assign(`mailto:${customer.email}`),
     },
     {
-      icon: CreditCard,
-      label: 'Pay',
+      icon: Calendar,
+      label: 'Book',
       color: 'text-purple-600 dark:text-purple-400',
       bg: 'bg-purple-100 dark:bg-purple-900/40',
       disabled: false,
       onClick: () => {
-        toast.info('Payment link feature');
+        onOpenChange(false);
+        navigate(`/dashboard/bookings?newBooking=true&customerId=${customer.id}`);
       },
     },
   ];
@@ -228,7 +271,7 @@ export function MobileContactProfile({
               icon={<Phone className="w-4 h-4 text-muted-foreground" />}
               label="mobile"
               value={customer.phone}
-              href={`tel:${customer.phone}`}
+              onClick={handleCall}
             />
           )}
           {customer.email && (
@@ -285,16 +328,14 @@ export function MobileContactProfile({
           <div className="px-4 pb-3">
             <Textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => handleNotesChange(e.target.value)}
               placeholder="Add notes about this client..."
               className="min-h-[80px] border-0 bg-transparent resize-none p-0 focus-visible:ring-0 text-sm"
             />
-            {notes !== (customer.notes || '') && (
-              <div className="flex justify-end mt-2">
-                <Button size="sm" onClick={handleSaveNotes} disabled={savingNotes}>
-                  {savingNotes && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-                  Save
-                </Button>
+            {notesSaved && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-green-600 dark:text-green-400">
+                <Check className="w-3 h-3" />
+                <span>Saved</span>
               </div>
             )}
           </div>
@@ -340,7 +381,7 @@ function RowDivider() {
   return <Separator className="ml-12" />;
 }
 
-function InfoRow({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href?: string }) {
+function InfoRow({ icon, label, value, href, onClick }: { icon: React.ReactNode; label: string; value: string; href?: string; onClick?: () => void }) {
   const content = (
     <div className="flex items-center gap-3 px-4 py-3 active:bg-muted/50 transition-colors">
       {icon}
@@ -348,9 +389,10 @@ function InfoRow({ icon, label, value, href }: { icon: React.ReactNode; label: s
         <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</p>
         <p className="text-sm text-primary truncate">{value}</p>
       </div>
-      {href && <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />}
+      {(href || onClick) && <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />}
     </div>
   );
+  if (onClick) return <button onClick={onClick} className="block w-full text-left">{content}</button>;
   return href ? <a href={href} className="block">{content}</a> : content;
 }
 
