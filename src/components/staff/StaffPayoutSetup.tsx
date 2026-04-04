@@ -70,6 +70,11 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const payoutStatus = liveStatus || cachedStatus;
   const isLoading = isCacheLoading;
 
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['staff-payout-cached', staffId, organizationId] });
+  };
+
   // Fetch payout history from bookings
   const { data: payoutHistory = [] } = useQuery({
     queryKey: ['staff-payout-history', staffId, organizationId],
