@@ -605,10 +605,14 @@ export default function MessagesPage() {
             selectedConversation?.id === conv.id && "bg-muted/50"
           )}
         >
-          <Avatar className="h-12 w-12 shrink-0">
+          {/* Unread blue dot (iOS style) */}
+          {isMobile && isUnread && (
+            <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF] shrink-0" />
+          )}
+          <Avatar className={cn("shrink-0", isMobile ? "h-[50px] w-[50px]" : "h-12 w-12")}>
             <AvatarFallback className={cn(
               "text-sm font-semibold",
-              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]"
+              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
             )}>
               {conv.conversation_type === 'cleaner'
                 ? <HardHat className="h-5 w-5" />
@@ -617,25 +621,32 @@ export default function MessagesPage() {
           </Avatar>
           <div className="flex-1 min-w-0 text-left">
             <div className="flex items-center justify-between gap-2">
-              <span className={cn("text-[15px] truncate", isUnread ? "font-semibold text-foreground" : "font-normal text-foreground")}>
+              <span className={cn("text-[15px] truncate", isUnread ? "font-bold text-foreground" : "font-normal text-foreground")}>
                 {conv.customer_name || conv.customer_phone}
               </span>
-              <span className={cn("text-xs shrink-0", isUnread ? "text-[#007AFF] font-medium" : "text-muted-foreground")}>
-                {formatConversationTime(conv.last_message_at)}
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className={cn("text-xs", isUnread ? "text-foreground" : "text-muted-foreground")}>
+                  {formatConversationTime(conv.last_message_at)}
+                </span>
+                {isMobile && (
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/50 rotate-180" />
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2 mt-0.5">
               <p className={cn("text-sm truncate flex-1", isUnread ? "font-medium text-foreground" : "text-muted-foreground")}>
                 {conv.last_message_preview || 'No messages yet'}
               </p>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
-                {isUnread && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
-                    {conv.unread_count}
-                  </span>
-                )}
-              </div>
+              {!isMobile && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+                  {isUnread && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
+                      {conv.unread_count}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </button>
