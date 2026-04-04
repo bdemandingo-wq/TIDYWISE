@@ -62,6 +62,43 @@ export default function FinancePage() {
     to: endOfMonth(new Date()),
   });
   const { maskName, isTestMode } = useTestMode();
+  const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Stripe Live Sync
+  const { data: stripeData, isLoading: stripeLoading, error: stripeError, refetch: refetchStripe } = useQuery({
+    queryKey: ['stripe-analytics', organizationId, dateRange],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const { data, error } = await supabase.functions.invoke('stripe-analytics-sync', {
+        body: {
+          organization_id: organizationId,
+          date_from: dateRange.from.toISOString(),
+          date_to: dateRange.to.toISOString(),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      return data;
+    },
+    enabled: !!organizationId,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+    retry: 1,
+  });
+
+  const handleSyncStripe = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await refetchStripe();
+      toast.success('Stripe data synced successfully');
+    } catch (err) {
+      toast.error('Failed to sync with Stripe');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [refetchStripe]);
+
+  const stripeConnected = !stripeError && !!stripeData;
 
   // Fetch completed bookings with payment data - scoped to organization
   const { data: bookings = [] } = useQuery({
