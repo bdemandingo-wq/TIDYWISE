@@ -3329,6 +3329,47 @@ export type Database = {
           },
         ]
       }
+      manual_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          description: string | null
+          id: string
+          organization_id: string
+          stripe_charge_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          description?: string | null
+          id?: string
+          organization_id: string
+          stripe_charge_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          description?: string | null
+          id?: string
+          organization_id?: string
+          stripe_charge_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_sentiment_log: {
         Row: {
           analyzed_at: string | null
