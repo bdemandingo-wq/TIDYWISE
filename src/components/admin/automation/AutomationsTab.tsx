@@ -31,9 +31,8 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
-    const fetch = async () => {
+    const fetchIntervals = async () => {
       try {
         const { data, error } = await supabase
           .from('appointment_reminder_intervals')
@@ -57,8 +56,8 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
         setLoading(false);
       }
     };
-    fetch();
-  });
+    fetchIntervals();
+  }, [organizationId]);
 
   const saveIntervals = async () => {
     setSaving(true);
