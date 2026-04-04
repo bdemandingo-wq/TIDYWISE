@@ -790,11 +790,11 @@ export default function LeadsPage() {
               <TableBody>
                 {abandonedLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
                   </TableRow>
                 ) : abandonedLinks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No abandoned bookings</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No abandoned bookings</TableCell>
                   </TableRow>
                 ) : (
                   abandonedLinks.map((link: any) => {
