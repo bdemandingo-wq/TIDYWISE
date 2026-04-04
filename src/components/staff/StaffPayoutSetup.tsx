@@ -106,7 +106,10 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to start payout setup');
+      // Don't toast for org_stripe_not_connected — handled in UI
+      if (!error.message?.includes('org_stripe_not_connected')) {
+        toast.error(error.message || 'Failed to start payout setup');
+      }
     },
   });
 
