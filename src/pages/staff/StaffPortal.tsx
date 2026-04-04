@@ -708,6 +708,15 @@ export default function StaffPortal() {
             )}
           </TabsContent>
 
+          {/* Photos Tab */}
+          <TabsContent value="photos" className="space-y-4">
+            {staffInfo?.id && staffInfo?.organization_id ? (
+              <StaffPhotosTab staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+            ) : (
+              <p className="text-muted-foreground">Loading...</p>
+            )}
+          </TabsContent>
+
           {/* Available Jobs Tab */}
           <TabsContent value="available" className="space-y-4">
             <div>
