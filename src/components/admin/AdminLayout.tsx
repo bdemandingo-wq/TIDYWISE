@@ -30,6 +30,11 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
 
+  // Hide the top header bar on mobile when viewing Messages
+  const isMessagesRoute = location.pathname.includes('/messages');
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
+  const hideHeader = isMessagesRoute && isMobileView;
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
@@ -39,7 +44,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         "pl-0 md:pl-16",
         sidebarOpen && "md:pl-64"
       )}>
-        <AdminHeader title={title} subtitle={subtitle} actions={actions} />
+        {!hideHeader && <AdminHeader title={title} subtitle={subtitle} actions={actions} />}
 
         <main
           className={cn(
