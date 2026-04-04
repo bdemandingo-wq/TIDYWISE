@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     if (action === "get_status") {
       const { data, error } = await supabase
         .from("org_stripe_settings")
-        .select("is_connected, connected_at, stripe_account_id, stripe_user_email, stripe_display_name, stripe_payouts_enabled, stripe_default_currency, stripe_publishable_key")
+        .select("is_connected, connected_at, stripe_account_id, stripe_user_email, stripe_display_name, stripe_payouts_enabled, stripe_default_currency, stripe_publishable_key, stripe_secret_key, stripe_access_token")
         .eq("organization_id", organization_id)
         .maybeSingle();
 
@@ -140,8 +140,28 @@ Deno.serve(async (req) => {
         );
       }
 
-      // If connected, try to fetch fresh account details from Stripe
-      if (data?.is_connected && data?.stripe_account_id) {
+      // Check if connected via OAuth OR via legacy manual API keys
+      const isConnectedViaOAuth = data?.is_connected && data?.stripe_account_id;
+      const isConnectedViaManualKeys = !data?.is_connected && data?.stripe_secret_key && !data?.stripe_account_id;
+
+      // If they have manual keys but no OAuth connection, mark as connected (legacy)
+      if (isConnectedViaManualKeys) {
+        return new Response(
+          JSON.stringify({
+            connected: true,
+            legacy: true,
+            email: data.stripe_user_email || null,
+            display_name: data.stripe_display_name || null,
+            payouts_enabled: data.stripe_payouts_enabled ?? true,
+            connected_at: data.connected_at || null,
+            default_currency: data.stripe_default_currency || "usd",
+            has_publishable_key: !!data.stripe_publishable_key,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (isConnectedViaOAuth) {
         try {
           // Get the org's access token to make API calls
           const { data: fullSettings } = await supabase

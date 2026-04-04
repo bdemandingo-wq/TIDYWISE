@@ -19,12 +19,14 @@ import { SEOHead } from "@/components/SEOHead";
 
 interface ConnectionStatus {
   connected: boolean;
+  legacy?: boolean;
   account_id?: string;
   email?: string;
   display_name?: string;
   payouts_enabled?: boolean;
   connected_at?: string;
   default_currency?: string;
+  has_publishable_key?: boolean;
 }
 
 export default function PaymentIntegrationPage() {
@@ -160,7 +162,9 @@ export default function PaymentIntegrationPage() {
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-foreground text-lg">✅ Stripe Connected</p>
+                      <p className="font-semibold text-foreground text-lg">
+                        ✅ Stripe Connected {connectionStatus.legacy && "(API Keys)"}
+                      </p>
                       {connectionStatus.email && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {connectionStatus.display_name || connectionStatus.email}
@@ -190,6 +194,32 @@ export default function PaymentIntegrationPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Legacy upgrade prompt */}
+            {connectionStatus.legacy && (
+              <Card className="border-amber-500/30 bg-amber-500/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">Upgrade to Stripe Connect (Recommended)</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        You're currently using manual API keys. Upgrade to Stripe Connect OAuth for a more secure, one-click setup with automatic account management.
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={handleConnect}
+                        disabled={isConnecting}
+                        className="mt-3 bg-[#635BFF] hover:bg-[#5851DB] text-white gap-2"
+                      >
+                        {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                        Upgrade to Connect
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Account Details */}
             <Card>
