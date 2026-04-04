@@ -102,7 +102,7 @@ export default function CampaignsPage() {
 
   // Test results
   const [testResult, setTestResult] = useState<{
-    inactive: number; contactable: number; customers?: any[];
+    inactive: number; contactable: number; excludedCount?: number; customers?: any[];
   } | null>(null);
 
   // Business settings
