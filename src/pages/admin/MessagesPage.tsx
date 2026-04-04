@@ -741,14 +741,21 @@ export default function MessagesPage() {
     const hasMessages = !!conv.last_message_preview;
 
     const rowContent = (
-      <div
+      <button
+        type="button"
         onClick={() => handleSelectConversation(conv)}
         onTouchStart={(e) => handleLongPressStart(conv.id, e)}
         onTouchEnd={handleLongPressEnd}
         onTouchMove={handleLongPressMove}
-        onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (bulkEditMode) return;
+          hapticImpact('medium');
+          setContextMenuConvId(conv.id);
+          setContextMenuPosition({ x: e.clientX, y: e.clientY });
+        }}
         className={cn(
-          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none",
+          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none text-left",
           isMobile
             ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
             : cn(
@@ -803,7 +810,7 @@ export default function MessagesPage() {
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
         </div>
-      </div>
+      </button>
     );
 
     return rowContent;
