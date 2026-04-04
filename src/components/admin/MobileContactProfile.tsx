@@ -102,7 +102,7 @@ export function MobileContactProfile({
       const completed = bookings.filter(b => b.status === 'completed');
       const upcoming = nonCancelled.find(b => b.scheduled_at > now && (b.status === 'pending' || b.status === 'confirmed'));
       const totalSpent = bookings
-        .filter(b => b.payment_status === 'paid' || b.payment_status === 'completed')
+        .filter(b => b.payment_status === 'paid')
         .reduce((sum, b) => sum + (b.total_amount || 0), 0);
       const lastCompleted = completed[0]?.scheduled_at || null;
 
