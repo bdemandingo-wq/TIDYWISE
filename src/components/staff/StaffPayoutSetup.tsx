@@ -138,6 +138,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     );
   }
 
+  const isOrgNotConnected = payoutStatus?.status === 'org_not_connected';
   const isSetUp = payoutStatus?.status === 'active';
   const isOnboarding = payoutStatus?.status === 'onboarding';
   const isPending = payoutStatus?.status === 'pending_verification';
