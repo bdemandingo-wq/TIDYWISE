@@ -3,6 +3,10 @@ import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   CreditCard,
   CheckCircle2,
@@ -11,11 +15,17 @@ import {
   ExternalLink,
   AlertCircle,
   Zap,
+  DollarSign,
+  Users,
+  BarChart3,
+  Link2,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { SEOHead } from "@/components/SEOHead";
+import { format } from "date-fns";
 
 interface ConnectionStatus {
   connected: boolean;
@@ -29,6 +39,15 @@ interface ConnectionStatus {
   has_publishable_key?: boolean;
 }
 
+interface ManualPayment {
+  id: string;
+  customer_name: string;
+  amount: number;
+  description: string | null;
+  stripe_charge_id: string | null;
+  created_at: string;
+}
+
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
   const [searchParams] = useSearchParams();
@@ -38,6 +57,16 @@ export default function PaymentIntegrationPage() {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
+
+  // Charge modal state
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [chargeName, setChargeName] = useState("");
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [chargeDesc, setChargeDesc] = useState("");
+  const [charging, setCharging] = useState(false);
+
+  // Recent manual payments
+  const [recentPayments, setRecentPayments] = useState<ManualPayment[]>([]);
 
   // Check for OAuth callback code
   useEffect(() => {
@@ -53,6 +82,7 @@ export default function PaymentIntegrationPage() {
   useEffect(() => {
     if (organization?.id && !searchParams.get("code")) {
       fetchConnectionStatus();
+      fetchRecentPayments();
     }
   }, [organization?.id]);
 
@@ -73,6 +103,17 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  const fetchRecentPayments = async () => {
+    if (!organization?.id) return;
+    const { data } = await supabase
+      .from("manual_payments")
+      .select("id, customer_name, amount, description, stripe_charge_id, created_at")
+      .eq("organization_id", organization.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setRecentPayments(data || []);
+  };
+
   const handleOAuthCallback = async (code: string, state: string | null) => {
     if (!organization?.id) return;
     setIsConnecting(true);
@@ -88,7 +129,6 @@ export default function PaymentIntegrationPage() {
 
       setOauthMessage(null);
       toast.success("✅ Stripe Connected Successfully");
-      // Clear ?code= from URL
       window.history.replaceState({}, "", window.location.pathname);
       await fetchConnectionStatus();
     } catch (err: any) {
@@ -106,7 +146,6 @@ export default function PaymentIntegrationPage() {
     if (!organization?.id) return;
     setIsConnecting(true);
     try {
-      // Get user email to pre-fill Stripe login
       const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "get_oauth_url", organization_id: organization.id, email: user?.email || "" },
@@ -126,12 +165,10 @@ export default function PaymentIntegrationPage() {
 
   const handleDisconnect = async () => {
     if (!organization?.id) return;
-
     const confirmed = window.confirm(
       "Are you sure you want to disconnect Stripe? This will disable all payment features for your organization."
     );
     if (!confirmed) return;
-
     setIsDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
@@ -147,6 +184,42 @@ export default function PaymentIntegrationPage() {
       setIsDisconnecting(false);
     }
   };
+
+  const handleChargeCard = async () => {
+    if (!organization?.id || !chargeName.trim() || !chargeAmount) return;
+    setCharging(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("charge-card-manual", {
+        body: {
+          organization_id: organization.id,
+          customer_name: chargeName.trim(),
+          amount: parseFloat(chargeAmount),
+          description: chargeDesc.trim() || null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Payment intent created for $${parseFloat(chargeAmount).toFixed(2)}`);
+      setChargeOpen(false);
+      setChargeName("");
+      setChargeAmount("");
+      setChargeDesc("");
+      fetchRecentPayments();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create charge");
+    } finally {
+      setCharging(false);
+    }
+  };
+
+  const stripeLinks = [
+    { label: "View Charges", icon: CreditCard, emoji: "💳", url: "https://dashboard.stripe.com/payments" },
+    { label: "View Payouts", icon: Banknote, emoji: "💰", url: "https://dashboard.stripe.com/balance/overview" },
+    { label: "View Customers", icon: Users, emoji: "👥", url: "https://dashboard.stripe.com/customers" },
+    { label: "View Dashboard", icon: BarChart3, emoji: "📊", url: "https://dashboard.stripe.com" },
+    { label: "Create Payment Link", icon: Link2, emoji: "🔄", url: "https://dashboard.stripe.com/payment-links" },
+  ];
 
   // Show OAuth connecting state
   if (oauthMessage) {
@@ -289,17 +362,83 @@ export default function PaymentIntegrationPage() {
                     <p className="font-medium text-sm mt-0.5 uppercase">{connectionStatus.default_currency || "usd"}</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
+            {/* ═══════════════════════════════════════════ */}
+            {/* My Personal Stripe Account */}
+            {/* ═══════════════════════════════════════════ */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-[#635BFF]" />
+                  My Personal Stripe Account
+                </CardTitle>
+                <CardDescription>Quick access to your Stripe dashboard and tools</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Quick access links */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {stripeLinks.map((link) => (
+                    <Button
+                      key={link.label}
+                      variant="outline"
+                      className="h-auto py-3 px-3 flex flex-col items-center gap-1.5 text-center"
+                      onClick={() => window.open(link.url, "_blank")}
+                    >
+                      <span className="text-lg">{link.emoji}</span>
+                      <span className="text-xs font-medium leading-tight">{link.label}</span>
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Quick Charge Button */}
                 <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() => window.open("https://dashboard.stripe.com", "_blank")}
+                  className="w-full gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
+                  onClick={() => setChargeOpen(true)}
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Open Stripe Dashboard
+                  <Zap className="h-4 w-4" />
+                  Charge a Card
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Recent Manual Payments */}
+            {recentPayments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-green-500" />
+                    Recent Manual Charges
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {recentPayments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{p.customer_name}</p>
+                          {p.description && (
+                            <p className="text-xs text-muted-foreground truncate">{p.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(new Date(p.created_at), "MMM d, yyyy h:mm a")}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="font-semibold text-sm text-green-600">${p.amount.toFixed(2)}</p>
+                          {p.stripe_charge_id && (
+                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">
+                              {p.stripe_charge_id.slice(0, 16)}...
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         ) : (
           <>
@@ -399,6 +538,60 @@ export default function PaymentIntegrationPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charge Card Modal */}
+      <Dialog open={chargeOpen} onOpenChange={setChargeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-[#635BFF]" />
+              Charge a Card
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Customer Name</Label>
+              <Input
+                placeholder="e.g. John Smith"
+                value={chargeName}
+                onChange={(e) => setChargeName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Amount ($)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.50"
+                placeholder="0.00"
+                value={chargeAmount}
+                onChange={(e) => setChargeAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea
+                placeholder="e.g. Deep cleaning service"
+                value={chargeDesc}
+                onChange={(e) => setChargeDesc(e.target.value)}
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChargeOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleChargeCard}
+              disabled={charging || !chargeName.trim() || !chargeAmount || parseFloat(chargeAmount) < 0.5}
+              className="gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
+            >
+              {charging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              {charging ? "Processing..." : `Charge $${chargeAmount ? parseFloat(chargeAmount).toFixed(2) : "0.00"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
