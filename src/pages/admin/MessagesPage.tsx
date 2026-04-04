@@ -978,11 +978,13 @@ export default function MessagesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
           <Input
+            ref={searchInputRef}
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
             className={cn(
-              "pl-10 pr-10 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
+              "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
               isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
             )}
           />
@@ -990,6 +992,9 @@ export default function MessagesPage() {
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
           ) : isMobile ? (
             <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+          ) : (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
+          )}
           ) : null}
         </div>
       </div>
