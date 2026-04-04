@@ -1970,8 +1970,8 @@ export default function BookingsPage() {
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" className="w-[420px] bg-popover border-border rounded-xl p-0">
-                            <div className="grid grid-cols-2 divide-x divide-border">
+                           <DropdownMenuContent align="end" side="bottom" avoidCollisions stickyPadding={8} className="w-[280px] md:w-[420px] bg-popover border-border rounded-xl p-0 max-h-[70vh] overflow-y-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
                               {/* Left column: Booking */}
                               <div className="p-1">
                                 <DropdownMenuLabel className="text-xs text-muted-foreground px-2">Booking</DropdownMenuLabel>
