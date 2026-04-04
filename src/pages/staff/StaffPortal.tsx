@@ -615,7 +615,7 @@ export default function StaffPortal() {
             <p className="text-sm text-muted-foreground">You must set your working hours before you can view or claim jobs.</p>
           </div>
         )}
-        <Tabs value={activeTab || (hasSetAvailability === false ? 'availability' : 'my-jobs')} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={currentTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
             <TabsTrigger value="my-jobs" className="gap-2">
               <Briefcase className="w-4 h-4 hidden sm:inline" />
