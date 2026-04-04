@@ -294,7 +294,25 @@ Deno.serve(async (req) => {
       // Validate the key by making a test API call
       try {
         const testStripe = new Stripe(secret_key, { apiVersion: "2023-10-16" });
-        const account = await testStripe.accounts.retrieve("self");
+        
+        // Use balance.retrieve() as a lightweight validation - works with all key permission levels
+        await testStripe.balance.retrieve();
+        
+        // Try to get account details for display info (optional - may fail with restricted keys)
+        let accountEmail = null;
+        let displayName = null;
+        let payoutsEnabled = true;
+        let defaultCurrency = "usd";
+        
+        try {
+          const account = await testStripe.accounts.retrieve();
+          accountEmail = account.email || null;
+          displayName = account.business_profile?.name || account.settings?.dashboard?.display_name || null;
+          payoutsEnabled = account.payouts_enabled ?? true;
+          defaultCurrency = account.default_currency || "usd";
+        } catch (accountErr) {
+          console.warn("[stripe-connect-oauth] Could not fetch account details (restricted key), proceeding with key save");
+        }
 
         // Save to org_stripe_settings
         const { error: upsertError } = await supabase
@@ -303,10 +321,10 @@ Deno.serve(async (req) => {
             organization_id,
             stripe_secret_key: secret_key,
             stripe_publishable_key: publishable_key || null,
-            stripe_user_email: account.email || null,
-            stripe_display_name: account.business_profile?.name || account.settings?.dashboard?.display_name || null,
-            stripe_payouts_enabled: account.payouts_enabled ?? true,
-            stripe_default_currency: account.default_currency || "usd",
+            stripe_user_email: accountEmail,
+            stripe_display_name: displayName,
+            stripe_payouts_enabled: payoutsEnabled,
+            stripe_default_currency: defaultCurrency,
             is_connected: true,
             connected_at: new Date().toISOString(),
             stripe_account_id: null,
@@ -326,16 +344,25 @@ Deno.serve(async (req) => {
             success: true,
             connected: true,
             legacy: true,
-            email: account.email,
-            display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
-            payouts_enabled: account.payouts_enabled,
+            email: accountEmail,
+            display_name: displayName,
+            payouts_enabled: payoutsEnabled,
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (stripeErr) {
-        console.error("[stripe-connect-oauth] Invalid Stripe key:", stripeErr);
+        console.error("[stripe-connect-oauth] Stripe key validation failed:", stripeErr);
+        const msg = stripeErr?.message || "Unknown error";
+        let hint = "Invalid Stripe secret key.";
+        if (msg.includes("restricted") || msg.includes("permission")) {
+          hint = "This key has restricted permissions. Please use a Standard secret key with full access from Stripe Dashboard → Developers → API keys.";
+        } else if (msg.includes("Invalid API Key")) {
+          hint = "Invalid API key. Please copy the full secret key (sk_live_... or sk_test_...) from your Stripe Dashboard.";
+        } else {
+          hint = `Could not validate key: ${msg}`;
+        }
         return new Response(
-          JSON.stringify({ error: "Invalid Stripe secret key. Please verify it in your Stripe Dashboard → Developers → API keys." }),
+          JSON.stringify({ error: hint }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
