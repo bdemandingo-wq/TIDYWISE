@@ -749,12 +749,16 @@ export default function MessagesPage() {
         onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
         className={cn(
           "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none",
-          "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]",
-          selectedConversation?.id === conv.id && !isMobile && "bg-muted/50"
+          isMobile
+            ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
+            : cn(
+                "hover:bg-muted/50",
+                selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]"
+              )
         )}
       >
         {/* Bulk edit checkbox */}
-        {bulkEditMode && isMobile && (
+        {bulkEditMode && (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={selectedForBulk.has(conv.id)}
