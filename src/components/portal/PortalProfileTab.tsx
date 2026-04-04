@@ -240,7 +240,7 @@ export function PortalProfileTab() {
     }
   };
 
-
+  const currentPoints = loyalty?.lifetime_points || 0;
   const currentTierName = loyalty?.tier?.toLowerCase() || "bronze";
   const currentTierIndex = tiers.findIndex(
     (t) => t.tier_name.toLowerCase() === currentTierName
