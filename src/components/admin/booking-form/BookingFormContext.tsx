@@ -267,6 +267,22 @@ export function BookingFormProvider({
   
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
+  // Fetch saved locations for the selected customer
+  const { data: customerLocations = [] } = useQuery({
+    queryKey: ['customer-locations', selectedCustomerId],
+    queryFn: async () => {
+      if (!selectedCustomerId) return [];
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
+        .eq('customer_id', selectedCustomerId)
+        .order('is_primary', { ascending: false });
+      if (error) return [];
+      return (data || []) as SavedLocation[];
+    },
+    enabled: !!selectedCustomerId,
+  });
   
   const customerEmail = customerTab === 'existing' && selectedCustomer 
     ? selectedCustomer.email 
