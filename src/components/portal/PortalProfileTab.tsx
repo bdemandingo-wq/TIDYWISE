@@ -10,9 +10,25 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+
+const ADDRESS_LABELS = ["Home", "Office", "Airbnb", "Rental", "Other"];
+
+const LABEL_EMOJIS: Record<string, string> = {
+  home: "🏠",
+  office: "🏢",
+  airbnb: "🏡",
+  rental: "🔑",
+  other: "📍",
+  "primary address": "🏠",
+};
+
+function getLabelEmoji(label: string) {
+  return LABEL_EMOJIS[label.toLowerCase()] || "📍";
+}
 
 interface Location {
   id: string;
@@ -199,6 +215,30 @@ export function PortalProfileTab() {
       toast.error("Failed to delete address");
     }
   };
+  const handleSetDefault = async (locationId: string) => {
+    if (!user) return;
+    try {
+      // Unset all, then set the chosen one
+      const { error } = await supabase
+        .from("locations")
+        .update({ is_primary: false })
+        .eq("customer_id", user.customer_id);
+      if (error) throw error;
+
+      const { error: error2 } = await supabase
+        .from("locations")
+        .update({ is_primary: true })
+        .eq("id", locationId);
+      if (error2) throw error2;
+
+      setLocations((prev) =>
+        prev.map((l) => ({ ...l, is_primary: l.id === locationId }))
+      );
+      toast.success("Default address updated");
+    } catch {
+      toast.error("Failed to update default address");
+    }
+  };
 
   const currentPoints = loyalty?.lifetime_points || 0;
   const currentTierName = loyalty?.tier?.toLowerCase() || "bronze";
@@ -301,6 +341,7 @@ export function PortalProfileTab() {
               Add
             </Button>
           </div>
+          <CardDescription>Manage your service locations</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {showAddLocation && (
@@ -308,14 +349,17 @@ export function PortalProfileTab() {
               <CardContent className="pt-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Location Name *</Label>
-                    <Input
-                      placeholder="Home, Work, etc."
-                      value={newLocation.name}
-                      onChange={(e) =>
-                        setNewLocation({ ...newLocation, name: e.target.value })
-                      }
-                    />
+                    <Label className="text-xs">Label *</Label>
+                    <Select value={newLocation.name || "Home"} onValueChange={(v) => setNewLocation({ ...newLocation, name: v })}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ADDRESS_LABELS.map(l => (
+                          <SelectItem key={l} value={l}>{getLabelEmoji(l)} {l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Apt/Suite</Label>
@@ -325,6 +369,7 @@ export function PortalProfileTab() {
                       onChange={(e) =>
                         setNewLocation({ ...newLocation, apt_suite: e.target.value })
                       }
+                      className="h-9"
                     />
                   </div>
                 </div>
@@ -337,6 +382,7 @@ export function PortalProfileTab() {
                     onChange={(e) =>
                       setNewLocation({ ...newLocation, address: e.target.value })
                     }
+                    className="h-9"
                   />
                 </div>
 
@@ -349,16 +395,18 @@ export function PortalProfileTab() {
                       onChange={(e) =>
                         setNewLocation({ ...newLocation, city: e.target.value })
                       }
+                      className="h-9"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">State</Label>
                     <Input
-                      placeholder="State"
+                      placeholder="FL"
                       value={newLocation.state}
                       onChange={(e) =>
                         setNewLocation({ ...newLocation, state: e.target.value })
                       }
+                      className="h-9"
                     />
                   </div>
                   <div className="space-y-1">
@@ -369,8 +417,20 @@ export function PortalProfileTab() {
                       onChange={(e) =>
                         setNewLocation({ ...newLocation, zip_code: e.target.value })
                       }
+                      className="h-9"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="set-default"
+                    checked={newLocation.is_primary}
+                    onCheckedChange={(checked) =>
+                      setNewLocation({ ...newLocation, is_primary: !!checked })
+                    }
+                  />
+                  <Label htmlFor="set-default" className="text-xs cursor-pointer">Set as default address</Label>
                 </div>
 
                 <div className="flex gap-2">
@@ -400,7 +460,7 @@ export function PortalProfileTab() {
             </div>
           ) : locations.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No addresses saved yet
+              No addresses saved yet. Add your first address to speed up booking requests.
             </p>
           ) : (
             <div className="space-y-3">
@@ -409,26 +469,39 @@ export function PortalProfileTab() {
                   key={location.id}
                   className="flex items-start justify-between p-3 rounded-lg border"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{location.name}</span>
-                      {location.is_primary && (
-                        <Badge variant="secondary" className="text-xs">
-                          Primary
-                        </Badge>
+                  <div className="flex gap-3">
+                    <span className="text-xl mt-0.5">{getLabelEmoji(location.name)}</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{location.name}</span>
+                        {location.is_primary && (
+                          <Badge variant="secondary" className="text-xs">
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {location.address}
+                        {location.apt_suite && `, ${location.apt_suite}`}
+                      </p>
+                      {(location.city || location.state || location.zip_code) && (
+                        <p className="text-sm text-muted-foreground">
+                          {[location.city, location.state, location.zip_code]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      )}
+                      {!location.is_primary && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs text-primary"
+                          onClick={() => handleSetDefault(location.id)}
+                        >
+                          Set as default
+                        </Button>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {location.address}
-                      {location.apt_suite && `, ${location.apt_suite}`}
-                    </p>
-                    {(location.city || location.state || location.zip_code) && (
-                      <p className="text-sm text-muted-foreground">
-                        {[location.city, location.state, location.zip_code]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </p>
-                    )}
                   </div>
                   <Button
                     variant="ghost"
