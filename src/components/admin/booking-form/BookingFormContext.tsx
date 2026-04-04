@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
