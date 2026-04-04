@@ -63,7 +63,7 @@ interface Contact {
   type: 'client' | 'cleaner';
 }
 
-type ConversationTab = 'all' | 'clients' | 'cleaners';
+type ConversationTab = 'all' | 'clients' | 'cleaners' | 'unread';
 
 // ─── Helpers ────────────────────────────────────────
 const normalizePhone = (phone: string): string => {
@@ -381,6 +381,7 @@ export default function MessagesPage() {
       const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
       if (activeTab === 'clients') return matchesSearch && conv.conversation_type === 'client';
       if (activeTab === 'cleaners') return matchesSearch && conv.conversation_type === 'cleaner';
+      if (activeTab === 'unread') return matchesSearch && conv.unread_count > 0;
       return matchesSearch;
     });
   }, [conversations, searchQuery, activeTab, contentSearchResults]);
@@ -484,20 +485,19 @@ export default function MessagesPage() {
   const renderPinnedRow = () => {
     if (pinnedConversations.length === 0) return null;
     return isMobile ? (
-      // iOS-style grid layout for mobile (3 per row)
-      <div className="px-4 pt-3 pb-2">
-        <div className="grid grid-cols-3 gap-y-4 gap-x-2">
-          {pinnedConversations.map(conv => (
+      <div className="px-4 pt-2 pb-3">
+        <div className="grid grid-cols-3 gap-y-5 gap-x-3">
+          {pinnedConversations.slice(0, 6).map(conv => (
             <button
               key={conv.id}
               onClick={() => handleSelectConversation(conv)}
-              className="flex flex-col items-center gap-1.5 group relative"
+              className="flex flex-col items-center gap-1.5 group relative active:scale-95 transition-transform"
             >
               <div className="relative">
-                <Avatar className="h-[72px] w-[72px] ring-2 ring-transparent group-active:ring-muted/60 transition-all">
+                <Avatar className="h-[68px] w-[68px]">
                   <AvatarFallback className={cn(
-                    "text-xl font-semibold",
-                    conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
+                    "text-[22px] font-semibold",
+                    conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#E5E5EA] text-[#3C3C43]"
                   )}>
                     {conv.conversation_type === 'cleaner'
                       ? <HardHat className="h-7 w-7" />
@@ -505,16 +505,18 @@ export default function MessagesPage() {
                   </AvatarFallback>
                 </Avatar>
                 {conv.unread_count > 0 && (
-                  <span className="absolute top-0 right-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] ring-2 ring-background" />
+                  <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] ring-2 ring-white dark:ring-black text-white text-[10px] font-bold px-1">
+                    {conv.unread_count}
+                  </span>
                 )}
-                {/* Last message bubble preview */}
                 {conv.last_message_preview && (
-                  <div className="absolute -top-2 -right-1 max-w-[100px] bg-muted border border-border/50 rounded-lg px-2 py-0.5 shadow-sm pointer-events-none">
-                    <p className="text-[10px] text-foreground truncate leading-tight">{conv.last_message_preview.slice(0, 20)}</p>
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 max-w-[110px] bg-[#E5E5EA] dark:bg-[#3A3A3C] rounded-xl px-2.5 py-1 shadow-sm pointer-events-none">
+                    <p className="text-[11px] text-[#1C1C1E] dark:text-[#F2F2F7] truncate leading-tight text-center">{conv.last_message_preview.slice(0, 24)}</p>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#E5E5EA] dark:bg-[#3A3A3C] rotate-45" />
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-foreground truncate w-full text-center leading-tight">
+              <span className="text-[11px] text-[#3C3C43] dark:text-[#EBEBF5] truncate w-full text-center leading-tight font-medium">
                 {conv.customer_name?.split(' ')[0] || conv.customer_phone.slice(-4)}
               </span>
             </button>
@@ -522,7 +524,6 @@ export default function MessagesPage() {
         </div>
       </div>
     ) : (
-      // Horizontal scroll for desktop
       <div className="px-3 pt-3 pb-1">
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
           {pinnedConversations.map(conv => (
@@ -561,24 +562,34 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   // RENDER: Filter Pills
   // ═══════════════════════════════════════════════════
-  const renderFilterPills = () => (
-    <div className="flex gap-2 px-4 py-2">
-      {(['all', 'clients', 'cleaners'] as ConversationTab[]).map(tab => (
-        <button
-          key={tab}
-          onClick={() => { setActiveTab(tab); hapticImpact('light'); }}
-          className={cn(
-            "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
-            activeTab === tab
-              ? "bg-[#007AFF] text-white shadow-sm"
-              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-          )}
-        >
-          {tab === 'all' ? 'All' : tab === 'clients' ? 'Clients' : 'Cleaners'}
-        </button>
-      ))}
-    </div>
-  );
+  const renderFilterPills = () => {
+    const tabs: { key: ConversationTab; label: string }[] = [
+      { key: 'all', label: 'All' },
+      { key: 'clients', label: 'Clients' },
+      { key: 'cleaners', label: 'Cleaners' },
+      ...(isMobile ? [{ key: 'unread' as ConversationTab, label: 'Unread' }] : []),
+    ];
+    return (
+      <div className="flex gap-2 px-4 py-2">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { setActiveTab(tab.key); hapticImpact('light'); }}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
+              activeTab === tab.key
+                ? "bg-[#007AFF] text-white shadow-sm"
+                : isMobile
+                  ? "bg-[#E5E5EA] dark:bg-[#3A3A3C] text-[#3C3C43] dark:text-[#EBEBF5]"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   // ═══════════════════════════════════════════════════
   // RENDER: Conversation Row
@@ -586,6 +597,92 @@ export default function MessagesPage() {
   const renderConversationRow = (conv: Conversation) => {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
+
+    const rowContent = (
+      <button
+        onClick={() => handleSelectConversation(conv)}
+        className={cn(
+          "w-full flex items-center gap-3 px-4 py-3 transition-colors",
+          "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]",
+          selectedConversation?.id === conv.id && !isMobile && "bg-muted/50"
+        )}
+      >
+        {/* Unread blue dot */}
+        <div className="w-[10px] shrink-0 flex justify-center">
+          {isUnread && (
+            <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
+          )}
+        </div>
+        <Avatar className={cn("shrink-0", isMobile ? "h-[52px] w-[52px]" : "h-12 w-12")}>
+          <AvatarFallback className={cn(
+            "text-lg font-semibold",
+            conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#E5E5EA] dark:bg-[#3A3A3C] text-[#3C3C43] dark:text-[#EBEBF5]"
+          )}>
+            {conv.conversation_type === 'cleaner'
+              ? <HardHat className="h-5 w-5" />
+              : getInitials(conv.customer_name, conv.customer_phone)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn("text-[16px] truncate", isUnread ? "font-semibold text-[#1C1C1E] dark:text-white" : "font-normal text-[#1C1C1E] dark:text-white")}>
+              {conv.customer_name || conv.customer_phone}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className={cn("text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
+                {formatConversationTime(conv.last_message_at)}
+              </span>
+              <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />
+            </div>
+          </div>
+          <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
+            {conv.last_message_preview || 'No messages yet'}
+          </p>
+        </div>
+      </button>
+    );
+
+    if (isMobile) {
+      return (
+        <DropdownMenu key={conv.id}>
+          <DropdownMenuTrigger asChild>
+            <div
+              onContextMenu={(e) => { e.preventDefault(); }}
+              className="relative"
+            >
+              <SwipeableRow
+                rightAction={{
+                  label: '🗑️ Delete',
+                  onAction: () => handleDeleteConversation(conv.id),
+                  variant: 'destructive'
+                }}
+                className="rounded-none"
+              >
+                {rowContent}
+              </SwipeableRow>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => togglePin(conv.id)}>
+              <Pin className="h-4 w-4 mr-2" />
+              {isPinned ? 'Unpin' : 'Pin'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleMarkAsRead(conv.id)}>
+              <Check className="h-4 w-4 mr-2" />
+              Mark as Read
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { hapticImpact('light'); }}>
+              <BellOff className="h-4 w-4 mr-2" />
+              Mute
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteConversation(conv.id)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
 
     return (
       <SwipeableRow
@@ -597,59 +694,7 @@ export default function MessagesPage() {
         }}
         className="rounded-none"
       >
-        <button
-          onClick={() => handleSelectConversation(conv)}
-          className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 transition-colors",
-            "bg-background hover:bg-muted/40 active:bg-muted/60",
-            selectedConversation?.id === conv.id && "bg-muted/50"
-          )}
-        >
-          {/* Unread blue dot (iOS style) */}
-          {isMobile && isUnread && (
-            <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF] shrink-0" />
-          )}
-          <Avatar className={cn("shrink-0", isMobile ? "h-[50px] w-[50px]" : "h-12 w-12")}>
-            <AvatarFallback className={cn(
-              "text-sm font-semibold",
-              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
-            )}>
-              {conv.conversation_type === 'cleaner'
-                ? <HardHat className="h-5 w-5" />
-                : getInitials(conv.customer_name, conv.customer_phone)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center justify-between gap-2">
-              <span className={cn("text-[15px] truncate", isUnread ? "font-bold text-foreground" : "font-normal text-foreground")}>
-                {conv.customer_name || conv.customer_phone}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                <span className={cn("text-xs", isUnread ? "text-foreground" : "text-muted-foreground")}>
-                  {formatConversationTime(conv.last_message_at)}
-                </span>
-                {isMobile && (
-                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/50 rotate-180" />
-                )}
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2 mt-0.5">
-              <p className={cn("text-sm truncate flex-1", isUnread ? "font-medium text-foreground" : "text-muted-foreground")}>
-                {conv.last_message_preview || 'No messages yet'}
-              </p>
-              {!isMobile && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
-                  {isUnread && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
-                      {conv.unread_count}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </button>
+        {rowContent}
       </SwipeableRow>
     );
   };
@@ -658,21 +703,38 @@ export default function MessagesPage() {
   // RENDER: Conversation List
   // ═══════════════════════════════════════════════════
   const renderConversationList = () => (
-    <div className="flex flex-col h-full bg-background">
+    <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
+      {/* iOS Header - mobile only */}
+      {isMobile && (
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <button className="text-[#007AFF] text-[17px] font-normal flex items-center gap-0.5">
+            <Filter className="h-4 w-4" />
+            <span>Filters</span>
+          </button>
+          <h1 className="text-[17px] font-semibold text-[#1C1C1E] dark:text-white">Messages</h1>
+          <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
+            <Pencil className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       {/* Search */}
-      <div className="px-4 pt-3 pb-1">
+      <div className="px-4 pt-2 pb-1">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
           <Input
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
+            className={cn(
+              "pl-10 pr-10 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
+              isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
+            )}
           />
           {searchingContent ? (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
           ) : isMobile ? (
-            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
           ) : null}
         </div>
       </div>
@@ -688,15 +750,15 @@ export default function MessagesPage() {
         <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
         {loading ? (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-6 w-6 animate-spin text-[#8E8E93]" />
           </div>
         ) : unpinnedConversations.length === 0 && pinnedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
-            <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-sm text-muted-foreground">No conversations yet</p>
+            <MessageSquare className="h-12 w-12 text-[#C7C7CC] mb-4" />
+            <p className="text-[15px] text-[#8E8E93]">No conversations yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-border/30">
+          <div>
             {unpinnedConversations.map(conv => renderConversationRow(conv))}
           </div>
         )}
@@ -1013,7 +1075,7 @@ export default function MessagesPage() {
     >
       <SubscriptionGate feature="Messages">
         {isMobile ? (
-          <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-background">
+          <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
         ) : (
