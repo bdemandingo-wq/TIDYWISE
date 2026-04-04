@@ -106,8 +106,10 @@ export default function PaymentIntegrationPage() {
     if (!organization?.id) return;
     setIsConnecting(true);
     try {
+      // Get user email to pre-fill Stripe login
+      const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
-        body: { action: "get_oauth_url", organization_id: organization.id },
+        body: { action: "get_oauth_url", organization_id: organization.id, email: user?.email || "" },
       });
       if (error) throw error;
       if (data?.url) {
@@ -325,7 +327,7 @@ export default function PaymentIntegrationPage() {
                   {isConnecting ? "Connecting..." : "Connect with Stripe"}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
-                  You'll be redirected to Stripe to log in or create an account
+                  Already have a Stripe account? You'll be asked to log in — no need to create a new one.
                 </p>
               </div>
             </Card>

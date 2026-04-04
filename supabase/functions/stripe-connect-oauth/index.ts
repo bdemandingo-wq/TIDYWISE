@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { action, organization_id, code, state } = await req.json();
+    const { action, organization_id, code, state, email } = await req.json();
 
     if (!organization_id) {
       return new Response(
@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
     if (action === "get_oauth_url") {
       const redirectUri = "https://jointidywise.com/dashboard/payment-integration";
       
+      
       const params = new URLSearchParams({
         response_type: "code",
         client_id: stripeClientId,
@@ -48,7 +49,12 @@ Deno.serve(async (req) => {
         redirect_uri: redirectUri,
         state: organization_id,
         "stripe_user[business_type]": "company",
+        always_show_login: "true",
       });
+
+      if (email) {
+        params.set("stripe_user[email]", email);
+      }
 
       const oauthUrl = `https://connect.stripe.com/oauth/v2/authorize?${params.toString()}`;
 
