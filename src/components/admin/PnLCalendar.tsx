@@ -343,7 +343,7 @@ export function PnLCalendar() {
               )}
               {isLoading && <Skeleton className="inline-block ml-2 h-4 w-16" />}
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigateMonth('next')}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 min-h-[44px] min-w-[44px]" onClick={() => navigateMonth('next')}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
