@@ -242,6 +242,18 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 Refresh Status
               </Button>
             </>
+          ) : isOrgNotConnected ? (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-8 h-8 text-destructive" />
+                <div>
+                  <p className="font-medium">Payment Account Not Available</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your employer has not connected their payment account yet. Please contact your employer to set up payments before you can configure payouts.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               <div className="p-4 rounded-lg bg-muted/50 border">
