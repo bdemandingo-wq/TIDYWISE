@@ -211,7 +211,7 @@ export default function StaffPortal() {
       const { data: directBookings, error: directError } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+          id, organization_id, staff_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
           cleaner_checkin_at, cleaner_checkout_at, notes,
           customer:customers(first_name, last_name, phone),
@@ -230,7 +230,7 @@ export default function StaffPortal() {
           pay_share,
           is_primary,
           booking:bookings(
-            id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+            id, organization_id, staff_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
             total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
             cleaner_checkin_at, cleaner_checkout_at, notes,
             customer:customers(first_name, last_name, phone),
