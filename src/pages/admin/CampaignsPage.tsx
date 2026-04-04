@@ -334,13 +334,21 @@ export default function CampaignsPage() {
           daysInactive: campaignForm.days_inactive,
           targetAudience: campaignForm.audience,
           testMode: true,
+          excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
+          excludeRecentDays: campaignForm.excludeRecentDays,
+          onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
         },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      setTestResult({ inactive: data.inactiveCount || 0, contactable: data.toContactCount || 0, customers: data.customers });
+      setTestResult({
+        inactive: data.inactiveCount || 0,
+        contactable: data.toContactCount || 0,
+        excludedCount: data.excludedCount || 0,
+        customers: data.customers,
+      });
       toast({ title: "Preview ready", description: `${data.toContactCount || 0} recipients found` });
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
@@ -355,6 +363,9 @@ export default function CampaignsPage() {
           message: campaignForm.smsBody,
           targetAudience: campaignForm.audience,
           testMode: false,
+          excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
+          excludeRecentDays: campaignForm.excludeRecentDays,
+          onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
         },
       });
       if (error) throw error;
