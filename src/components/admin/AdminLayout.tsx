@@ -33,7 +33,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
   // Hide the top header bar on mobile when viewing Messages
   const isMessagesRoute = location.pathname.includes('/messages');
-  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobileView = useIsMobile();
   const hideHeader = isMessagesRoute && isMobileView;
 
   return (
