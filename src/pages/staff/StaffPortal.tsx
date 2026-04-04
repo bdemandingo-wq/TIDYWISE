@@ -623,6 +623,7 @@ export default function StaffPortal() {
               <Camera className="w-4 h-4 hidden sm:inline" />
               📷 Photos
             </TabsTrigger>
+            <TabsTrigger value="available" className="gap-2 relative">
               <Bell className="w-4 h-4 hidden sm:inline" />
               Available
               {unassignedBookings.length > 0 && (
