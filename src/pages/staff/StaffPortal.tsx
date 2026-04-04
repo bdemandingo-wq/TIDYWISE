@@ -699,7 +699,11 @@ export default function StaffPortal() {
               <p className="text-sm text-muted-foreground">Jobs assigned to you that are coming up</p>
             </div>
             {loadingAssigned ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
             ) : assignedBookings.length === 0 ? (
               <div className="text-center py-12">
                 <CalendarCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
