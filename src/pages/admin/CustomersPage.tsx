@@ -507,13 +507,9 @@ export default function CustomersPage() {
 
                   return (
                     <div key={customer.id} className="absolute left-0 top-0 w-full" style={{ transform: `translate3d(0, ${vRow.start}px, 0)` }}>
-                      <SwipeableRow
-                        className="mb-3"
-                        rightAction={{ label: 'Delete', variant: 'destructive', onAction: () => handleDeleteClick(customer) }}
-                      >
-                        <button
+                      <button
                           type="button"
-                          className={cn('w-full text-left bg-card border border-border shadow-sm rounded-xl p-3 transition-transform active:scale-[0.99] will-change-transform')}
+                          className={cn('w-full text-left bg-card border border-border shadow-sm rounded-xl p-3 transition-transform active:scale-[0.99] will-change-transform mb-3')}
                           onPointerDown={() => startLongPress(customer.id)}
                           onPointerUp={cancelLongPress}
                           onPointerCancel={cancelLongPress}
@@ -572,7 +568,6 @@ export default function CustomersPage() {
                             </div>
                           </div>
                         </button>
-                      </SwipeableRow>
                     </div>
                   );
                 })}
