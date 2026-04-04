@@ -549,16 +549,25 @@ export function BookingFormProvider({
     }
   };
 
-  // Auto-fill property when existing customer selected
+  // Auto-fill property when existing customer selected — prefer default saved location
   useEffect(() => {
     if (customerTab === 'existing' && selectedCustomer && !booking) {
-      setAddress(selectedCustomer.address || '');
-      setAptSuite((selectedCustomer as any).apt_suite || '');
-      setCity(selectedCustomer.city || '');
-      setState(selectedCustomer.state || '');
-      setZipCode(selectedCustomer.zip_code || '');
+      const defaultLoc = customerLocations.find(l => l.is_primary) || customerLocations[0];
+      if (defaultLoc) {
+        setAddress(defaultLoc.address || '');
+        setAptSuite(defaultLoc.apt_suite || '');
+        setCity(defaultLoc.city || '');
+        setState(defaultLoc.state || '');
+        setZipCode(defaultLoc.zip_code || '');
+      } else {
+        setAddress(selectedCustomer.address || '');
+        setAptSuite((selectedCustomer as any).apt_suite || '');
+        setCity(selectedCustomer.city || '');
+        setState(selectedCustomer.state || '');
+        setZipCode(selectedCustomer.zip_code || '');
+      }
     }
-  }, [selectedCustomerId, selectedCustomer, customerTab, booking]);
+  }, [selectedCustomerId, selectedCustomer, customerTab, booking, customerLocations]);
 
   // Load card info when customer email or organization changes
   useEffect(() => {
