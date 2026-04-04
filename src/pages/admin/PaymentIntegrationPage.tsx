@@ -19,12 +19,14 @@ import { SEOHead } from "@/components/SEOHead";
 
 interface ConnectionStatus {
   connected: boolean;
+  legacy?: boolean;
   account_id?: string;
   email?: string;
   display_name?: string;
   payouts_enabled?: boolean;
   connected_at?: string;
   default_currency?: string;
+  has_publishable_key?: boolean;
 }
 
 export default function PaymentIntegrationPage() {
