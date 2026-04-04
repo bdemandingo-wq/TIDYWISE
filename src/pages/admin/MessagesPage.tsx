@@ -746,7 +746,13 @@ export default function MessagesPage() {
         onTouchStart={(e) => handleLongPressStart(conv.id, e)}
         onTouchEnd={handleLongPressEnd}
         onTouchMove={handleLongPressMove}
-        onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (bulkEditMode) return;
+          hapticImpact('medium');
+          setContextMenuConvId(conv.id);
+          setContextMenuPosition({ x: e.clientX, y: e.clientY });
+        }}
         className={cn(
           "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none",
           isMobile
