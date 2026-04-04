@@ -740,10 +740,14 @@ export default function MessagesPage() {
     const hasMessages = !!conv.last_message_preview;
 
     const rowContent = (
-      <button
+      <div
         onClick={() => handleSelectConversation(conv)}
+        onTouchStart={(e) => handleLongPressStart(conv.id, e)}
+        onTouchEnd={handleLongPressEnd}
+        onTouchMove={handleLongPressMove}
+        onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
         className={cn(
-          "w-full flex items-center gap-3 px-4 py-3 transition-colors",
+          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none",
           "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]",
           selectedConversation?.id === conv.id && !isMobile && "bg-muted/50"
         )}
@@ -794,26 +798,8 @@ export default function MessagesPage() {
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
         </div>
-      </button>
+      </div>
     );
-
-    if (isMobile && !bulkEditMode) {
-      return (
-        <SwipeableRow
-          key={conv.id}
-          rightActions={[
-            {
-              label: '📌 ' + (isPinned ? 'Unpin' : 'Pin'),
-              onAction: () => togglePin(conv.id),
-              variant: 'default' as const,
-            },
-          ]}
-          className="rounded-none"
-        >
-          {rowContent}
-        </SwipeableRow>
-      );
-    }
 
     return rowContent;
   };
