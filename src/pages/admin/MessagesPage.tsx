@@ -27,7 +27,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
-import { handleSmsError } from '@/lib/smsErrorHandler';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MessageTemplatesPicker } from '@/components/admin/MessageTemplatesPicker';
 import { EmailTemplateLibrary } from '@/components/admin/EmailTemplateLibrary';
