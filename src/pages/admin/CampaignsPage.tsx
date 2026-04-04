@@ -577,53 +577,6 @@ export default function CampaignsPage() {
             )}
           </div>
 
-          {/* Automation Triggers */}
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold">Automation Triggers</h2>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {automations.map(auto => {
-                const meta = getAutomationMeta(auto.automation_type);
-                const Icon = meta.icon;
-                const isExpanded = expandedAutomation === auto.id;
-                return (
-                  <Card key={auto.id} className={cn("transition-colors", auto.is_enabled ? "border-primary/20" : "opacity-70")}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", auto.is_enabled ? "bg-primary/10" : "bg-muted")}>
-                            <Icon className={cn("w-4.5 h-4.5", auto.is_enabled ? "text-primary" : "text-muted-foreground")} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm">{meta.label}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{meta.description || auto.description}</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={auto.is_enabled}
-                          onCheckedChange={(enabled) => toggleAutomation.mutate({ id: auto.id, enabled })}
-                        />
-                      </div>
-                      {isMobile && (
-                        <button
-                          className="flex items-center gap-1 text-xs text-muted-foreground mt-3 hover:text-foreground transition-colors"
-                          onClick={() => setExpandedAutomation(isExpanded ? null : auto.id)}
-                        >
-                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          {isExpanded ? "Less" : "Details"}
-                        </button>
-                      )}
-                      {(isExpanded || !isMobile) && (
-                        <div className="flex items-center gap-3 mt-3 pt-3 border-t text-xs text-muted-foreground">
-                          <span>Status: {auto.is_enabled ? "Active" : "Manual Only"}</span>
-                          <span>Updated: {format(new Date(auto.updated_at), "MMM d")}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </SubscriptionGate>
 
