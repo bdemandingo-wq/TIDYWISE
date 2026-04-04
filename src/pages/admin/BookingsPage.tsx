@@ -150,6 +150,9 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 };
 
 export default function BookingsPage() {
+  const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
+  const [bulkDraftDeleteOpen, setBulkDraftDeleteOpen] = useState(false);
+  const [bulkDraftDeleting, setBulkDraftDeleting] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
@@ -2260,59 +2263,107 @@ export default function BookingsPage() {
 
         <TabsContent value="drafts" className="space-y-6">
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4">Draft Bookings</h3>
-            <p className="text-muted-foreground mb-4">
-              These are bookings saved as drafts with pending payment status. Complete the booking or payment to move them to active bookings.
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Draft Bookings</h3>
+                <p className="text-muted-foreground text-sm mt-1">
+                  These are bookings saved as drafts with pending payment status. Complete the booking or payment to move them to active bookings.
+                </p>
+              </div>
+              {selectedDrafts.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBulkDraftDeleteOpen(true)}
+                  disabled={bulkDraftDeleting}
+                >
+                  {bulkDraftDeleting ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1" />
+                  )}
+                  Delete Selected ({selectedDrafts.size})
+                </Button>
+              )}
+            </div>
             {draftBookings.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No draft bookings found.
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Select All row */}
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-border/50">
+                  <Checkbox
+                    checked={draftBookings.length > 0 && selectedDrafts.size === draftBookings.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedDrafts(new Set(draftBookings.map(b => b.id)));
+                      } else {
+                        setSelectedDrafts(new Set());
+                      }
+                    }}
+                  />
+                  <span className="text-sm text-muted-foreground font-medium">Select All ({draftBookings.length})</span>
+                </div>
                 {draftBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border border-border/50">
-                    <div>
-                      <p className="font-medium">
-                        #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700">
-                        ${booking.total_amount?.toFixed(2)} unpaid
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setActiveBooking(booking);
-                          setViewDialogOpen(true);
-                        }}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setEditingBooking(booking);
-                          setAddDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(booking)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </Button>
+                  <div key={booking.id} className={cn(
+                    "flex items-center gap-3 p-4 rounded-lg border border-border/50 transition-colors",
+                    selectedDrafts.has(booking.id) ? "bg-primary/5 border-primary/30" : "bg-secondary/30"
+                  )}>
+                    <Checkbox
+                      checked={selectedDrafts.has(booking.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedDrafts(prev => {
+                          const next = new Set(prev);
+                          if (checked) { next.add(booking.id); } else { next.delete(booking.id); }
+                          return next;
+                        });
+                      }}
+                    />
+                    <div className="flex-1 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">
+                          #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                          ${booking.total_amount?.toFixed(2)} unpaid
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setActiveBooking(booking);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setEditingBooking(booking);
+                            setAddDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(booking)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -2320,6 +2371,45 @@ export default function BookingsPage() {
             )}
           </div>
         </TabsContent>
+
+        {/* Bulk Draft Delete Confirmation */}
+        <AlertDialog open={bulkDraftDeleteOpen} onOpenChange={setBulkDraftDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedDrafts.size} Draft{selectedDrafts.size > 1 ? 's' : ''}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedDrafts.size} selected draft{selectedDrafts.size > 1 ? 's' : ''}? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={bulkDraftDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={bulkDraftDeleting}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setBulkDraftDeleting(true);
+                  try {
+                    const count = selectedDrafts.size;
+                    for (const id of selectedDrafts) {
+                      await deleteBooking.mutateAsync(id);
+                    }
+                    setSelectedDrafts(new Set());
+                    setBulkDraftDeleteOpen(false);
+                    toast({ title: "Deleted", description: `${count} draft${count > 1 ? 's' : ''} deleted successfully` });
+                  } catch (error) {
+                    toast({ title: "Error", description: "Failed to delete some drafts", variant: "destructive" });
+                  } finally {
+                    setBulkDraftDeleting(false);
+                  }
+                }}
+              >
+                {bulkDraftDeleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                Yes, Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <TabsContent value="quotes" className="space-y-6">
           <QuotesTabContent />
