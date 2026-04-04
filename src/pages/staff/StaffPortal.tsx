@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -11,20 +11,23 @@ import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Spa
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
-import { CleanerAvailabilityManager } from '@/components/staff/CleanerAvailabilityManager';
-import { CleanerEarnings } from '@/components/staff/CleanerEarnings';
-import { JobHistoryCard } from '@/components/staff/JobHistoryCard';
-import { CleanerProfile } from '@/components/staff/CleanerProfile';
-import { CleanerCalendar } from '@/components/staff/CleanerCalendar';
 import { NotificationBell } from '@/components/staff/NotificationBell';
-import { CleanerReviews } from '@/components/staff/CleanerReviews';
-import { BookingChecklist } from '@/components/staff/BookingChecklist';
-import { StaffDocumentUpload } from '@/components/staff/StaffDocumentUpload';
-import { StaffSignatureManager } from '@/components/staff/StaffSignatureManager';
-import { StaffPayoutSetup } from '@/components/staff/StaffPayoutSetup';
-import { StaffPhotosTab } from '@/components/staff/StaffPhotosTab';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
+
+// Lazy-load heavy tab components to speed up initial render
+const CleanerAvailabilityManager = lazy(() => import('@/components/staff/CleanerAvailabilityManager').then(m => ({ default: m.CleanerAvailabilityManager })));
+const CleanerEarnings = lazy(() => import('@/components/staff/CleanerEarnings').then(m => ({ default: m.CleanerEarnings })));
+const CleanerProfile = lazy(() => import('@/components/staff/CleanerProfile').then(m => ({ default: m.CleanerProfile })));
+const CleanerCalendar = lazy(() => import('@/components/staff/CleanerCalendar').then(m => ({ default: m.CleanerCalendar })));
+const CleanerReviews = lazy(() => import('@/components/staff/CleanerReviews').then(m => ({ default: m.CleanerReviews })));
+const StaffDocumentUpload = lazy(() => import('@/components/staff/StaffDocumentUpload').then(m => ({ default: m.StaffDocumentUpload })));
+const StaffSignatureManager = lazy(() => import('@/components/staff/StaffSignatureManager').then(m => ({ default: m.StaffSignatureManager })));
+const StaffPayoutSetup = lazy(() => import('@/components/staff/StaffPayoutSetup').then(m => ({ default: m.StaffPayoutSetup })));
+const StaffPhotosTab = lazy(() => import('@/components/staff/StaffPhotosTab').then(m => ({ default: m.StaffPhotosTab })));
+const JobHistoryCard = lazy(() => import('@/components/staff/JobHistoryCard').then(m => ({ default: m.JobHistoryCard })));
+
+const TabFallback = () => <p className="text-muted-foreground py-4">Loading...</p>;
 
 interface Booking {
   id: string;
