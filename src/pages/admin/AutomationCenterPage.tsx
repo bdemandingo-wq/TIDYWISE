@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ import {
   HelpCircle, Home, Calendar, ClipboardList, Users, Target,
   MessageSquare, Briefcase, UserCircle, CheckSquare, Package, DollarSign,
   Receipt, BarChart3, Sparkles, CreditCard, Tag, MapPin, Globe, Brain,
-  Activity, Lightbulb, Send, PhoneMissed,
+  Activity, Lightbulb, Send, PhoneMissed, Save, Loader2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { AutomationHealthMonitor } from '@/components/admin/automation/AutomationHealthMonitor';
 import { CRMSuggestionsPanel } from '@/components/admin/automation/CRMSuggestionsPanel';
@@ -39,7 +40,7 @@ const automationMeta: Record<string, {
   appointment_reminder: {
     icon: Clock,
     trigger: 'Upcoming booking detected',
-    action: 'Sends reminder SMS 24 hours before the scheduled job',
+    action: 'Sends reminder SMS before the scheduled job based on your reminder schedule',
     benefit: 'Reduces cancellations and no-shows by keeping customers informed.',
     color: 'text-blue-500',
   },
@@ -187,7 +188,6 @@ function AiSmsReplyControl({ auto, onUpdated }: { auto: any; onUpdated: () => vo
 
   return (
     <div className="space-y-3">
-      {/* Segmented control */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
         {([
           { value: 'off', label: 'Off' },
@@ -209,7 +209,6 @@ function AiSmsReplyControl({ auto, onUpdated }: { auto: any; onUpdated: () => vo
         ))}
       </div>
 
-      {/* After hours config */}
       {mode === 'after_hours' && (
         <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
           <p className="text-xs font-medium text-muted-foreground">AI replies only between these hours:</p>
@@ -252,9 +251,155 @@ function AiSmsReplyControl({ auto, onUpdated }: { auto: any; onUpdated: () => vo
   );
 }
 
+interface ReminderInterval {
+  id?: string;
+  label: string;
+  hours_before: number;
+  is_active: boolean;
+  send_to_client: boolean;
+  send_to_cleaner: boolean;
+}
+
+function AppointmentReminderSettings({ organizationId }: { organizationId: string }) {
+  const [reminderIntervals, setReminderIntervals] = useState<ReminderInterval[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('appointment_reminder_intervals')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .order('hours_before', { ascending: false });
+        if (error) throw error;
+        if (data) {
+          setReminderIntervals(data.map(d => ({
+            id: d.id,
+            label: d.label,
+            hours_before: Number(d.hours_before),
+            is_active: d.is_active,
+            send_to_client: d.send_to_client,
+            send_to_cleaner: d.send_to_cleaner,
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching reminder intervals:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [organizationId]);
+
+  const saveIntervals = async () => {
+    setSaving(true);
+    try {
+      for (const interval of reminderIntervals) {
+        if (interval.id) {
+          await supabase
+            .from('appointment_reminder_intervals')
+            .update({
+              is_active: interval.is_active,
+              send_to_client: interval.send_to_client,
+              send_to_cleaner: interval.send_to_cleaner,
+            })
+            .eq('id', interval.id);
+        }
+      }
+      toast.success('Reminder schedule saved');
+    } catch (error) {
+      console.error('Error saving reminder intervals:', error);
+      toast.error('Failed to save reminder schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (reminderIntervals.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-2">No reminder intervals configured.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pt-2 border-t">
+      <div className="flex items-center gap-2">
+        <Clock className="w-4 h-4 text-muted-foreground" />
+        <Label className="font-medium text-sm">Reminder Schedule</Label>
+      </div>
+
+      {reminderIntervals.map((interval, index) => (
+        <div key={interval.id || index} className="p-3 border rounded-lg bg-muted/30 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{interval.label}</span>
+            <Switch
+              checked={interval.is_active}
+              onCheckedChange={(checked) => {
+                const updated = [...reminderIntervals];
+                updated[index] = { ...updated[index], is_active: checked };
+                setReminderIntervals(updated);
+              }}
+            />
+          </div>
+          {interval.is_active && (
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-1.5">
+                <Switch
+                  checked={interval.send_to_client}
+                  onCheckedChange={(checked) => {
+                    const updated = [...reminderIntervals];
+                    updated[index] = { ...updated[index], send_to_client: checked };
+                    setReminderIntervals(updated);
+                  }}
+                  className="scale-75"
+                />
+                <span className="text-muted-foreground">Client</span>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <Switch
+                  checked={interval.send_to_cleaner}
+                  onCheckedChange={(checked) => {
+                    const updated = [...reminderIntervals];
+                    updated[index] = { ...updated[index], send_to_cleaner: checked };
+                    setReminderIntervals(updated);
+                  }}
+                  className="scale-75"
+                />
+                <span className="text-muted-foreground">Cleaner</span>
+              </label>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={saveIntervals}
+        disabled={saving}
+        className="gap-2 w-full"
+      >
+        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+        Save Reminder Schedule
+      </Button>
+    </div>
+  );
+}
+
 export default function AutomationCenterPage() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const { data: automations = [], isLoading } = useQuery({
     queryKey: ['organization-automations', organization?.id],
@@ -315,6 +460,8 @@ export default function AutomationCenterPage() {
                   if (!meta) return null;
                   const Icon = meta.icon;
                   const isAiSms = auto.automation_type === 'ai_sms_reply';
+                  const isReminder = auto.automation_type === 'appointment_reminder';
+                  const isExpanded = expandedCard === auto.id;
 
                   return (
                     <Card key={auto.id} className="relative overflow-hidden">
@@ -361,6 +508,21 @@ export default function AutomationCenterPage() {
                             auto={auto}
                             onUpdated={() => queryClient.invalidateQueries({ queryKey: ['organization-automations'] })}
                           />
+                        ) : isReminder ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2"
+                              onClick={() => setExpandedCard(isExpanded ? null : auto.id)}
+                            >
+                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {isExpanded ? 'Hide Schedule' : 'Edit Reminder Schedule'}
+                            </Button>
+                            {isExpanded && organization?.id && (
+                              <AppointmentReminderSettings organizationId={organization.id} />
+                            )}
+                          </>
                         ) : (
                           !auto.is_enabled && (
                             <div className="pt-2 border-t">

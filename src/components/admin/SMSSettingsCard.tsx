@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, ExternalLink, CheckCircle2, Save, Loader2, Eye, EyeOff, Send, Clock } from 'lucide-react';
+import { MessageSquare, ExternalLink, CheckCircle2, Save, Loader2, Eye, EyeOff, Send, Clock, ArrowRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -21,15 +22,6 @@ interface SMSSettings {
   reminder_hours_before: number;
 }
 
-interface ReminderInterval {
-  id?: string;
-  label: string;
-  hours_before: number;
-  is_active: boolean;
-  send_to_client: boolean;
-  send_to_cleaner: boolean;
-}
-
 const defaultSettings: SMSSettings = {
   openphone_api_key: '',
   openphone_phone_number_id: '',
@@ -41,19 +33,17 @@ const defaultSettings: SMSSettings = {
 
 export function SMSSettingsCard() {
   const { organization } = useOrganization();
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<SMSSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [reminderIntervals, setReminderIntervals] = useState<ReminderInterval[]>([]);
-  const [savingIntervals, setSavingIntervals] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
       fetchSettings();
-      fetchReminderIntervals();
     }
   }, [organization?.id]);
 
@@ -82,54 +72,6 @@ export function SMSSettingsCard() {
       console.error('Error fetching SMS settings:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchReminderIntervals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('appointment_reminder_intervals')
-        .select('*')
-        .eq('organization_id', organization!.id)
-        .order('hours_before', { ascending: false });
-      if (error) throw error;
-      if (data) {
-        setReminderIntervals(data.map(d => ({
-          id: d.id,
-          label: d.label,
-          hours_before: Number(d.hours_before),
-          is_active: d.is_active,
-          send_to_client: d.send_to_client,
-          send_to_cleaner: d.send_to_cleaner,
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching reminder intervals:', error);
-    }
-  };
-
-  const saveReminderIntervals = async () => {
-    if (!organization?.id) return;
-    setSavingIntervals(true);
-    try {
-      for (const interval of reminderIntervals) {
-        if (interval.id) {
-          await supabase
-            .from('appointment_reminder_intervals')
-            .update({
-              is_active: interval.is_active,
-              send_to_client: interval.send_to_client,
-              send_to_cleaner: interval.send_to_cleaner,
-            })
-            .eq('id', interval.id);
-        }
-      }
-      toast.success('Reminder intervals saved');
-    } catch (error) {
-      console.error('Error saving reminder intervals:', error);
-      toast.error('Failed to save reminder intervals');
-    } finally {
-      setSavingIntervals(false);
     }
   };
 
@@ -323,97 +265,23 @@ export function SMSSettingsCard() {
             </div>
           </div>
 
-          {/* Notification Types */}
-          <div className="space-y-4">
-            <h4 className="font-semibold">Notification Types</h4>
-            
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="font-medium">Booking Confirmations</Label>
-                <p className="text-sm text-muted-foreground">
-                  Send SMS when a booking is confirmed
-                </p>
-              </div>
-              <Switch
-                checked={settings.sms_booking_confirmation}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_booking_confirmation: checked }))}
-              />
+          {/* Reminder schedule moved notice */}
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Notification & Reminder Settings</p>
+              <p className="text-xs text-muted-foreground">
+                Reminder schedules have moved to Automation Center → Automations
+              </p>
             </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="font-medium">Appointment Reminders</Label>
-                <p className="text-sm text-muted-foreground">
-                  Send reminder SMS before appointments
-                </p>
-              </div>
-              <Switch
-                checked={settings.sms_appointment_reminder}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_appointment_reminder: checked }))}
-              />
-            </div>
-
-            {settings.sms_appointment_reminder && reminderIntervals.length > 0 && (
-              <div className="space-y-3 pl-4 border-l-2 border-primary/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <Label className="font-medium">Reminder Schedule</Label>
-                </div>
-                {reminderIntervals.map((interval, index) => (
-                  <div key={interval.id || index} className="p-3 border rounded-lg bg-card space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{interval.label}</span>
-                      <Switch
-                        checked={interval.is_active}
-                        onCheckedChange={(checked) => {
-                          const updated = [...reminderIntervals];
-                          updated[index] = { ...updated[index], is_active: checked };
-                          setReminderIntervals(updated);
-                        }}
-                      />
-                    </div>
-                    {interval.is_active && (
-                      <div className="flex gap-4 text-sm">
-                        <label className="flex items-center gap-1.5">
-                          <Switch
-                            checked={interval.send_to_client}
-                            onCheckedChange={(checked) => {
-                              const updated = [...reminderIntervals];
-                              updated[index] = { ...updated[index], send_to_client: checked };
-                              setReminderIntervals(updated);
-                            }}
-                            className="scale-75"
-                          />
-                          <span className="text-muted-foreground">Client</span>
-                        </label>
-                        <label className="flex items-center gap-1.5">
-                          <Switch
-                            checked={interval.send_to_cleaner}
-                            onCheckedChange={(checked) => {
-                              const updated = [...reminderIntervals];
-                              updated[index] = { ...updated[index], send_to_cleaner: checked };
-                              setReminderIntervals(updated);
-                            }}
-                            className="scale-75"
-                          />
-                          <span className="text-muted-foreground">Cleaner</span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={saveReminderIntervals}
-                  disabled={savingIntervals}
-                  className="gap-2"
-                >
-                  {savingIntervals ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  Save Reminder Schedule
-                </Button>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => navigate('/admin/automation-center')}
+            >
+              Go to Automations
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
           </div>
 
           <Button onClick={saveSettings} disabled={saving} className="gap-2">
