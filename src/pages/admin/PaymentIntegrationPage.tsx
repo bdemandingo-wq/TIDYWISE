@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,22 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
+import { Capacitor } from "@capacitor/core";
+
+/** Opens an external URL — uses Capacitor Browser plugin on native, window.open on web */
+const openExternalUrl = async (url: string) => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url, presentationStyle: "popover" });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  } catch {
+    // Fallback: assign location if everything else fails
+    window.location.href = url;
+  }
+};
 
 interface ConnectionStatus {
   connected: boolean;
