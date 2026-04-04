@@ -486,7 +486,11 @@ export default function PaymentIntegrationPage() {
                       key={link.label}
                       variant="outline"
                       className="h-auto py-3 px-3 flex flex-col items-center gap-1.5 text-center"
-                      onClick={() => window.open(link.url, "_blank")}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openExternalUrl(link.url);
+                      }}
                     >
                       <span className="text-lg">{link.emoji}</span>
                       <span className="text-xs font-medium leading-tight">{link.label}</span>
