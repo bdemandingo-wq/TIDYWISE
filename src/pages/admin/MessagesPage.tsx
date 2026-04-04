@@ -483,7 +483,46 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   const renderPinnedRow = () => {
     if (pinnedConversations.length === 0) return null;
-    return (
+    return isMobile ? (
+      // iOS-style grid layout for mobile (3 per row)
+      <div className="px-4 pt-3 pb-2">
+        <div className="grid grid-cols-3 gap-y-4 gap-x-2">
+          {pinnedConversations.map(conv => (
+            <button
+              key={conv.id}
+              onClick={() => handleSelectConversation(conv)}
+              className="flex flex-col items-center gap-1.5 group relative"
+            >
+              <div className="relative">
+                <Avatar className="h-[72px] w-[72px] ring-2 ring-transparent group-active:ring-muted/60 transition-all">
+                  <AvatarFallback className={cn(
+                    "text-xl font-semibold",
+                    conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
+                  )}>
+                    {conv.conversation_type === 'cleaner'
+                      ? <HardHat className="h-7 w-7" />
+                      : getInitials(conv.customer_name, conv.customer_phone)}
+                  </AvatarFallback>
+                </Avatar>
+                {conv.unread_count > 0 && (
+                  <span className="absolute top-0 right-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] ring-2 ring-background" />
+                )}
+                {/* Last message bubble preview */}
+                {conv.last_message_preview && (
+                  <div className="absolute -top-2 -right-1 max-w-[100px] bg-muted border border-border/50 rounded-lg px-2 py-0.5 shadow-sm pointer-events-none">
+                    <p className="text-[10px] text-foreground truncate leading-tight">{conv.last_message_preview.slice(0, 20)}</p>
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-foreground truncate w-full text-center leading-tight">
+                {conv.customer_name?.split(' ')[0] || conv.customer_phone.slice(-4)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : (
+      // Horizontal scroll for desktop
       <div className="px-3 pt-3 pb-1">
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
           {pinnedConversations.map(conv => (
