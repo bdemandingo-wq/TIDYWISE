@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Performance: only load subscription UI when it's actually needed (opened).
 const SubscriptionDialog = lazy(() =>
@@ -30,6 +31,11 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
 
+  // Hide the top header bar on mobile when viewing Messages
+  const isMessagesRoute = location.pathname.includes('/messages');
+  const isMobileView = useIsMobile();
+  const hideHeader = isMessagesRoute && isMobileView;
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
@@ -39,7 +45,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         "pl-0 md:pl-16",
         sidebarOpen && "md:pl-64"
       )}>
-        <AdminHeader title={title} subtitle={subtitle} actions={actions} />
+        {!hideHeader && <AdminHeader title={title} subtitle={subtitle} actions={actions} />}
 
         <main
           className={cn(

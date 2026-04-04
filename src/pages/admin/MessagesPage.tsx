@@ -21,12 +21,11 @@ import {
   MessageSquare, Send, Search, Plus, Phone, Loader2, RefreshCw,
   MoreHorizontal, Pencil, Trash2, Users, HardHat, X,
   Check, Mail, Link, Paperclip, ChevronLeft, Forward,
-  Mic, Video, Pin, BellOff, CheckCheck,
+  Mic, Video, Pin, BellOff, CheckCheck, MessageCircle,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MessageTemplatesPicker } from '@/components/admin/MessageTemplatesPicker';
@@ -137,6 +136,15 @@ export default function MessagesPage() {
   const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Long-press context menu state
+  const [contextMenuConvId, setContextMenuConvId] = useState<string | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Muted conversations
+  const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
+  // Single delete confirmation
+  const [deleteConfirmConvId, setDeleteConfirmConvId] = useState<string | null>(null);
 
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -526,6 +534,62 @@ export default function MessagesPage() {
     setSelectedConversation(conv);
   };
 
+  // Long-press handlers for context menu
+  const handleLongPressStart = (convId: string, e: React.TouchEvent | React.MouseEvent) => {
+    if (bulkEditMode) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    longPressTimer.current = setTimeout(() => {
+      hapticImpact('medium');
+      setContextMenuConvId(convId);
+      setContextMenuPosition({ x: clientX, y: clientY });
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleLongPressMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleContextAction = (action: 'pin' | 'unread' | 'mute' | 'delete') => {
+    if (!contextMenuConvId) return;
+    switch (action) {
+      case 'pin':
+        togglePin(contextMenuConvId);
+        break;
+      case 'unread':
+        hapticImpact('light');
+        supabase.from('sms_conversations').update({ unread_count: 1 }).eq('id', contextMenuConvId).then(() => {
+          setConversations(prev => prev.map(c => c.id === contextMenuConvId ? { ...c, unread_count: Math.max(c.unread_count, 1) } : c));
+        });
+        break;
+      case 'mute':
+        hapticImpact('light');
+        setMutedIds(prev => {
+          const next = new Set(prev);
+          if (next.has(contextMenuConvId)) next.delete(contextMenuConvId);
+          else next.add(contextMenuConvId);
+          return next;
+        });
+        toast.success(mutedIds.has(contextMenuConvId) ? 'Alerts enabled' : 'Alerts hidden');
+        break;
+      case 'delete':
+        setDeleteConfirmConvId(contextMenuConvId);
+        break;
+    }
+    setContextMenuConvId(null);
+    setContextMenuPosition(null);
+  };
+
   const handleBackToList = () => { setSelectedConversation(null); setMessages([]); };
 
   // ─── Message grouping with timestamps ─────────────
@@ -676,10 +740,14 @@ export default function MessagesPage() {
     const hasMessages = !!conv.last_message_preview;
 
     const rowContent = (
-      <button
+      <div
         onClick={() => handleSelectConversation(conv)}
+        onTouchStart={(e) => handleLongPressStart(conv.id, e)}
+        onTouchEnd={handleLongPressEnd}
+        onTouchMove={handleLongPressMove}
+        onContextMenu={(e) => { e.preventDefault(); handleLongPressStart(conv.id, e); }}
         className={cn(
-          "w-full flex items-center gap-3 px-4 py-3 transition-colors",
+          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none",
           "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]",
           selectedConversation?.id === conv.id && !isMobile && "bg-muted/50"
         )}
@@ -730,26 +798,8 @@ export default function MessagesPage() {
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
         </div>
-      </button>
+      </div>
     );
-
-    if (isMobile && !bulkEditMode) {
-      return (
-        <SwipeableRow
-          key={conv.id}
-          rightActions={[
-            {
-              label: '📌 ' + (isPinned ? 'Unpin' : 'Pin'),
-              onAction: () => togglePin(conv.id),
-              variant: 'default' as const,
-            },
-          ]}
-          className="rounded-none"
-        >
-          {rowContent}
-        </SwipeableRow>
-      );
-    }
 
     return rowContent;
   };
@@ -863,19 +913,31 @@ export default function MessagesPage() {
         <div className="px-4 py-3 border-t border-[#E5E5EA] dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E] flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
           <Button
             variant="destructive"
-            className="flex-1 h-11 text-[15px] font-semibold rounded-xl"
+            className="h-11 text-[15px] font-semibold rounded-xl px-5"
             disabled={selectedForBulk.size === 0}
             onClick={() => setBulkDeleteConfirmOpen(true)}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Selected ({selectedForBulk.size})
+            Delete
           </Button>
+          <div className="flex-1 text-center">
+            <span className="text-[13px] text-[#8E8E93] font-medium">
+              {selectedForBulk.size} selected
+            </span>
+          </div>
           <Button
-            variant="outline"
-            className="h-11 text-[15px] rounded-xl"
-            onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+            variant="ghost"
+            className="h-11 text-[15px] rounded-xl text-[#007AFF] px-5"
+            disabled={selectedForBulk.size === 0}
+            onClick={async () => {
+              const ids = [...selectedForBulk];
+              await Promise.all(ids.map(id => supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', id)));
+              setConversations(prev => prev.map(c => selectedForBulk.has(c.id) ? { ...c, unread_count: 0 } : c));
+              toast.success(`Marked ${ids.length} as read`);
+              setSelectedForBulk(new Set());
+              setBulkEditMode(false);
+            }}
           >
-            Cancel
+            Mark as Read
           </Button>
         </div>
       )}
@@ -1197,7 +1259,7 @@ export default function MessagesPage() {
     >
       <SubscriptionGate feature="Messages">
         {isMobile ? (
-          <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-white dark:bg-[#1C1C1E]">
+          <div className="flex flex-col h-[100dvh] -mx-1.5 -mt-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
         ) : (
@@ -1324,6 +1386,86 @@ export default function MessagesPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* iOS-style Long-Press Context Menu */}
+        {contextMenuConvId && contextMenuPosition && (
+          <>
+            <div
+              className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm"
+              onClick={() => { setContextMenuConvId(null); setContextMenuPosition(null); }}
+            />
+            <div
+              className="fixed z-[61] bg-white dark:bg-[#2C2C2E] rounded-2xl shadow-2xl overflow-hidden w-[200px]"
+              style={{
+                left: Math.min(contextMenuPosition.x, window.innerWidth - 220),
+                top: Math.min(contextMenuPosition.y, window.innerHeight - 250),
+              }}
+            >
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('pin')}
+              >
+                <Pin className="h-[18px] w-[18px] text-[#007AFF]" />
+                {pinnedIds.has(contextMenuConvId) ? 'Unpin' : 'Pin'}
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('unread')}
+              >
+                <MessageCircle className="h-[18px] w-[18px] text-[#007AFF]" />
+                Mark as Unread
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1C1C1E] dark:text-white active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('mute')}
+              >
+                <BellOff className="h-[18px] w-[18px] text-[#8E8E93]" />
+                {mutedIds.has(contextMenuConvId) ? 'Show Alerts' : 'Hide Alerts'}
+              </button>
+              <div className="h-px bg-[#E5E5EA] dark:bg-[#48484A] mx-4" />
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-[15px] text-[#FF3B30] active:bg-[#E5E5EA] dark:active:bg-[#3A3A3C]"
+                onClick={() => handleContextAction('delete')}
+              >
+                <Trash2 className="h-[18px] w-[18px]" />
+                Delete
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Single Delete Confirmation */}
+        <AlertDialog open={!!deleteConfirmConvId} onOpenChange={(open) => { if (!open) setDeleteConfirmConvId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This cannot be undone. All messages in this conversation will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  if (!deleteConfirmConvId) return;
+                  await supabase.from('sms_messages').delete().eq('conversation_id', deleteConfirmConvId);
+                  const { error } = await supabase.from('sms_conversations').delete().eq('id', deleteConfirmConvId);
+                  if (error) { toast.error('Failed to delete'); return; }
+                  setConversations(prev => prev.filter(c => c.id !== deleteConfirmConvId));
+                  if (selectedConversation?.id === deleteConfirmConvId) { setSelectedConversation(null); setMessages([]); }
+                  setPinnedIds(prev => { const next = new Set(prev); next.delete(deleteConfirmConvId); return next; });
+                  toast.success('Conversation deleted');
+                  setDeleteConfirmConvId(null);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SubscriptionGate>
     </AdminLayout>
   );
