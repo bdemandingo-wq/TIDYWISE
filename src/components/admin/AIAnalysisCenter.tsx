@@ -722,7 +722,7 @@ export function AIAnalysisCenter() {
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div
                       style={{
-                        maxWidth: '85%',
+                        maxWidth: '80%',
                         padding: '10px 14px',
                         borderRadius: 12,
                         fontSize: 13,
