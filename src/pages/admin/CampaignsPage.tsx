@@ -84,6 +84,9 @@ export default function CampaignsPage() {
     emailSubject: "",
     emailBody: "",
     days_inactive: 30,
+    excludeAlreadyReceived: false,
+    excludeRecentDays: 0,
+    onlyAfterDate: undefined as Date | undefined,
   });
 
   // AI
