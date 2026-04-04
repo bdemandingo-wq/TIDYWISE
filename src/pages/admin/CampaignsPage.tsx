@@ -669,7 +669,70 @@ export default function CampaignsPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
+              {/* Exclude Filters */}
+              <div className="space-y-3 rounded-lg border p-3">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <UserX className="w-4 h-4" />
+                  Duplicate Send Filters
+                </Label>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-sm">Exclude already received</p>
+                    <p className="text-xs text-muted-foreground">Skip clients who got this exact campaign before</p>
+                  </div>
+                  <Switch
+                    checked={campaignForm.excludeAlreadyReceived}
+                    onCheckedChange={c => setCampaignForm(prev => ({ ...prev, excludeAlreadyReceived: c }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-sm">Skip recently contacted</p>
+                  <Select
+                    value={campaignForm.excludeRecentDays.toString()}
+                    onValueChange={v => setCampaignForm(prev => ({ ...prev, excludeRecentDays: parseInt(v) }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No filter</SelectItem>
+                      <SelectItem value="7">Last 7 days</SelectItem>
+                      <SelectItem value="14">Last 14 days</SelectItem>
+                      <SelectItem value="30">Last 30 days</SelectItem>
+                      <SelectItem value="60">Last 60 days</SelectItem>
+                      <SelectItem value="90">Last 90 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Skip clients who received any campaign within this window</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-sm">Only new clients after</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal", !campaignForm.onlyAfterDate && "text-muted-foreground")}>
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        {campaignForm.onlyAfterDate ? format(campaignForm.onlyAfterDate, "PPP") : "No date filter"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={campaignForm.onlyAfterDate}
+                        onSelect={d => setCampaignForm(prev => ({ ...prev, onlyAfterDate: d }))}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {campaignForm.onlyAfterDate && (
+                    <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setCampaignForm(prev => ({ ...prev, onlyAfterDate: undefined }))}>
+                      <X className="w-3 h-3 mr-1" /> Clear date filter
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">Target only clients added after this date</p>
+                </div>
+              </div>
+
                 <Label>Schedule</Label>
                 <div className="flex gap-2">
                   <Button
