@@ -316,11 +316,11 @@ export default function PaymentIntegrationPage() {
   };
 
   const stripeLinks = [
-    { label: "View Charges", icon: CreditCard, emoji: "💳", url: "https://dashboard.stripe.com/payments" },
-    { label: "View Payouts", icon: Banknote, emoji: "💰", url: "https://dashboard.stripe.com/balance/overview" },
+    { label: "View Charges", icon: CreditCard, emoji: "💳", url: "https://dashboard.stripe.com/charges" },
+    { label: "View Payouts", icon: Banknote, emoji: "💰", url: "https://dashboard.stripe.com/payouts" },
     { label: "View Customers", icon: Users, emoji: "👥", url: "https://dashboard.stripe.com/customers" },
     { label: "View Dashboard", icon: BarChart3, emoji: "📊", url: "https://dashboard.stripe.com" },
-    { label: "Create Payment Link", icon: Link2, emoji: "🔄", url: "https://dashboard.stripe.com/payment-links" },
+    { label: "Create Payment Link", icon: Link2, emoji: "🔄", url: "https://dashboard.stripe.com/payment-links/create" },
   ];
 
   // Show OAuth connecting state
