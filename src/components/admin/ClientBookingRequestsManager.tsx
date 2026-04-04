@@ -308,6 +308,16 @@ export function ClientBookingRequestsManager() {
                   )}
                 </div>
 
+                {(request as any).location && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">Address</p>
+                    <p className="font-medium flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {[(request as any).location.name, (request as any).location.address, (request as any).location.city, (request as any).location.state, (request as any).location.zip_code].filter(Boolean).join(", ")}
+                    </p>
+                  </div>
+                )}
+
                 {request.notes && (
                   <div className="text-sm">
                     <p className="text-muted-foreground">Customer Notes</p>
