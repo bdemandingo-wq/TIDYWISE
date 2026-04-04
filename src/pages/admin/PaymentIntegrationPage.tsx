@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,22 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
+import { Capacitor } from "@capacitor/core";
+
+/** Opens an external URL — uses Capacitor Browser plugin on native, window.open on web */
+const openExternalUrl = async (url: string) => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url, presentationStyle: "popover" });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  } catch {
+    // Fallback: assign location if everything else fails
+    window.location.href = url;
+  }
+};
 
 interface ConnectionStatus {
   connected: boolean;
@@ -470,7 +486,11 @@ export default function PaymentIntegrationPage() {
                       key={link.label}
                       variant="outline"
                       className="h-auto py-3 px-3 flex flex-col items-center gap-1.5 text-center"
-                      onClick={() => window.open(link.url, "_blank")}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openExternalUrl(link.url);
+                      }}
                     >
                       <span className="text-lg">{link.emoji}</span>
                       <span className="text-xs font-medium leading-tight">{link.label}</span>
@@ -481,7 +501,11 @@ export default function PaymentIntegrationPage() {
                 {/* Quick Charge Button */}
                 <Button
                   className="w-full gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
-                  onClick={() => setChargeOpen(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setChargeOpen(true);
+                  }}
                 >
                   <Zap className="h-4 w-4" />
                   Charge a Card
