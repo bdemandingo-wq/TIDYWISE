@@ -232,8 +232,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       signups: {
         total: totalSignups || 0,
-        recent: recentSignups || [],
-        last30Days: recentSignups?.length || 0,
+        recent: enrichedSignups || [],
+        last30Days: enrichedSignups?.length || 0,
       },
       organizations: {
         total: totalOrganizations || 0,
