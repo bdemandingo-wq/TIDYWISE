@@ -667,9 +667,13 @@ export default function MessagesPage() {
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-8 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
+            className="pl-10 pr-10 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
           />
-          {searchingContent && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          {searchingContent ? (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : isMobile ? (
+            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          ) : null}
         </div>
       </div>
 
