@@ -399,6 +399,15 @@ export default function LeadsPage() {
               Table
             </Button>
           </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => runSync(leads)}
+            disabled={isSyncing}
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            Smart Sync
+          </Button>
           <Button 
             variant={showFunnel ? "default" : "outline"} 
             className="gap-2" 
