@@ -745,19 +745,19 @@ export function AIAnalysisCenter() {
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 sticky bottom-0 pt-2" style={{ background: DARK_BG }}>
             <Input
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat(chatInput)}
               placeholder="Ask about your business..."
-              style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: '#fff', fontFamily: labelFont }}
+              style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: '#fff', fontFamily: labelFont, fontSize: 15, minHeight: 44 }}
               className="flex-1"
             />
             <Button
               onClick={() => sendChat(chatInput)}
               disabled={chatLoading || !chatInput.trim()}
-              style={{ background: TEAL, color: DARK_BG }}
+              style={{ background: TEAL, color: DARK_BG, minHeight: 44, minWidth: 44 }}
               className="hover:opacity-90"
             >
               {chatLoading ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
