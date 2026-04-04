@@ -559,7 +559,7 @@ export default function StaffPortal() {
   };
 
   if (!user) {
-    navigate('/auth');
+    navigate('/staff/login');
     return null;
   }
 
