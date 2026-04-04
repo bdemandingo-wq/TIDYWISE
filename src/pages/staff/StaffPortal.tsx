@@ -763,100 +763,118 @@ export default function StaffPortal() {
 
           {/* Job History Tab */}
           <TabsContent value="history" className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Job History</h2>
-              <p className="text-sm text-muted-foreground">Your completed and past jobs</p>
-            </div>
-            {loadingHistory ? (
-              <p className="text-muted-foreground">Loading...</p>
-            ) : jobHistory.length === 0 ? (
-              <div className="text-center py-12">
-                <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No job history yet.</p>
-                <p className="text-sm text-muted-foreground mt-1">Completed jobs will appear here.</p>
+            <Suspense fallback={<TabFallback />}>
+              <div>
+                <h2 className="text-lg font-semibold">Job History</h2>
+                <p className="text-sm text-muted-foreground">Your completed and past jobs</p>
               </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {jobHistory.map((booking) => (
-                  <JobHistoryCard key={booking.id} booking={booking} />
-                ))}
-              </div>
-            )}
+              {loadingHistory ? (
+                <TabFallback />
+              ) : jobHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No job history yet.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Completed jobs will appear here.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {jobHistory.map((booking) => (
+                    <JobHistoryCard key={booking.id} booking={booking} />
+                  ))}
+                </div>
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Availability Tab */}
           <TabsContent value="availability" className="space-y-4">
-            {staffInfo?.id ? (
-              <CleanerAvailabilityManager
-                staffId={staffInfo.id}
-                onSaved={() => setHasSetAvailability(true)}
-              />
-            ) : (
-              <p className="text-muted-foreground">Loading availability settings...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id ? (
+                <CleanerAvailabilityManager
+                  staffId={staffInfo.id}
+                  onSaved={() => setHasSetAvailability(true)}
+                />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Earnings Tab */}
           <TabsContent value="earnings" className="space-y-4">
-            {staffInfo?.id ? (
-              <CleanerEarnings staffId={staffInfo.id} staffName={staffInfo.name} />
-            ) : (
-              <p className="text-muted-foreground">Loading earnings...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id ? (
+                <CleanerEarnings staffId={staffInfo.id} staffName={staffInfo.name} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Calendar Tab */}
           <TabsContent value="calendar" className="space-y-4">
-            {staffInfo?.id ? (
-              <CleanerCalendar staffId={staffInfo.id} />
-            ) : (
-              <p className="text-muted-foreground">Loading calendar...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id ? (
+                <CleanerCalendar staffId={staffInfo.id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Reviews Tab */}
           <TabsContent value="reviews" className="space-y-4">
-            {staffInfo?.id ? (
-              <CleanerReviews staffId={staffInfo.id} />
-            ) : (
-              <p className="text-muted-foreground">Loading reviews...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id ? (
+                <CleanerReviews staffId={staffInfo.id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
-            {staffInfo && user ? (
-              <CleanerProfile staffInfo={staffInfo} userId={user.id} />
-            ) : (
-              <p className="text-muted-foreground">Loading profile...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo && user ? (
+                <CleanerProfile staffInfo={staffInfo} userId={user.id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-4">
-            {staffInfo?.id && staffInfo?.organization_id ? (
-              <StaffDocumentUpload staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
-            ) : (
-              <p className="text-muted-foreground">Loading documents...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id && staffInfo?.organization_id ? (
+                <StaffDocumentUpload staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Signatures Tab */}
           <TabsContent value="signatures" className="space-y-4">
-            {staffInfo?.id && staffInfo?.organization_id ? (
-              <StaffSignatureManager staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
-            ) : (
-              <p className="text-muted-foreground">Loading signatures...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id && staffInfo?.organization_id ? (
+                <StaffSignatureManager staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
 
           {/* Payouts Tab */}
           <TabsContent value="payouts" className="space-y-4">
-            {staffInfo?.id && staffInfo?.organization_id ? (
-              <StaffPayoutSetup staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
-            ) : (
-              <p className="text-muted-foreground">Loading payout setup...</p>
-            )}
+            <Suspense fallback={<TabFallback />}>
+              {staffInfo?.id && staffInfo?.organization_id ? (
+                <StaffPayoutSetup staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+              ) : (
+                <TabFallback />
+              )}
+            </Suspense>
           </TabsContent>
         </Tabs>
       </main>
