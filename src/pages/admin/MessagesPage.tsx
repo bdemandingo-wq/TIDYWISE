@@ -987,9 +987,13 @@ export default function MessagesPage() {
           isMobile ? "fixed top-0 left-0 right-0 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]" : "sticky top-0"
         )}>
           {isMobile && (
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-[#007AFF]" onClick={handleBackToList}>
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
+            <button
+              className="flex items-center gap-0.5 shrink-0 text-[#007AFF] active:opacity-60 transition-opacity"
+              onClick={handleBackToList}
+            >
+              <ChevronLeft className="h-7 w-7 -mr-1" />
+              <span className="text-[17px] font-normal">Messages</span>
+            </button>
           )}
           <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
             <Avatar className="h-8 w-8">
