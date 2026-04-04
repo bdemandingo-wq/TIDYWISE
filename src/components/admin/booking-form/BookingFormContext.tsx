@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useCustomers, useServices, useStaff, BookingWithDetails } from '@/hooks/useBookings';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
@@ -94,6 +95,17 @@ interface BookingFormState {
   appliedDiscount: AppliedDiscount | null;
 }
 
+interface SavedLocation {
+  id: string;
+  name: string;
+  address: string | null;
+  apt_suite: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  is_primary: boolean | null;
+}
+
 interface BookingFormContextType extends BookingFormState {
   // Editing context
   editingBookingId: string | null;
@@ -104,6 +116,7 @@ interface BookingFormContextType extends BookingFormState {
   staff: ReturnType<typeof useStaff>['data'];
   
   // Computed
+  customerLocations: SavedLocation[];
   selectedService: any;
   selectedCustomer: any;
   customerEmail: string;
@@ -254,6 +267,22 @@ export function BookingFormProvider({
   
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
+  // Fetch saved locations for the selected customer
+  const { data: customerLocations = [] } = useQuery({
+    queryKey: ['customer-locations', selectedCustomerId],
+    queryFn: async () => {
+      if (!selectedCustomerId) return [];
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
+        .eq('customer_id', selectedCustomerId)
+        .order('is_primary', { ascending: false });
+      if (error) return [];
+      return (data || []) as SavedLocation[];
+    },
+    enabled: !!selectedCustomerId,
+  });
   
   const customerEmail = customerTab === 'existing' && selectedCustomer 
     ? selectedCustomer.email 
@@ -520,16 +549,25 @@ export function BookingFormProvider({
     }
   };
 
-  // Auto-fill property when existing customer selected
+  // Auto-fill property when existing customer selected — prefer default saved location
   useEffect(() => {
     if (customerTab === 'existing' && selectedCustomer && !booking) {
-      setAddress(selectedCustomer.address || '');
-      setAptSuite((selectedCustomer as any).apt_suite || '');
-      setCity(selectedCustomer.city || '');
-      setState(selectedCustomer.state || '');
-      setZipCode(selectedCustomer.zip_code || '');
+      const defaultLoc = customerLocations.find(l => l.is_primary) || customerLocations[0];
+      if (defaultLoc) {
+        setAddress(defaultLoc.address || '');
+        setAptSuite(defaultLoc.apt_suite || '');
+        setCity(defaultLoc.city || '');
+        setState(defaultLoc.state || '');
+        setZipCode(defaultLoc.zip_code || '');
+      } else {
+        setAddress(selectedCustomer.address || '');
+        setAptSuite((selectedCustomer as any).apt_suite || '');
+        setCity(selectedCustomer.city || '');
+        setState(selectedCustomer.state || '');
+        setZipCode(selectedCustomer.zip_code || '');
+      }
     }
-  }, [selectedCustomerId, selectedCustomer, customerTab, booking]);
+  }, [selectedCustomerId, selectedCustomer, customerTab, booking, customerLocations]);
 
   // Load card info when customer email or organization changes
   useEffect(() => {
@@ -596,6 +634,7 @@ export function BookingFormProvider({
       cardInfo,
       loadingCard,
       selectedChecklistId,
+      customerLocations,
       
       customers,
       services,

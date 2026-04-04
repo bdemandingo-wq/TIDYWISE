@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck, CreditCard, Link2, Check, Clock, Send } from 'lucide-react';
+import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck, CreditCard, Link2, Check, Clock, Send, MapPin, Plus, Trash2, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -33,6 +33,19 @@ interface Customer {
   marketing_status?: string | null;
   customer_status?: string | null;
 }
+
+interface LocationRecord {
+  id: string;
+  name: string;
+  address: string | null;
+  apt_suite: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  is_primary: boolean | null;
+}
+
+const ADDRESS_LABELS = ['Home', 'Office', 'Airbnb', 'Rental', 'Other'];
 
 interface EditCustomerDialogProps {
   open: boolean;
@@ -59,6 +72,28 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   
   const [submitting, setSubmitting] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
+
+  // --- Addresses state ---
+  const [newAddress, setNewAddress] = useState({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
+  const [addingAddress, setAddingAddress] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
+
+  // Fetch saved addresses (locations) for this customer
+  const { data: savedAddresses = [], refetch: refetchAddresses } = useQuery({
+    queryKey: ['customer-locations', customer?.id],
+    queryFn: async () => {
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
+        .eq('customer_id', customer.id)
+        .order('is_primary', { ascending: false });
+      if (error) return [];
+      return (data || []) as LocationRecord[];
+    },
+    enabled: !!customer && open,
+  });
 
   // Fetch booking link tracking for this customer
   const { data: linkTracking = [] } = useQuery({
@@ -93,8 +128,74 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         customer_status: customer.customer_status || 'lead',
       });
       setShowCardForm(false);
+      setShowAddForm(false);
+      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
     }
   }, [customer]);
+
+  const handleAddAddress = async () => {
+    if (!customer || !organization?.id || !newAddress.address.trim()) {
+      toast.error('Please enter a street address');
+      return;
+    }
+    setAddingAddress(true);
+    try {
+      const isFirst = savedAddresses.length === 0;
+      const { error } = await supabase
+        .from('locations')
+        .insert({
+          customer_id: customer.id,
+          organization_id: organization.id,
+          name: newAddress.name,
+          address: newAddress.address,
+          apt_suite: newAddress.apt_suite || null,
+          city: newAddress.city || null,
+          state: newAddress.state || null,
+          zip_code: newAddress.zip_code || null,
+          is_primary: isFirst,
+        });
+      if (error) throw error;
+      toast.success('Address added');
+      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
+      setShowAddForm(false);
+      refetchAddresses();
+      queryClient.invalidateQueries({ queryKey: ['customer-locations'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add address');
+    } finally {
+      setAddingAddress(false);
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    setDeletingAddressId(id);
+    try {
+      const { error } = await supabase.from('locations').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Address removed');
+      refetchAddresses();
+      queryClient.invalidateQueries({ queryKey: ['customer-locations'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete address');
+    } finally {
+      setDeletingAddressId(null);
+    }
+  };
+
+  const handleSetDefault = async (id: string) => {
+    if (!customer) return;
+    try {
+      // Unset all
+      await supabase.from('locations').update({ is_primary: false }).eq('customer_id', customer.id);
+      // Set new default
+      const { error } = await supabase.from('locations').update({ is_primary: true }).eq('id', id);
+      if (error) throw error;
+      toast.success('Default address updated');
+      refetchAddresses();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to set default');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,46 +301,156 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             </div>
           </div>
 
-          {/* Address */}
-          <div className="space-y-2">
-            <Label htmlFor="address">Street Address</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="123 Main St"
-            />
+          {/* Addresses Section */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+                <Label className="font-medium text-base">Addresses</Label>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddForm(!showAddForm)}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Address
+              </Button>
+            </div>
+
+            {/* Saved Addresses */}
+            {savedAddresses.length === 0 && !showAddForm && (
+              <p className="text-sm text-muted-foreground py-2">No saved addresses. Add one below.</p>
+            )}
+            {savedAddresses.map((loc) => (
+              <div
+                key={loc.id}
+                className="p-3 bg-secondary/30 rounded-lg border border-border/50 space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{loc.name}</Badge>
+                    {loc.is_primary && (
+                      <Badge className="bg-primary/10 text-primary text-xs border-0">
+                        <Star className="w-3 h-3 mr-0.5" /> Default
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!loc.is_primary && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleSetDefault(loc.id)}
+                      >
+                        Set Default
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteAddress(loc.id)}
+                      disabled={deletingAddressId === loc.id}
+                    >
+                      {deletingAddressId === loc.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm">
+                  {[loc.address, loc.apt_suite].filter(Boolean).join(', ')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {[loc.city, loc.state, loc.zip_code].filter(Boolean).join(', ')}
+                </p>
+              </div>
+            ))}
+
+            {/* Add Address Form */}
+            {showAddForm && (
+              <div className="p-4 border border-border rounded-lg space-y-3 bg-muted/30">
+                <div className="space-y-2">
+                  <Label className="text-sm">Label</Label>
+                  <Select value={newAddress.name} onValueChange={(v) => setNewAddress(prev => ({ ...prev, name: v }))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ADDRESS_LABELS.map(l => (
+                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Street Address *</Label>
+                  <Input
+                    value={newAddress.address}
+                    onChange={(e) => setNewAddress(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="123 Main St"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Apt / Suite</Label>
+                  <Input
+                    value={newAddress.apt_suite}
+                    onChange={(e) => setNewAddress(prev => ({ ...prev, apt_suite: e.target.value }))}
+                    placeholder="Apt 4B"
+                    className="h-9"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">City</Label>
+                    <Input
+                      value={newAddress.city}
+                      onChange={(e) => setNewAddress(prev => ({ ...prev, city: e.target.value }))}
+                      placeholder="City"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">State</Label>
+                    <Input
+                      value={newAddress.state}
+                      onChange={(e) => setNewAddress(prev => ({ ...prev, state: e.target.value }))}
+                      placeholder="State"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">ZIP</Label>
+                    <Input
+                      value={newAddress.zip_code}
+                      onChange={(e) => setNewAddress(prev => ({ ...prev, zip_code: e.target.value }))}
+                      placeholder="12345"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>Cancel</Button>
+                  <Button type="button" size="sm" onClick={handleAddAddress} disabled={addingAddress}>
+                    {addingAddress && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+                    Save Address
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                placeholder="City"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                value={formData.state}
-                onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
-                placeholder="State"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="zip_code">ZIP Code</Label>
-              <Input
-                id="zip_code"
-                value={formData.zip_code}
-                onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
-                placeholder="12345"
-              />
-            </div>
-          </div>
+          {/* Legacy single address (hidden label, kept for backward compat) */}
+          <input type="hidden" value={formData.address} />
 
           {/* Customer Status */}
           <div className="border rounded-lg p-4 space-y-3">

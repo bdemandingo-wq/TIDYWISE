@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin } from 'lucide-react';
 import { useBookingForm } from '../BookingFormContext';
 
@@ -16,7 +17,36 @@ export function PropertyStep() {
     setState,
     zipCode,
     setZipCode,
+    customerLocations,
+    customerTab,
+    selectedCustomerId,
   } = useBookingForm();
+
+  const handleLocationSelect = (locationId: string) => {
+    if (locationId === 'manual') {
+      setAddress('');
+      setAptSuite('');
+      setCity('');
+      setState('');
+      setZipCode('');
+      return;
+    }
+    const loc = customerLocations.find(l => l.id === locationId);
+    if (loc) {
+      setAddress(loc.address || '');
+      setAptSuite(loc.apt_suite || '');
+      setCity(loc.city || '');
+      setState(loc.state || '');
+      setZipCode(loc.zip_code || '');
+    }
+  };
+
+  const showSavedAddresses = customerTab === 'existing' && selectedCustomerId && customerLocations.length > 0;
+
+  // Find which saved location matches the current address
+  const matchingLocationId = showSavedAddresses
+    ? customerLocations.find(l => l.address === address && l.city === city && l.zip_code === zipCode)?.id || 'manual'
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -32,6 +62,30 @@ export function PropertyStep() {
 
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6 space-y-5">
+          {/* Saved address picker */}
+          {showSavedAddresses && (
+            <div>
+              <Label className="text-sm font-medium">Saved Address</Label>
+              <Select value={matchingLocationId} onValueChange={handleLocationSelect}>
+                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectValue placeholder="Select a saved address" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customerLocations.map(loc => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      <span className="font-medium">{loc.name}</span>
+                      {loc.is_primary && <span className="text-xs text-muted-foreground ml-1">(Default)</span>}
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        {[loc.address, loc.city, loc.state].filter(Boolean).join(', ')}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="manual">Enter address manually</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="address" className="text-sm font-medium">Street Address</Label>
             <Input
