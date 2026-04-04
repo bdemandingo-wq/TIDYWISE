@@ -22,6 +22,7 @@ import { BookingChecklist } from '@/components/staff/BookingChecklist';
 import { StaffDocumentUpload } from '@/components/staff/StaffDocumentUpload';
 import { StaffSignatureManager } from '@/components/staff/StaffSignatureManager';
 import { StaffPayoutSetup } from '@/components/staff/StaffPayoutSetup';
+import { StaffPhotosTab } from '@/components/staff/StaffPhotosTab';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
 
