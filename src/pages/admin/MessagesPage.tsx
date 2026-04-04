@@ -869,7 +869,8 @@ export default function MessagesPage() {
             ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
             : cn(
                 "hover:bg-muted/50",
-                selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]"
+                selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]",
+                listIndex !== undefined && listIndex === highlightedIndex && selectedConversation?.id !== conv.id && "bg-muted/70 ring-1 ring-inset ring-[#007AFF]/30"
               )
         )}
       >
