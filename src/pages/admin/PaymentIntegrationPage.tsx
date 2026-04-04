@@ -31,11 +31,13 @@ interface ConnectionStatus {
 
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const [oauthMessage, setOauthMessage] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   // Check for OAuth callback code
   useEffect(() => {
@@ -43,15 +45,13 @@ export default function PaymentIntegrationPage() {
     const state = searchParams.get("state");
 
     if (code && organization?.id) {
-      // Clear URL params
-      setSearchParams({}, { replace: true });
       handleOAuthCallback(code, state);
     }
   }, [searchParams, organization?.id]);
 
   // Load connection status
   useEffect(() => {
-    if (organization?.id) {
+    if (organization?.id && !searchParams.get("code")) {
       fetchConnectionStatus();
     }
   }, [organization?.id]);
@@ -76,6 +76,9 @@ export default function PaymentIntegrationPage() {
   const handleOAuthCallback = async (code: string, state: string | null) => {
     if (!organization?.id) return;
     setIsConnecting(true);
+    setIsLoading(false);
+    setOauthMessage("Connecting your Stripe account...");
+    setOauthError(null);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "exchange_code", organization_id: organization.id, code, state },
@@ -83,11 +86,17 @@ export default function PaymentIntegrationPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Stripe connected successfully!");
+      setOauthMessage(null);
+      toast.success("✅ Stripe Connected Successfully");
+      // Clear ?code= from URL
+      window.history.replaceState({}, "", window.location.pathname);
       await fetchConnectionStatus();
     } catch (err: any) {
       console.error("OAuth callback error:", err);
+      setOauthMessage(null);
+      setOauthError(err.message || "Failed to connect Stripe");
       toast.error(err.message || "Failed to connect Stripe");
+      window.history.replaceState({}, "", window.location.pathname);
     } finally {
       setIsConnecting(false);
     }
