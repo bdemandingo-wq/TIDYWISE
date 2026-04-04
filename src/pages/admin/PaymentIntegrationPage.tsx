@@ -567,6 +567,7 @@ export default function PaymentIntegrationPage() {
                   </div>
                 </div>
               </CardContent>
+            </Card>
 
             {/* How it works */}
             <Card>
