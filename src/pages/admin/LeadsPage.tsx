@@ -99,6 +99,11 @@ export default function LeadsPage() {
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organization } = useOrganization();
 
+  const { runSync, isSyncing, flaggedLeadIds } = useLeadSmartSync(organization?.id);
+
+  // Auto-run smart sync when leads load
+  const [hasSynced, setHasSynced] = useState(false);
+
   // Fetch abandoned booking link tracking data
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
     queryKey: ['abandoned-booking-links', organization?.id],
