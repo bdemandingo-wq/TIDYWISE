@@ -702,7 +702,7 @@ export function AIAnalysisCenter() {
               <button
                 key={i}
                 onClick={() => sendChat(q)}
-                style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 20, padding: '6px 14px', fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: labelFont, cursor: 'pointer' }}
+                style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: labelFont, cursor: 'pointer', minHeight: 44 }}
                 className="hover:bg-white/10 transition-colors"
               >
                 {q}
