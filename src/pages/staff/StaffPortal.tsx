@@ -751,7 +751,11 @@ export default function StaffPortal() {
               </p>
             </div>
             {loadingUnassigned ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
             ) : unassignedBookings.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
