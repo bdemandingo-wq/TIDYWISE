@@ -733,6 +733,7 @@ export default function CampaignsPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
                 <Label>Schedule</Label>
                 <div className="flex gap-2">
                   <Button
