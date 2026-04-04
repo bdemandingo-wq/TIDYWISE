@@ -779,6 +779,7 @@ export default function LeadsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Link Type</TableHead>
                   <TableHead>Link Sent</TableHead>
                   <TableHead>Link Opened</TableHead>
                   <TableHead>Time Elapsed</TableHead>
