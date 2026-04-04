@@ -923,24 +923,29 @@ export default function MessagesPage() {
       </div>
 
       {/* Bulk edit bottom bar */}
-      {bulkEditMode && isMobile && (
-        <div className="px-4 py-3 border-t border-[#E5E5EA] dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E] flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+      {bulkEditMode && (
+        <div className={cn(
+          "px-4 py-3 border-t flex items-center gap-3",
+          isMobile
+            ? "border-[#E5E5EA] dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E] pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
+            : "border-border bg-background"
+        )}>
           <Button
             variant="destructive"
-            className="h-11 text-[15px] font-semibold rounded-xl px-5"
+            className={cn("font-semibold px-5", isMobile ? "h-11 text-[15px] rounded-xl" : "h-9 text-sm")}
             disabled={selectedForBulk.size === 0}
             onClick={() => setBulkDeleteConfirmOpen(true)}
           >
             Delete
           </Button>
           <div className="flex-1 text-center">
-            <span className="text-[13px] text-[#8E8E93] font-medium">
+            <span className={cn("font-medium", isMobile ? "text-[13px] text-[#8E8E93]" : "text-sm text-muted-foreground")}>
               {selectedForBulk.size} selected
             </span>
           </div>
           <Button
             variant="ghost"
-            className="h-11 text-[15px] rounded-xl text-[#007AFF] px-5"
+            className={cn("text-[#007AFF] px-5", isMobile ? "h-11 text-[15px] rounded-xl" : "h-9 text-sm")}
             disabled={selectedForBulk.size === 0}
             onClick={async () => {
               const ids = [...selectedForBulk];
