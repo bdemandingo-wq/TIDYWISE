@@ -61,11 +61,24 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
   const handleUpload = async () => {
     if (!selectedFile) return;
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.toLowerCase().endsWith('.heic')) {
+      toast.error('Only JPG, PNG, WebP and HEIC photos are supported.', { duration: 6000 });
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      toast.error('Photo must be under 10MB. Please try again with a smaller image.', { duration: 6000 });
+      return;
+    }
+
     setUploading(true);
     try {
-      const fileExt = selectedFile.name.split('.').pop();
-      // Path: org_id/booking_id/filename - org_id prefix enforced by storage RLS
-      const filePath = `${organizationId}/${bookingId}/${photoType}_${Date.now()}.${fileExt}`;
+      const fileExt = selectedFile.name.split('.').pop() || 'jpg';
+      // Path: org_id/booking_id/staff_id/type/timestamp.ext
+      const filePath = `${organizationId}/${bookingId}/${staffId}/${photoType}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('booking-photos')
@@ -73,14 +86,14 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
 
       if (uploadError) throw uploadError;
 
-      // Save the storage PATH (not URL) to database for signed URL generation
+      // Save the storage PATH to database for signed URL generation
       const { error: dbError } = await supabase
         .from('booking_photos')
         .insert({
           booking_id: bookingId,
           staff_id: staffId,
           organization_id: organizationId,
-          photo_url: filePath, // Store path, not public URL
+          photo_url: filePath,
           photo_type: photoType,
         });
 
@@ -97,11 +110,13 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       const lowerMsg = errMsg.toLowerCase();
       
       if (lowerMsg.includes('security') || lowerMsg.includes('policy') || lowerMsg.includes('row-level') || lowerMsg.includes('rls') || lowerMsg.includes('not allowed') || lowerMsg.includes('violates')) {
-        toast.error('Upload permission denied. Please contact your admin — storage access may not be configured for your account.', { duration: 6000 });
+        toast.error('Photo upload permission denied. Please contact your admin to check your account access.', { duration: 6000 });
       } else if (lowerMsg.includes('bucket') || lowerMsg.includes('not found')) {
         toast.error('Photo storage is not set up yet. Please contact your admin.', { duration: 6000 });
       } else if (lowerMsg.includes('payload') || lowerMsg.includes('too large') || lowerMsg.includes('size')) {
-        toast.error('Image is too large. Please use a smaller photo (under 10MB).', { duration: 6000 });
+        toast.error('Photo must be under 10MB. Please try again with a smaller image.', { duration: 6000 });
+      } else if (lowerMsg.includes('network') || lowerMsg.includes('fetch') || lowerMsg.includes('failed to fetch')) {
+        toast.error('Upload failed. Check your internet connection and try again.', { duration: 6000 });
       } else {
         toast.error(`Failed to upload photo: ${errMsg.length > 120 ? 'Please try again or contact support.' : errMsg}`, { duration: 6000 });
       }

@@ -6310,6 +6310,7 @@ export type Database = {
       }
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
+      is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
         Returns: boolean
