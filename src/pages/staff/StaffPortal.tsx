@@ -615,68 +615,72 @@ export default function StaffPortal() {
             <p className="text-sm text-muted-foreground">You must set your working hours before you can view or claim jobs.</p>
           </div>
         )}
-        <Tabs value={currentTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
-            <TabsTrigger value="my-jobs" className="gap-2">
-              <Briefcase className="w-4 h-4 hidden sm:inline" />
-              My Jobs
-              {assignedBookings.length > 0 && (
-                <Badge variant="secondary" className="ml-1">{assignedBookings.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="photos" className="gap-2">
-              <Camera className="w-4 h-4 hidden sm:inline" />
-              📷 Photos
-            </TabsTrigger>
-            <TabsTrigger value="available" className="gap-2 relative">
-              <Bell className="w-4 h-4 hidden sm:inline" />
-              Available
-              {unassignedBookings.length > 0 && (
-                <Badge variant="default" className={`ml-1 ${newJobAlert ? 'bg-green-500 animate-pulse' : 'bg-green-600'}`}>
-                  {unassignedBookings.length}
-                </Badge>
-              )}
-              {newJobAlert && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-2">
-              <Calendar className="w-4 h-4 hidden sm:inline" />
-              Calendar
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">
-              <History className="w-4 h-4 hidden sm:inline" />
-              History
-            </TabsTrigger>
-            <TabsTrigger value="availability" className="gap-2">
-              <Clock className="w-4 h-4 hidden sm:inline" />
-              Hours
-            </TabsTrigger>
-            <TabsTrigger value="earnings" className="gap-2">
-              <DollarSign className="w-4 h-4 hidden sm:inline" />
-              Earnings
-            </TabsTrigger>
-            <TabsTrigger value="reviews" className="gap-2">
-              <Star className="w-4 h-4 hidden sm:inline" />
-              Reviews
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="gap-2">
-              <User className="w-4 h-4 hidden sm:inline" />
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-2">
-              <FileText className="w-4 h-4 hidden sm:inline" />
-              Documents
-            </TabsTrigger>
-            <TabsTrigger value="signatures" className="gap-2">
-              <PenLine className="w-4 h-4 hidden sm:inline" />
-              Signatures
-            </TabsTrigger>
-            <TabsTrigger value="payouts" className="gap-2">
-              <Banknote className="w-4 h-4 hidden sm:inline" />
-              Payouts
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={currentTab} onValueChange={(val) => setActiveTab(val)} className="space-y-4">
+          <div className="relative">
+            <TabsList className="flex overflow-x-auto no-scrollbar h-auto p-1 w-full justify-start gap-1" style={{ flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
+              <TabsTrigger value="my-jobs" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Briefcase className="w-4 h-4" />
+                My Jobs
+                {assignedBookings.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">{assignedBookings.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="photos" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Camera className="w-4 h-4" />
+                Photos
+              </TabsTrigger>
+              <TabsTrigger value="available" className="gap-1.5 min-h-[44px] shrink-0 px-3 relative">
+                <Bell className="w-4 h-4" />
+                Available
+                {unassignedBookings.length > 0 && (
+                  <Badge variant="default" className={`ml-1 ${newJobAlert ? 'bg-green-500 animate-pulse' : 'bg-green-600'}`}>
+                    {unassignedBookings.length}
+                  </Badge>
+                )}
+                {newJobAlert && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Calendar className="w-4 h-4" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <History className="w-4 h-4" />
+                History
+              </TabsTrigger>
+              <TabsTrigger value="availability" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Clock className="w-4 h-4" />
+                Hours
+              </TabsTrigger>
+              <TabsTrigger value="earnings" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <DollarSign className="w-4 h-4" />
+                Earnings
+              </TabsTrigger>
+              <TabsTrigger value="reviews" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Star className="w-4 h-4" />
+                Reviews
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <User className="w-4 h-4" />
+                Profile
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <FileText className="w-4 h-4" />
+                Docs
+              </TabsTrigger>
+              <TabsTrigger value="signatures" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <PenLine className="w-4 h-4" />
+                Sign
+              </TabsTrigger>
+              <TabsTrigger value="payouts" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Banknote className="w-4 h-4" />
+                Payouts
+              </TabsTrigger>
+            </TabsList>
+            {/* Scroll fade indicator */}
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+          </div>
 
           {/* My Jobs Tab */}
           <TabsContent value="my-jobs" className="space-y-4">
