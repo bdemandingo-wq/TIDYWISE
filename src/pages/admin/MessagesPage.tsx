@@ -665,19 +665,7 @@ export default function MessagesPage() {
       );
     }
 
-    return (
-      <SwipeableRow
-        key={conv.id}
-        rightAction={{
-          label: '🗑️ Delete',
-          onAction: () => handleDeleteConversation(conv.id),
-          variant: 'destructive'
-        }}
-        className="rounded-none"
-      >
-        {rowContent}
-      </SwipeableRow>
-    );
+    return rowContent;
   };
 
   // ═══════════════════════════════════════════════════
