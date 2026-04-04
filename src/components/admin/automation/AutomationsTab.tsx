@@ -33,6 +33,7 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
 
   React.useEffect(() => {
     const fetchIntervals = async () => {
+      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('appointment_reminder_intervals')
@@ -56,26 +57,63 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
         setLoading(false);
       }
     };
+
     fetchIntervals();
   }, [organizationId]);
+
+  const updateInterval = (index: number, updater: (interval: ReminderInterval) => ReminderInterval) => {
+    setReminderIntervals((prev) => prev.map((interval, currentIndex) => (
+      currentIndex === index ? updater(interval) : interval
+    )));
+  };
+
+  const toggleIntervalEnabled = (index: number, checked?: boolean) => {
+    updateInterval(index, (interval) => ({
+      ...interval,
+      is_active: checked ?? !interval.is_active,
+    }));
+  };
+
+  const toggleRecipient = (
+    index: number,
+    recipient: 'send_to_client' | 'send_to_cleaner',
+    checked?: boolean,
+  ) => {
+    updateInterval(index, (interval) => ({
+      ...interval,
+      [recipient]: checked ?? !interval[recipient],
+    }));
+  };
+
+  const handleKeyToggle = (event: React.KeyboardEvent<HTMLDivElement>, callback: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      callback();
+    }
+  };
 
   const saveIntervals = async () => {
     setSaving(true);
     try {
-      for (const interval of reminderIntervals) {
-        if (interval.id) {
-          await supabase
+      const results = await Promise.all(
+        reminderIntervals
+          .filter((interval) => interval.id)
+          .map((interval) => supabase
             .from('appointment_reminder_intervals')
             .update({
               is_active: interval.is_active,
               send_to_client: interval.send_to_client,
               send_to_cleaner: interval.send_to_cleaner,
             })
-            .eq('id', interval.id);
-        }
-      }
+            .eq('id', interval.id as string)),
+      );
+
+      const failedResult = results.find((result) => result.error);
+      if (failedResult?.error) throw failedResult.error;
+
       toast.success('Reminder schedule saved');
-    } catch {
+    } catch (error) {
+      console.error('Failed to save reminder schedule:', error);
       toast.error('Failed to save reminder schedule');
     } finally {
       setSaving(false);
@@ -97,44 +135,56 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
         <Label className="font-medium text-sm">Reminder Schedule</Label>
       </div>
       {reminderIntervals.map((interval, index) => (
-        <div key={interval.id || index} className="p-3 border rounded-lg bg-muted/30 space-y-2">
-          <div className="flex items-center justify-between">
+        <div key={interval.id || index} className="space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div
+            role="button"
+            tabIndex={0}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-md"
+            onClick={() => toggleIntervalEnabled(index)}
+            onKeyDown={(event) => handleKeyToggle(event, () => toggleIntervalEnabled(index))}
+          >
             <span className="text-sm font-medium">{interval.label}</span>
             <Switch
               checked={interval.is_active}
-              onCheckedChange={(checked) => {
-                const updated = [...reminderIntervals];
-                updated[index] = { ...updated[index], is_active: checked };
-                setReminderIntervals(updated);
-              }}
+              onClick={(event) => event.stopPropagation()}
+              onCheckedChange={(checked) => toggleIntervalEnabled(index, checked)}
+              aria-label={`Toggle ${interval.label}`}
             />
           </div>
+
           {interval.is_active && (
-            <div className="flex gap-4 text-sm">
-              <label className="flex items-center gap-1.5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div
+                role="button"
+                tabIndex={0}
+                className="flex cursor-pointer items-center justify-between rounded-md border bg-background/60 px-3 py-2"
+                onClick={() => toggleRecipient(index, 'send_to_client')}
+                onKeyDown={(event) => handleKeyToggle(event, () => toggleRecipient(index, 'send_to_client'))}
+              >
+                <span className="text-sm text-muted-foreground">Client</span>
                 <Switch
                   checked={interval.send_to_client}
-                  onCheckedChange={(checked) => {
-                    const updated = [...reminderIntervals];
-                    updated[index] = { ...updated[index], send_to_client: checked };
-                    setReminderIntervals(updated);
-                  }}
-                  className="scale-75"
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => toggleRecipient(index, 'send_to_client', checked)}
+                  aria-label={`Toggle client reminders for ${interval.label}`}
                 />
-                <span className="text-muted-foreground">Client</span>
-              </label>
-              <label className="flex items-center gap-1.5">
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                className="flex cursor-pointer items-center justify-between rounded-md border bg-background/60 px-3 py-2"
+                onClick={() => toggleRecipient(index, 'send_to_cleaner')}
+                onKeyDown={(event) => handleKeyToggle(event, () => toggleRecipient(index, 'send_to_cleaner'))}
+              >
+                <span className="text-sm text-muted-foreground">Cleaner</span>
                 <Switch
                   checked={interval.send_to_cleaner}
-                  onCheckedChange={(checked) => {
-                    const updated = [...reminderIntervals];
-                    updated[index] = { ...updated[index], send_to_cleaner: checked };
-                    setReminderIntervals(updated);
-                  }}
-                  className="scale-75"
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) => toggleRecipient(index, 'send_to_cleaner', checked)}
+                  aria-label={`Toggle cleaner reminders for ${interval.label}`}
                 />
-                <span className="text-muted-foreground">Cleaner</span>
-              </label>
+              </div>
             </div>
           )}
         </div>
