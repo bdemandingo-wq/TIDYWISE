@@ -53,7 +53,7 @@ interface Quote {
   status: string | null;
   created_at: string;
   customer?: { first_name: string; last_name: string; email: string };
-  service?: { name: string };
+  service?: { name: string; duration?: number };
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -134,8 +134,54 @@ export function QuotesTabContent() {
     onError: (error: any) => toast.error(error.message),
   });
 
-  const markAsAccepted = (quote: Quote) => {
-    updateMutation.mutate({ id: quote.id, status: 'accepted' });
+  const markAsAccepted = async (quote: Quote) => {
+    try {
+      // Update quote status to accepted
+      const { error: quoteError } = await supabase
+        .from('quotes')
+        .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+        .eq('id', quote.id);
+      if (quoteError) throw quoteError;
+
+      // Create a real booking from the quote data
+      const bookingData: any = {
+        organization_id: organization?.id,
+        customer_id: quote.customer_id,
+        service_id: quote.service_id || null,
+        address: quote.address || null,
+        total_amount: quote.total_amount || 0,
+        subtotal: quote.subtotal || quote.total_amount || 0,
+        notes: quote.notes ? `[From Quote #${quote.quote_number}] ${quote.notes}` : `[From Quote #${quote.quote_number}]`,
+        status: 'confirmed',
+        payment_status: 'pending',
+        duration: (quote.service as any)?.duration || 120,
+        scheduled_at: new Date().toISOString(), // Admin should reschedule
+        extras: (quote as any).extras || null,
+      };
+
+      // Copy address fields if available
+      if ((quote as any).city) bookingData.city = (quote as any).city;
+      if ((quote as any).state) bookingData.state = (quote as any).state;
+      if ((quote as any).zip_code) bookingData.zip_code = (quote as any).zip_code;
+      if ((quote as any).bedrooms) bookingData.bedrooms = (quote as any).bedrooms;
+      if ((quote as any).bathrooms) bookingData.bathrooms = (quote as any).bathrooms;
+      if ((quote as any).square_footage) bookingData.square_footage = (quote as any).square_footage;
+
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select('booking_number')
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success(`Quote #${quote.quote_number} accepted! Booking #${newBooking.booking_number} created. Please set the scheduled date.`);
+    } catch (error: any) {
+      console.error('Error accepting quote:', error);
+      toast.error(error.message || 'Failed to accept quote');
+    }
   };
 
   const sendQuoteReminderSms = async (quote: Quote) => {
