@@ -215,8 +215,32 @@ export function PortalProfileTab() {
       toast.error("Failed to delete address");
     }
   };
+  const handleSetDefault = async (locationId: string) => {
+    if (!user) return;
+    try {
+      // Unset all, then set the chosen one
+      const { error } = await supabase
+        .from("locations")
+        .update({ is_primary: false })
+        .eq("customer_id", user.customer_id);
+      if (error) throw error;
 
-  const currentPoints = loyalty?.lifetime_points || 0;
+      const { error: error2 } = await supabase
+        .from("locations")
+        .update({ is_primary: true })
+        .eq("id", locationId);
+      if (error2) throw error2;
+
+      setLocations((prev) =>
+        prev.map((l) => ({ ...l, is_primary: l.id === locationId }))
+      );
+      toast.success("Default address updated");
+    } catch {
+      toast.error("Failed to update default address");
+    }
+  };
+
+
   const currentTierName = loyalty?.tier?.toLowerCase() || "bronze";
   const currentTierIndex = tiers.findIndex(
     (t) => t.tier_name.toLowerCase() === currentTierName
