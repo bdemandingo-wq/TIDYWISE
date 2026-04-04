@@ -348,6 +348,7 @@ export default function FinancePage() {
       subtitle="Profit & loss, transactions, and tax exports"
     >
       <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
+      <SubscriptionGate feature="Finance & Tax reports">
       {/* Stripe Sync Header */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button
