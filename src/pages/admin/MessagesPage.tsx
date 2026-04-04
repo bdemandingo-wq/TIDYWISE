@@ -1037,11 +1037,11 @@ export default function MessagesPage() {
           </div>
         ) : (
           <div>
-            {bulkEditMode && pinnedConversations.map(conv => (
-              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            {bulkEditMode && pinnedConversations.map((conv, i) => (
+              <div key={conv.id}>{renderConversationRow(conv, i)}</div>
             ))}
-            {unpinnedConversations.map(conv => (
-              <div key={conv.id}>{renderConversationRow(conv)}</div>
+            {unpinnedConversations.map((conv, i) => (
+              <div key={conv.id}>{renderConversationRow(conv, pinnedConversations.length + i)}</div>
             ))}
           </div>
         )}
