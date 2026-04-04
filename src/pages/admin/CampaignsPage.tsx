@@ -298,6 +298,8 @@ export default function CampaignsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
       toast({ title: "Campaign sent!", description: `Sent ${data.sentCount || 0} messages` });
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
