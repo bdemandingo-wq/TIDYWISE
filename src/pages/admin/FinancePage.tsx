@@ -580,11 +580,7 @@ export default function FinancePage() {
         </TabsContent>
 
         <TabsContent value="pnl-calendar">
-          <PnLCalendar
-            bookings={bookings}
-            expenses={expenses}
-            teamPaysByBooking={teamPaysByBooking as Map<string, number>}
-          />
+          <PnLCalendar />
         </TabsContent>
 
         <TabsContent value="sales-tax">
