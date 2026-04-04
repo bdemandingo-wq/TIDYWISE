@@ -297,7 +297,7 @@ export default function ReportsPage() {
     >
       <SubscriptionGate feature="Reports">
       {/* Summary Stats - Uniform Card Size */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
         <StatCard
           title="Total Revenue"
           value={isTestMode ? '$X,XXX' : `$${totalStats.totalRevenue.toLocaleString()}`}

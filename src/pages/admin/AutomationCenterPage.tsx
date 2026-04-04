@@ -49,11 +49,11 @@ export default function AutomationCenterPage() {
       <SubscriptionGate feature="Automation Center">
         <div className="space-y-6">
           <Tabs defaultValue="automations" className="space-y-4">
-            <TabsList className="flex-wrap h-auto gap-1">
-              <TabsTrigger value="automations" className="gap-2"><Zap className="w-4 h-4" /> Automations</TabsTrigger>
-              <TabsTrigger value="health" className="gap-2"><Activity className="w-4 h-4" /> Health Monitor</TabsTrigger>
-              <TabsTrigger value="suggestions" className="gap-2"><Lightbulb className="w-4 h-4" /> Suggestions</TabsTrigger>
-              <TabsTrigger value="guide" className="gap-2"><HelpCircle className="w-4 h-4" /> Feature Guide</TabsTrigger>
+            <TabsList className="flex-wrap h-auto gap-1 w-full">
+              <TabsTrigger value="automations" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Zap className="w-4 h-4" /> Automations</TabsTrigger>
+              <TabsTrigger value="health" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Activity className="w-4 h-4" /> Health</TabsTrigger>
+              <TabsTrigger value="suggestions" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Lightbulb className="w-4 h-4" /> Suggestions</TabsTrigger>
+              <TabsTrigger value="guide" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><HelpCircle className="w-4 h-4" /> Guide</TabsTrigger>
             </TabsList>
 
             <TabsContent value="automations">
