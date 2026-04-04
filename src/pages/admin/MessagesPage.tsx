@@ -458,7 +458,16 @@ export default function MessagesPage() {
   }, [searchQuery, organizationId]);
 
   const filteredConversations = useMemo(() => {
-    return conversations.filter(conv => {
+    // Deduplicate by normalized phone number — keep the most recent conversation
+    const seen = new Map<string, Conversation>();
+    const sorted = [...conversations].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+    for (const conv of sorted) {
+      const normPhone = normalizePhone(conv.customer_phone);
+      if (!seen.has(normPhone)) seen.set(normPhone, conv);
+    }
+    const deduped = [...seen.values()];
+
+    return deduped.filter(conv => {
       const matchesNamePhone = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || conv.customer_phone.includes(searchQuery);
       const matchesContent = contentSearchResults?.has(conv.id) ?? false;
       const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
