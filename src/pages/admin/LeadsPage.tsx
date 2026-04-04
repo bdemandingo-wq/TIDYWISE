@@ -44,6 +44,8 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
 import { SEOHead } from '@/components/SEOHead';
+import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 
