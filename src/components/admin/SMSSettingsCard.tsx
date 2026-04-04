@@ -33,19 +33,17 @@ const defaultSettings: SMSSettings = {
 
 export function SMSSettingsCard() {
   const { organization } = useOrganization();
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<SMSSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [reminderIntervals, setReminderIntervals] = useState<ReminderInterval[]>([]);
-  const [savingIntervals, setSavingIntervals] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
       fetchSettings();
-      fetchReminderIntervals();
     }
   }, [organization?.id]);
 
