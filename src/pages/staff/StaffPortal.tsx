@@ -619,7 +619,10 @@ export default function StaffPortal() {
                 <Badge variant="secondary" className="ml-1">{assignedBookings.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="available" className="gap-2 relative">
+            <TabsTrigger value="photos" className="gap-2">
+              <Camera className="w-4 h-4 hidden sm:inline" />
+              📷 Photos
+            </TabsTrigger>
               <Bell className="w-4 h-4 hidden sm:inline" />
               Available
               {unassignedBookings.length > 0 && (
