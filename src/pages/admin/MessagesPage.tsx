@@ -622,6 +622,112 @@ export default function MessagesPage() {
     }
   }, [newMessage]);
 
+  // ─── Navigable conversation list for arrow keys ────
+  const navigableConversations = useMemo(() => [...pinnedConversations, ...unpinnedConversations], [pinnedConversations, unpinnedConversations]);
+
+  // ─── Keyboard shortcuts (desktop only) ────────────
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tagName = target.tagName.toLowerCase();
+      const isTyping = tagName === 'input' || tagName === 'textarea' || target.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Cmd+/ → toggle shortcuts panel
+      if (mod && e.key === '/') {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+        return;
+      }
+
+      // Escape
+      if (e.key === 'Escape') {
+        if (showShortcuts) { setShowShortcuts(false); return; }
+        if (searchQuery) { setSearchQuery(''); searchInputRef.current?.blur(); return; }
+        if (selectedConversation && isTyping) {
+          // Focus back to conversation list area
+          (document.activeElement as HTMLElement)?.blur();
+          return;
+        }
+        return;
+      }
+
+      // Don't fire most shortcuts when typing
+      if (isTyping) {
+        // Cmd+Enter sends message
+        if (mod && e.key === 'Enter') {
+          e.preventDefault();
+          handleSendMessage();
+          return;
+        }
+        // Cmd+A in edit mode selects all
+        if (mod && e.key === 'a' && bulkEditMode) {
+          e.preventDefault();
+          toggleSelectAll();
+          return;
+        }
+        return;
+      }
+
+      // Cmd+K → focus search
+      if (mod && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      // Cmd+1-4 → switch filter tabs
+      if (mod && e.key >= '1' && e.key <= '4') {
+        e.preventDefault();
+        const tabs: ConversationTab[] = ['all', 'clients', 'cleaners', 'unread'];
+        setActiveTab(tabs[parseInt(e.key) - 1]);
+        return;
+      }
+
+      // Cmd+A → select all (edit mode) or focus search
+      if (mod && e.key === 'a') {
+        e.preventDefault();
+        if (bulkEditMode) {
+          toggleSelectAll();
+        } else {
+          searchInputRef.current?.focus();
+        }
+        return;
+      }
+
+      // Arrow Up/Down → navigate conversations
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.min(prev + 1, navigableConversations.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.max(prev - 1, 0));
+        return;
+      }
+
+      // Enter → open highlighted conversation
+      if (e.key === 'Enter' && highlightedIndex >= 0 && highlightedIndex < navigableConversations.length) {
+        e.preventDefault();
+        handleSelectConversation(navigableConversations[highlightedIndex]);
+        return;
+      }
+
+      // Delete/Backspace in edit mode
+      if ((e.key === 'Delete' || e.key === 'Backspace') && bulkEditMode && selectedForBulk.size > 0) {
+        e.preventDefault();
+        setBulkDeleteConfirmOpen(true);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isMobile, showShortcuts, searchQuery, selectedConversation, bulkEditMode, selectedForBulk, highlightedIndex, navigableConversations]);
+
   // ═══════════════════════════════════════════════════
   // RENDER: Pinned Row
   // ═══════════════════════════════════════════════════
