@@ -347,6 +347,28 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
+      // Also update campaign_sms_sends delivery status if this message matches a campaign send
+      const deliveredPhone = messageObj.to;
+      if (deliveredPhone) {
+        // Normalize phone for matching
+        const normalizedPhone = deliveredPhone.replace(/\D/g, '');
+        const phoneVariants = [
+          deliveredPhone,
+          `+${normalizedPhone}`,
+          `+1${normalizedPhone.length === 10 ? normalizedPhone : ''}`,
+        ].filter(Boolean);
+
+        const { error: campaignUpdateErr } = await supabase
+          .from('campaign_sms_sends')
+          .update({ status: 'delivered' })
+          .in('phone_number', phoneVariants)
+          .eq('status', 'sent');
+
+        if (!campaignUpdateErr) {
+          console.log(`[openphone-webhook] Updated campaign_sms_sends delivery status for ${deliveredPhone}`);
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: true, message: 'Delivery status processed' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
