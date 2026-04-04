@@ -63,7 +63,7 @@ interface Contact {
   type: 'client' | 'cleaner';
 }
 
-type ConversationTab = 'all' | 'clients' | 'cleaners';
+type ConversationTab = 'all' | 'clients' | 'cleaners' | 'unread';
 
 // ─── Helpers ────────────────────────────────────────
 const normalizePhone = (phone: string): string => {
