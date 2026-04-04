@@ -358,9 +358,24 @@ export default function CampaignsPage() {
 
   const sendCampaignNow = useMutation({
     mutationFn: async () => {
+      if (!orgId) throw new Error("Organization not found");
+      // First, save the campaign so we have a campaign_id for tracking
+      const { data: newCampaign, error: insertError } = await supabase.from("automated_campaigns").insert({
+        organization_id: orgId,
+        name: campaignForm.name || `Campaign ${format(new Date(), "MMM d, yyyy")}`,
+        type: "custom",
+        days_inactive: campaignForm.days_inactive,
+        subject: campaignForm.channel === "email" || campaignForm.channel === "both"
+          ? campaignForm.emailSubject : "SMS Campaign",
+        body: campaignForm.channel === "sms" ? campaignForm.smsBody : campaignForm.emailBody,
+        is_active: true,
+      }).select("id").single();
+      if (insertError) throw insertError;
+
       const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
         body: {
           organizationId: orgId,
+          campaignId: newCampaign.id,
           daysInactive: campaignForm.days_inactive,
           message: campaignForm.smsBody,
           targetAudience: campaignForm.audience,
@@ -375,6 +390,8 @@ export default function CampaignsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
       toast({ title: "Sent!", description: `${data.sentCount || 0} messages delivered` });
       setCreateOpen(false);
       resetForm();
