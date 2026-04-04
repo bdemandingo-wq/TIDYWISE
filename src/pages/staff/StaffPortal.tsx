@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote } from 'lucide-react';
+import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
@@ -22,6 +22,7 @@ import { BookingChecklist } from '@/components/staff/BookingChecklist';
 import { StaffDocumentUpload } from '@/components/staff/StaffDocumentUpload';
 import { StaffSignatureManager } from '@/components/staff/StaffSignatureManager';
 import { StaffPayoutSetup } from '@/components/staff/StaffPayoutSetup';
+import { StaffPhotosTab } from '@/components/staff/StaffPhotosTab';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
 
@@ -618,6 +619,10 @@ export default function StaffPortal() {
                 <Badge variant="secondary" className="ml-1">{assignedBookings.length}</Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="photos" className="gap-2">
+              <Camera className="w-4 h-4 hidden sm:inline" />
+              📷 Photos
+            </TabsTrigger>
             <TabsTrigger value="available" className="gap-2 relative">
               <Bell className="w-4 h-4 hidden sm:inline" />
               Available
@@ -700,6 +705,15 @@ export default function StaffPortal() {
                   />
                 ))}
               </div>
+            )}
+          </TabsContent>
+
+          {/* Photos Tab */}
+          <TabsContent value="photos" className="space-y-4">
+            {staffInfo?.id && staffInfo?.organization_id ? (
+              <StaffPhotosTab staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+            ) : (
+              <p className="text-muted-foreground">Loading...</p>
             )}
           </TabsContent>
 
