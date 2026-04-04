@@ -441,7 +441,7 @@ export function AIAnalysisCenter() {
       )}
 
       {/* ─── KPI Strip ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         {[
           { label: 'Monthly Revenue', value: `$${animRevenue.toLocaleString()}`, sub: revenueChange >= 0 ? `+${revenueChange}% vs last month` : `${revenueChange}% vs last month`, color: TEAL, icon: TrendingUp },
           { label: 'Hot Leads', value: animHotLeads.toString(), sub: `${hotLeads.filter(l => differenceInDays(now, new Date(l.updated_at)) > 5).length} need follow-up today`, color: AMBER, icon: Flame },
@@ -702,7 +702,7 @@ export function AIAnalysisCenter() {
               <button
                 key={i}
                 onClick={() => sendChat(q)}
-                style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 20, padding: '6px 14px', fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: labelFont, cursor: 'pointer' }}
+                style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: labelFont, cursor: 'pointer', minHeight: 44 }}
                 className="hover:bg-white/10 transition-colors"
               >
                 {q}
@@ -722,7 +722,7 @@ export function AIAnalysisCenter() {
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div
                       style={{
-                        maxWidth: '85%',
+                        maxWidth: '80%',
                         padding: '10px 14px',
                         borderRadius: 12,
                         fontSize: 13,
@@ -745,19 +745,19 @@ export function AIAnalysisCenter() {
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 sticky bottom-0 pt-2" style={{ background: DARK_BG }}>
             <Input
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat(chatInput)}
               placeholder="Ask about your business..."
-              style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: '#fff', fontFamily: labelFont }}
+              style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: '#fff', fontFamily: labelFont, fontSize: 15, minHeight: 44 }}
               className="flex-1"
             />
             <Button
               onClick={() => sendChat(chatInput)}
               disabled={chatLoading || !chatInput.trim()}
-              style={{ background: TEAL, color: DARK_BG }}
+              style={{ background: TEAL, color: DARK_BG, minHeight: 44, minWidth: 44 }}
               className="hover:opacity-90"
             >
               {chatLoading ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}

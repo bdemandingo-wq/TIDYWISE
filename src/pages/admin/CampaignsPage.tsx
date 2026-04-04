@@ -850,7 +850,7 @@ export default function CampaignsPage() {
                     </Button>
                   </div>
                   {aiTemplates.length > 0 && (
-                    <div className="grid gap-2 mt-3 md:grid-cols-3">
+                    <div className="grid gap-2 mt-3 grid-cols-1 md:grid-cols-3">
                       {aiTemplates.map((t, i) => (
                         <div key={i} className="p-3 bg-background rounded-lg border text-xs">
                           <p className="font-medium text-primary mb-1">{t.name}</p>
@@ -910,7 +910,7 @@ export default function CampaignsPage() {
               {(campaignForm.channel === "sms" || campaignForm.channel === "both") && campaignForm.smsBody && (
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">SMS Preview</Label>
-                  <div className="bg-muted rounded-2xl p-4 max-w-[280px]">
+                  <div className="bg-muted rounded-2xl p-4 max-w-full sm:max-w-[280px]">
                     <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm whitespace-pre-wrap">
                       {campaignForm.smsBody
                         .replace(/\{first_name\}/g, "Sarah")

@@ -361,7 +361,7 @@ export default function PortalRequestPage() {
                         <span>{getAddressEmoji(loc.name)}</span>
                         <span className="font-medium">{loc.name}</span>
                         <span className="text-muted-foreground">—</span>
-                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                        <span className="text-xs text-muted-foreground truncate max-w-[140px] sm:max-w-[180px]">
                           {formatLocationLine(loc)}
                         </span>
                       </span>
@@ -381,7 +381,7 @@ export default function PortalRequestPage() {
               {showAddAddress && (
                 <Card className="border-dashed mt-2">
                   <CardContent className="pt-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Label</Label>
                         <Select value={newAddr.name} onValueChange={(v) => setNewAddr(prev => ({ ...prev, name: v }))}>
