@@ -138,6 +138,14 @@ export default function LeadsPage() {
     enabled: !!organization?.id,
   });
 
+  // Auto-run smart sync when leads first load
+  useEffect(() => {
+    if (leads.length > 0 && !hasSynced && !isLoading) {
+      setHasSynced(true);
+      runSync(leads, true); // silent
+    }
+  }, [leads, hasSynced, isLoading, runSync]);
+
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
       if (!organization?.id) {
