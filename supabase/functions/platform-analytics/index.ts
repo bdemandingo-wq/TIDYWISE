@@ -77,21 +77,43 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
-    // Enrich signups with organization names via org_memberships
+    // Enrich signups with organization names via org_memberships AND staff table
     const enrichedSignups = [];
     if (recentSignups && recentSignups.length > 0) {
       const userIds = recentSignups.map(s => s.id);
+      
+      // Check org_memberships (owners/admins)
       const { data: memberships } = await supabaseClient
         .from('org_memberships')
         .select('user_id, role, organization:organizations(id, name)')
         .in('user_id', userIds);
 
+      // Check staff table (staff/cleaners who signed up)
+      const { data: staffRecords } = await supabaseClient
+        .from('staff')
+        .select('user_id, name, organization_id, organization:organizations(id, name)')
+        .in('user_id', userIds);
+
       const orgMap = new Map<string, { org_name: string; org_id: string; role: string }>();
+      
+      // Map from org_memberships first (owners/admins)
       if (memberships) {
         for (const m of memberships) {
           const org = m.organization as any;
           if (org && !orgMap.has(m.user_id)) {
             orgMap.set(m.user_id, { org_name: org.name, org_id: org.id, role: m.role });
+          }
+        }
+      }
+      
+      // Fill gaps from staff table (cleaners/staff who aren't in org_memberships)
+      if (staffRecords) {
+        for (const s of staffRecords) {
+          if (s.user_id && !orgMap.has(s.user_id)) {
+            const org = s.organization as any;
+            if (org) {
+              orgMap.set(s.user_id, { org_name: org.name, org_id: org.id, role: 'staff' });
+            }
           }
         }
       }
