@@ -113,8 +113,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   }, [isRedirecting, refetch, queryClient, staffId, organizationId]);
 
   // Start or resume Stripe Connect onboarding
+  // IMPORTANT: Open window synchronously on click to avoid Safari popup blocker
   const startOnboarding = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (newWindow: Window | null) => {
       const { data, error } = await supabase.functions.invoke('create-staff-connect-account', {
         body: {
           staffId,
@@ -132,22 +133,36 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         throw new Error('No onboarding link was returned. Please try again.');
       }
 
-      return data as { url: string; accountId: string };
+      return { ...(data as { url: string; accountId: string }), newWindow };
     },
     onSuccess: (data) => {
       if (data.url) {
         setIsRedirecting(true);
-        window.open(data.url, '_blank');
-        toast.success('Opening payout setup in a new tab. Complete the form there and return here.');
+        if (data.newWindow && !data.newWindow.closed) {
+          data.newWindow.location.href = data.url;
+        } else {
+          // Fallback: redirect current page
+          window.location.href = data.url;
+        }
+        toast.success('Opening payout setup. Complete the form and return here.');
       }
     },
-    onError: (error: any) => {
-      // Don't toast for org_stripe_not_connected — handled in UI
+    onError: (error: any, newWindow) => {
+      // Close the blank tab if the call failed
+      if (newWindow && !newWindow.closed) {
+        newWindow.close();
+      }
       if (!error.message?.includes('org_stripe_not_connected')) {
         toast.error(error.message || 'Failed to start payout setup');
       }
     },
   });
+
+  const handleStartOnboarding = () => {
+    // Open blank window synchronously (within click handler) so Safari allows it
+    const newWindow = window.open('about:blank', '_blank');
+    startOnboarding.mutate(newWindow);
+  };
 
   const getStatusBadge = () => {
     if (!payoutStatus) return null;
@@ -244,7 +259,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => startOnboarding.mutate()}
+                onClick={handleStartOnboarding}
                 disabled={startOnboarding.isPending || isRedirecting}
               >
                 {startOnboarding.isPending || isRedirecting ? (
@@ -323,7 +338,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
               <Button
                 className="w-full"
-                onClick={() => startOnboarding.mutate()}
+                onClick={handleStartOnboarding}
                 disabled={startOnboarding.isPending || isRedirecting}
                 size="lg"
               >
