@@ -441,7 +441,7 @@ export function AIAnalysisCenter() {
       )}
 
       {/* ─── KPI Strip ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         {[
           { label: 'Monthly Revenue', value: `$${animRevenue.toLocaleString()}`, sub: revenueChange >= 0 ? `+${revenueChange}% vs last month` : `${revenueChange}% vs last month`, color: TEAL, icon: TrendingUp },
           { label: 'Hot Leads', value: animHotLeads.toString(), sub: `${hotLeads.filter(l => differenceInDays(now, new Date(l.updated_at)) > 5).length} need follow-up today`, color: AMBER, icon: Flame },
