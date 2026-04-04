@@ -327,7 +327,7 @@ export default function PaymentIntegrationPage() {
                   {isConnecting ? "Connecting..." : "Connect with Stripe"}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
-                  You'll be redirected to Stripe to log in or create an account
+                  Already have a Stripe account? You'll be asked to log in — no need to create a new one.
                 </p>
               </div>
             </Card>
