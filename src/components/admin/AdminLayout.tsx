@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
 import { usePlatform } from '@/hooks/usePlatform';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Performance: only load subscription UI when it's actually needed (opened).
 const SubscriptionDialog = lazy(() =>
