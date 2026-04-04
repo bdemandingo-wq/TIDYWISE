@@ -84,6 +84,9 @@ export default function CampaignsPage() {
     emailSubject: "",
     emailBody: "",
     days_inactive: 30,
+    excludeAlreadyReceived: false,
+    excludeRecentDays: 0,
+    onlyAfterDate: undefined as Date | undefined,
   });
 
   // AI
@@ -99,7 +102,7 @@ export default function CampaignsPage() {
 
   // Test results
   const [testResult, setTestResult] = useState<{
-    inactive: number; contactable: number; customers?: any[];
+    inactive: number; contactable: number; excludedCount?: number; customers?: any[];
   } | null>(null);
 
   // Business settings
@@ -331,13 +334,21 @@ export default function CampaignsPage() {
           daysInactive: campaignForm.days_inactive,
           targetAudience: campaignForm.audience,
           testMode: true,
+          excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
+          excludeRecentDays: campaignForm.excludeRecentDays,
+          onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
         },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      setTestResult({ inactive: data.inactiveCount || 0, contactable: data.toContactCount || 0, customers: data.customers });
+      setTestResult({
+        inactive: data.inactiveCount || 0,
+        contactable: data.toContactCount || 0,
+        excludedCount: data.excludedCount || 0,
+        customers: data.customers,
+      });
       toast({ title: "Preview ready", description: `${data.toContactCount || 0} recipients found` });
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
@@ -352,6 +363,9 @@ export default function CampaignsPage() {
           message: campaignForm.smsBody,
           targetAudience: campaignForm.audience,
           testMode: false,
+          excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
+          excludeRecentDays: campaignForm.excludeRecentDays,
+          onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
         },
       });
       if (error) throw error;
@@ -372,6 +386,7 @@ export default function CampaignsPage() {
       scheduledDate: undefined, scheduledTime: "09:00",
       smsBody: 'Hi {first_name}! This is {company_name}. We wanted to reach out — we\'d love to have you back! Reply STOP to opt out.',
       emailSubject: "", emailBody: "", days_inactive: 30,
+      excludeAlreadyReceived: false, excludeRecentDays: 0, onlyAfterDate: undefined,
     });
     setCreateStep(1);
     setAiTemplates([]);
@@ -654,6 +669,70 @@ export default function CampaignsPage() {
                 </div>
               )}
 
+              {/* Exclude Filters */}
+              <div className="space-y-3 rounded-lg border p-3">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <UserX className="w-4 h-4" />
+                  Duplicate Send Filters
+                </Label>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-sm">Exclude already received</p>
+                    <p className="text-xs text-muted-foreground">Skip clients who got this exact campaign before</p>
+                  </div>
+                  <Switch
+                    checked={campaignForm.excludeAlreadyReceived}
+                    onCheckedChange={c => setCampaignForm(prev => ({ ...prev, excludeAlreadyReceived: c }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-sm">Skip recently contacted</p>
+                  <Select
+                    value={campaignForm.excludeRecentDays.toString()}
+                    onValueChange={v => setCampaignForm(prev => ({ ...prev, excludeRecentDays: parseInt(v) }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No filter</SelectItem>
+                      <SelectItem value="7">Last 7 days</SelectItem>
+                      <SelectItem value="14">Last 14 days</SelectItem>
+                      <SelectItem value="30">Last 30 days</SelectItem>
+                      <SelectItem value="60">Last 60 days</SelectItem>
+                      <SelectItem value="90">Last 90 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Skip clients who received any campaign within this window</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-sm">Only new clients after</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal", !campaignForm.onlyAfterDate && "text-muted-foreground")}>
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        {campaignForm.onlyAfterDate ? format(campaignForm.onlyAfterDate, "PPP") : "No date filter"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={campaignForm.onlyAfterDate}
+                        onSelect={d => setCampaignForm(prev => ({ ...prev, onlyAfterDate: d }))}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {campaignForm.onlyAfterDate && (
+                    <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setCampaignForm(prev => ({ ...prev, onlyAfterDate: undefined }))}>
+                      <X className="w-3 h-3 mr-1" /> Clear date filter
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">Target only clients added after this date</p>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Schedule</Label>
                 <div className="flex gap-2">
@@ -832,6 +911,19 @@ export default function CampaignsPage() {
                     <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
                   </p>
                 )}
+                {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {campaignForm.excludeAlreadyReceived && (
+                      <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
+                    )}
+                    {campaignForm.excludeRecentDays > 0 && (
+                      <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
+                    )}
+                    {campaignForm.onlyAfterDate && (
+                      <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Preview audience */}
@@ -841,18 +933,37 @@ export default function CampaignsPage() {
               </Button>
 
               {testResult && (
-                <div className="bg-muted rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">
-                    Found <strong>{testResult.contactable}</strong> recipients to contact
-                  </p>
+                <div className="bg-muted rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <p className="text-sm font-medium">
+                      ✅ {testResult.contactable} clients match this audience
+                    </p>
+                  </div>
+                  {(testResult.excludedCount || 0) > 0 && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <UserX className="w-3 h-3" /> {testResult.excludedCount} excluded by filters
+                    </p>
+                  )}
                   {testResult.customers && testResult.customers.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {testResult.customers.map((c: any, i: number) => (
-                        <div key={c.id} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
-                          <span className="font-medium">{c.first_name} {c.last_name}</span>
-                          <span className="text-xs text-muted-foreground">{c.phone || c.email || "No contact"}</span>
-                        </div>
-                      ))}
+                    <div className="max-h-60 overflow-y-auto space-y-1">
+                      {testResult.customers.map((c: any) => {
+                        const isExcluded = c.already_received || c.recently_contacted;
+                        return (
+                          <div key={c.id} className={cn("flex items-center justify-between text-sm p-2 rounded border", isExcluded ? "bg-muted/50 opacity-60" : "bg-background")}>
+                            <span className="font-medium">{c.first_name} {c.last_name}</span>
+                            <div className="flex items-center gap-2">
+                              {c.already_received && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">Already received</Badge>
+                              )}
+                              {c.recently_contacted && !c.already_received && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">Recently contacted</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">{c.phone || c.email || "No contact"}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

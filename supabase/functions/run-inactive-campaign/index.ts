@@ -14,6 +14,7 @@ interface InactiveCustomer {
   email: string;
   organization_id: string;
   last_booking_date: string | null;
+  already_received?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,7 +36,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { organizationId, campaignId, daysInactive = 30, testMode = false, message, targetAudience = 'inactive_clients' } = await req.json();
+    const {
+      organizationId,
+      campaignId,
+      daysInactive = 30,
+      testMode = false,
+      message,
+      targetAudience = 'inactive_clients',
+      excludeAlreadyReceived = false,
+      excludeRecentDays = 0,
+      onlyAfterDate = null,
+    } = await req.json();
 
     if (!organizationId) {
       return new Response(
@@ -44,7 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`[run-inactive-campaign] Starting for org: ${organizationId}, days: ${daysInactive}`);
+    console.log(`[run-inactive-campaign] Starting for org: ${organizationId}, days: ${daysInactive}, audience: ${targetAudience}`);
 
     // Check if winback automation is enabled (for automated 60-day campaigns)
     if (daysInactive >= 60) {
@@ -70,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('organization_id', organizationId)
       .single();
 
-    if (smsError || !smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
+    if (!testMode && (smsError || !smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id)) {
       console.error("[run-inactive-campaign] SMS not configured:", smsError);
       return new Response(
         JSON.stringify({ success: false, error: "SMS settings not configured" }),
@@ -78,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!smsSettings.sms_enabled) {
+    if (!testMode && smsSettings && !smsSettings.sms_enabled) {
       return new Response(
         JSON.stringify({ success: false, error: "SMS is disabled for this organization" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -117,35 +128,45 @@ const handler = async (req: Request): Promise<Response> => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
-    // Get customers based on target audience
-    let query = supabase
-      .from('customers')
-      .select('id, first_name, last_name, phone, email, marketing_status, customer_status')
-      .eq('organization_id', organizationId)
-      .eq('marketing_status', 'active')
-      .not('phone', 'is', null);
+    // Get ALL customers — paginate to avoid the 1000-row default limit
+    let allCustomers: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      let query = supabase
+        .from('customers')
+        .select('id, first_name, last_name, phone, email, marketing_status, customer_status, created_at')
+        .eq('organization_id', organizationId)
+        .eq('marketing_status', 'active')
+        .not('phone', 'is', null)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    // For win-back, filter to cancelled/churned customers
-    if (targetAudience === 'cancelled_clients') {
-      query = query.eq('customer_status', 'inactive');
+      if (targetAudience === 'cancelled_clients') {
+        query = query.eq('customer_status', 'inactive');
+      }
+
+      // Filter by creation date if onlyAfterDate specified
+      if (onlyAfterDate) {
+        query = query.gte('created_at', onlyAfterDate);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("[run-inactive-campaign] Error fetching customers page:", error);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      allCustomers = allCustomers.concat(data);
+      if (data.length < pageSize) break;
+      page++;
     }
 
-    const { data: allCustomers, error: customersError } = await query;
-
-    if (customersError) {
-      console.error("[run-inactive-campaign] Error fetching customers:", customersError);
-      return new Response(
-        JSON.stringify({ success: false, error: "Failed to fetch customers" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`[run-inactive-campaign] Found ${allCustomers?.length || 0} eligible customers`);
+    console.log(`[run-inactive-campaign] Found ${allCustomers.length} eligible customers`);
 
     // Filter based on audience type
     const targetCustomers: InactiveCustomer[] = [];
 
-    for (const customer of allCustomers || []) {
+    for (const customer of allCustomers) {
       const { data: lastBooking } = await supabase
         .from('bookings')
         .select('scheduled_at, status')
@@ -157,29 +178,44 @@ const handler = async (req: Request): Promise<Response> => {
 
       const lastBookingDate = lastBooking?.scheduled_at;
 
-      if (targetAudience === 'active_clients') {
-        // Active: has recent bookings (within cutoff)
-        if (lastBookingDate && new Date(lastBookingDate) >= cutoffDate) {
+      if (targetAudience === 'active_clients' || targetAudience === 'all_customers') {
+        if (targetAudience === 'active_clients') {
+          if (lastBookingDate && new Date(lastBookingDate) >= cutoffDate) {
+            targetCustomers.push({
+              ...customer,
+              organization_id: organizationId,
+              last_booking_date: lastBookingDate || null,
+            });
+          }
+        } else {
           targetCustomers.push({
             ...customer,
             organization_id: organizationId,
-            last_booking_date: lastBookingDate || null
+            last_booking_date: lastBookingDate || null,
           });
         }
       } else if (targetAudience === 'cancelled_clients') {
-        // Win-back: cancelled/churned - all inactive status customers
         targetCustomers.push({
           ...customer,
           organization_id: organizationId,
-          last_booking_date: lastBookingDate || null
+          last_booking_date: lastBookingDate || null,
         });
+      } else if (targetAudience === 'leads') {
+        // Leads: no bookings at all
+        if (!lastBookingDate) {
+          targetCustomers.push({
+            ...customer,
+            organization_id: organizationId,
+            last_booking_date: null,
+          });
+        }
       } else {
         // Inactive: no bookings or last booking before cutoff
         if (!lastBookingDate || new Date(lastBookingDate) < cutoffDate) {
           targetCustomers.push({
             ...customer,
             organization_id: organizationId,
-            last_booking_date: lastBookingDate || null
+            last_booking_date: lastBookingDate || null,
           });
         }
       }
@@ -187,18 +223,44 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[run-inactive-campaign] Found ${targetCustomers.length} target customers`);
 
-    // Filter out customers who already received this campaign
-    let customersToContact = targetCustomers;
-    
-    if (campaignId) {
-      const { data: previousSends } = await supabase
+    // Build set of customers who already received this campaign
+    let sentCustomerIds = new Set<string>();
+    if (campaignId || excludeAlreadyReceived) {
+      const filterCampaignId = campaignId;
+      if (filterCampaignId) {
+        const { data: previousSends } = await supabase
+          .from('campaign_sms_sends')
+          .select('customer_id')
+          .eq('campaign_id', filterCampaignId);
+        (previousSends || []).forEach(s => { if (s.customer_id) sentCustomerIds.add(s.customer_id); });
+      }
+    }
+
+    // Build set of customers who received ANY campaign recently
+    let recentlySentIds = new Set<string>();
+    if (excludeRecentDays > 0) {
+      const recentCutoff = new Date();
+      recentCutoff.setDate(recentCutoff.getDate() - excludeRecentDays);
+      const { data: recentSends } = await supabase
         .from('campaign_sms_sends')
         .select('customer_id')
-        .eq('campaign_id', campaignId);
-
-      const sentCustomerIds = new Set(previousSends?.map(s => s.customer_id) || []);
-      customersToContact = targetCustomers.filter(c => !sentCustomerIds.has(c.id));
+        .eq('organization_id', organizationId)
+        .gte('sent_at', recentCutoff.toISOString());
+      (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
     }
+
+    // Mark and filter
+    const customersWithTags = targetCustomers.map(c => ({
+      ...c,
+      already_received: sentCustomerIds.has(c.id),
+      recently_contacted: recentlySentIds.has(c.id),
+    }));
+
+    let customersToContact = customersWithTags.filter(c => {
+      if (excludeAlreadyReceived && c.already_received) return false;
+      if (excludeRecentDays > 0 && c.recently_contacted) return false;
+      return true;
+    });
 
     console.log(`[run-inactive-campaign] ${customersToContact.length} customers to contact after filtering`);
 
@@ -209,7 +271,8 @@ const handler = async (req: Request): Promise<Response> => {
           testMode: true,
           inactiveCount: targetCustomers.length,
           toContactCount: customersToContact.length,
-          customers: customersToContact.slice(0, 10)
+          excludedCount: targetCustomers.length - customersToContact.length,
+          customers: customersWithTags, // Return ALL for preview, with tags
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -225,7 +288,7 @@ const handler = async (req: Request): Promise<Response> => {
     const orgSlug = orgData?.slug || organizationId;
     const projectUrl = Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app";
 
-    // Send SMS to each inactive customer
+    // Send SMS to each customer
     let sentCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
@@ -236,7 +299,7 @@ const handler = async (req: Request): Promise<Response> => {
         const trackingRef = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
         const trackedBookingLink = `${projectUrl}/book/${orgSlug}?ref=${trackingRef}`;
 
-        // Personalize message - replace {booking_link} with tracked URL
+        // Personalize message
         const personalizedMessage = messageTemplate
           .replace(/{first_name}/g, customer.first_name)
           .replace(/{last_name}/g, customer.last_name)
@@ -254,11 +317,11 @@ const handler = async (req: Request): Promise<Response> => {
         const response = await fetch('https://api.openphone.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': smsSettings.openphone_api_key,
+            'Authorization': smsSettings!.openphone_api_key,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: smsSettings.openphone_phone_number_id,
+            from: smsSettings!.openphone_phone_number_id,
             to: [toPhone],
             content: personalizedMessage,
           }),
@@ -267,7 +330,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (response.ok) {
           sentCount++;
           
-          // Record the send with campaign type for conversion tracking
+          // Record the send
           await supabase
             .from('campaign_sms_sends')
             .insert({
@@ -307,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
           errors.push(`${customer.first_name}: ${errorData.message || 'Unknown error'}`);
         }
 
-        // Rate limiting - small delay between sends
+        // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 200));
 
       } catch (error) {
@@ -332,7 +395,7 @@ const handler = async (req: Request): Promise<Response> => {
         sentCount, 
         failedCount,
         totalInactive: targetCustomers.length,
-        errors: errors.slice(0, 5) // Return first 5 errors
+        errors: errors.slice(0, 5)
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
