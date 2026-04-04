@@ -10,9 +10,25 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+
+const ADDRESS_LABELS = ["Home", "Office", "Airbnb", "Rental", "Other"];
+
+const LABEL_EMOJIS: Record<string, string> = {
+  home: "🏠",
+  office: "🏢",
+  airbnb: "🏡",
+  rental: "🔑",
+  other: "📍",
+  "primary address": "🏠",
+};
+
+function getLabelEmoji(label: string) {
+  return LABEL_EMOJIS[label.toLowerCase()] || "📍";
+}
 
 interface Location {
   id: string;
