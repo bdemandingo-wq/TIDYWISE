@@ -58,6 +58,12 @@ export default function PaymentIntegrationPage() {
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
 
+  // Manual key entry state
+  const [showManualKeys, setShowManualKeys] = useState(false);
+  const [manualSecretKey, setManualSecretKey] = useState("");
+  const [manualPublishableKey, setManualPublishableKey] = useState("");
+  const [savingKeys, setSavingKeys] = useState(false);
+
   // Charge modal state
   const [chargeOpen, setChargeOpen] = useState(false);
   const [chargeName, setChargeName] = useState("");
