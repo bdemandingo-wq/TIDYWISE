@@ -9,10 +9,12 @@ import { Input } from '@/components/ui/input';
 import {
   Brain, TrendingUp, AlertTriangle, Flame, Target,
   Send, Sparkles, Calendar, Users, ArrowUpRight,
-  RefreshCw, MessageSquare, BarChart3, ShieldAlert
+  RefreshCw, MessageSquare, BarChart3, ShieldAlert,
+  BookOpen, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, addDays } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 // ─── Count-up hook ───
 function useCountUp(target: number, duration = 1200) {
@@ -46,6 +48,15 @@ const labelFont = "'Outfit', sans-serif";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// ─── Proactive Insight type ───
+interface ProactiveInsight {
+  type: 'critical' | 'warning' | 'positive' | 'tip';
+  icon: string;
+  title: string;
+  body: string;
+  action: string;
+}
+
 export function AIAnalysisCenter() {
   const { organization } = useOrganization();
   const orgId = organization?.id;
@@ -58,7 +69,6 @@ export function AIAnalysisCenter() {
   const prevMonthStart = startOfMonth(subMonths(now, 1)).toISOString();
   const prevMonthEnd = endOfMonth(subMonths(now, 1)).toISOString();
 
-  // Revenue this month
   const { data: revenueData } = useQuery({
     queryKey: ['ai-revenue', orgId],
     queryFn: async () => {
@@ -74,7 +84,6 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Hot leads
   const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
   const { data: hotLeads = [] } = useQuery({
     queryKey: ['ai-hot-leads', orgId],
@@ -86,7 +95,6 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Churn risk customers (last booking > 30 days ago)
   const { data: churnCustomers = [] } = useQuery({
     queryKey: ['ai-churn', orgId],
     queryFn: async () => {
@@ -109,7 +117,6 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Conversion rate
   const { data: conversionData } = useQuery({
     queryKey: ['ai-conversion', orgId],
     queryFn: async () => {
@@ -122,7 +129,6 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  // Weekly booking distribution — current week (Mon–Sun)
   const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
 
@@ -154,13 +160,11 @@ export function AIAnalysisCenter() {
   const churnCount = churnCustomers.length;
   const conversionRate = conversionData?.rate || 0;
 
-  // Animated values
   const animRevenue = useCountUp(Math.round(revenue));
   const animHotLeads = useCountUp(hotLeadsCount);
   const animChurn = useCountUp(churnCount);
   const animConversion = useCountUp(conversionRate);
 
-  // Business snapshot for AI calls
   const businessSnapshot = useMemo(() => ({
     revenue: Math.round(revenue),
     hotLeads: hotLeadsCount,
@@ -170,7 +174,57 @@ export function AIAnalysisCenter() {
     weeklyData,
   }), [revenue, hotLeadsCount, churnCount, conversionRate, bestDay, weeklyData]);
 
-  // ─── AI Insights ───
+  // ─── Proactive Insights Feed ───
+  const [proactiveInsights, setProactiveInsights] = useState<ProactiveInsight[]>([]);
+  const [proactiveLoading, setProactiveLoading] = useState(false);
+
+  const fetchProactiveInsights = useCallback(async () => {
+    if (!orgId) return;
+    setProactiveLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
+        body: { type: 'proactive-insights', organizationId: orgId },
+      });
+      if (error) throw error;
+      setProactiveInsights(data?.insights || []);
+    } catch (e: any) {
+      console.error('Proactive insights error:', e);
+    } finally {
+      setProactiveLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    if (orgId) fetchProactiveInsights();
+  }, [orgId]);
+
+  // ─── Dynamic Chips ───
+  const [dynamicChips, setDynamicChips] = useState<string[]>([]);
+
+  const fetchDynamicChips = useCallback(async () => {
+    if (!orgId) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
+        body: { type: 'dynamic-chips', organizationId: orgId },
+      });
+      if (error) throw error;
+      setDynamicChips(data?.chips || []);
+    } catch {
+      // Fallback chips
+      setDynamicChips([
+        'Why did revenue change this month?',
+        'Which 5 clients should I call today?',
+        "What's my most profitable day?",
+        'Draft me a win-back text',
+      ]);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    if (orgId) fetchDynamicChips();
+  }, [orgId]);
+
+  // ─── AI Insights (structured) ───
   const [insights, setInsights] = useState<any[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
@@ -179,7 +233,7 @@ export function AIAnalysisCenter() {
     setInsightsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'insights', businessSnapshot },
+        body: { type: 'insights', organizationId: orgId, businessSnapshot },
       });
       if (error) throw error;
       setInsights(data?.insights || []);
@@ -202,7 +256,7 @@ export function AIAnalysisCenter() {
     setSchedLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'scheduling', businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
+        body: { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
       });
       if (error) throw error;
       setSchedRec(data?.recommendation || '');
@@ -212,6 +266,30 @@ export function AIAnalysisCenter() {
 
   useEffect(() => {
     if (activeTab === 'scheduling' && !schedRec) fetchScheduleRec();
+  }, [activeTab]);
+
+  // ─── Growth Playbook ───
+  const [playbook, setPlaybook] = useState('');
+  const [playbookLoading, setPlaybookLoading] = useState(false);
+
+  const fetchPlaybook = useCallback(async () => {
+    if (!orgId) return;
+    setPlaybookLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
+        body: { type: 'growth-playbook', organizationId: orgId },
+      });
+      if (error) throw error;
+      setPlaybook(data?.playbook || '');
+    } catch (e: any) {
+      toast.error('Failed to generate playbook');
+    } finally {
+      setPlaybookLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    if (activeTab === 'playbook' && !playbook) fetchPlaybook();
   }, [activeTab]);
 
   // ─── Ask AI chat ───
@@ -240,6 +318,7 @@ export function AIAnalysisCenter() {
         body: JSON.stringify({
           type: 'chat',
           messages: [...chatMessagesRef.current, userMsg],
+          organizationId: orgId,
           businessSnapshot,
         }),
       });
@@ -301,13 +380,6 @@ export function AIAnalysisCenter() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
-  const quickQuestions = [
-    'How can I reduce customer churn this month?',
-    'What pricing changes would increase revenue?',
-    'Which leads should I follow up with first?',
-    'How should I optimize my weekly schedule?',
-  ];
-
   const priorityStyles: Record<string, { bg: string; text: string; border: string }> = {
     Urgent: { bg: `${RED}18`, text: RED, border: `${RED}40` },
     Watch: { bg: `${AMBER}18`, text: AMBER, border: `${AMBER}40` },
@@ -315,11 +387,58 @@ export function AIAnalysisCenter() {
     Pricing: { bg: `${BLUE}18`, text: BLUE, border: `${BLUE}40` },
   };
 
+  const insightTypeStyles: Record<string, { bg: string; border: string }> = {
+    critical: { bg: `${RED}12`, border: `${RED}30` },
+    warning: { bg: `${AMBER}12`, border: `${AMBER}30` },
+    positive: { bg: `${TEAL}12`, border: `${TEAL}30` },
+    tip: { bg: `${BLUE}12`, border: `${BLUE}30` },
+  };
+
   const maxBookings = Math.max(...Object.values(weeklyData), 1);
 
   return (
     <div style={{ background: DARK_BG, minHeight: '100vh', color: '#fff', fontFamily: labelFont }} className="-m-6 p-6">
       <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+      {/* ─── Proactive Insights Feed ─── */}
+      {proactiveInsights.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap size={16} style={{ color: AMBER }} />
+              <h3 style={{ fontFamily: labelFont, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Smart Insights</h3>
+              <Badge style={{ background: `${TEAL}20`, color: TEAL, fontSize: 10, border: 'none' }}>Live</Badge>
+            </div>
+            <Button size="sm" variant="ghost" onClick={fetchProactiveInsights} disabled={proactiveLoading} className="text-white/40 hover:text-white gap-1.5" style={{ fontSize: 11 }}>
+              <RefreshCw size={12} className={proactiveLoading ? 'animate-spin' : ''} />
+              Refresh
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {proactiveInsights.map((ins, i) => {
+              const s = insightTypeStyles[ins.type] || insightTypeStyles.tip;
+              return (
+                <div key={i} style={{ ...cardStyle, borderColor: s.border, background: s.bg }} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>{ins.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4, lineHeight: 1.3 }}>{ins.title}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{ins.body}</p>
+                      <button
+                        onClick={() => { setActiveTab('ask-ai'); setChatInput(ins.action); }}
+                        style={{ fontSize: 11, color: TEAL, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: labelFont }}
+                        className="hover:opacity-80"
+                      >
+                        {ins.action} <ArrowUpRight size={10} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ─── KPI Strip ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -344,12 +463,13 @@ export function AIAnalysisCenter() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6">
+        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 flex-wrap">
           {[
             { value: 'overview', label: 'Overview', icon: Brain },
             { value: 'leads', label: 'Leads', icon: Flame },
             { value: 'retention', label: 'Retention', icon: Users },
             { value: 'scheduling', label: 'Scheduling', icon: Calendar },
+            { value: 'playbook', label: 'Growth Playbook', icon: BookOpen },
             { value: 'ask-ai', label: 'Ask AI', icon: MessageSquare },
           ].map(tab => (
             <TabsTrigger
@@ -539,11 +659,46 @@ export function AIAnalysisCenter() {
           </div>
         </TabsContent>
 
-        {/* ─── Tab 5: Ask AI ─── */}
+        {/* ─── Tab 5: Growth Playbook ─── */}
+        <TabsContent value="playbook">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen size={18} style={{ color: AMBER }} />
+              <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600 }}>Growth Playbook</h3>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Non-obvious strategies for your business</span>
+            </div>
+            <Button size="sm" variant="ghost" onClick={fetchPlaybook} disabled={playbookLoading} className="text-white/50 hover:text-white gap-2">
+              <RefreshCw size={14} className={playbookLoading ? 'animate-spin' : ''} />
+              {playbookLoading ? 'Generating...' : 'Regenerate'}
+            </Button>
+          </div>
+          {playbookLoading && !playbook ? (
+            <div style={cardStyle} className="p-8 text-center">
+              <RefreshCw size={32} style={{ color: TEAL, margin: '0 auto 12px' }} className="animate-spin" />
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Analyzing your data and generating personalized growth strategies...</p>
+            </div>
+          ) : playbook ? (
+            <div style={cardStyle} className="p-6">
+              <div
+                style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7 }}
+                className="prose prose-invert prose-sm max-w-none [&_h2]:text-white [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-2 [&_h3]:text-white [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-1 [&_strong]:text-white [&_ul]:space-y-1 [&_ol]:space-y-1 [&_li]:text-white/70 [&_p]:text-white/70"
+              >
+                <ReactMarkdown>{playbook}</ReactMarkdown>
+              </div>
+            </div>
+          ) : (
+            <div style={cardStyle} className="p-8 text-center">
+              <BookOpen size={32} style={{ color: AMBER, margin: '0 auto 12px' }} />
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Click Regenerate to get personalized growth strategies based on your data</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ─── Tab 6: Ask AI ─── */}
         <TabsContent value="ask-ai">
           <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Ask TidyWise AI</h3>
           <div className="flex flex-wrap gap-2 mb-4">
-            {quickQuestions.map((q, i) => (
+            {dynamicChips.map((q, i) => (
               <button
                 key={i}
                 onClick={() => sendChat(q)}
@@ -554,11 +709,12 @@ export function AIAnalysisCenter() {
               </button>
             ))}
           </div>
-          <div style={{ ...cardStyle, maxHeight: 400, overflowY: 'auto', marginBottom: 16 }} className="p-4">
+          <div style={{ ...cardStyle, maxHeight: 450, overflowY: 'auto', marginBottom: 16 }} className="p-4">
             {chatMessages.length === 0 ? (
               <div className="text-center py-8">
                 <Brain size={32} style={{ color: TEAL, margin: '0 auto 12px' }} />
                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Ask a question or tap a chip above to start</p>
+                <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, marginTop: 4 }}>AI has access to your real business data for specific advice</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -566,7 +722,7 @@ export function AIAnalysisCenter() {
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div
                       style={{
-                        maxWidth: '80%',
+                        maxWidth: '85%',
                         padding: '10px 14px',
                         borderRadius: 12,
                         fontSize: 13,
@@ -574,10 +730,14 @@ export function AIAnalysisCenter() {
                         background: msg.role === 'user' ? `${BLUE}20` : 'rgba(255,255,255,0.04)',
                         border: `1px solid ${msg.role === 'user' ? `${BLUE}30` : BORDER}`,
                         color: 'rgba(255,255,255,0.85)',
-                        whiteSpace: 'pre-wrap',
                       }}
+                      className={msg.role === 'assistant' ? 'prose prose-invert prose-sm max-w-none [&_strong]:text-white [&_ul]:space-y-0.5 [&_ol]:space-y-0.5 [&_li]:text-white/80 [&_p]:text-white/80 [&_p]:mb-2 [&_h3]:text-white [&_h3]:text-sm [&_h3]:font-semibold' : ''}
                     >
-                      {msg.content}
+                      {msg.role === 'assistant' ? (
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                   </div>
                 ))}
