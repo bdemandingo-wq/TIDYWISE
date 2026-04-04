@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,36 +14,15 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { 
-  MessageSquare, 
-  Send, 
-  Search, 
-  Plus, 
-  Phone, 
-  User,
-  Loader2,
-  RefreshCw,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Users,
-  HardHat,
-  CheckSquare,
-  Square,
-  X,
-  PanelLeftClose,
-  PanelLeft,
-  Check,
-  Mail,
-  Link,
-  Paperclip,
-  ChevronLeft,
-  Forward,
+import { format, isToday, isThisWeek } from 'date-fns';
+import {
+  MessageSquare, Send, Search, Plus, Phone, Loader2, RefreshCw,
+  MoreHorizontal, Pencil, Trash2, Users, HardHat, X,
+  Check, Mail, Link, Paperclip, ChevronLeft, Forward,
+  Mic, Video, Pin, BellOff, CheckCheck,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -55,7 +33,9 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { BookOpen, Filter } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
+import { hapticImpact } from '@/lib/haptics';
 
+// ─── Types ──────────────────────────────────────────
 interface Conversation {
   id: string;
   customer_id: string | null;
@@ -84,9 +64,26 @@ interface Contact {
 }
 
 type ConversationTab = 'all' | 'clients' | 'cleaners';
-type UnreadFilter = 'all' | 'unread';
-type DateFilter = 'all' | 'today' | 'week' | 'month';
 
+// ─── Helpers ────────────────────────────────────────
+const normalizePhone = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  return digits.startsWith('1') && digits.length === 11 ? digits.substring(1) : digits;
+};
+
+const getInitials = (name: string | null, phone: string) => {
+  if (name) return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return phone.slice(-2);
+};
+
+const formatConversationTime = (dateStr: string) => {
+  const d = new Date(dateStr);
+  if (isToday(d)) return format(d, 'h:mm a');
+  if (isThisWeek(d)) return format(d, 'EEE');
+  return format(d, 'M/d/yy');
+};
+
+// ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -103,13 +100,10 @@ export default function MessagesPage() {
   const [activeTab, setActiveTab] = useState<ConversationTab>('all');
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editingName, setEditingName] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactSearch, setContactSearch] = useState('');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [showConversationList, setShowConversationList] = useState(false);
-  const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [emailContacts, setEmailContacts] = useState<{ email: string; name: string }[]>([]);
@@ -122,8 +116,6 @@ export default function MessagesPage() {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
-  const [unreadFilter, setUnreadFilter] = useState<UnreadFilter>('all');
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [contentSearchResults, setContentSearchResults] = useState<Set<string> | null>(null);
   const [searchingContent, setSearchingContent] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
@@ -132,12 +124,36 @@ export default function MessagesPage() {
   const [forwardContactSearch, setForwardContactSearch] = useState('');
   const [forwardSelectedContact, setForwardSelectedContact] = useState<Contact | null>(null);
   const [forwardSending, setForwardSending] = useState(false);
-  
+
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
 
+  // ─── Pinned contacts persistence ──────────────────
+  useEffect(() => {
+    if (!organizationId) return;
+    const key = `pinned_conversations_${organizationId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try { setPinnedIds(new Set(JSON.parse(stored))); } catch { /* ignore */ }
+    }
+  }, [organizationId]);
+
+  const togglePin = (convId: string) => {
+    hapticImpact('light');
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(convId)) next.delete(convId); else next.add(convId);
+      if (organizationId) {
+        localStorage.setItem(`pinned_conversations_${organizationId}`, JSON.stringify([...next]));
+      }
+      return next;
+    });
+  };
+
+  // ─── Forward photo ────────────────────────────────
   const handleForwardPhoto = (mediaUrl: string) => {
     setForwardMediaUrl(mediaUrl);
     setForwardSelectedContact(null);
@@ -147,214 +163,107 @@ export default function MessagesPage() {
 
   const handleSendForward = async () => {
     if (!forwardSelectedContact || !organizationId || !forwardMediaUrl) return;
-
     setForwardSending(true);
     try {
       const messageText = `📷 Forwarded photo: ${forwardMediaUrl}`;
       const response = await supabase.functions.invoke('send-openphone-sms', {
-        body: {
-          to: forwardSelectedContact.phone,
-          message: messageText,
-          organizationId
-        }
+        body: { to: forwardSelectedContact.phone, message: messageText, organizationId }
       });
-
-      if (handleSmsError(response)) {
-        setForwardSending(false);
-        return;
-      }
-
+      if (handleSmsError(response)) { setForwardSending(false); return; }
       toast.success(`Photo forwarded to ${forwardSelectedContact.name}`);
       setForwardOpen(false);
     } catch (error: any) {
-      console.error('Error forwarding photo:', error);
       toast.error(error.message || 'Failed to forward photo');
-    } finally {
-      setForwardSending(false);
-    }
+    } finally { setForwardSending(false); }
   };
 
-
-  // Pull-to-refresh for conversations
+  // ─── Pull to refresh ─────────────────────────────
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
     await fetchConversations();
   });
 
-  // Fetch contacts (customers and staff) for the contact picker
+  // ─── Fetch contacts ──────────────────────────────
   const fetchContacts = async () => {
     if (!organizationId) return;
-    
     const [customersRes, staffRes] = await Promise.all([
-      supabase
-        .from('customers')
-        .select('id, first_name, last_name, phone')
-        .eq('organization_id', organizationId)
-        .not('phone', 'is', null),
-      supabase
-        .from('staff')
-        .select('id, name, phone')
-        .eq('organization_id', organizationId)
-        .not('phone', 'is', null)
+      supabase.from('customers').select('id, first_name, last_name, phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('staff').select('id, name, phone').eq('organization_id', organizationId).not('phone', 'is', null)
     ]);
-
-    const customerContacts: Contact[] = (customersRes.data || [])
-      .filter(c => c.phone)
-      .map(c => ({
-        id: c.id,
-        name: `${c.first_name} ${c.last_name}`.trim(),
-        phone: c.phone!,
-        type: 'client' as const
-      }));
-
-    const staffContacts: Contact[] = (staffRes.data || [])
-      .filter(s => s.phone)
-      .map(s => ({
-        id: s.id,
-        name: s.name,
-        phone: s.phone!,
-        type: 'cleaner' as const
-      }));
-
+    const customerContacts: Contact[] = (customersRes.data || []).filter(c => c.phone).map(c => ({
+      id: c.id, name: `${c.first_name} ${c.last_name}`.trim(), phone: c.phone!, type: 'client' as const
+    }));
+    const staffContacts: Contact[] = (staffRes.data || []).filter(s => s.phone).map(s => ({
+      id: s.id, name: s.name, phone: s.phone!, type: 'cleaner' as const
+    }));
     setContacts([...customerContacts, ...staffContacts]);
   };
 
+  // ─── Realtime ─────────────────────────────────────
   useEffect(() => {
     if (organizationId) {
       fetchConversations();
       fetchContacts();
-
-      // Subscribe to realtime updates for incoming messages
       const channel = supabase
         .channel('sms-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'sms_messages',
-            filter: `organization_id=eq.${organizationId}`,
-          },
-          (payload) => {
-            console.log('New message received:', payload);
-            const newMsg = payload.new as any;
-            
-            // If it's for the selected conversation, add to messages
-            if (selectedConversation && newMsg.conversation_id === selectedConversation.id) {
-              setMessages(prev => [...prev, {
-                id: newMsg.id,
-                direction: newMsg.direction as 'inbound' | 'outbound',
-                content: newMsg.content,
-                sent_at: newMsg.sent_at,
-                status: newMsg.status,
-                media_urls: newMsg.media_urls || null,
-              }]);
-            }
-            
-            // Show in-app notification for inbound messages (client texted)
-            if (newMsg.direction === 'inbound') {
-              toast.info('New message received', {
-                description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
-                action: {
-                  label: 'View',
-                  onClick: () => {
-                    // Find and select the conversation
-                    const conv = conversations.find(c => c.id === newMsg.conversation_id);
-                    if (conv) setSelectedConversation(conv);
-                  }
-                }
-              });
-            }
-            
-            // Refresh conversations to update unread counts
-            fetchConversations();
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'sms_messages',
+          filter: `organization_id=eq.${organizationId}`,
+        }, (payload) => {
+          const newMsg = payload.new as any;
+          if (selectedConversation && newMsg.conversation_id === selectedConversation.id) {
+            setMessages(prev => [...prev, {
+              id: newMsg.id, direction: newMsg.direction as 'inbound' | 'outbound',
+              content: newMsg.content, sent_at: newMsg.sent_at, status: newMsg.status,
+              media_urls: newMsg.media_urls || null,
+            }]);
           }
-        )
+          if (newMsg.direction === 'inbound') {
+            toast.info('New message received', {
+              description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
+            });
+          }
+          fetchConversations();
+        })
         .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
     }
   }, [organizationId, selectedConversation?.id]);
 
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
-    }
+    if (selectedConversation) fetchMessages(selectedConversation.id);
   }, [selectedConversation]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const normalizePhone = (phone: string): string => {
-    const digits = phone.replace(/\D/g, '');
-    return digits.startsWith('1') && digits.length === 11 ? digits.substring(1) : digits;
-  };
-
+  // ─── Fetch conversations ──────────────────────────
   const fetchConversations = async () => {
     setLoading(true);
     const [convsRes, customersRes, staffRes] = await Promise.all([
-      supabase
-        .from('sms_conversations')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('last_message_at', { ascending: false }),
-      supabase
-        .from('customers')
-        .select('phone')
-        .eq('organization_id', organizationId)
-        .not('phone', 'is', null),
-      supabase
-        .from('staff')
-        .select('phone')
-        .eq('organization_id', organizationId)
-        .not('phone', 'is', null),
+      supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
+      supabase.from('customers').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('staff').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
     ]);
-
     if (convsRes.error) {
-      console.error('Error fetching conversations:', convsRes.error);
       toast.error('Failed to load conversations');
     } else {
       const convs = (convsRes.data || []) as Conversation[];
-
-      // Build normalized phone lookup sets
-      const customerPhones = new Set(
-        (customersRes.data || []).map(c => normalizePhone(c.phone!))
-      );
-      const staffPhones = new Set(
-        (staffRes.data || []).map(s => normalizePhone(s.phone!))
-      );
-
-      // Auto-classify each conversation by phone number
+      const customerPhones = new Set((customersRes.data || []).map(c => normalizePhone(c.phone!)));
+      const staffPhones = new Set((staffRes.data || []).map(s => normalizePhone(s.phone!)));
       convs.forEach(c => {
         const norm = normalizePhone(c.customer_phone);
-        if (staffPhones.has(norm)) {
-          c.conversation_type = 'cleaner';
-        } else if (customerPhones.has(norm)) {
-          c.conversation_type = 'client';
-        }
-        // else keep existing conversation_type (or undefined for unknown)
+        if (staffPhones.has(norm)) c.conversation_type = 'cleaner';
+        else if (customerPhones.has(norm)) c.conversation_type = 'client';
       });
-
-      // Fetch last message preview for each conversation
       if (convs.length > 0) {
         const { data: previews } = await supabase
-          .from('sms_messages')
-          .select('conversation_id, content')
-          .in('conversation_id', convs.map(c => c.id))
-          .order('sent_at', { ascending: false });
-
+          .from('sms_messages').select('conversation_id, content')
+          .in('conversation_id', convs.map(c => c.id)).order('sent_at', { ascending: false });
         if (previews) {
           const previewMap = new Map<string, string>();
-          for (const p of previews) {
-            if (!previewMap.has(p.conversation_id)) {
-              previewMap.set(p.conversation_id, p.content);
-            }
-          }
-          convs.forEach(c => {
-            c.last_message_preview = previewMap.get(c.id) || undefined;
-          });
+          for (const p of previews) { if (!previewMap.has(p.conversation_id)) previewMap.set(p.conversation_id, p.content); }
+          convs.forEach(c => { c.last_message_preview = previewMap.get(c.id) || undefined; });
         }
       }
       setConversations(convs);
@@ -363,167 +272,75 @@ export default function MessagesPage() {
   };
 
   const fetchMessages = async (conversationId: string) => {
-    const { data, error } = await supabase
-      .from('sms_messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('sent_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching messages:', error);
-    } else {
-      setMessages((data || []).map(msg => ({
-        ...msg,
-        direction: msg.direction as 'inbound' | 'outbound'
-      })));
-      
-      // Mark as read
-      await supabase
-        .from('sms_conversations')
-        .update({ unread_count: 0 })
-        .eq('id', conversationId);
+    const { data, error } = await supabase.from('sms_messages').select('*').eq('conversation_id', conversationId).order('sent_at', { ascending: true });
+    if (!error) {
+      setMessages((data || []).map(msg => ({ ...msg, direction: msg.direction as 'inbound' | 'outbound' })));
+      await supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', conversationId);
     }
   };
 
+  // ─── Send message ─────────────────────────────────
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !organizationId) return;
-
     setSending(true);
     try {
-      // Send via edge function
       const response = await supabase.functions.invoke('send-openphone-sms', {
-        body: {
-          to: selectedConversation.customer_phone,
-          message: newMessage.trim(),
-          organizationId
-        }
+        body: { to: selectedConversation.customer_phone, message: newMessage.trim(), organizationId }
       });
-
-      // Handle SMS-specific errors with user-friendly messages
-      if (handleSmsError(response)) {
-        return;
-      }
-
-      // Save to database
-      const { error: insertError } = await supabase
-        .from('sms_messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          organization_id: organizationId,
-          direction: 'outbound',
-          content: newMessage.trim(),
-          status: 'sent',
-          openphone_message_id: response.data?.messageId
-        });
-
-      if (insertError) throw insertError;
-
-      // Update conversation
-      await supabase
-        .from('sms_conversations')
-        .update({ last_message_at: new Date().toISOString() })
-        .eq('id', selectedConversation.id);
-
+      if (handleSmsError(response)) return;
+      await supabase.from('sms_messages').insert({
+        conversation_id: selectedConversation.id, organization_id: organizationId,
+        direction: 'outbound', content: newMessage.trim(), status: 'sent',
+        openphone_message_id: response.data?.messageId
+      });
+      await supabase.from('sms_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', selectedConversation.id);
       setNewMessage('');
+      hapticImpact('light');
       fetchMessages(selectedConversation.id);
-      toast.success('Message sent');
     } catch (error: any) {
-      console.error('Error sending message:', error);
       toast.error(error.message || 'Failed to send message');
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
+  // ─── New conversation ─────────────────────────────
   const handleStartNewConversation = async () => {
     const phoneToUse = selectedContact?.phone || newPhone.trim();
     const nameToUse = selectedContact?.name || newName.trim();
     const typeToUse = selectedContact?.type || conversationType;
-    
     if (!phoneToUse || !organizationId) return;
-
-    // Format phone number
     const formattedPhone = phoneToUse.replace(/\D/g, '');
     const phoneWithCountry = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
-
-    // Check if conversation exists
-    const { data: existing } = await supabase
-      .from('sms_conversations')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('customer_phone', phoneWithCountry)
-      .maybeSingle();
-
-    if (existing) {
-      setSelectedConversation(existing);
-      resetNewConversationState();
-      return;
-    }
-
-    // Create new conversation
-    const { data, error } = await supabase
-      .from('sms_conversations')
-      .insert({
-        organization_id: organizationId,
-        customer_phone: phoneWithCountry,
-        customer_name: nameToUse || null,
-        conversation_type: typeToUse
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error('Failed to create conversation');
-      return;
-    }
-
+    const { data: existing } = await supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).eq('customer_phone', phoneWithCountry).maybeSingle();
+    if (existing) { setSelectedConversation(existing); resetNewConversationState(); return; }
+    const { data, error } = await supabase.from('sms_conversations').insert({
+      organization_id: organizationId, customer_phone: phoneWithCountry, customer_name: nameToUse || null, conversation_type: typeToUse
+    }).select().single();
+    if (error) { toast.error('Failed to create conversation'); return; }
     setConversations([data, ...conversations]);
     setSelectedConversation(data);
     resetNewConversationState();
   };
 
   const resetNewConversationState = () => {
-    setNewConversationOpen(false);
-    setNewPhone('');
-    setNewName('');
-    setConversationType('client');
-    setSelectedContact(null);
-    setContactSearch('');
+    setNewConversationOpen(false); setNewPhone(''); setNewName('');
+    setConversationType('client'); setSelectedContact(null); setContactSearch('');
   };
 
   const handleSelectContact = (contact: Contact) => {
-    setSelectedContact(contact);
-    setNewPhone(contact.phone);
-    setNewName(contact.name);
-    setConversationType(contact.type);
+    setSelectedContact(contact); setNewPhone(contact.phone); setNewName(contact.name); setConversationType(contact.type);
   };
 
   const filteredContacts = contacts.filter(c => {
     const matchesType = conversationType === 'client' ? c.type === 'client' : c.type === 'cleaner';
-    const matchesSearch = contactSearch === '' || 
-      c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      c.phone.includes(contactSearch);
+    const matchesSearch = contactSearch === '' || c.name.toLowerCase().includes(contactSearch.toLowerCase()) || c.phone.includes(contactSearch);
     return matchesType && matchesSearch;
   });
 
   const handleUpdateCustomerName = async () => {
     if (!selectedConversation) return;
-    
-    const { error } = await supabase
-      .from('sms_conversations')
-      .update({ customer_name: editingName.trim() || null })
-      .eq('id', selectedConversation.id);
-    
-    if (error) {
-      toast.error('Failed to update name');
-      return;
-    }
-    
-    setConversations(prev => prev.map(c => 
-      c.id === selectedConversation.id 
-        ? { ...c, customer_name: editingName.trim() || null }
-        : c
-    ));
+    const { error } = await supabase.from('sms_conversations').update({ customer_name: editingName.trim() || null }).eq('id', selectedConversation.id);
+    if (error) { toast.error('Failed to update name'); return; }
+    setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, customer_name: editingName.trim() || null } : c));
     setSelectedConversation(prev => prev ? { ...prev, customer_name: editingName.trim() || null } : null);
     setEditNameOpen(false);
     toast.success('Name updated');
@@ -531,533 +348,519 @@ export default function MessagesPage() {
 
   const handleDeleteConversation = async (convId: string) => {
     if (!confirm('Delete this conversation and all messages?')) return;
-    
-    // Delete messages first
     await supabase.from('sms_messages').delete().eq('conversation_id', convId);
-    // Then delete conversation
     const { error } = await supabase.from('sms_conversations').delete().eq('id', convId);
-    
-    if (error) {
-      toast.error('Failed to delete conversation');
-      return;
-    }
-    
+    if (error) { toast.error('Failed to delete conversation'); return; }
     setConversations(prev => prev.filter(c => c.id !== convId));
-    if (selectedConversation?.id === convId) {
-      setSelectedConversation(null);
-      setMessages([]);
-    }
+    if (selectedConversation?.id === convId) { setSelectedConversation(null); setMessages([]); }
     toast.success('Conversation deleted');
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Delete ${selectedIds.size} conversation(s) and all their messages?`)) return;
-    
-    setBulkDeleting(true);
-    try {
-      const idsArray = Array.from(selectedIds);
-      
-      // Delete messages first
-      await supabase.from('sms_messages').delete().in('conversation_id', idsArray);
-      // Then delete conversations
-      const { error } = await supabase.from('sms_conversations').delete().in('id', idsArray);
-      
-      if (error) throw error;
-      
-      setConversations(prev => prev.filter(c => !selectedIds.has(c.id)));
-      if (selectedConversation && selectedIds.has(selectedConversation.id)) {
-        setSelectedConversation(null);
-        setMessages([]);
-      }
-      setSelectedIds(new Set());
-      toast.success(`${idsArray.length} conversation(s) deleted`);
-    } catch (error) {
-      console.error('Error bulk deleting:', error);
-      toast.error('Failed to delete conversations');
-    } finally {
-      setBulkDeleting(false);
-    }
+  const handleMarkAsRead = async (convId: string) => {
+    hapticImpact('light');
+    await supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', convId);
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c));
   };
 
-  const toggleSelectConversation = (convId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(convId)) {
-        next.delete(convId);
-      } else {
-        next.add(convId);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredConversations.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredConversations.map(c => c.id)));
-    }
-  };
-
-  // Content search: search message bodies server-side when query is 3+ chars
+  // ─── Content search ───────────────────────────────
   useEffect(() => {
-    if (searchQuery.length < 3 || !organizationId) {
-      setContentSearchResults(null);
-      return;
-    }
-
+    if (searchQuery.length < 3 || !organizationId) { setContentSearchResults(null); return; }
     const timer = setTimeout(async () => {
       setSearchingContent(true);
-      const { data } = await supabase
-        .from('sms_messages')
-        .select('conversation_id')
-        .eq('organization_id', organizationId)
-        .ilike('content', `%${searchQuery}%`)
-        .limit(100);
-
-      if (data) {
-        setContentSearchResults(new Set(data.map(m => m.conversation_id)));
-      }
+      const { data } = await supabase.from('sms_messages').select('conversation_id').eq('organization_id', organizationId).ilike('content', `%${searchQuery}%`).limit(100);
+      if (data) setContentSearchResults(new Set(data.map(m => m.conversation_id)));
       setSearchingContent(false);
     }, 400);
-
     return () => clearTimeout(timer);
   }, [searchQuery, organizationId]);
 
-  const filteredConversations = conversations.filter(conv => {
-    // Name/phone match
-    const matchesNamePhone = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.customer_phone.includes(searchQuery);
-    
-    // Content match (server-side results)
-    const matchesContent = contentSearchResults?.has(conv.id) ?? false;
-    
-    const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
-    
-    const matchesUnread = unreadFilter === 'all' || conv.unread_count > 0;
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(conv => {
+      const matchesNamePhone = conv.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || conv.customer_phone.includes(searchQuery);
+      const matchesContent = contentSearchResults?.has(conv.id) ?? false;
+      const matchesSearch = searchQuery.length === 0 || matchesNamePhone || matchesContent;
+      if (activeTab === 'clients') return matchesSearch && conv.conversation_type === 'client';
+      if (activeTab === 'cleaners') return matchesSearch && conv.conversation_type === 'cleaner';
+      return matchesSearch;
+    });
+  }, [conversations, searchQuery, activeTab, contentSearchResults]);
 
-    // Date filter
-    let matchesDate = true;
-    if (dateFilter !== 'all') {
-      const lastMsg = new Date(conv.last_message_at);
-      const now = new Date();
-      if (dateFilter === 'today') {
-        matchesDate = lastMsg.toDateString() === now.toDateString();
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        matchesDate = lastMsg >= weekAgo;
-      } else if (dateFilter === 'month') {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        matchesDate = lastMsg >= monthAgo;
-      }
-    }
-    
-    if (activeTab === 'all') return matchesSearch && matchesUnread && matchesDate;
-    if (activeTab === 'clients') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type === 'client';
-    if (activeTab === 'cleaners') return matchesSearch && matchesUnread && matchesDate && conv.conversation_type === 'cleaner';
-    return matchesSearch && matchesUnread && matchesDate;
-  });
+  // Split pinned / unpinned
+  const pinnedConversations = useMemo(() => filteredConversations.filter(c => pinnedIds.has(c.id)), [filteredConversations, pinnedIds]);
+  const unpinnedConversations = useMemo(() => filteredConversations.filter(c => !pinnedIds.has(c.id)), [filteredConversations, pinnedIds]);
 
+  // ─── Email ────────────────────────────────────────
   const handleSendEmail = async () => {
     if (!emailTo.trim() || !emailSubject.trim() || !emailBody.trim() || !organizationId) return;
-
     setEmailSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-direct-email', {
-        body: {
-          organizationId,
-          to: emailTo.trim(),
-          subject: emailSubject.trim(),
-          body: getEmailHtmlBody(),
-          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
-        }
+        body: { organizationId, to: emailTo.trim(), subject: emailSubject.trim(), body: getEmailHtmlBody(), attachments: emailAttachments.length > 0 ? emailAttachments : undefined }
       });
-
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-
       toast.success('Email sent successfully');
-      setEmailOpen(false);
-      setEmailTo('');
-      setEmailToSearch('');
-      setEmailSubject('');
-      setEmailBody('');
-      setEmailAttachments([]);
+      setEmailOpen(false); setEmailTo(''); setEmailToSearch(''); setEmailSubject(''); setEmailBody(''); setEmailAttachments([]);
       if (emailBodyRef.current) emailBodyRef.current.innerHTML = '';
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send email');
-    } finally {
-      setEmailSending(false);
-    }
+    } catch (err: any) { toast.error(err.message || 'Failed to send email'); }
+    finally { setEmailSending(false); }
   };
 
   const handleInsertLink = () => {
     if (!linkUrl.trim()) return;
     const display = linkText.trim() || linkUrl.trim();
-    
     const editor = emailBodyRef.current;
     if (editor) {
       editor.focus();
-      // Insert a styled anchor element at cursor
       const linkEl = `<a href="${linkUrl.trim()}" style="color: hsl(var(--primary)); text-decoration: underline;" contenteditable="false">${display}</a>&nbsp;`;
       document.execCommand('insertHTML', false, linkEl);
-      // Sync state
       setEmailBody(editor.innerHTML);
     }
-    
-    setLinkUrl('');
-    setLinkText('');
-    setLinkPopoverOpen(false);
+    setLinkUrl(''); setLinkText(''); setLinkPopoverOpen(false);
   };
 
-  /** Extract the HTML content from the editable div for sending */
   const getEmailHtmlBody = (): string => {
     if (!emailBodyRef.current) return emailBody;
-    // Get the innerHTML which already has proper <a> tags
     let html = emailBodyRef.current.innerHTML;
-    // Remove contenteditable="false" from links for the final email
     html = html.replace(/\s*contenteditable="false"/g, '');
-    // Convert line breaks
-    html = html.replace(/<div><br><\/div>/g, '<br>');
-    html = html.replace(/<div>/g, '<br>');
-    html = html.replace(/<\/div>/g, '');
+    html = html.replace(/<div><br><\/div>/g, '<br>').replace(/<div>/g, '<br>').replace(/<\/div>/g, '');
     return html;
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    
     Array.from(files).forEach(file => {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`File "${file.name}" is too large (max 10MB)`);
-        return;
-      }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`File "${file.name}" is too large (max 10MB)`); return; }
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = (reader.result as string).split(',')[1];
-        setEmailAttachments(prev => [...prev, { 
-          name: file.name, 
-          content: base64, 
-          type: file.type 
-        }]);
+        setEmailAttachments(prev => [...prev, { name: file.name, content: base64, type: file.type }]);
       };
       reader.readAsDataURL(file);
     });
-    
-    // Reset input so same file can be re-selected
     e.target.value = '';
   };
 
-  const removeAttachment = (index: number) => {
-    setEmailAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getInitials = (name: string | null, phone: string) => {
-    if (name) {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    }
-    return phone.slice(-2);
-  };
+  const removeAttachment = (index: number) => { setEmailAttachments(prev => prev.filter((_, i) => i !== index)); };
 
   const handleSelectConversation = (conv: Conversation) => {
+    hapticImpact('light');
     setSelectedConversation(conv);
   };
 
-  const handleBackToList = () => {
-    setSelectedConversation(null);
-    setMessages([]);
-  };
+  const handleBackToList = () => { setSelectedConversation(null); setMessages([]); };
 
-  const renderConversationList = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-3 border-b space-y-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ConversationTab)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="clients" className="gap-1">
-              <Users className="h-3 w-3" />
-              Clients
-            </TabsTrigger>
-            <TabsTrigger value="cleaners" className="gap-1">
-              <HardHat className="h-3 w-3" />
-              Cleaners
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search names, phones, or messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-8"
-            />
-            {searchingContent && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          <Button
-            variant={unreadFilter === 'unread' ? 'default' : 'outline'}
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={() => setUnreadFilter(prev => prev === 'all' ? 'unread' : 'all')}
-            title={unreadFilter === 'unread' ? 'Show all' : 'Show unread only'}
-          >
-            <Filter className="h-4 w-4" />
-          </Button>
-        </div>
-        {/* Date filter chips */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {(['all', 'today', 'week', 'month'] as DateFilter[]).map((df) => (
-            <Button
-              key={df}
-              variant={dateFilter === df ? 'default' : 'outline'}
-              size="sm"
-              className="h-6 text-[11px] px-2 shrink-0 rounded-full"
-              onClick={() => setDateFilter(df)}
+  // ─── Message grouping with timestamps ─────────────
+  const groupedMessages = useMemo(() => {
+    const groups: { type: 'timestamp' | 'message'; date?: string; msg?: Message; isFirst?: boolean; isLast?: boolean }[] = [];
+    let lastDate = '';
+    messages.forEach((msg, i) => {
+      const msgDate = format(new Date(msg.sent_at), 'MMM d, yyyy');
+      if (msgDate !== lastDate) {
+        groups.push({ type: 'timestamp', date: msgDate });
+        lastDate = msgDate;
+      }
+      const prev = messages[i - 1];
+      const next = messages[i + 1];
+      const isFirst = !prev || prev.direction !== msg.direction || (new Date(msg.sent_at).getTime() - new Date(prev.sent_at).getTime() > 60000);
+      const isLast = !next || next.direction !== msg.direction || (new Date(next.sent_at).getTime() - new Date(msg.sent_at).getTime() > 60000);
+      groups.push({ type: 'message', msg, isFirst, isLast });
+    });
+    return groups;
+  }, [messages]);
+
+  // ─── Textarea auto-resize ─────────────────────────
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+    }
+  }, [newMessage]);
+
+  // ═══════════════════════════════════════════════════
+  // RENDER: Pinned Row
+  // ═══════════════════════════════════════════════════
+  const renderPinnedRow = () => {
+    if (pinnedConversations.length === 0) return null;
+    return (
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          {pinnedConversations.map(conv => (
+            <button
+              key={conv.id}
+              onClick={() => handleSelectConversation(conv)}
+              className="flex flex-col items-center gap-1 min-w-[60px] group"
             >
-              {df === 'all' ? 'All time' : df === 'today' ? 'Today' : df === 'week' ? 'This week' : 'This month'}
-            </Button>
+              <div className="relative">
+                <Avatar className="h-14 w-14 ring-2 ring-transparent group-hover:ring-[#007AFF]/30 transition-all">
+                  <AvatarFallback className={cn(
+                    "text-sm font-semibold",
+                    conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]"
+                  )}>
+                    {conv.conversation_type === 'cleaner'
+                      ? <HardHat className="h-5 w-5" />
+                      : getInitials(conv.customer_name, conv.customer_phone)}
+                  </AvatarFallback>
+                </Avatar>
+                {conv.unread_count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF3B30] text-white text-[10px] font-bold px-1 ring-2 ring-background">
+                    {conv.unread_count}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground truncate w-16 text-center">
+                {conv.customer_name?.split(' ')[0] || conv.customer_phone.slice(-4)}
+              </span>
+            </button>
           ))}
         </div>
       </div>
-      
-      {/* Bulk Delete Bar */}
-      {selectedIds.size > 0 && (
-        <div className="p-2 border-b bg-muted/50 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              checked={selectedIds.size === filteredConversations.length}
-              onCheckedChange={toggleSelectAll}
-            />
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selected
-            </span>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════
+  // RENDER: Filter Pills
+  // ═══════════════════════════════════════════════════
+  const renderFilterPills = () => (
+    <div className="flex gap-2 px-4 py-2">
+      {(['all', 'clients', 'cleaners'] as ConversationTab[]).map(tab => (
+        <button
+          key={tab}
+          onClick={() => { setActiveTab(tab); hapticImpact('light'); }}
+          className={cn(
+            "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
+            activeTab === tab
+              ? "bg-[#007AFF] text-white shadow-sm"
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          )}
+        >
+          {tab === 'all' ? 'All' : tab === 'clients' ? 'Clients' : 'Cleaners'}
+        </button>
+      ))}
+    </div>
+  );
+
+  // ═══════════════════════════════════════════════════
+  // RENDER: Conversation Row
+  // ═══════════════════════════════════════════════════
+  const renderConversationRow = (conv: Conversation) => {
+    const isUnread = conv.unread_count > 0;
+    const isPinned = pinnedIds.has(conv.id);
+
+    return (
+      <SwipeableRow
+        key={conv.id}
+        rightAction={{
+          label: '🗑️ Delete',
+          onAction: () => handleDeleteConversation(conv.id),
+          variant: 'destructive'
+        }}
+        className="rounded-none"
+      >
+        <button
+          onClick={() => handleSelectConversation(conv)}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3 transition-colors",
+            "bg-background hover:bg-muted/40 active:bg-muted/60",
+            selectedConversation?.id === conv.id && "bg-muted/50"
+          )}
+        >
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarFallback className={cn(
+              "text-sm font-semibold",
+              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]"
+            )}>
+              {conv.conversation_type === 'cleaner'
+                ? <HardHat className="h-5 w-5" />
+                : getInitials(conv.customer_name, conv.customer_phone)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <span className={cn("text-[15px] truncate", isUnread ? "font-semibold text-foreground" : "font-normal text-foreground")}>
+                {conv.customer_name || conv.customer_phone}
+              </span>
+              <span className={cn("text-xs shrink-0", isUnread ? "text-[#007AFF] font-medium" : "text-muted-foreground")}>
+                {formatConversationTime(conv.last_message_at)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 mt-0.5">
+              <p className={cn("text-sm truncate flex-1", isUnread ? "font-medium text-foreground" : "text-muted-foreground")}>
+                {conv.last_message_preview || 'No messages yet'}
+              </p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+                {isUnread && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
+                    {conv.unread_count}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setSelectedIds(new Set())}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleBulkDelete}
-              disabled={bulkDeleting}
-            >
-              {bulkDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-1" />
-              )}
-              Delete
-            </Button>
-          </div>
+        </button>
+      </SwipeableRow>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════
+  // RENDER: Conversation List
+  // ═══════════════════════════════════════════════════
+  const renderConversationList = () => (
+    <div className="flex flex-col h-full bg-background">
+      {/* Search */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-8 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
+          />
+          {searchingContent && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         </div>
-      )}
-      
+      </div>
+
+      {/* Pinned */}
+      {renderPinnedRow()}
+
+      {/* Filter pills */}
+      {renderFilterPills()}
+
+      {/* Conversation rows */}
       <div className="flex-1 overflow-y-auto" {...pullHandlers}>
         <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
         {loading ? (
-          <div className="flex items-center justify-center p-8">
+          <div className="flex items-center justify-center p-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
+        ) : unpinnedConversations.length === 0 && pinnedConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
             <p className="text-sm text-muted-foreground">No conversations yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Start a new message to begin</p>
           </div>
         ) : (
-          <div className="divide-y divide-border/50">
-            {filteredConversations.map((conv) => {
-              const isUnread = conv.unread_count > 0;
-              return (
-                <div
-                  key={conv.id}
-                  className={cn(
-                    "w-full px-3 py-3 text-left hover:bg-muted/50 transition-colors flex items-center gap-2",
-                    selectedConversation?.id === conv.id && "bg-muted",
-                    isUnread && "bg-primary/[0.03]"
-                  )}
-                >
-                  <div 
-                    className="shrink-0"
-                    onClick={(e) => toggleSelectConversation(conv.id, e)}
-                  >
-                    <Checkbox 
-                      checked={selectedIds.has(conv.id)}
-                      onCheckedChange={() => {}}
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleSelectConversation(conv)}
-                    className="flex-1 text-left min-w-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-11 w-11 shrink-0">
-                        <AvatarFallback className={cn(
-                          "text-sm font-medium",
-                          conv.conversation_type === 'cleaner' 
-                            ? "bg-amber-100 text-amber-700" 
-                            : "bg-primary/10 text-primary"
-                        )}>
-                          {conv.conversation_type === 'cleaner' 
-                            ? <HardHat className="h-4 w-4" />
-                            : getInitials(conv.customer_name, conv.customer_phone)
-                          }
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                            {conv.customer_name ? (
-                              <p className={cn(
-                                "truncate text-sm",
-                                isUnread ? "font-semibold text-foreground" : "font-medium text-foreground"
-                              )}>
-                                {conv.customer_name}
-                              </p>
-                            ) : (
-                              <p className={cn(
-                                "truncate text-sm",
-                                isUnread ? "font-semibold text-foreground" : "text-muted-foreground"
-                              )}>
-                                {conv.customer_phone}
-                              </p>
-                            )}
-                            {conv.conversation_type === 'cleaner' && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0">
-                                Staff
-                              </Badge>
-                            )}
-                          </div>
-                          <span className={cn(
-                            "text-xs shrink-0",
-                            isUnread ? "text-primary font-medium" : "text-muted-foreground"
-                          )}>
-                            {format(new Date(conv.last_message_at), 'MMM d')}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <p className={cn(
-                            "text-sm truncate flex-1",
-                            isUnread ? "font-medium text-foreground" : "text-muted-foreground"
-                          )}>
-                            {conv.last_message_preview || (conv.customer_name ? conv.customer_phone : 'No messages yet')}
-                          </p>
-                          {isUnread && (
-                            <span className="shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-semibold px-1.5">
-                              {conv.unread_count}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
+          <div className="divide-y divide-border/30">
+            {unpinnedConversations.map(conv => renderConversationRow(conv))}
           </div>
         )}
       </div>
     </div>
   );
 
+  // ═══════════════════════════════════════════════════
+  // RENDER: Chat View
+  // ═══════════════════════════════════════════════════
+  const renderChatView = () => {
+    if (!selectedConversation) return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-background">
+        <div className="w-16 h-16 rounded-full bg-[#007AFF]/10 flex items-center justify-center mb-4">
+          <MessageSquare className="h-8 w-8 text-[#007AFF]" />
+        </div>
+        <h3 className="text-lg font-semibold mb-1">Select a conversation</h3>
+        <p className="text-sm text-muted-foreground max-w-sm">Choose a message thread or start a new one</p>
+      </div>
+    );
+
+    const isPinned = pinnedIds.has(selectedConversation.id);
+
+    return (
+      <div className="flex flex-col h-full bg-background">
+        {/* Chat Header */}
+        <div className="px-3 py-2.5 border-b flex items-center gap-2 bg-background/80 backdrop-blur-xl sticky top-0 z-20 shrink-0">
+          {isMobile && (
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-[#007AFF]" onClick={handleBackToList}>
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
+          )}
+          <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className={cn(
+                "text-xs font-semibold",
+                selectedConversation.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]"
+              )}>
+                {selectedConversation.conversation_type === 'cleaner'
+                  ? <HardHat className="h-3.5 w-3.5" />
+                  : getInitials(selectedConversation.customer_name, selectedConversation.customer_phone)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate leading-tight">
+                {selectedConversation.customer_name || selectedConversation.customer_phone}
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {selectedConversation.conversation_type === 'cleaner' ? 'Cleaner' : 'Client'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-[#007AFF]"
+              onClick={() => window.open(`tel:${selectedConversation.customer_phone}`)}>
+              <Phone className="h-4 w-4" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => togglePin(selectedConversation.id)}>
+                  <Pin className="h-4 w-4 mr-2" />
+                  {isPinned ? 'Unpin' : 'Pin'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setEditingName(selectedConversation.customer_name || ''); setEditNameOpen(true); }}>
+                  <Pencil className="h-4 w-4 mr-2" /> Edit Name
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteConversation(selectedConversation.id)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="space-y-0.5">
+            {groupedMessages.map((item, i) => {
+              if (item.type === 'timestamp') {
+                return (
+                  <div key={`ts-${i}`} className="flex justify-center py-3">
+                    <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
+                      {item.date}
+                    </span>
+                  </div>
+                );
+              }
+              const msg = item.msg!;
+              const isOutbound = msg.direction === 'outbound';
+              return (
+                <div key={msg.id} className={cn("flex", isOutbound ? 'justify-end' : 'justify-start', item.isFirst && 'mt-2')}>
+                  <div className={cn(
+                    "max-w-[75%] px-3.5 py-2 relative",
+                    isOutbound ? 'bg-[#007AFF] text-white' : 'bg-muted text-foreground',
+                    // Bubble radius like iMessage
+                    item.isFirst && item.isLast
+                      ? 'rounded-2xl'
+                      : item.isFirst
+                        ? isOutbound ? 'rounded-2xl rounded-br-lg' : 'rounded-2xl rounded-bl-lg'
+                        : item.isLast
+                          ? isOutbound ? 'rounded-2xl rounded-tr-lg' : 'rounded-2xl rounded-tl-lg'
+                          : isOutbound ? 'rounded-2xl rounded-r-lg' : 'rounded-2xl rounded-l-lg',
+                  )}>
+                    {msg.media_urls && msg.media_urls.length > 0 && (
+                      <div className="space-y-1 mb-1">
+                        {msg.media_urls.map((url, idx) => (
+                          <div key={idx} className="relative group">
+                            <img src={url} alt="MMS" className="max-w-full rounded-lg cursor-pointer"
+                              onClick={() => window.open(url, '_blank')}
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            <Button variant="secondary" size="sm"
+                              className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity gap-1 h-7 text-xs shadow-md"
+                              onClick={(e) => { e.stopPropagation(); handleForwardPhoto(url); }}>
+                              <Forward className="w-3 h-3" /> Forward
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[15px] leading-snug whitespace-pre-wrap">{msg.content}</p>
+                    {item.isLast && (
+                      <p className={cn("text-[10px] mt-0.5", isOutbound ? 'text-white/60 text-right' : 'text-muted-foreground')}>
+                        {format(new Date(msg.sent_at), 'h:mm a')}
+                        {isOutbound && msg.status === 'sent' && <span className="ml-1">Sent</span>}
+                        {isOutbound && msg.status === 'delivered' && <span className="ml-1">Delivered</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input bar */}
+        <div className="px-3 py-2 border-t bg-background/80 backdrop-blur-xl pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+          <div className="flex items-end gap-2">
+            {organizationId && (
+              <MessageTemplatesPicker organizationId={organizationId} onSelect={(content) => setNewMessage(content)} />
+            )}
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                placeholder="iMessage"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                className="min-h-[36px] max-h-[120px] resize-none text-[15px] rounded-2xl bg-muted/40 border border-border/50 py-2 px-3.5 focus-visible:ring-1 focus-visible:ring-[#007AFF]"
+                rows={1}
+              />
+            </div>
+            <Button
+              onClick={newMessage.trim() ? handleSendMessage : undefined}
+              disabled={sending}
+              size="icon"
+              className={cn(
+                "h-9 w-9 rounded-full shrink-0 transition-all",
+                newMessage.trim()
+                  ? "bg-[#007AFF] hover:bg-[#0066DD] text-white shadow-sm"
+                  : "bg-transparent text-[#007AFF] hover:bg-[#007AFF]/10"
+              )}
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : newMessage.trim() ? <Send className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════
+  // MAIN RENDER
+  // ═══════════════════════════════════════════════════
   return (
-    <AdminLayout 
-      title="Messages" 
+    <AdminLayout
+      title="Messages"
       subtitle="Text & email your customers"
       actions={
         <div className="flex items-center gap-2">
-      <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
-          
+          <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
           <Button variant="outline" size="icon" onClick={fetchConversations}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Message
-              </Button>
+              <Button><Plus className="h-4 w-4 mr-2" />New Message</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Start New Conversation</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-4">
                 <div>
                   <Label className="text-sm font-medium">Contact Type</Label>
-                  <Tabs 
-                    value={conversationType} 
-                    onValueChange={(v) => {
-                      setConversationType(v as 'client' | 'cleaner');
-                      setSelectedContact(null);
-                    }} 
-                    className="mt-2"
-                  >
+                  <Tabs value={conversationType} onValueChange={(v) => { setConversationType(v as 'client' | 'cleaner'); setSelectedContact(null); }} className="mt-2">
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="client" className="gap-2">
-                        <Users className="h-4 w-4" />
-                        Client
-                      </TabsTrigger>
-                      <TabsTrigger value="cleaner" className="gap-2">
-                        <HardHat className="h-4 w-4" />
-                        Cleaner
-                      </TabsTrigger>
+                      <TabsTrigger value="client" className="gap-2"><Users className="h-4 w-4" />Client</TabsTrigger>
+                      <TabsTrigger value="cleaner" className="gap-2"><HardHat className="h-4 w-4" />Cleaner</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
-                
-                {/* Contact Picker */}
                 <div>
-                  <Label className="text-sm font-medium">
-                    Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}
-                  </Label>
+                  <Label className="text-sm font-medium">Select {conversationType === 'client' ? 'Customer' : 'Staff Member'}</Label>
                   <Command className="border rounded-md mt-2">
-                    <CommandInput 
-                      placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`}
-                      value={contactSearch}
-                      onValueChange={setContactSearch}
-                    />
+                    <CommandInput placeholder={`Search ${conversationType === 'client' ? 'customers' : 'staff'}...`} value={contactSearch} onValueChange={setContactSearch} />
                     <CommandList className="max-h-40">
-                      <CommandEmpty>
-                        No {conversationType === 'client' ? 'customers' : 'staff'} found.
-                      </CommandEmpty>
+                      <CommandEmpty>No {conversationType === 'client' ? 'customers' : 'staff'} found.</CommandEmpty>
                       <CommandGroup>
                         {filteredContacts.slice(0, 10).map((contact) => (
-                          <CommandItem
-                            key={contact.id}
-                            value={`${contact.name} ${contact.phone}`}
-                            onSelect={() => handleSelectContact(contact)}
-                            className="cursor-pointer"
-                          >
+                          <CommandItem key={contact.id} value={`${contact.name} ${contact.phone}`} onSelect={() => handleSelectContact(contact)} className="cursor-pointer">
                             <div className="flex items-center gap-2 flex-1">
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className={cn(
-                                  "text-xs",
-                                  contact.type === 'cleaner' 
-                                    ? "bg-amber-100 text-amber-700" 
-                                    : "bg-primary/10 text-primary"
-                                )}>
-                                  {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{contact.name}</p>
-                                <p className="text-xs text-muted-foreground">{contact.phone}</p>
-                              </div>
-                              {selectedContact?.id === contact.id && (
-                                <Check className="h-4 w-4 text-primary" />
-                              )}
+                              <Avatar className="h-6 w-6"><AvatarFallback className={cn("text-xs", contact.type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]")}>{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
+                              <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
+                              {selectedContact?.id === contact.id && <Check className="h-4 w-4 text-[#007AFF]" />}
                             </div>
                           </CommandItem>
                         ))}
@@ -1065,243 +868,77 @@ export default function MessagesPage() {
                     </CommandList>
                   </Command>
                 </div>
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">or enter manually</span>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Phone Number</Label>
-                  <Input
-                    placeholder="(555) 123-4567"
-                    value={newPhone}
-                    onChange={(e) => {
-                      setNewPhone(e.target.value);
-                      setSelectedContact(null);
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Name (optional)</Label>
-                  <Input
-                    placeholder="Contact name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  onClick={handleStartNewConversation} 
-                  className="w-full"
-                  disabled={!newPhone.trim() && !selectedContact}
-                >
-                  Start Conversation
-                </Button>
+                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or enter manually</span></div></div>
+                <div><Label className="text-sm font-medium">Phone Number</Label><Input placeholder="(555) 123-4567" value={newPhone} onChange={(e) => { setNewPhone(e.target.value); setSelectedContact(null); }} /></div>
+                <div><Label className="text-sm font-medium">Name (optional)</Label><Input placeholder="Contact name" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
+                <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
               </div>
             </DialogContent>
           </Dialog>
           <Dialog open={emailOpen} onOpenChange={async (open) => {
-              setEmailOpen(open);
-              if (open && organizationId) {
-                const { data } = await supabase
-                  .from('customers')
-                  .select('email, first_name, last_name')
-                  .eq('organization_id', organizationId)
-                  .not('email', 'is', null)
-                  .order('first_name');
-                const allContacts = (data || [])
-                    .filter(c => c.email)
-                    .map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
-                // Deduplicate by email
-                const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
-                setEmailContacts(unique);
-                // Auto-select from active conversation
-                if (!emailTo && selectedConversation?.customer_id) {
-                  const match = (data || []).find(c => c.email);
-                  const { data: convCustomer } = await supabase
-                    .from('customers')
-                    .select('email')
-                    .eq('id', selectedConversation.customer_id)
-                    .maybeSingle();
-                  if (convCustomer?.email) {
-                    setEmailTo(convCustomer.email);
-                    setEmailToSearch(convCustomer.email);
-                  }
-                }
+            setEmailOpen(open);
+            if (open && organizationId) {
+              const { data } = await supabase.from('customers').select('email, first_name, last_name').eq('organization_id', organizationId).not('email', 'is', null).order('first_name');
+              const allContacts = (data || []).filter(c => c.email).map(c => ({ email: c.email!, name: `${c.first_name || ''} ${c.last_name || ''}`.trim() }));
+              const unique = Array.from(new Map(allContacts.map(c => [c.email.toLowerCase(), c])).values());
+              setEmailContacts(unique);
+              if (!emailTo && selectedConversation?.customer_id) {
+                const { data: convCustomer } = await supabase.from('customers').select('email').eq('id', selectedConversation.customer_id).maybeSingle();
+                if (convCustomer?.email) { setEmailTo(convCustomer.email); setEmailToSearch(convCustomer.email); }
               }
-            }}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Mail className="h-4 w-4 mr-2" />
-                Send Email
-              </Button>
-            </DialogTrigger>
+            }
+          }}>
+            <DialogTrigger asChild><Button variant="outline"><Mail className="h-4 w-4 mr-2" />Send Email</Button></DialogTrigger>
             <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Compose Email</DialogTitle>
-              </DialogHeader>
-              <div className="flex justify-end -mt-2">
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}>
-                  <BookOpen className="h-4 w-4" />
-                  Templates
-                </Button>
-              </div>
+              <DialogHeader><DialogTitle>Compose Email</DialogTitle></DialogHeader>
+              <div className="flex justify-end -mt-2"><Button variant="outline" size="sm" className="gap-2" onClick={() => setTemplateLibraryOpen(true)}><BookOpen className="h-4 w-4" />Templates</Button></div>
               <div className="space-y-4 pt-2">
                 <div className="relative">
                   <Label>To</Label>
-                  <Input
-                    type="email"
-                    placeholder="Search or type email..."
-                    value={emailToSearch}
-                    onChange={(e) => {
-                      setEmailToSearch(e.target.value);
-                      setEmailTo(e.target.value);
-                      setEmailToDropdownOpen(true);
-                    }}
-                    onFocus={() => setEmailToDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)}
-                  />
+                  <Input type="email" placeholder="Search or type email..." value={emailToSearch}
+                    onChange={(e) => { setEmailToSearch(e.target.value); setEmailTo(e.target.value); setEmailToDropdownOpen(true); }}
+                    onFocus={() => setEmailToDropdownOpen(true)} onBlur={() => setTimeout(() => setEmailToDropdownOpen(false), 200)} />
                   {emailToDropdownOpen && (
                     <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md overflow-y-auto" style={{ maxHeight: 200 }}>
-                      {emailContacts
-                        .filter(c =>
-                          !emailToSearch ||
-                          c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
-                          c.name.toLowerCase().includes(emailToSearch.toLowerCase())
-                        )
-                        .slice(0, 30)
-                        .map(c => (
-                          <button
-                            key={c.email}
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setEmailTo(c.email);
-                              setEmailToSearch(c.email);
-                              setEmailToDropdownOpen(false);
-                            }}
-                          >
-                            <div className="font-medium">{c.name || 'No name'}</div>
-                            <div className="text-muted-foreground text-xs">{c.email}</div>
-                          </button>
-                        ))}
-                      {emailContacts.filter(c =>
-                        !emailToSearch ||
-                        c.email.toLowerCase().includes(emailToSearch.toLowerCase()) ||
-                        c.name.toLowerCase().includes(emailToSearch.toLowerCase())
-                      ).length === 0 && (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">No matching contacts</div>
-                      )}
+                      {emailContacts.filter(c => !emailToSearch || c.email.toLowerCase().includes(emailToSearch.toLowerCase()) || c.name.toLowerCase().includes(emailToSearch.toLowerCase())).slice(0, 30).map(c => (
+                        <button key={c.email} type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm"
+                          onMouseDown={(e) => e.preventDefault()} onClick={() => { setEmailTo(c.email); setEmailToSearch(c.email); setEmailToDropdownOpen(false); }}>
+                          <div className="font-medium">{c.name || 'No name'}</div><div className="text-muted-foreground text-xs">{c.email}</div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
-                <div>
-                  <Label>Subject</Label>
-                  <Input
-                    placeholder="Email subject"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                  />
-                </div>
+                <div><Label>Subject</Label><Input placeholder="Email subject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} /></div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <Label>Message</Label>
                     <div className="flex items-center gap-1">
-                      {organizationId && (
-                        <MessageTemplatesPicker
-                          organizationId={organizationId}
-                          showSubject
-                          onSelect={(content, subject) => {
-                            setEmailBody(content);
-                            if (emailBodyRef.current) emailBodyRef.current.innerText = content;
-                            if (subject) setEmailSubject(subject);
-                          }}
-                        />
-                      )}
+                      {organizationId && <MessageTemplatesPicker organizationId={organizationId} showSubject onSelect={(content, subject) => { setEmailBody(content); if (emailBodyRef.current) emailBodyRef.current.innerText = content; if (subject) setEmailSubject(subject); }} />}
                       <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link">
-                            <Link className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
+                        <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Insert link"><Link className="h-4 w-4" /></Button></PopoverTrigger>
                         <PopoverContent className="w-72 space-y-3" align="end">
                           <p className="text-sm font-medium">Insert Link</p>
-                          <div className="space-y-2">
-                            <Input
-                              placeholder="https://example.com"
-                              value={linkUrl}
-                              onChange={(e) => setLinkUrl(e.target.value)}
-                            />
-                            <Input
-                              placeholder="Display text (optional)"
-                              value={linkText}
-                              onChange={(e) => setLinkText(e.target.value)}
-                            />
-                          </div>
-                          <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>
-                            Insert
-                          </Button>
+                          <div className="space-y-2"><Input placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} /><Input placeholder="Display text (optional)" value={linkText} onChange={(e) => setLinkText(e.target.value)} /></div>
+                          <Button size="sm" className="w-full" onClick={handleInsertLink} disabled={!linkUrl.trim()}>Insert</Button>
                         </PopoverContent>
                       </Popover>
                     </div>
                   </div>
-                  <div
-                    ref={emailBodyRef}
-                    contentEditable
-                    onInput={() => {
-                      if (emailBodyRef.current) {
-                        setEmailBody(emailBodyRef.current.innerHTML);
-                      }
-                    }}
-                    onPaste={(e) => {
-                      e.preventDefault();
-                      const text = e.clipboardData.getData('text/plain');
-                      document.execCommand('insertText', false, text);
-                    }}
+                  <div ref={emailBodyRef} contentEditable onInput={() => { if (emailBodyRef.current) setEmailBody(emailBodyRef.current.innerHTML); }}
+                    onPaste={(e) => { e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); }}
                     className="flex min-h-[120px] sm:min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-y-auto whitespace-pre-wrap"
-                    style={{ maxHeight: '200px', WebkitOverflowScrolling: 'touch' }}
-                    data-placeholder="Type your email message..."
-                     suppressContentEditableWarning
-                   />
+                    style={{ maxHeight: '200px' }} suppressContentEditableWarning />
                 </div>
-                {/* Attachments */}
                 <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileAttach}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                    Attach File
-                  </Button>
+                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileAttach} />
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}><Paperclip className="h-4 w-4" />Attach File</Button>
                   {emailAttachments.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {emailAttachments.map((att, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
-                          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="truncate flex-1">{att.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 shrink-0"
-                            onClick={() => removeAttachment(i)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" /><span className="truncate flex-1">{att.name}</span>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => removeAttachment(i)}><X className="h-3 w-3" /></Button>
                         </div>
                       ))}
                     </div>
@@ -1310,521 +947,78 @@ export default function MessagesPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
-                <Button
-                  onClick={handleSendEmail}
-                  disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()}
-                  className="gap-2"
-                >
-                  {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send Email
+                <Button onClick={handleSendEmail} disabled={emailSending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()} className="gap-2">
+                  {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send Email
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <EmailTemplateLibrary
-            open={templateLibraryOpen}
-            onOpenChange={setTemplateLibraryOpen}
-            onSelectTemplate={(subject, body) => {
-              setEmailSubject(subject);
-              setEmailBody(body);
-              if (emailBodyRef.current) emailBodyRef.current.innerText = body;
-            }}
-          />
+          <EmailTemplateLibrary open={templateLibraryOpen} onOpenChange={setTemplateLibraryOpen} onSelectTemplate={(subject, body) => { setEmailSubject(subject); setEmailBody(body); if (emailBodyRef.current) emailBodyRef.current.innerText = body; }} />
         </div>
       }
     >
       <SubscriptionGate feature="Messages">
-      {isMobile ? (
-        /* MOBILE: Full-screen list OR full-screen chat */
-        <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-background">
-          {!selectedConversation ? (
-            /* Full-screen conversation list */
-            renderConversationList()
-          ) : (
-            /* Full-screen chat view */
-            <div className="flex flex-col h-full">
-              {/* Chat Header with back button */}
-              <div className="px-3 py-2.5 border-b flex items-center gap-2 bg-card sticky top-0 z-20 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0"
-                  onClick={handleBackToList}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <div className="flex-1 min-w-0 text-center">
-                  <p className="font-bold text-sm truncate">
-                    {selectedConversation.customer_name || selectedConversation.customer_phone}
-                  </p>
-                  {selectedConversation.customer_name && (
-                    <p className="text-xs text-muted-foreground">
-                      {selectedConversation.customer_phone}
-                    </p>
-                  )}
-                </div>
-                {/* Spacer to balance back button for centering */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {
-                      setEditingName(selectedConversation.customer_name || '');
-                      setEditNameOpen(true);
-                    }}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit Name
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive"
-                      onClick={() => handleDeleteConversation(selectedConversation.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Conversation
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {/* Edit Name Dialog */}
-              <Dialog open={editNameOpen} onOpenChange={setEditNameOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Edit Contact Name</DialogTitle>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Label>Name</Label>
-                    <Input 
-                      value={editingName} 
-                      onChange={(e) => setEditingName(e.target.value)}
-                      placeholder="Enter contact name"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditNameOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUpdateCustomerName}>Save</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-3">
-                <div className="space-y-3">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex",
-                        msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm",
-                          msg.direction === 'outbound'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        )}
-                      >
-                        {msg.media_urls && msg.media_urls.length > 0 && (
-                          <div className="space-y-1 mb-1">
-                            {msg.media_urls.map((url, idx) => (
-                              <div key={idx} className="relative group">
-                                <img
-                                  src={url}
-                                  alt="MMS attachment"
-                                  className="max-w-full rounded-lg cursor-pointer"
-                                  onClick={() => window.open(url, '_blank')}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity gap-1 h-7 text-xs shadow-md"
-                                  onClick={(e) => { e.stopPropagation(); handleForwardPhoto(url); }}
-                                >
-                                  <Forward className="w-3 h-3" />
-                                  Forward
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                        <p className={cn(
-                          "text-xs mt-1",
-                          msg.direction === 'outbound' ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                        )}>
-                          {format(new Date(msg.sent_at), 'h:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Message Input */}
-              <div className="p-3 border-t pb-[env(safe-area-inset-bottom)]">
-                <div className="flex gap-2">
-                  {organizationId && (
-                    <MessageTemplatesPicker
-                      organizationId={organizationId}
-                      onSelect={(content) => setNewMessage(content)}
-                    />
-                  )}
-                  <Textarea
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    className="min-h-[44px] max-h-32 resize-none text-base"
-                    rows={1}
-                  />
-                  <Button 
-                    onClick={handleSendMessage} 
-                    disabled={!newMessage.trim() || sending}
-                    size="icon"
-                    className="h-11 w-11 shrink-0"
-                  >
-                    {sending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+        {isMobile ? (
+          <div className="flex flex-col h-[calc(100vh-6.5rem)] -mx-2 -mt-2 bg-background">
+            {!selectedConversation ? renderConversationList() : renderChatView()}
+          </div>
+        ) : (
+          <div className="flex border rounded-xl overflow-hidden bg-background relative h-[calc(100vh-12rem)]">
+            <div className="w-80 border-r flex flex-col shrink-0">
+              {renderConversationList()}
             </div>
-          )}
-        </div>
-      ) : (
-        /* DESKTOP: Side-by-side split panel */
-        <div className="flex border rounded-lg overflow-hidden bg-card relative h-[calc(100vh-12rem)]">
-          <div className={cn(
-            "border-r flex flex-col transition-all duration-300 relative",
-            isListCollapsed ? "w-0 overflow-hidden" : "w-80"
-          )}>
-            {renderConversationList()}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border bg-background shadow-sm z-10"
-              onClick={() => setIsListCollapsed(true)}
-            >
-              <PanelLeftClose className="h-3 w-3" />
-            </Button>
+            <div className="flex-1 flex flex-col">
+              {renderChatView()}
+            </div>
           </div>
+        )}
 
-          {/* Expand button when collapsed */}
-          {isListCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full border bg-background shadow-sm z-10"
-              onClick={() => setIsListCollapsed(false)}
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          )}
+        {/* Edit Name Dialog */}
+        <Dialog open={editNameOpen} onOpenChange={setEditNameOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit Contact Name</DialogTitle></DialogHeader>
+            <div className="py-4"><Label>Name</Label><Input value={editingName} onChange={(e) => setEditingName(e.target.value)} placeholder="Enter contact name" /></div>
+            <DialogFooter><Button variant="outline" onClick={() => setEditNameOpen(false)}>Cancel</Button><Button onClick={handleUpdateCustomerName}>Save</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-          {/* Chat Area */}
-          <div className="flex-1 flex flex-col">
-            {selectedConversation ? (
-              <>
-                {/* Chat Header */}
-                <div className="p-4 border-b flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {isListCollapsed && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 -ml-1"
-                        onClick={() => setIsListCollapsed(false)}
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </Button>
-                    )}
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className={cn(
-                        "text-primary",
-                        selectedConversation.conversation_type === 'cleaner' 
-                          ? "bg-amber-100" 
-                          : "bg-primary/10"
-                      )}>
-                        {selectedConversation.conversation_type === 'cleaner' 
-                          ? <HardHat className="h-5 w-5 text-amber-600" />
-                          : getInitials(selectedConversation.customer_name, selectedConversation.customer_phone)
-                        }
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      {selectedConversation.customer_name ? (
-                        <p className="font-medium">
-                          {selectedConversation.customer_name}
-                        </p>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <p className="text-muted-foreground">Unknown Contact</p>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-6 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
-                            onClick={() => {
-                              setEditingName('');
-                              setEditNameOpen(true);
-                            }}
-                          >
-                            Set Name
-                          </Button>
-                        </div>
-                      )}
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {selectedConversation.customer_phone}
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => {
-                        setEditingName(selectedConversation.customer_name || '');
-                        setEditNameOpen(true);
-                      }}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit Name
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive"
-                        onClick={() => handleDeleteConversation(selectedConversation.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Conversation
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Edit Name Dialog */}
-                <Dialog open={editNameOpen} onOpenChange={setEditNameOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Contact Name</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <Label>Name</Label>
-                      <Input 
-                        value={editingName} 
-                        onChange={(e) => setEditingName(e.target.value)}
-                        placeholder="Enter contact name"
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setEditNameOpen(false)}>Cancel</Button>
-                      <Button onClick={handleUpdateCustomerName}>Save</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Messages */}
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-4">
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "flex",
-                          msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm",
-                            msg.direction === 'outbound'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          )}
-                        >
-                          {msg.media_urls && msg.media_urls.length > 0 && (
-                            <div className="space-y-1 mb-1">
-                              {msg.media_urls.map((url, idx) => (
-                                <div key={idx} className="relative group">
-                                  <img
-                                    src={url}
-                                    alt="MMS attachment"
-                                    className="max-w-full rounded-lg cursor-pointer"
-                                    onClick={() => window.open(url, '_blank')}
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                  />
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity gap-1 h-7 text-xs shadow-md"
-                                    onClick={(e) => { e.stopPropagation(); handleForwardPhoto(url); }}
-                                  >
-                                    <Forward className="w-3 h-3" />
-                                    Forward
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <p className={cn(
-                            "text-xs mt-1",
-                            msg.direction === 'outbound' ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                          )}>
-                            {format(new Date(msg.sent_at), 'h:mm a')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </ScrollArea>
-
-                {/* Message Input */}
-                <div className="p-4 border-t">
-                  <div className="flex gap-2">
-                    {organizationId && (
-                      <MessageTemplatesPicker
-                        organizationId={organizationId}
-                        onSelect={(content) => setNewMessage(content)}
-                      />
-                    )}
-                    <Textarea
-                      placeholder="Type a message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      className="min-h-[44px] max-h-32 resize-none text-sm"
-                      rows={1}
-                    />
-                    <Button 
-                      onClick={handleSendMessage} 
-                      disabled={!newMessage.trim() || sending}
-                      size="icon"
-                      className="h-11 w-11"
-                    >
-                      {sending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <MessageSquare className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Choose a conversation from the list or start a new one to begin messaging your customers.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Forward Photo Dialog */}
-      <Dialog open={forwardOpen} onOpenChange={setForwardOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Forward Photo</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {forwardMediaUrl && (
-              <img src={forwardMediaUrl} alt="Photo to forward" className="w-full max-h-48 object-cover rounded-lg" />
-            )}
-            <div>
-              <Label className="text-sm font-medium">Send to</Label>
-              <Command className="border rounded-md mt-1">
-                <CommandInput
-                  placeholder="Search contacts..."
-                  value={forwardContactSearch}
-                  onValueChange={setForwardContactSearch}
-                />
-                <CommandList className="max-h-48">
-                  <CommandEmpty>No contacts found.</CommandEmpty>
-                  <CommandGroup>
-                    {contacts
-                      .filter(c => 
-                        c.name.toLowerCase().includes(forwardContactSearch.toLowerCase()) ||
-                        c.phone.includes(forwardContactSearch)
-                      )
-                      .slice(0, 20)
-                      .map(contact => (
-                        <CommandItem
-                          key={contact.id}
-                          onSelect={() => setForwardSelectedContact(contact)}
-                          className={cn(
-                            "cursor-pointer",
-                            forwardSelectedContact?.id === contact.id && "bg-accent"
-                          )}
-                        >
+        {/* Forward Photo Dialog */}
+        <Dialog open={forwardOpen} onOpenChange={setForwardOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Forward Photo</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              {forwardMediaUrl && <img src={forwardMediaUrl} alt="Photo to forward" className="w-full max-h-48 object-cover rounded-lg" />}
+              <div>
+                <Label className="text-sm font-medium">Send to</Label>
+                <Command className="border rounded-md mt-1">
+                  <CommandInput placeholder="Search contacts..." value={forwardContactSearch} onValueChange={setForwardContactSearch} />
+                  <CommandList className="max-h-48">
+                    <CommandEmpty>No contacts found.</CommandEmpty>
+                    <CommandGroup>
+                      {contacts.filter(c => c.name.toLowerCase().includes(forwardContactSearch.toLowerCase()) || c.phone.includes(forwardContactSearch)).slice(0, 20).map(contact => (
+                        <CommandItem key={contact.id} onSelect={() => setForwardSelectedContact(contact)} className={cn("cursor-pointer", forwardSelectedContact?.id === contact.id && "bg-accent")}>
                           <div className="flex items-center gap-2 w-full">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs">
-                                {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{contact.name}</p>
-                              <p className="text-xs text-muted-foreground">{contact.phone}</p>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {contact.type === 'client' ? 'Client' : 'Staff'}
-                            </Badge>
-                            {forwardSelectedContact?.id === contact.id && (
-                              <Check className="w-4 h-4 text-primary" />
-                            )}
+                            <Avatar className="h-6 w-6"><AvatarFallback className="text-xs">{contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback></Avatar>
+                            <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.phone}</p></div>
+                            <Badge variant="outline" className="text-xs">{contact.type === 'client' ? 'Client' : 'Staff'}</Badge>
+                            {forwardSelectedContact?.id === contact.id && <Check className="w-4 h-4 text-[#007AFF]" />}
                           </div>
                         </CommandItem>
                       ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-              {forwardSelectedContact && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Sending to <span className="font-medium text-foreground">{forwardSelectedContact.name}</span> ({forwardSelectedContact.phone})
-                </p>
-              )}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {forwardSelectedContact && <p className="text-sm text-muted-foreground mt-2">Sending to <span className="font-medium text-foreground">{forwardSelectedContact.name}</span> ({forwardSelectedContact.phone})</p>}
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setForwardOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleSendForward}
-              disabled={!forwardSelectedContact || forwardSending}
-              className="gap-2"
-            >
-              {forwardSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Forward className="w-4 h-4" />}
-              {forwardSending ? 'Sending...' : 'Forward'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setForwardOpen(false)}>Cancel</Button>
+              <Button onClick={handleSendForward} disabled={!forwardSelectedContact || forwardSending} className="gap-2">
+                {forwardSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Forward className="w-4 h-4" />}{forwardSending ? 'Sending...' : 'Forward'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SubscriptionGate>
     </AdminLayout>
   );
