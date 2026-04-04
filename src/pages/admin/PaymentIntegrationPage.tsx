@@ -176,7 +176,24 @@ export default function PaymentIntegrationPage() {
       <SEOHead title="Payment Integration | TidyWise" description="Connect and manage payment processing" noIndex />
       <div className="space-y-6 max-w-3xl">
 
-        {/* Connected State */}
+        {/* OAuth error banner */}
+        {oauthError && (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">Stripe Connection Failed</p>
+                  <p className="text-sm text-muted-foreground mt-1">{oauthError}</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => setOauthError(null)}>
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {connectionStatus?.connected ? (
           <>
             <Card className="border-green-500/30 bg-green-500/5">
