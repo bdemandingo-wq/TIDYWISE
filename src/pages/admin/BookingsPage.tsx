@@ -150,6 +150,9 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
 };
 
 export default function BookingsPage() {
+  const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
+  const [bulkDraftDeleteOpen, setBulkDraftDeleteOpen] = useState(false);
+  const [bulkDraftDeleting, setBulkDraftDeleting] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
