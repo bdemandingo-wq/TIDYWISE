@@ -53,7 +53,7 @@ interface Quote {
   status: string | null;
   created_at: string;
   customer?: { first_name: string; last_name: string; email: string };
-  service?: { name: string };
+  service?: { name: string; duration?: number };
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
