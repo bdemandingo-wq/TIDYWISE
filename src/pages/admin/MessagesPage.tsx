@@ -138,6 +138,15 @@ export default function MessagesPage() {
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // Long-press context menu state
+  const [contextMenuConvId, setContextMenuConvId] = useState<string | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Muted conversations
+  const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
+  // Single delete confirmation
+  const [deleteConfirmConvId, setDeleteConfirmConvId] = useState<string | null>(null);
+
   const emailBodyRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
