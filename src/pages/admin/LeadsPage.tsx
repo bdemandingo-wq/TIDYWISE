@@ -673,23 +673,37 @@ export default function LeadsPage() {
                     <TableCell>{lead.service_interest || '-'}</TableCell>
                     <TableCell className="capitalize">{lead.source}</TableCell>
                     <TableCell>
-                      <Select
-                        value={lead.status}
-                        onValueChange={(status) => updateMutation.mutate({ id: lead.id, status })}
-                      >
-                        <SelectTrigger className="w-[120px] h-8">
-                          <Badge className={STATUS_CONFIG[lead.status]?.color}>
-                            {STATUS_CONFIG[lead.status]?.label}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1.5">
+                        <Select
+                          value={lead.status}
+                          onValueChange={(status) => updateMutation.mutate({ id: lead.id, status })}
+                        >
+                          <SelectTrigger className="w-[120px] h-8">
+                            <Badge className={STATUS_CONFIG[lead.status]?.color}>
+                              {STATUS_CONFIG[lead.status]?.label}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {lead.status === 'converted' && flaggedLeadIds.has(lead.id) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>No booking found for this lead</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[200px]">
                       {lead.notes ? (
