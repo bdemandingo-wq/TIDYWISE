@@ -393,20 +393,20 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 min-h-[48px] text-base"
               onClick={() => openPicker(cameraInputRef.current)}
               disabled={isUploading || bookings.length === 0}
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-5 h-5" />
               Camera
             </Button>
             <Button
               variant="outline"
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 min-h-[48px] text-base"
               onClick={() => openPicker(libraryInputRef.current)}
               disabled={isUploading || bookings.length === 0}
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-5 h-5" />
               Library
             </Button>
           </div>
