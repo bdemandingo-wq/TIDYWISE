@@ -278,7 +278,8 @@ export function AutomationHealthMonitor() {
       const { data, error } = await supabase
         .from('booking_link_tracking' as any)
         .select('status, link_opened_at, booking_completed_at')
-        .eq('organization_id', organization.id);
+        .eq('organization_id', organization.id)
+        .eq('link_type', 'booking');
       if (error) throw error;
       const items = data || [];
       const opened = items.filter((i: any) => i.link_opened_at).length;
@@ -305,6 +306,7 @@ export function AutomationHealthMonitor() {
         .from('booking_link_tracking' as any)
         .select('campaign_id, link_opened_at, booking_completed_at')
         .eq('organization_id', organization.id)
+        .eq('link_type', 'booking')
         .not('campaign_id', 'is', null);
       if (tErr || !trackingData) return null;
 
