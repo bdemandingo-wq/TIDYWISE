@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
 import {
   format,
   startOfMonth,
@@ -15,9 +16,15 @@ import {
   subMonths,
   startOfWeek,
   endOfWeek,
+  startOfYear,
+  endOfYear,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface DailyPnL {
   revenue: number;
@@ -25,12 +32,6 @@ interface DailyPnL {
   cleanerPay: number;
   fees: number;
   net: number;
-}
-
-interface PnLCalendarProps {
-  bookings: any[];
-  expenses: any[];
-  teamPaysByBooking: Map<string, number>;
 }
 
 const formatAmount = (amount: number, showSign = true): string => {
@@ -45,11 +46,96 @@ const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 type MetricMode = 'revenue' | 'profit';
 
-export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalendarProps) {
+export function PnLCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
   const [metricMode, setMetricMode] = useState<MetricMode>('revenue');
   const { isTestMode } = useTestMode();
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+  const { timezone } = useOrgTimezone();
+
+  // Determine the query date range based on view mode
+  const queryRange = useMemo(() => {
+    if (viewMode === 'year') {
+      return {
+        from: startOfYear(currentMonth).toISOString(),
+        to: endOfYear(currentMonth).toISOString(),
+      };
+    }
+    // For month view, fetch current month's full calendar range (includes overflow days)
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    return {
+      from: calStart.toISOString(),
+      to: calEnd.toISOString(),
+    };
+  }, [currentMonth, viewMode]);
+
+  // Self-contained bookings query
+  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['pnl-calendar-bookings', organizationId, queryRange.from, queryRange.to],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('id, scheduled_at, total_amount, status, payment_status, cleaner_pay_expected, cleaner_actual_payment, cleaner_wage, cleaner_wage_type, cleaner_override_hours, duration')
+        .eq('organization_id', organizationId)
+        .gte('scheduled_at', queryRange.from)
+        .lte('scheduled_at', queryRange.to)
+        .neq('status', 'cancelled');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Fetch team pay
+  const bookingIds = useMemo(() => bookings.map((b: any) => b.id), [bookings]);
+  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+    queryKey: ['pnl-calendar-team-pay', organizationId, bookingIds.join(',')],
+    queryFn: async () => {
+      if (!organizationId || bookingIds.length === 0) return new Map<string, number>();
+      const { data, error } = await supabase
+        .from('booking_team_assignments')
+        .select('booking_id, pay_share')
+        .eq('organization_id', organizationId)
+        .in('booking_id', bookingIds);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      for (const row of data || []) {
+        const bid = String((row as any).booking_id);
+        const share = Number((row as any).pay_share);
+        if (Number.isFinite(share) && share > 0) {
+          map.set(bid, (map.get(bid) || 0) + share);
+        }
+      }
+      return map;
+    },
+    enabled: !!organizationId && bookingIds.length > 0,
+  });
+
+  // Fetch expenses
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['pnl-calendar-expenses', organizationId, queryRange.from, queryRange.to],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .gte('expense_date', queryRange.from.substring(0, 10))
+        .lte('expense_date', queryRange.to.substring(0, 10));
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  const isLoading = bookingsLoading;
 
   // Calculate daily P&L from bookings and expenses
   const dailyPnL = useMemo(() => {
@@ -57,13 +143,20 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
     const seenBookingIds = new Set<string>();
 
     bookings.forEach((b: any) => {
-      if (b.status === 'cancelled') return;
       if (b.payment_status === 'refunded') return;
       if (b.payment_status !== 'paid' && b.payment_status !== 'partial') return;
       if (seenBookingIds.has(b.id)) return;
       seenBookingIds.add(b.id);
 
-      const dateKey = format(new Date(b.scheduled_at), 'yyyy-MM-dd');
+      // Convert scheduled_at to org timezone for date grouping
+      const scheduledDate = new Date(b.scheduled_at);
+      let dateKey: string;
+      try {
+        dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(scheduledDate);
+      } catch {
+        dateKey = format(scheduledDate, 'yyyy-MM-dd');
+      }
+
       const existing = map.get(dateKey) || { revenue: 0, expenses: 0, cleanerPay: 0, fees: 0, net: 0 };
 
       const gross = Number(b.total_amount) || 0;
@@ -102,7 +195,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
     });
 
     return map;
-  }, [bookings, expenses, teamPaysByBooking]);
+  }, [bookings, expenses, teamPaysByBooking, timezone]);
 
   // Helper: get the displayed value for a day based on metric mode
   const getDayValue = (pnl: DailyPnL | undefined): number => {
@@ -134,6 +227,11 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
 
   const navigateMonth = (dir: 'prev' | 'next') => {
     setCurrentMonth(prev => dir === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+    setViewMode('month');
   };
 
   const currentYear = currentMonth.getFullYear();
@@ -170,6 +268,12 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
         <div className="flex items-center justify-between flex-wrap gap-3">
           <CardTitle className="text-lg font-bold">P&L Calendar</CardTitle>
           <div className="flex items-center gap-2">
+            {/* Today button */}
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={goToToday}>
+              <CalendarIcon className="h-3 w-3" />
+              Today
+            </Button>
+
             {/* Revenue / Profit toggle */}
             <ToggleGroup
               type="single"
@@ -212,7 +316,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                   const d = new Date(currentYear, i, 1);
                   return (
                     <SelectItem key={i} value={format(d, 'yyyy-MM')}>
-                      {format(d, 'yyyy-MM')}
+                      {format(d, 'MMM yyyy')}
                     </SelectItem>
                   );
                 })}
@@ -229,7 +333,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
             </Button>
             <div className="text-center">
               <span className="text-sm font-medium">{format(currentMonth, 'MMMM yyyy')}</span>
-              {!isTestMode && (
+              {!isTestMode && !isLoading && (
                 <span className={cn(
                   "ml-2 text-sm font-bold",
                   getValueColor(monthTotal, monthTotal !== 0)
@@ -237,6 +341,7 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                   {formatAmount(monthTotal, false)}
                 </span>
               )}
+              {isLoading && <Skeleton className="inline-block ml-2 h-4 w-16" />}
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigateMonth('next')}>
               <ChevronRight className="h-4 w-4" />
@@ -284,20 +389,20 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                     )}>
                       {today ? 'Today' : format(day, 'd')}
                     </span>
-                    {hasData && !isTestMode && (
+                    {isLoading && inMonth ? (
+                      <Skeleton className="h-3 w-10 mt-0.5" />
+                    ) : hasData && !isTestMode ? (
                       <span className={cn(
                         "text-[11px] sm:text-xs font-bold mt-0.5",
                         getValueColor(dayValue, true)
                       )}>
                         {formatAmount(dayValue, false)}
                       </span>
-                    )}
-                    {hasData && isTestMode && (
+                    ) : hasData && isTestMode ? (
                       <span className="text-[11px] text-muted-foreground mt-0.5">$--</span>
-                    )}
-                    {!hasData && inMonth && (
+                    ) : inMonth ? (
                       <span className="text-[10px] text-muted-foreground/50 mt-0.5">--</span>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
@@ -327,7 +432,9 @@ export function PnLCalendar({ bookings, expenses, teamPaysByBooking }: PnLCalend
                   )}
                 >
                   <span className="text-sm font-medium">{format(monthDate, 'MMM')}</span>
-                  {!isTestMode ? (
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-12 mt-1" />
+                  ) : !isTestMode ? (
                     <span className={cn(
                       'text-sm font-bold mt-1',
                       getValueColor(value, hasData)
