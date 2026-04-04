@@ -378,7 +378,7 @@ export default function ReportsPage() {
                       }}
                       formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
                     />
-                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => v > 0 ? `$${(v/1000).toFixed(1)}k` : '', fontSize: 11, fill: 'hsl(var(--foreground))' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

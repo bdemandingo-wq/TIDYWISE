@@ -376,7 +376,7 @@ export function PnLCalendar() {
                   <div
                     key={day.toISOString()}
                     className={cn(
-                      'relative flex flex-col items-center justify-center rounded-md min-h-[52px] sm:min-h-[64px] border transition-colors',
+                      'relative flex flex-col items-center justify-center rounded-md min-h-[52px] sm:min-h-[64px] border transition-colors cursor-pointer active:scale-95',
                       !inMonth && 'opacity-30',
                       today && 'ring-1 ring-primary',
                       getCellBg(dayValue, hasData)
