@@ -844,7 +844,7 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   // RENDER: Conversation Row
   // ═══════════════════════════════════════════════════
-  const renderConversationRow = (conv: Conversation) => {
+  const renderConversationRow = (conv: Conversation, listIndex?: number) => {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
     const hasMessages = !!conv.last_message_preview;
