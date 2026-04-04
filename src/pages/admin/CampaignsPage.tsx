@@ -911,6 +911,19 @@ export default function CampaignsPage() {
                     <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
                   </p>
                 )}
+                {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {campaignForm.excludeAlreadyReceived && (
+                      <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
+                    )}
+                    {campaignForm.excludeRecentDays > 0 && (
+                      <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
+                    )}
+                    {campaignForm.onlyAfterDate && (
+                      <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Preview audience */}
@@ -920,18 +933,37 @@ export default function CampaignsPage() {
               </Button>
 
               {testResult && (
-                <div className="bg-muted rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">
-                    Found <strong>{testResult.contactable}</strong> recipients to contact
-                  </p>
+                <div className="bg-muted rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <p className="text-sm font-medium">
+                      ✅ {testResult.contactable} clients match this audience
+                    </p>
+                  </div>
+                  {(testResult.excludedCount || 0) > 0 && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <UserX className="w-3 h-3" /> {testResult.excludedCount} excluded by filters
+                    </p>
+                  )}
                   {testResult.customers && testResult.customers.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {testResult.customers.map((c: any, i: number) => (
-                        <div key={c.id} className="flex items-center justify-between text-sm p-2 bg-background rounded border">
-                          <span className="font-medium">{c.first_name} {c.last_name}</span>
-                          <span className="text-xs text-muted-foreground">{c.phone || c.email || "No contact"}</span>
-                        </div>
-                      ))}
+                    <div className="max-h-60 overflow-y-auto space-y-1">
+                      {testResult.customers.map((c: any) => {
+                        const isExcluded = c.already_received || c.recently_contacted;
+                        return (
+                          <div key={c.id} className={cn("flex items-center justify-between text-sm p-2 rounded border", isExcluded ? "bg-muted/50 opacity-60" : "bg-background")}>
+                            <span className="font-medium">{c.first_name} {c.last_name}</span>
+                            <div className="flex items-center gap-2">
+                              {c.already_received && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">Already received</Badge>
+                              )}
+                              {c.recently_contacted && !c.already_received && (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">Recently contacted</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">{c.phone || c.email || "No contact"}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
