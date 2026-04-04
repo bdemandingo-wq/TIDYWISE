@@ -593,6 +593,9 @@ export default function PaymentIntegrationPage() {
                               Stripe Dashboard → API Keys
                             </a>
                           </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Use the Secret key only — management keys (mk_...) and publishable keys (pk_...) will be rejected.
+                          </p>
                         </div>
                         <div>
                           <Label>Publishable Key (optional)</Label>
