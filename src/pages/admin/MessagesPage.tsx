@@ -708,7 +708,7 @@ export default function MessagesPage() {
       { key: 'all', label: 'All' },
       { key: 'clients', label: 'Clients' },
       { key: 'cleaners', label: 'Cleaners' },
-      ...(isMobile ? [{ key: 'unread' as ConversationTab, label: 'Unread' }] : []),
+      { key: 'unread', label: 'Unread' },
     ];
     return (
       <div className="flex gap-2 px-4 py-2">
