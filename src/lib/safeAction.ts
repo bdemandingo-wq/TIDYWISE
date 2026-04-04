@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { logError, parseEdgeFunctionError, ErrorLevel } from './errorHandling';
+import { logError, parseEdgeFunctionErrorDetailed, type ErrorLevel, type ParsedError } from './errorHandling';
 
 /**
  * Options for safe action execution
@@ -29,17 +29,43 @@ export type SafeActionResult<T> =
   | { success: false; error: string; rawError?: Error };
 
 /**
+ * Show an actionable error toast with optional fix-it navigation
+ */
+function showErrorToast(parsed: ParsedError, prefix?: string) {
+  const icon = parsed.severity === 'config' ? '⚠️' : '❌';
+  const fullMessage = prefix ? `${prefix}: ${parsed.message}` : parsed.message;
+
+  if (parsed.fixRoute) {
+    toast.error(`${icon} ${fullMessage}`, {
+      duration: 6000,
+      action: {
+        label: parsed.fixLabel || 'Fix it →',
+        onClick: () => {
+          window.location.href = parsed.fixRoute!;
+        },
+      },
+      style: parsed.severity === 'config'
+        ? { borderColor: 'hsl(30 80% 50%)', background: 'hsl(30 80% 97%)' }
+        : undefined,
+    });
+  } else {
+    toast.error(`${icon} ${fullMessage}`, {
+      duration: 6000,
+      action: {
+        label: 'Get Help →',
+        onClick: () => {
+          window.location.href = '/dashboard/help';
+        },
+      },
+      style: parsed.severity === 'config'
+        ? { borderColor: 'hsl(30 80% 50%)', background: 'hsl(30 80% 97%)' }
+        : undefined,
+    });
+  }
+}
+
+/**
  * Wraps any async action in standardized try/catch with logging and user-friendly error handling.
- * Use this for all user actions like form submissions, API calls, button clicks, etc.
- * 
- * @example
- * const result = await safeAction(
- *   () => supabase.from('bookings').insert(data),
- *   { source: 'CreateBooking', successMessage: 'Booking created!' }
- * );
- * if (result.success) {
- *   // Handle success
- * }
  */
 export async function safeAction<T>(
   action: () => Promise<T>,
@@ -48,9 +74,9 @@ export async function safeAction<T>(
   const {
     source,
     successMessage,
-    errorMessagePrefix = 'Error',
+    errorMessagePrefix,
     showSuccessToast = true,
-    showErrorToast = true,
+    showErrorToast: shouldShowErrorToast = true,
     onError,
     onSuccess,
   } = options;
@@ -67,8 +93,8 @@ export async function safeAction<T>(
     return { success: true, data: result };
   } catch (error) {
     const rawError = error instanceof Error ? error : new Error(String(error));
-    const userMessage = parseEdgeFunctionError(rawError);
-    const fullMessage = errorMessagePrefix ? `${errorMessagePrefix}: ${userMessage}` : userMessage;
+    const parsed = parseEdgeFunctionErrorDetailed(rawError);
+    const fullMessage = errorMessagePrefix ? `${errorMessagePrefix}: ${parsed.message}` : parsed.message;
     
     // Log to system_logs
     await logError({
@@ -76,18 +102,18 @@ export async function safeAction<T>(
       source,
       message: rawError.message,
       details: {
-        userMessage,
+        userMessage: parsed.message,
         errorName: rawError.name,
+        severity: parsed.severity,
+        fixRoute: parsed.fixRoute,
       },
       stack_trace: rawError.stack,
     });
     
-    // Show toast if enabled
-    if (showErrorToast) {
-      toast.error(fullMessage);
+    if (shouldShowErrorToast) {
+      showErrorToast(parsed, errorMessagePrefix);
     }
     
-    // Call custom error handler
     onError?.(rawError);
     
     return { success: false, error: fullMessage, rawError };
@@ -95,7 +121,8 @@ export async function safeAction<T>(
 }
 
 /**
- * Specialized version for Edge Function calls
+ * Specialized version for Edge Function calls.
+ * Extracts nested error messages from response body before throwing.
  */
 export async function safeEdgeFunctionCall<T>(
   functionName: string,
@@ -111,6 +138,29 @@ export async function safeEdgeFunctionCall<T>(
       });
       
       if (error) {
+        // Try to extract the real error message from the response body
+        const context = (error as any)?.context;
+        if (context && typeof context.json === 'function') {
+          try {
+            const responseBody = await context.json();
+            if (responseBody?.error) {
+              throw new Error(
+                typeof responseBody.error === 'string'
+                  ? responseBody.error
+                  : JSON.stringify(responseBody.error)
+              );
+            }
+            if (responseBody?.message) {
+              throw new Error(responseBody.message);
+            }
+          } catch (parseErr) {
+            // If parseErr is our re-thrown error, propagate it
+            if (parseErr instanceof Error && parseErr !== error) {
+              throw parseErr;
+            }
+          }
+        }
+        
         throw error;
       }
       
@@ -148,12 +198,6 @@ export async function safeDatabaseAction<T>(
 
 /**
  * HOC-style wrapper for event handlers
- * Use this to wrap onClick, onSubmit, etc.
- * 
- * @example
- * <Button onClick={withSafeAction(handleSubmit, { source: 'SubmitForm' })}>
- *   Submit
- * </Button>
  */
 export function withSafeAction<Args extends unknown[], T>(
   handler: (...args: Args) => Promise<T>,
