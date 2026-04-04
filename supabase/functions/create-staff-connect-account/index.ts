@@ -132,12 +132,13 @@ serve(async (req: Request) => {
     }
 
     // Create an account link for onboarding
-    const baseReturnUrl = returnUrl || req.headers.get("origin") || "https://jointidywise.com";
+    // ALWAYS use production URL for Stripe redirects to avoid preview URL issues
+    const baseReturnUrl = "https://jointidywise.com";
 
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${baseReturnUrl}/staff?payout=refresh`,
-      return_url: `${baseReturnUrl}/staff?payout=success`,
+      refresh_url: `${baseReturnUrl}/staff?tab=payouts`,
+      return_url: `${baseReturnUrl}/staff?tab=payouts&setup=complete`,
       type: "account_onboarding",
     });
 
