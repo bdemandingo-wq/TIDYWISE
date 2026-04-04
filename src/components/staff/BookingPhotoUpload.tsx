@@ -117,7 +117,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
         .from('booking-photos')
         .upload(filePath, selectedFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(uploadError.message);
 
       setUploadProgress(95);
 
@@ -130,9 +130,9 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
           photo_url: filePath,
           photo_type: photoType,
           media_type: mediaMode,
-        } as any);
+        });
 
-      if (dbError) throw dbError;
+      if (dbError) throw new Error(dbError.message);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
