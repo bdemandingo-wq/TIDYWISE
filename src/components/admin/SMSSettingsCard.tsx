@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, ExternalLink, CheckCircle2, Save, Loader2, Eye, EyeOff, Send, Clock } from 'lucide-react';
+import { MessageSquare, ExternalLink, CheckCircle2, Save, Loader2, Eye, EyeOff, Send, Clock, ArrowRight } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
