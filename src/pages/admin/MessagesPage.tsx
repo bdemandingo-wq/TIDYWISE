@@ -810,7 +810,7 @@ export default function MessagesPage() {
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
         </div>
-      </div>
+      </button>
     );
 
     return rowContent;
