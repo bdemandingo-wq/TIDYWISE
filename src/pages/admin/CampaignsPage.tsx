@@ -910,7 +910,7 @@ export default function CampaignsPage() {
               {(campaignForm.channel === "sms" || campaignForm.channel === "both") && campaignForm.smsBody && (
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">SMS Preview</Label>
-                  <div className="bg-muted rounded-2xl p-4 max-w-[280px]">
+                  <div className="bg-muted rounded-2xl p-4 max-w-full sm:max-w-[280px]">
                     <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm whitespace-pre-wrap">
                       {campaignForm.smsBody
                         .replace(/\{first_name\}/g, "Sarah")

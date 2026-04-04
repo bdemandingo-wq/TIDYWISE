@@ -522,7 +522,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                     {otherItems.length > 0 && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">📝 Other</p>
-                        <div className="flex gap-2 overflow-x-auto">
+                        <div className="grid grid-cols-2 sm:flex gap-2 overflow-x-auto">
                           {otherItems.map((item) => (
                             <MediaThumbnail key={item.id} item={item} onClick={() => setPreviewItem({ url: item.photo_url, type: item.media_type || 'photo' })} />
                           ))}
