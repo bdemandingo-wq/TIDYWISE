@@ -94,6 +94,17 @@ interface BookingFormState {
   appliedDiscount: AppliedDiscount | null;
 }
 
+interface SavedLocation {
+  id: string;
+  name: string;
+  address: string | null;
+  apt_suite: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  is_primary: boolean | null;
+}
+
 interface BookingFormContextType extends BookingFormState {
   // Editing context
   editingBookingId: string | null;
