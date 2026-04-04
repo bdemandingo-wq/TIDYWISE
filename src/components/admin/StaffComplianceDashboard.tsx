@@ -53,7 +53,6 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
       const signableDocs = signableDocsResult.data || [];
 
       const totalSignable = signableDocs.length;
-      const totalSignable = signableDocs.length;
       const signableIds = signableDocs.map(d => d.id);
 
       return staffList.map((staff): StaffCompliance => {
