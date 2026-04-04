@@ -501,7 +501,11 @@ export default function PaymentIntegrationPage() {
                 {/* Quick Charge Button */}
                 <Button
                   className="w-full gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
-                  onClick={() => setChargeOpen(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setChargeOpen(true);
+                  }}
                 >
                   <Zap className="h-4 w-4" />
                   Charge a Card
