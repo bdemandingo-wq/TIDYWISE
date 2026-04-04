@@ -270,11 +270,61 @@ Deno.serve(async (req) => {
 
     // ACTION: Save manual API keys (for platform owner's own account)
     if (action === "save_manual_keys") {
-      const { secret_key, publishable_key } = await req.json().catch(() => ({}));
-      
-      // Re-parse since we already consumed the body above — use the outer parsed values
-      // Actually the body was already parsed at line 31, so we need to get these from the initial parse
-      // Let me fix: add these fields to the destructure at the top
+      if (!secret_key) {
+        return new Response(
+          JSON.stringify({ error: "Stripe secret key is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate the key by making a test API call
+      try {
+        const testStripe = new Stripe(secret_key, { apiVersion: "2023-10-16" });
+        const account = await testStripe.accounts.retrieve("self");
+
+        // Save to org_stripe_settings
+        const { error: upsertError } = await supabase
+          .from("org_stripe_settings")
+          .upsert({
+            organization_id,
+            stripe_secret_key: secret_key,
+            stripe_publishable_key: publishable_key || null,
+            stripe_user_email: account.email || null,
+            stripe_display_name: account.business_profile?.name || account.settings?.dashboard?.display_name || null,
+            stripe_payouts_enabled: account.payouts_enabled ?? true,
+            stripe_default_currency: account.default_currency || "usd",
+            is_connected: true,
+            connected_at: new Date().toISOString(),
+            stripe_account_id: null,
+            stripe_access_token: null,
+          }, { onConflict: "organization_id" });
+
+        if (upsertError) {
+          console.error("[stripe-connect-oauth] Manual keys upsert error:", upsertError);
+          return new Response(
+            JSON.stringify({ error: "Failed to save keys" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            connected: true,
+            legacy: true,
+            email: account.email,
+            display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+            payouts_enabled: account.payouts_enabled,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (stripeErr) {
+        console.error("[stripe-connect-oauth] Invalid Stripe key:", stripeErr);
+        return new Response(
+          JSON.stringify({ error: "Invalid Stripe secret key. Please check and try again." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     return new Response(
