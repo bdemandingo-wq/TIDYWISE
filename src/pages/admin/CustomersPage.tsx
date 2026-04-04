@@ -520,7 +520,9 @@ export default function CustomersPage() {
                           onClick={() => {
                             cancelLongPress();
                             if (batchMode) { hapticImpact('light'); toggleSelect(customer.id); return; }
-                            setExpandedId(prev => prev === customer.id ? null : customer.id);
+                            hapticImpact('light');
+                            setSelectedCustomer(customer);
+                            setMobileProfileOpen(true);
                           }}
                         >
                           <div className="flex items-start gap-3">
