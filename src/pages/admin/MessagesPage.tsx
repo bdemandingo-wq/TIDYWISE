@@ -483,7 +483,46 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   const renderPinnedRow = () => {
     if (pinnedConversations.length === 0) return null;
-    return (
+    return isMobile ? (
+      // iOS-style grid layout for mobile (3 per row)
+      <div className="px-4 pt-3 pb-2">
+        <div className="grid grid-cols-3 gap-y-4 gap-x-2">
+          {pinnedConversations.map(conv => (
+            <button
+              key={conv.id}
+              onClick={() => handleSelectConversation(conv)}
+              className="flex flex-col items-center gap-1.5 group relative"
+            >
+              <div className="relative">
+                <Avatar className="h-[72px] w-[72px] ring-2 ring-transparent group-active:ring-muted/60 transition-all">
+                  <AvatarFallback className={cn(
+                    "text-xl font-semibold",
+                    conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
+                  )}>
+                    {conv.conversation_type === 'cleaner'
+                      ? <HardHat className="h-7 w-7" />
+                      : getInitials(conv.customer_name, conv.customer_phone)}
+                  </AvatarFallback>
+                </Avatar>
+                {conv.unread_count > 0 && (
+                  <span className="absolute top-0 right-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#007AFF] ring-2 ring-background" />
+                )}
+                {/* Last message bubble preview */}
+                {conv.last_message_preview && (
+                  <div className="absolute -top-2 -right-1 max-w-[100px] bg-muted border border-border/50 rounded-lg px-2 py-0.5 shadow-sm pointer-events-none">
+                    <p className="text-[10px] text-foreground truncate leading-tight">{conv.last_message_preview.slice(0, 20)}</p>
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-foreground truncate w-full text-center leading-tight">
+                {conv.customer_name?.split(' ')[0] || conv.customer_phone.slice(-4)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : (
+      // Horizontal scroll for desktop
       <div className="px-3 pt-3 pb-1">
         <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
           {pinnedConversations.map(conv => (
@@ -566,10 +605,14 @@ export default function MessagesPage() {
             selectedConversation?.id === conv.id && "bg-muted/50"
           )}
         >
-          <Avatar className="h-12 w-12 shrink-0">
+          {/* Unread blue dot (iOS style) */}
+          {isMobile && isUnread && (
+            <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF] shrink-0" />
+          )}
+          <Avatar className={cn("shrink-0", isMobile ? "h-[50px] w-[50px]" : "h-12 w-12")}>
             <AvatarFallback className={cn(
               "text-sm font-semibold",
-              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#007AFF]/10 text-[#007AFF]"
+              conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
             )}>
               {conv.conversation_type === 'cleaner'
                 ? <HardHat className="h-5 w-5" />
@@ -578,25 +621,32 @@ export default function MessagesPage() {
           </Avatar>
           <div className="flex-1 min-w-0 text-left">
             <div className="flex items-center justify-between gap-2">
-              <span className={cn("text-[15px] truncate", isUnread ? "font-semibold text-foreground" : "font-normal text-foreground")}>
+              <span className={cn("text-[15px] truncate", isUnread ? "font-bold text-foreground" : "font-normal text-foreground")}>
                 {conv.customer_name || conv.customer_phone}
               </span>
-              <span className={cn("text-xs shrink-0", isUnread ? "text-[#007AFF] font-medium" : "text-muted-foreground")}>
-                {formatConversationTime(conv.last_message_at)}
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className={cn("text-xs", isUnread ? "text-foreground" : "text-muted-foreground")}>
+                  {formatConversationTime(conv.last_message_at)}
+                </span>
+                {isMobile && (
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/50 rotate-180" />
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2 mt-0.5">
               <p className={cn("text-sm truncate flex-1", isUnread ? "font-medium text-foreground" : "text-muted-foreground")}>
                 {conv.last_message_preview || 'No messages yet'}
               </p>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
-                {isUnread && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
-                    {conv.unread_count}
-                  </span>
-                )}
-              </div>
+              {!isMobile && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isPinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+                  {isUnread && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#007AFF] text-white text-[11px] font-bold px-1.5">
+                      {conv.unread_count}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </button>
@@ -617,9 +667,13 @@ export default function MessagesPage() {
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-8 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
+            className="pl-10 pr-10 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
           />
-          {searchingContent && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          {searchingContent ? (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : isMobile ? (
+            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          ) : null}
         </div>
       </div>
 
