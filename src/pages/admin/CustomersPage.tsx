@@ -97,6 +97,7 @@ export default function CustomersPage() {
   const isMobile = useIsMobile();
   const [batchMode, setBatchMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const customersQueryKey = useMemo(() => ['customers', organization?.id], [organization?.id]);
