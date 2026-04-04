@@ -182,8 +182,36 @@ export default function PaymentIntegrationPage() {
     return err?.message || "Failed to save API keys";
   };
 
+  const validateManualStripeKeys = () => {
+    const secret = manualSecretKey.trim();
+    const publishable = manualPublishableKey.trim();
+
+    if (!secret) return "Stripe secret key is required.";
+    if (secret.startsWith("mk_")) {
+      return "Management keys (mk_...) won't work here. Use your Stripe secret key (sk_live_... or sk_test_...) instead.";
+    }
+    if (secret.startsWith("pk_")) {
+      return "You entered a publishable key in the secret key field. Please paste your Stripe secret key (sk_live_... or sk_test_...).";
+    }
+    if (!secret.startsWith("sk_live_") && !secret.startsWith("sk_test_") && !secret.startsWith("rk_live_") && !secret.startsWith("rk_test_")) {
+      return "Secret key must start with sk_live_, sk_test_, rk_live_, or rk_test_.";
+    }
+    if (publishable && !publishable.startsWith("pk_live_") && !publishable.startsWith("pk_test_")) {
+      return "Publishable key must start with pk_live_ or pk_test_.";
+    }
+
+    return null;
+  };
+
   const handleSaveManualKeys = async () => {
     if (!organization?.id || !manualSecretKey.trim()) return;
+
+    const validationError = validateManualStripeKeys();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     setSavingKeys(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
