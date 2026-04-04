@@ -104,7 +104,7 @@ export default function LeadsPage() {
   // Auto-run smart sync when leads load
   const [hasSynced, setHasSynced] = useState(false);
 
-  // Fetch abandoned booking link tracking data
+  // Fetch abandoned booking link tracking data — only actual booking links
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
     queryKey: ['abandoned-booking-links', organization?.id],
     queryFn: async () => {
@@ -113,6 +113,7 @@ export default function LeadsPage() {
         .from('booking_link_tracking' as any)
         .select('*')
         .eq('organization_id', organization.id)
+        .eq('link_type', 'booking')
         .in('status', ['opened', 'sent', 'abandoned'])
         .is('booking_completed_at', null)
         .order('created_at', { ascending: false });
