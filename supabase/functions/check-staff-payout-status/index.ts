@@ -75,23 +75,20 @@ serve(async (req: Request) => {
       });
     }
 
-    // Fetch latest status from Stripe - fall back to platform key for Connect operations
+    // Fetch latest status from Stripe - STRICT ISOLATION: org key only
     const stripeResult = await getOrgStripeClient(organizationId);
-    let stripe;
-    if (stripeResult.success && stripeResult.stripe) {
-      stripe = stripeResult.stripe;
-    } else {
-      const platformKey = Deno.env.get("STRIPE_SECRET_KEY");
-      if (!platformKey) {
-        return new Response(JSON.stringify({ error: "Stripe not configured" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const StripeLib = (await import("https://esm.sh/stripe@18.5.0")).default;
-      stripe = new StripeLib(platformKey, { apiVersion: "2025-08-27.basil" });
-      console.log("[check-staff-payout-status] Using platform Stripe key as fallback for org:", organizationId);
+    if (!stripeResult.success || !stripeResult.stripe) {
+      return new Response(JSON.stringify({ 
+        error: "org_stripe_not_connected",
+        status: "org_not_connected",
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    const stripe = stripeResult.stripe;
 
     const account = await stripe.accounts.retrieve(payoutAccount.stripe_account_id);
 
