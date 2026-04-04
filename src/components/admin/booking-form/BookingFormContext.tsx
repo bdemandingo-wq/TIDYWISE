@@ -202,25 +202,6 @@ export function BookingFormProvider({
   const { organizationId } = useOrgId();
   const { session } = useAuth();
   const orgTimezone = useOrgTimezone();
-
-  // Fetch saved locations for the selected customer
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const selectedCustomer = (customers as any[]).find((c: any) => c.id === selectedCustomerId);
-
-  const { data: customerLocations = [] } = useQuery({
-    queryKey: ['customer-locations', selectedCustomerId],
-    queryFn: async () => {
-      if (!selectedCustomerId) return [];
-      const { data, error } = await supabase
-        .from('locations')
-        .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
-        .eq('customer_id', selectedCustomerId)
-        .order('is_primary', { ascending: false });
-      if (error) return [];
-      return (data || []) as SavedLocation[];
-    },
-    enabled: !!selectedCustomerId,
-  });
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
