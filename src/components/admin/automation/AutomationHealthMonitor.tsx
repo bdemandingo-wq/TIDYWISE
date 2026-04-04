@@ -306,6 +306,7 @@ export function AutomationHealthMonitor() {
         .from('booking_link_tracking' as any)
         .select('campaign_id, link_opened_at, booking_completed_at')
         .eq('organization_id', organization.id)
+        .eq('link_type', 'booking')
         .not('campaign_id', 'is', null);
       if (tErr || !trackingData) return null;
 
