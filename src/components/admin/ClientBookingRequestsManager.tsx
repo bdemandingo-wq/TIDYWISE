@@ -8,7 +8,8 @@ import {
   Clock, 
   MessageSquare,
   Loader2,
-  Filter
+  Filter,
+  MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 
