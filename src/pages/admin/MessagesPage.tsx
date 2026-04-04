@@ -1287,7 +1287,7 @@ export default function MessagesPage() {
           </div>
         ) : (
           <div className="flex border rounded-xl overflow-hidden bg-background relative h-[calc(100vh-12rem)]">
-            <div className="w-80 border-r flex flex-col shrink-0">
+            <div className="w-[35%] min-w-[280px] max-w-[400px] border-r flex flex-col shrink-0">
               {renderConversationList()}
             </div>
             <div className="flex-1 flex flex-col">
