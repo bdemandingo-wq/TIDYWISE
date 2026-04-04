@@ -53,7 +53,7 @@ export function PnLCalendar() {
   const { isTestMode } = useTestMode();
   const { organization } = useOrganization();
   const organizationId = organization?.id;
-  const { timezone } = useOrgTimezone();
+  const timezone = useOrgTimezone();
 
   // Determine the query date range based on view mode
   const queryRange = useMemo(() => {
