@@ -147,20 +147,22 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Conversion stats
+  // Conversion stats + per-campaign sent counts
   const { data: conversionStats } = useQuery({
     queryKey: ["campaign-conversions", orgId],
     queryFn: async () => {
       if (!orgId) return null;
       const { data: sends } = await supabase
         .from("campaign_sms_sends")
-        .select("id, converted, campaign_type")
+        .select("id, converted, campaign_type, campaign_id")
         .eq("organization_id", orgId);
-      if (!sends) return { total: 0, converted: 0, rate: 0 };
+      if (!sends) return { total: 0, converted: 0, rate: 0, byCampaign: {} as Record<string, number> };
       const total = sends.length;
       const converted = sends.filter(s => s.converted).length;
       const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-      return { total, converted, rate };
+      const byCampaign: Record<string, number> = {};
+      sends.forEach(s => { if (s.campaign_id) { byCampaign[s.campaign_id] = (byCampaign[s.campaign_id] || 0) + 1; } });
+      return { total, converted, rate, byCampaign };
     },
     enabled: !!orgId,
   });
@@ -296,6 +298,8 @@ export default function CampaignsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
       toast({ title: "Campaign sent!", description: `Sent ${data.sentCount || 0} messages` });
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
@@ -356,9 +360,24 @@ export default function CampaignsPage() {
 
   const sendCampaignNow = useMutation({
     mutationFn: async () => {
+      if (!orgId) throw new Error("Organization not found");
+      // First, save the campaign so we have a campaign_id for tracking
+      const { data: newCampaign, error: insertError } = await supabase.from("automated_campaigns").insert({
+        organization_id: orgId,
+        name: campaignForm.name || `Campaign ${format(new Date(), "MMM d, yyyy")}`,
+        type: "custom",
+        days_inactive: campaignForm.days_inactive,
+        subject: campaignForm.channel === "email" || campaignForm.channel === "both"
+          ? campaignForm.emailSubject : "SMS Campaign",
+        body: campaignForm.channel === "sms" ? campaignForm.smsBody : campaignForm.emailBody,
+        is_active: true,
+      }).select("id").single();
+      if (insertError) throw insertError;
+
       const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
         body: {
           organizationId: orgId,
+          campaignId: newCampaign.id,
           daysInactive: campaignForm.days_inactive,
           message: campaignForm.smsBody,
           targetAudience: campaignForm.audience,
@@ -373,6 +392,8 @@ export default function CampaignsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
       toast({ title: "Sent!", description: `${data.sentCount || 0} messages delivered` });
       setCreateOpen(false);
       resetForm();
@@ -531,8 +552,10 @@ export default function CampaignsPage() {
                       <TableHead>Campaign</TableHead>
                       <TableHead className="w-[80px]">Channel</TableHead>
                       <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="w-[70px]">Sent</TableHead>
+                      <TableHead className="w-[70px]">Opened</TableHead>
                       <TableHead className="w-[80px]">Abandoned</TableHead>
-                      <TableHead className="w-[120px]">Audience</TableHead>
+                      <TableHead className="w-[70px]">Conv %</TableHead>
                       <TableHead className="w-[120px]">Date</TableHead>
                       <TableHead className="w-[120px] text-right">Actions</TableHead>
                     </TableRow>
@@ -554,6 +577,19 @@ export default function CampaignsPage() {
                         <TableCell>{getStatusBadge(campaign)}</TableCell>
                         <TableCell>
                           {(() => {
+                            const sentCount = conversionStats?.byCampaign?.[campaign.id] || 0;
+                            const trackStats = campaignTrackingStats[campaign.id];
+                            return <span className="text-sm font-medium">{sentCount || trackStats?.sent || 0}</span>;
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const stats = campaignTrackingStats[campaign.id];
+                            return <span className="text-sm">{stats?.opened || 0}</span>;
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
                             const stats = campaignTrackingStats[campaign.id];
                             if (!stats || stats.sent === 0) return <span className="text-muted-foreground text-sm">—</span>;
                             return (
@@ -564,7 +600,14 @@ export default function CampaignsPage() {
                           })()}
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm capitalize">{campaign.type?.replace(/_/g, " ")}</span>
+                          {(() => {
+                            const sentCount = conversionStats?.byCampaign?.[campaign.id] || 0;
+                            const trackStats = campaignTrackingStats[campaign.id];
+                            const total = sentCount || trackStats?.sent || 0;
+                            const completed = trackStats?.completed || 0;
+                            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                            return <span className="text-sm">{rate}%</span>;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">
@@ -868,11 +911,12 @@ export default function CampaignsPage() {
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">SMS Preview</Label>
                   <div className="bg-muted rounded-2xl p-4 max-w-[280px]">
-                    <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm">
+                    <div className="bg-primary text-primary-foreground rounded-2xl rounded-bl-md px-4 py-3 text-sm whitespace-pre-wrap">
                       {campaignForm.smsBody
                         .replace(/\{first_name\}/g, "Sarah")
                         .replace(/\{last_name\}/g, "Johnson")
                         .replace(/\{company_name\}/g, businessSettings?.company_name || "Your Company")
+                        .replace(/\{booking_link\}/g, "jointidywise.com/book/…?ref=abc123")
                         .replace(/\{booking_date\}/g, "Jan 15")
                         .replace(/\{service_type\}/g, "Deep Clean")}
                     </div>
