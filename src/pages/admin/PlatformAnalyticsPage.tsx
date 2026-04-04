@@ -40,7 +40,7 @@ interface Subscriber {
 interface PlatformAnalytics {
   signups: {
     total: number;
-    recent: { id: string; email: string; created_at: string }[];
+    recent: { id: string; email: string; created_at: string; org_name?: string | null; org_id?: string | null; role?: string | null }[];
     last30Days: number;
   };
   organizations: {
