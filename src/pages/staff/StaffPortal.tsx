@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera } from 'lucide-react';
+import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
@@ -876,7 +876,11 @@ export default function StaffPortal() {
               {staffInfo?.id && staffInfo?.organization_id ? (
                 <StaffPayoutSetup staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
               ) : (
-                <TabFallback />
+                <div className="text-center py-8 space-y-2">
+                  <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground">Unable to load payout setup.</p>
+                  <p className="text-sm text-muted-foreground">Please sign out and sign back in.</p>
+                </div>
               )}
             </Suspense>
           </TabsContent>

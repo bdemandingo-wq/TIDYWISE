@@ -8,15 +8,39 @@ import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, Shie
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useSearchParams } from 'react-router-dom';
 
 interface StaffPayoutSetupProps {
   staffId: string;
   organizationId: string;
 }
 
+const PRODUCTION_BASE = 'https://jointidywise.com';
+
+function mapErrorMessage(raw: string): string {
+  if (raw.includes('org_stripe_not_connected') || raw.includes('Stripe not configured')) {
+    return "Your employer needs to connect their payment account first. Please ask them to go to Settings → Payment Setup.";
+  }
+  if (raw.includes('Staff record not found') || raw.includes('access denied')) {
+    return "Account verification failed. Please sign out and sign back in.";
+  }
+  if (raw.includes('Organization mismatch')) {
+    return "There's an account configuration issue. Please contact your employer.";
+  }
+  if (raw.includes('No onboarding link')) {
+    return "Payout setup failed to start. Please try again or contact support.";
+  }
+  return raw;
+}
+
 export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupProps) {
   const queryClient = useQueryClient();
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [onboardingUrl, setOnboardingUrl] = useState<string | null>(null);
+  const [isCheckingReturn, setIsCheckingReturn] = useState(false);
+
+  // Detect return from Stripe onboarding via URL params
+  const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
 
   // Instant load from local DB cache (no edge function, no Stripe API)
   const { data: cachedStatus, isLoading: isCacheLoading } = useQuery({
@@ -42,14 +66,13 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   });
 
   // Background refresh from Stripe (runs after initial render, not blocking)
-  const { data: liveStatus } = useQuery({
+  const { data: liveStatus, isLoading: isLiveLoading } = useQuery({
     queryKey: ['staff-payout-status', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('check-staff-payout-status', {
         body: { staffId, organizationId },
       });
       if (error) throw error;
-      // Also update the cached query so UI stays in sync
       queryClient.setQueryData(['staff-payout-cached', staffId, organizationId], data);
       return data as {
         status: string;
@@ -62,11 +85,31 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     },
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
-    // Only start after cache has loaded to avoid blocking render
     enabled: !isCacheLoading,
   });
 
-  // Use cached data first, override with live data when available
+  // If returning from Stripe setup, show checking state and force refresh
+  useEffect(() => {
+    if (setupComplete) {
+      setIsCheckingReturn(true);
+      // Force immediate refresh
+      queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['staff-payout-cached', staffId, organizationId] });
+    }
+  }, [setupComplete, staffId, organizationId, queryClient]);
+
+  // Clear checking state once live data arrives
+  useEffect(() => {
+    if (isCheckingReturn && liveStatus && !isLiveLoading) {
+      setIsCheckingReturn(false);
+      if (liveStatus.payoutsEnabled) {
+        toast.success('Payout setup complete! Your account is active.');
+      } else if (liveStatus.detailsSubmitted) {
+        toast.info('Details submitted. Verification is in progress.');
+      }
+    }
+  }, [isCheckingReturn, liveStatus, isLiveLoading]);
+
   const payoutStatus = liveStatus || cachedStatus;
   const isLoading = isCacheLoading;
 
@@ -99,33 +142,21 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     enabled: payoutStatus?.status === 'active',
   });
 
-  // Detect return from Stripe onboarding via window focus
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isRedirecting) {
-        setIsRedirecting(false);
-        refetch();
-        queryClient.invalidateQueries({ queryKey: ['onboarding-payout', staffId, organizationId] });
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isRedirecting, refetch, queryClient, staffId, organizationId]);
-
   // Start or resume Stripe Connect onboarding
-  // IMPORTANT: Open window synchronously on click to avoid Safari popup blocker
   const startOnboarding = useMutation({
-    mutationFn: async (newWindow: Window | null) => {
+    mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke('create-staff-connect-account', {
         body: {
           staffId,
           organizationId,
-          returnUrl: window.location.origin,
+          returnUrl: PRODUCTION_BASE,
         },
       });
 
       if (error) {
-        const edgeError = (data as { error?: string } | null)?.error;
+        // Try to extract error from response body
+        const edgeError = (data as { error?: string; message?: string } | null)?.error 
+          || (data as { error?: string; message?: string } | null)?.message;
         throw new Error(edgeError || error.message || 'Failed to start payout setup');
       }
 
@@ -133,35 +164,24 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         throw new Error('No onboarding link was returned. Please try again.');
       }
 
-      return { ...(data as { url: string; accountId: string }), newWindow };
+      return data as { url: string; accountId: string };
     },
     onSuccess: (data) => {
-      if (data.url) {
-        setIsRedirecting(true);
-        if (data.newWindow && !data.newWindow.closed) {
-          data.newWindow.location.href = data.url;
-        } else {
-          // Fallback: redirect current page
-          window.location.href = data.url;
-        }
-        toast.success('Opening payout setup. Complete the form and return here.');
-      }
+      // Store URL in state so user can tap a direct button
+      setOnboardingUrl(data.url);
+      toast.success('Setup link ready! Tap the button below to continue.');
     },
-    onError: (error: any, newWindow) => {
-      // Close the blank tab if the call failed
-      if (newWindow && !newWindow.closed) {
-        newWindow.close();
-      }
-      if (!error.message?.includes('org_stripe_not_connected')) {
-        toast.error(error.message || 'Failed to start payout setup');
-      }
+    onError: (error: Error) => {
+      const msg = mapErrorMessage(error.message);
+      toast.error(msg, { duration: 6000 });
     },
   });
 
-  const handleStartOnboarding = () => {
-    // Open blank window synchronously (within click handler) so Safari allows it
-    const newWindow = window.open('about:blank', '_blank');
-    startOnboarding.mutate(newWindow);
+  // Direct redirect handler — called from a real user tap
+  const handleOpenStripeSetup = () => {
+    if (onboardingUrl) {
+      window.location.href = onboardingUrl;
+    }
   };
 
   const getStatusBadge = () => {
@@ -179,11 +199,14 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isCheckingReturn) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-8">
+        <CardContent className="flex flex-col items-center justify-center py-8 gap-2">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          {isCheckingReturn && (
+            <p className="text-sm text-muted-foreground">Checking your setup status...</p>
+          )}
         </CardContent>
       </Card>
     );
@@ -259,16 +282,27 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={handleStartOnboarding}
-                disabled={startOnboarding.isPending || isRedirecting}
+                onClick={() => startOnboarding.mutate()}
+                disabled={startOnboarding.isPending}
               >
-                {startOnboarding.isPending || isRedirecting ? (
+                {startOnboarding.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <ExternalLink className="w-4 h-4 mr-2" />
                 )}
                 Update Bank Account
               </Button>
+
+              {onboardingUrl && (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleOpenStripeSetup}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open Stripe Setup →
+                </Button>
+              )}
             </>
           ) : isPending ? (
             <>
@@ -300,7 +334,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <div>
                   <p className="font-medium">Payment Account Not Available</p>
                   <p className="text-sm text-muted-foreground">
-                    Your employer has not connected their payment account yet. Please contact your employer to set up payments before you can configure payouts.
+                    Your employer hasn't connected their payment account yet. Please ask them to go to Settings → Payment Setup and connect their account before you can set up payouts.
                   </p>
                 </div>
               </div>
@@ -329,26 +363,39 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 </ul>
               </div>
 
-              {isRedirecting && (
-                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-center">
-                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                  Complete the setup in the new tab, then return here. Status will update automatically.
-                </div>
+              {/* Step 1: Generate the setup link */}
+              {!onboardingUrl && (
+                <Button
+                  className="w-full"
+                  onClick={() => startOnboarding.mutate()}
+                  disabled={startOnboarding.isPending}
+                  size="lg"
+                >
+                  {startOnboarding.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Banknote className="w-4 h-4 mr-2" />
+                  )}
+                  {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
+                </Button>
               )}
 
-              <Button
-                className="w-full"
-                onClick={handleStartOnboarding}
-                disabled={startOnboarding.isPending || isRedirecting}
-                size="lg"
-              >
-                {startOnboarding.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Banknote className="w-4 h-4 mr-2" />
-                )}
-                {isOnboarding ? 'Complete Payout Setup' : 'Set Up Payouts'}
-              </Button>
+              {/* Step 2: Show prominent redirect button */}
+              {onboardingUrl && (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-center">
+                    ✅ Setup link is ready! Tap the button below to continue.
+                  </div>
+                  <Button
+                    className="w-full min-h-[52px] text-base font-semibold"
+                    size="lg"
+                    onClick={handleOpenStripeSetup}
+                  >
+                    <ExternalLink className="w-5 h-5 mr-2" />
+                    Open Payout Setup →
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </CardContent>
