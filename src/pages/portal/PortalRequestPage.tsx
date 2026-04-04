@@ -361,7 +361,7 @@ export default function PortalRequestPage() {
                         <span>{getAddressEmoji(loc.name)}</span>
                         <span className="font-medium">{loc.name}</span>
                         <span className="text-muted-foreground">—</span>
-                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                        <span className="text-xs text-muted-foreground truncate max-w-[140px] sm:max-w-[180px]">
                           {formatLocationLine(loc)}
                         </span>
                       </span>
