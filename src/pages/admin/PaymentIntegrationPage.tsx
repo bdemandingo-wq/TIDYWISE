@@ -504,6 +504,70 @@ export default function PaymentIntegrationPage() {
               </div>
             </Card>
 
+            {/* Manual API Key Entry */}
+            <Card className="border-border">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">Use API Keys Instead</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      If you're the platform owner or Connect isn't working, you can enter your Stripe API keys directly.
+                    </p>
+                    {!showManualKeys ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowManualKeys(true)}
+                        className="mt-3 gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Enter API Keys
+                      </Button>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        <div>
+                          <Label>Secret Key <span className="text-destructive">*</span></Label>
+                          <Input
+                            type="password"
+                            placeholder="sk_live_..."
+                            value={manualSecretKey}
+                            onChange={(e) => setManualSecretKey(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Found in your{" "}
+                            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                              Stripe Dashboard → API Keys
+                            </a>
+                          </p>
+                        </div>
+                        <div>
+                          <Label>Publishable Key (optional)</Label>
+                          <Input
+                            placeholder="pk_live_..."
+                            value={manualPublishableKey}
+                            onChange={(e) => setManualPublishableKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            onClick={handleSaveManualKeys}
+                            disabled={savingKeys || !manualSecretKey.trim()}
+                            className="gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
+                          >
+                            {savingKeys ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                            {savingKeys ? "Validating..." : "Save & Connect"}
+                          </Button>
+                          <Button variant="ghost" onClick={() => { setShowManualKeys(false); setManualSecretKey(""); setManualPublishableKey(""); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+
             {/* How it works */}
             <Card>
               <CardHeader>
