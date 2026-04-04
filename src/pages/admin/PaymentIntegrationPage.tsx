@@ -146,6 +146,20 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  // Show OAuth connecting state
+  if (oauthMessage) {
+    return (
+      <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
+        <SEOHead title="Payment Integration | TidyWise" description="Connect and manage payment processing" noIndex />
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-[#635BFF]" />
+          <p className="text-lg font-semibold text-foreground">{oauthMessage}</p>
+          <p className="text-sm text-muted-foreground">Please wait while we verify your account...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   if (isLoading) {
     return (
       <AdminLayout title="Payment Integration" subtitle="Connect your Stripe account to accept payments">
