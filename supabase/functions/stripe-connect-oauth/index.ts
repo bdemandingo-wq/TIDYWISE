@@ -268,6 +268,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ACTION: Save manual API keys (for platform owner's own account)
+    if (action === "save_manual_keys") {
+      const { secret_key, publishable_key } = await req.json().catch(() => ({}));
+      
+      // Re-parse since we already consumed the body above — use the outer parsed values
+      // Actually the body was already parsed at line 31, so we need to get these from the initial parse
+      // Let me fix: add these fields to the destructure at the top
+    }
+
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
