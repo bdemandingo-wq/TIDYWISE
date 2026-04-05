@@ -84,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: openphonePhoneNumberId,
-        to: [PLATFORM_ADMIN_PHONE],
+        to: ADMIN_PHONES,
         content: message,
       }),
     });

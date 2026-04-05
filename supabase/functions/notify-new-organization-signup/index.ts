@@ -139,11 +139,25 @@ serve(async (req: Request) => {
     }
 
     // Log to platform_notifications
-    await supabase.from("platform_notifications").insert({
-      org_id,
-      notification_type: "new_org",
-      sent_to: EMMANUEL_PHONE,
-      message_preview: `${org_name || "Unnamed"} signed up`,
+    for (const phone of ADMIN_PHONES) {
+      await supabase.from("platform_notifications").insert({
+        org_id,
+        notification_type: "new_org",
+        sent_to: phone,
+        message_preview: `${org_name || "Unnamed"} signed up`,
+        metadata: {
+          org_name: org_name || "Unnamed",
+          owner_name: ownerName,
+          owner_email: ownerEmail,
+          owner_phone: ownerPhone,
+          plan,
+          status,
+          sms_sent: smsSent,
+          total_orgs: totalOrgs,
+          month_orgs: monthOrgs,
+        },
+      });
+    }
       metadata: {
         org_name: org_name || "Unnamed",
         owner_name: ownerName,

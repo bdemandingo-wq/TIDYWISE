@@ -80,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: extractedPhoneNumberId,
-        to: [PLATFORM_ADMIN_PHONE],
+        to: ADMIN_PHONES,
         content: message,
       }),
     });

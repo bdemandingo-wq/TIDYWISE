@@ -58,7 +58,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             content: smsMessage,
-            to: [EMMANUEL_PHONE],
+            to: ADMIN_PHONES,
             from: smsSettings.openphone_phone_number_id,
           }),
         });
