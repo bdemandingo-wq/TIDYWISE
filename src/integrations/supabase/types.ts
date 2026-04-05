@@ -3847,6 +3847,47 @@ export type Database = {
           },
         ]
       }
+      org_feature_flags: {
+        Row: {
+          ai_assistant_enabled: boolean | null
+          daily_reports_enabled: boolean | null
+          demo_requests_enabled: boolean | null
+          id: string
+          integration_hub_enabled: boolean | null
+          openphone_calls_enabled: boolean | null
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_assistant_enabled?: boolean | null
+          daily_reports_enabled?: boolean | null
+          demo_requests_enabled?: boolean | null
+          id?: string
+          integration_hub_enabled?: boolean | null
+          openphone_calls_enabled?: boolean | null
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_assistant_enabled?: boolean | null
+          daily_reports_enabled?: boolean | null
+          demo_requests_enabled?: boolean | null
+          id?: string
+          integration_hub_enabled?: boolean | null
+          openphone_calls_enabled?: boolean | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_feature_flags_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_memberships: {
         Row: {
           created_at: string
