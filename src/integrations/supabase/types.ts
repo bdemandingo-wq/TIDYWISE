@@ -2499,6 +2499,51 @@ export type Database = {
           },
         ]
       }
+      demo_requests: {
+        Row: {
+          biggest_challenge: string | null
+          business_name: string
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string
+          preferred_days: string[] | null
+          preferred_time: string | null
+          status: string | null
+          team_size: string | null
+        }
+        Insert: {
+          biggest_challenge?: string | null
+          business_name: string
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone: string
+          preferred_days?: string[] | null
+          preferred_time?: string | null
+          status?: string | null
+          team_size?: string | null
+        }
+        Update: {
+          biggest_challenge?: string | null
+          business_name?: string
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          preferred_days?: string[] | null
+          preferred_time?: string | null
+          status?: string | null
+          team_size?: string | null
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           amount: number
