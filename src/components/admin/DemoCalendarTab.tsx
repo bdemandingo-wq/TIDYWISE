@@ -205,6 +205,7 @@ export function DemoCalendarTab() {
           body: {
             to: activeBooking.phone,
             message: `Hi ${firstName}, Emmanuel here from TidyWise. Unfortunately I need to cancel our demo scheduled for ${dateDisplay} at ${timeDisplay} EST.\n\nI sincerely apologize for the inconvenience! Please rebook at a time that works for you:\n→ jointidywise.com/demo\n\nOr reply to this message and we'll find a time together.\n\n— Emmanuel, TidyWise 🙏`,
+            organizationId: 'e95b92d0-7099-408e-a773-e4407b34f8b4',
           },
         });
       } catch {}
