@@ -106,6 +106,7 @@ export default function MessagesPage() {
   const [newName, setNewName] = useState('');
   const [conversationType, setConversationType] = useState<'client' | 'cleaner'>('client');
   const [activeTab, setActiveTab] = useState<ConversationTab>('all');
+  const [pageMode, setPageMode] = useState<PageMode>('messages');
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [contacts, setContacts] = useState<Contact[]>([]);
