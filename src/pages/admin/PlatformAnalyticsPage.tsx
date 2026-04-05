@@ -705,6 +705,7 @@ export default function PlatformAnalyticsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          <DemoRequestsTab />
         </Tabs>
       </div>
 
