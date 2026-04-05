@@ -1,4 +1,7 @@
 import { useState, lazy, Suspense, useEffect, useRef } from "react";
+import emmanuelPhoto from "@/assets/emmanuel-headshot.jpg";
+
+const DemoBookingFormLazy = lazy(() => import("@/components/landing/DemoBookingForm").then(m => ({ default: m.DemoBookingForm })));
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -249,6 +252,7 @@ export default function LandingPage() {
               <Button variant="ghost" onClick={() => navigate("/pricing")} className="text-sm">Pricing</Button>
               <Button variant="ghost" onClick={() => navigate("/portal")} className="text-sm">Client Portal</Button>
               <Button variant="ghost" onClick={() => navigate("/staff/login")} className="text-sm">Staff Portal</Button>
+              <Button variant="ghost" onClick={() => navigate("/demo")} className="text-sm font-medium text-primary">Schedule Demo</Button>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
               <Button variant="premium" onClick={() => navigate("/signup")} className="text-sm">
                 Start Free Trial
@@ -301,14 +305,24 @@ export default function LandingPage() {
                      >
                        Blog
                      </a>
-                     <a
-                       href="#testimonials"
-                       onClick={closeMobileMenu}
-                       className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-                     >
-                       Testimonials
-                      </a>
-                      <Button
+                      <a
+                        href="#testimonials"
+                        onClick={closeMobileMenu}
+                        className="px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                      >
+                        Testimonials
+                       </a>
+                       <Button
+                         variant="ghost"
+                         className="justify-start text-primary font-medium"
+                         onClick={() => {
+                           closeMobileMenu();
+                           navigate("/demo");
+                         }}
+                       >
+                         Schedule Demo
+                       </Button>
+                       <Button
                         variant="ghost"
                         className="justify-start"
                         onClick={() => {
@@ -411,16 +425,11 @@ export default function LandingPage() {
                 <Button 
                   size="xl" 
                   variant="outline"
-                  onClick={() => {
-                    const demoSection = document.getElementById('demo');
-                    if (demoSection) {
-                      demoSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
+                  onClick={() => navigate("/demo")}
                   className="gap-2"
                 >
-                  <Play className="h-5 w-5" />
-                  Watch Demo
+                  <Calendar className="h-5 w-5" />
+                  Book a Demo
                 </Button>
               </div>
               
@@ -598,6 +607,55 @@ export default function LandingPage() {
               ))}
             </div>
           </Card>
+        </div>
+      </section>
+
+      {/* Schedule Demo Section */}
+      <section id="schedule-demo" className="py-16 md:py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
+            {/* Left — Value Props */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
+                <Calendar className="h-4 w-4" />
+                Free 20-Minute Demo
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight mb-4">
+                See TidyWise{" "}
+                <span className="text-gradient-hero">in Action</span>
+              </h2>
+              <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
+                Book a free 20-minute call with Emmanuel. We'll walk through the entire platform live and answer every question you have.
+              </p>
+              <div className="space-y-3 mb-8">
+                {[
+                  "100% free — no credit card",
+                  "Live walkthrough of your workflow",
+                  "See how to automate your bookings",
+                  "Get set up same day if you're ready",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+                    <span className="text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
+                <img src={emmanuelPhoto} alt="Emmanuel Forkuoh" className="w-16 h-16 rounded-full object-cover" width={64} height={64} loading="lazy" />
+                <div>
+                  <p className="font-semibold text-foreground">Emmanuel Forkuoh</p>
+                  <p className="text-sm text-muted-foreground">Founder of TidyWise</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">You'll meet with Emmanuel personally</p>
+                </div>
+              </div>
+            </div>
+            {/* Right — Form */}
+            <div>
+              <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded-xl" />}>
+                <DemoBookingFormLazy />
+              </Suspense>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -110,6 +110,7 @@ const BookingSoftware = lazy(() => import("./pages/features/BookingSoftware"));
 const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const DemoPage = lazy(() => import("./pages/DemoPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
 const RedirectPage = lazy(() => import("./pages/RedirectPage"));
@@ -280,6 +281,7 @@ const App = () => (
                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<PricingPage />} />
+                     <Route path="/demo" element={<DemoPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
                     <Route path="/blog" element={<BlogIndex />} />

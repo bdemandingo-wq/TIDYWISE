@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
-  ArrowUpRight, ArrowDownRight, Clock, Timer, Mail
+  ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
+  CalendarCheck, Phone, Briefcase
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
+import { DemoRequestsTab } from '@/components/admin/DemoRequestsTab';
 
 interface Subscriber {
   id: string;
@@ -326,22 +330,30 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
-              Subscribers ({analytics?.subscribers?.total || 0})
+              <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
+              <span className="sm:hidden">{analytics?.subscribers?.total || 0}</span>
             </TabsTrigger>
             <TabsTrigger value="signups" className="flex items-center gap-2">
               <UserPlus className="w-4 h-4" />
-              App Signups ({analytics?.signups.total || 0})
+              <span className="hidden sm:inline">Signups ({analytics?.signups.total || 0})</span>
+              <span className="sm:hidden">{analytics?.signups.total || 0}</span>
             </TabsTrigger>
             <TabsTrigger value="organizations" className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
-              Organizations ({analytics?.organizations.total || 0})
+              <span className="hidden sm:inline">Orgs ({analytics?.organizations.total || 0})</span>
+              <span className="sm:hidden">{analytics?.organizations.total || 0}</span>
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="w-4 h-4" />
-              Activity
+              <span className="hidden sm:inline">Activity</span>
+            </TabsTrigger>
+            <TabsTrigger value="demos" className="flex items-center gap-2">
+              <CalendarCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Demo Requests</span>
+              <span className="sm:hidden">Demos</span>
             </TabsTrigger>
           </TabsList>
 
@@ -694,6 +706,7 @@ export default function PlatformAnalyticsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          <DemoRequestsTab />
         </Tabs>
       </div>
 
