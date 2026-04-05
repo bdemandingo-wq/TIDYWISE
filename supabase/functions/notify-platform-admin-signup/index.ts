@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
       `Time: ${timestamp}\n\n` +
       `New potential customer just signed up for TidyWise! 🎉`;
 
-    console.log(`[notify-platform-admin-signup] Sending notification to platform admin: ${PLATFORM_ADMIN_PHONE}`);
+    console.log(`[notify-platform-admin-signup] Sending notification to platform admins: ${ADMIN_PHONES.join(', ')}`);
 
     // Send SMS via OpenPhone API with proper Bearer token
     const response = await fetch("https://api.openphone.com/v1/messages", {
