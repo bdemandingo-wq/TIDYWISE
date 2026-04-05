@@ -765,6 +765,11 @@ export function AIAnalysisCenter() {
             </Button>
           </div>
         </TabsContent>
+
+        {/* ─── Tab: Call Stats ─── */}
+        <TabsContent value="calls">
+          <CallStatsContent orgId={orgId} cardStyle={cardStyle} />
+        </TabsContent>
       </Tabs>
     </div>
   );
