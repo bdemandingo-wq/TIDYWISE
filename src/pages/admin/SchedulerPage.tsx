@@ -3,7 +3,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SchedulerCalendar } from '@/components/admin/SchedulerCalendar';
 import { useStaff, useBookings } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
-import { Filter, Download, Loader2, Users } from 'lucide-react';
+import { Filter, Download, Loader2, Users, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
