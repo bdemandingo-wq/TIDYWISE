@@ -66,6 +66,7 @@ interface Contact {
 }
 
 type ConversationTab = 'all' | 'clients' | 'cleaners' | 'unread';
+type PageMode = 'messages' | 'calls';
 
 // ─── Helpers ────────────────────────────────────────
 const normalizePhone = (phone: string): string => {
