@@ -1,0 +1,1 @@
+CREATE POLICY "Authenticated users can delete demo bookings" ON public.demo_bookings FOR DELETE TO authenticated USING (true);
