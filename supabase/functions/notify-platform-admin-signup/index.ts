@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Platform admin phone number
-const PLATFORM_ADMIN_PHONE = "+15615718725";
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
 interface NotifySignupRequest {
   email: string;
@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
       `Time: ${timestamp}\n\n` +
       `New potential customer just signed up for TidyWise! 🎉`;
 
-    console.log(`[notify-platform-admin-signup] Sending notification to platform admin: ${PLATFORM_ADMIN_PHONE}`);
+    console.log(`[notify-platform-admin-signup] Sending notification to platform admins: ${ADMIN_PHONES.join(', ')}`);
 
     // Send SMS via OpenPhone API with proper Bearer token
     const response = await fetch("https://api.openphone.com/v1/messages", {
@@ -80,7 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: extractedPhoneNumberId,
-        to: [PLATFORM_ADMIN_PHONE],
+        to: ADMIN_PHONES,
         content: message,
       }),
     });

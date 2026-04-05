@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMMANUEL_PHONE = "+15615718725";
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -118,7 +118,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             from: openphonePhoneNumberId,
-            to: [EMMANUEL_PHONE],
+            to: ADMIN_PHONES,
             content: message,
           }),
         });
@@ -139,23 +139,25 @@ serve(async (req: Request) => {
     }
 
     // Log to platform_notifications
-    await supabase.from("platform_notifications").insert({
-      org_id,
-      notification_type: "new_org",
-      sent_to: EMMANUEL_PHONE,
-      message_preview: `${org_name || "Unnamed"} signed up`,
-      metadata: {
-        org_name: org_name || "Unnamed",
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-        owner_phone: ownerPhone,
-        plan,
-        status,
-        sms_sent: smsSent,
-        total_orgs: totalOrgs,
-        month_orgs: monthOrgs,
-      },
-    });
+    for (const phone of ADMIN_PHONES) {
+      await supabase.from("platform_notifications").insert({
+        org_id,
+        notification_type: "new_org",
+        sent_to: phone,
+        message_preview: `${org_name || "Unnamed"} signed up`,
+        metadata: {
+          org_name: org_name || "Unnamed",
+          owner_name: ownerName,
+          owner_email: ownerEmail,
+          owner_phone: ownerPhone,
+          plan,
+          status,
+          sms_sent: smsSent,
+          total_orgs: totalOrgs,
+          month_orgs: monthOrgs,
+        },
+      });
+    }
 
     return new Response(
       JSON.stringify({ success: true, sms_sent: smsSent }),
