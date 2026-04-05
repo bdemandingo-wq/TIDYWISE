@@ -1,4 +1,7 @@
 import { useState, lazy, Suspense, useEffect, useRef } from "react";
+import emmanuelPhoto from "@/assets/emmanuel-headshot.jpg";
+
+const DemoBookingFormLazy = lazy(() => import("@/components/landing/DemoBookingForm").then(m => ({ default: m.DemoBookingForm })));
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
