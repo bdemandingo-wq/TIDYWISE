@@ -242,6 +242,7 @@ export function DemoCalendarTab() {
         body: {
           to: activeBooking.phone,
           message: `Hi ${firstName}! Emmanuel from TidyWise.\n\nI need to reschedule our demo from ${oldDate} at ${oldTime} to:\n\n📆 ${newDate}\n⏰ ${newTime} EST\n\nDoes this work for you? Reply YES to confirm or NO and I'll find another time.\n\n— Emmanuel (561) 571-8725`,
+          organizationId: 'e95b92d0-7099-408e-a773-e4407b34f8b4',
         },
       });
     } catch {}
