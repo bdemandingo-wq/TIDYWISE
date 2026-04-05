@@ -459,7 +459,18 @@ export function DemoCalendarTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete ({selectedIds.size})
+            </Button>
+          )}
           <Button
             size="sm"
             variant={viewMode === 'table' ? 'default' : 'outline'}
