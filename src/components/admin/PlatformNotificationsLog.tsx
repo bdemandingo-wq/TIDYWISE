@@ -96,7 +96,7 @@ export function PlatformNotificationsLog() {
                             {meta.owner_email && <p>Owner: {meta.owner_email}</p>}
                             {meta.plan && <p>Plan: {meta.plan}</p>}
                             {meta.sms_sent !== undefined && (
-                              <p>SMS: {meta.sms_sent === "true" || meta.sms_sent === true ? "✅ Sent" : "❌ Failed"}</p>
+                              <p>SMS: {String(meta.sms_sent) === "true" ? "✅ Sent" : "❌ Failed"}</p>
                             )}
                           </div>
                         )}
