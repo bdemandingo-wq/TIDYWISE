@@ -1669,6 +1669,9 @@ export default function BookingsPage() {
             items={[
               { label: 'Export as CSV', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('csv') },
               { label: 'Export as JSON', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('json') },
+              { label: 'Export as Excel', icon: <FileSpreadsheet className="w-4 h-4" />, onClick: () => handleExport('xlsx') },
+              { label: 'Export as PDF', icon: <FileText className="w-4 h-4" />, onClick: () => handleExport('pdf') },
+              { label: 'Print View', icon: <Printer className="w-4 h-4" />, onClick: () => handleExport('print') },
             ]}
           />
           {selectedBookings.size > 0 && (
