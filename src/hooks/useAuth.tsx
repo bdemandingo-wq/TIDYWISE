@@ -61,7 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       setSubscription(data);
-      setShowSubscriptionDialog(!data?.subscribed);
+      // Only OPEN the dialog if not subscribed; never auto-close it
+      // (the user must explicitly dismiss via "Continue in Limited Mode" or subscribe)
+      if (!data?.subscribed) {
+        setShowSubscriptionDialog(true);
+      }
     } catch (error: any) {
       const status = error?.context?.status;
       const msg = String(error?.message ?? "");

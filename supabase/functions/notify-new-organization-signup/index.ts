@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +7,7 @@ const corsHeaders = {
 
 const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,6 +20,7 @@ serve(async (req: Request) => {
     const { org_id, org_name, created_at } = await req.json();
 
     if (!org_id) {
+      console.error("[notify-new-org] Missing org_id in payload");
       return new Response(
         JSON.stringify({ success: false, error: "Missing org_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -102,44 +102,59 @@ serve(async (req: Request) => {
       `This Month: ${monthOrgs || 0}\n\n` +
       `→ jointidywise.com/platform-analytics`;
 
-    // Send SMS via OpenPhone
-    const openphoneApiKey = Deno.env.get("OPENPHONE_API_KEY");
-    const openphonePhoneNumberId = Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+    // Use PLATFORM OpenPhone credentials (separate from org-level credentials)
+    const platformApiKey = Deno.env.get("PLATFORM_OPENPHONE_API_KEY");
+    const platformPhoneId = Deno.env.get("PLATFORM_OPENPHONE_PHONE_ID");
+
+    // Fallback to legacy secret names if platform-specific ones aren't set
+    const openphoneApiKey = platformApiKey || Deno.env.get("OPENPHONE_API_KEY");
+    const openphonePhoneNumberId = platformPhoneId || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+
+    console.log(`[notify-new-org] Platform API key present: ${!!platformApiKey}, fallback key present: ${!!openphoneApiKey}`);
+    console.log(`[notify-new-org] Platform phone ID present: ${!!platformPhoneId}, fallback ID present: ${!!openphonePhoneNumberId}`);
 
     let smsSent = false;
+    const smsResults: { phone: string; success: boolean; error?: string }[] = [];
 
     if (openphoneApiKey && openphonePhoneNumberId) {
-      try {
-        const smsRes = await fetch("https://api.openphone.com/v1/messages", {
-          method: "POST",
-          headers: {
-            Authorization: openphoneApiKey.startsWith("Bearer ") ? openphoneApiKey : `Bearer ${openphoneApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: openphonePhoneNumberId,
-            to: ADMIN_PHONES,
-            content: message,
-          }),
-        });
+      // Send individually to each admin phone to ensure delivery
+      for (const phone of ADMIN_PHONES) {
+        try {
+          const smsRes = await fetch("https://api.openphone.com/v1/messages", {
+            method: "POST",
+            headers: {
+              Authorization: openphoneApiKey.startsWith("Bearer ") ? openphoneApiKey : `Bearer ${openphoneApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: openphonePhoneNumberId,
+              to: [phone],
+              content: message,
+            }),
+          });
 
-        if (smsRes.ok) {
-          smsSent = true;
-          const smsResult = await smsRes.json();
-          console.log("[notify-new-org] SMS sent:", smsResult?.data?.id);
-        } else {
-          const errText = await smsRes.text();
-          console.error("[notify-new-org] SMS failed:", smsRes.status, errText);
+          if (smsRes.ok) {
+            smsSent = true;
+            const smsResult = await smsRes.json();
+            console.log(`[notify-new-org] SMS sent to ${phone}:`, smsResult?.data?.id);
+            smsResults.push({ phone, success: true });
+          } else {
+            const errText = await smsRes.text();
+            console.error(`[notify-new-org] SMS failed to ${phone}:`, smsRes.status, errText);
+            smsResults.push({ phone, success: false, error: errText });
+          }
+        } catch (smsErr) {
+          console.error(`[notify-new-org] SMS error to ${phone}:`, smsErr);
+          smsResults.push({ phone, success: false, error: String(smsErr) });
         }
-      } catch (smsErr) {
-        console.error("[notify-new-org] SMS error:", smsErr);
       }
     } else {
-      console.log("[notify-new-org] OpenPhone not configured");
+      console.error("[notify-new-org] OpenPhone not configured - missing PLATFORM_OPENPHONE_API_KEY or PLATFORM_OPENPHONE_PHONE_ID");
     }
 
-    // Log to platform_notifications
+    // Log to platform_notifications for each admin phone
     for (const phone of ADMIN_PHONES) {
+      const result = smsResults.find(r => r.phone === phone);
       await supabase.from("platform_notifications").insert({
         org_id,
         notification_type: "new_org",
@@ -152,7 +167,8 @@ serve(async (req: Request) => {
           owner_phone: ownerPhone,
           plan,
           status,
-          sms_sent: smsSent,
+          sms_sent: result?.success ?? false,
+          sms_error: result?.error || null,
           total_orgs: totalOrgs,
           month_orgs: monthOrgs,
         },
@@ -160,7 +176,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, sms_sent: smsSent }),
+      JSON.stringify({ success: true, sms_sent: smsSent, sms_results: smsResults }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
