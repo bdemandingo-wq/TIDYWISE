@@ -412,16 +412,11 @@ export default function LandingPage() {
                 <Button 
                   size="xl" 
                   variant="outline"
-                  onClick={() => {
-                    const demoSection = document.getElementById('demo');
-                    if (demoSection) {
-                      demoSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
+                  onClick={() => navigate("/demo")}
                   className="gap-2"
                 >
-                  <Play className="h-5 w-5" />
-                  Watch Demo
+                  <Calendar className="h-5 w-5" />
+                  Book a Demo
                 </Button>
               </div>
               
