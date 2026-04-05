@@ -6512,30 +6512,18 @@ export type Database = {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
       }
-      submit_client_booking_request:
-        | {
-            Args: {
-              p_client_user_id: string
-              p_customer_id: string
-              p_notes?: string
-              p_organization_id: string
-              p_requested_date: string
-              p_service_id?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_client_user_id: string
-              p_customer_id: string
-              p_location_id?: string
-              p_notes?: string
-              p_organization_id: string
-              p_requested_date: string
-              p_service_id?: string
-            }
-            Returns: string
-          }
+      submit_client_booking_request: {
+        Args: {
+          p_client_user_id: string
+          p_customer_id: string
+          p_location_id?: string
+          p_notes?: string
+          p_organization_id: string
+          p_requested_date: string
+          p_service_id?: string
+        }
+        Returns: string
+      }
       update_client_portal_last_login: {
         Args: { p_user_id: string }
         Returns: undefined
