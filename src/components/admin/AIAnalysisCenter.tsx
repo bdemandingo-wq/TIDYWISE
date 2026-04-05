@@ -469,6 +469,7 @@ export function AIAnalysisCenter() {
             { value: 'leads', label: 'Leads', icon: Flame },
             { value: 'retention', label: 'Retention', icon: Users },
             { value: 'scheduling', label: 'Scheduling', icon: Calendar },
+            { value: 'calls', label: 'Call Stats', icon: Phone },
             { value: 'playbook', label: 'Growth Playbook', icon: BookOpen },
             { value: 'ask-ai', label: 'Ask AI', icon: MessageSquare },
           ].map(tab => (
