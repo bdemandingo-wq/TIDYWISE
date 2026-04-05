@@ -710,7 +710,7 @@ export default function PlatformAnalyticsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          <DemoRequestsTab />
+          <DemoCalendarTab />
           <PlatformNotificationsLog />
         </Tabs>
       </div>
