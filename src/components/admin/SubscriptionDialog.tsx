@@ -6,14 +6,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
-  CheckCircle2, 
-  ArrowRight,
   Loader2,
   Sparkles,
-  X,
-  ExternalLink
+  Rocket,
+  Shield,
+  CheckCircle2,
+  ExternalLink,
+  X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -49,9 +49,6 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
   useEffect(() => {
     if (open) {
       checkSubscription();
-      // Check every 5 seconds while dialog is open
-      const interval = setInterval(checkSubscription, 5000);
-      return () => clearInterval(interval);
     }
   }, [open]);
 
@@ -63,6 +60,9 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
       if (data?.url) {
         window.open(data.url, "_blank");
         toast.info("Complete your subscription in the new tab. This dialog will close automatically once confirmed.");
+        // Start polling only after user initiates subscription
+        const interval = setInterval(checkSubscription, 5000);
+        setTimeout(() => clearInterval(interval), 300000); // stop after 5 min
       }
     } catch (error: any) {
       console.error("Error creating subscription:", error);
@@ -72,10 +72,14 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
     }
   };
 
+  const handleContinueLimited = () => {
+    onOpenChange(false);
+  };
+
   if (checking) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -84,22 +88,20 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
     );
   }
 
-  // On native platforms, show a simple redirect message instead of payment UI
+  // On native platforms, show a simple redirect message
   if (!canShowPaymentFlows) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               Subscription Required
             </DialogTitle>
           </DialogHeader>
-
           <div className="space-y-6 py-4">
             <p className="text-muted-foreground text-center">
               Manage your subscription at jointidywise.lovable.app to unlock all features.
             </p>
-
             <div className="space-y-3">
               <Button 
                 onClick={() => {
@@ -113,12 +115,11 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
                 <ExternalLink className="h-4 w-4" />
                 Manage Subscription on Web
               </Button>
-              
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="w-full text-muted-foreground"
-                onClick={() => onOpenChange(false)}
+                onClick={handleContinueLimited}
               >
                 <X className="mr-2 h-4 w-4" />
                 Continue in Limited Mode
@@ -131,75 +132,72 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="sm:max-w-lg" 
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Start Your Free Trial
+          <DialogTitle className="flex items-center justify-center gap-2 text-2xl">
+            Welcome to TidyWise! 🎉
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
-            <div>
-              <h3 className="font-semibold text-foreground">TIDYWISE Pro</h3>
-              <p className="text-sm text-muted-foreground">Complete cleaning business management</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-foreground">$50</p>
-              <p className="text-xs text-muted-foreground">/month</p>
-            </div>
-          </div>
+          <p className="text-center text-muted-foreground">
+            Choose how to get started:
+          </p>
 
-          <div className="bg-success/10 border border-success/20 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-success font-medium">
-              <CheckCircle2 className="h-5 w-5" />
-              2-Month Free Trial
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Start with 60 days free - no payment required during trial
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              "Unlimited bookings",
-              "Team management",
-              "Payment processing",
-              "Automated emails",
-              "Analytics & reports",
-              "Lead management",
-              "Priority support"
-            ].map((feature) => (
-              <div key={feature} className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-                <span className="text-sm text-foreground">{feature}</span>
+          {/* Start Free Trial Option */}
+          <button
+            onClick={handleSubscribe}
+            disabled={checkingOut}
+            className="w-full p-5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left group"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                <Rocket className="h-6 w-6" />
               </div>
-            ))}
-          </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg text-foreground">Start Free Trial</h3>
+                  {checkingOut && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Full access to all features for 60 days — no card required
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {["Unlimited bookings", "Team management", "AI tools", "Analytics"].map((f) => (
+                    <span key={f} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      <CheckCircle2 className="h-3 w-3" /> {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </button>
 
-          <div className="space-y-3">
-            <Button onClick={handleSubscribe} disabled={checkingOut} size="lg" className="w-full">
-              {checkingOut ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Start 2-Month Free Trial <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full text-muted-foreground"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="mr-2 h-4 w-4" />
-              Continue in Limited Mode
-            </Button>
-          </div>
+          {/* Continue in Limited Mode Option */}
+          <button
+            onClick={handleContinueLimited}
+            className="w-full p-5 rounded-xl border-2 border-border hover:border-muted-foreground/30 hover:bg-accent/50 transition-all text-left group"
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 rounded-xl bg-muted text-muted-foreground group-hover:bg-muted/80 transition-colors">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg text-foreground">Continue in Limited Mode</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Basic features, no card required — upgrade anytime
+                </p>
+              </div>
+            </div>
+          </button>
           
           <p className="text-xs text-center text-muted-foreground">
-            Some features will be disabled until you subscribe. Cancel anytime.
+            You can change your plan anytime from Settings.
           </p>
         </div>
       </DialogContent>

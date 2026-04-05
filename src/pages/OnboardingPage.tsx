@@ -312,7 +312,7 @@ export default function OnboardingPage() {
 
       toast.success('Business created successfully with your services!');
       await refetch();
-      navigate('/dashboard/help');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Error creating organization:', error);
       toast.error(error.message || 'Failed to create business');
