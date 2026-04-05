@@ -77,6 +77,9 @@ import {
   UserPlus,
   ChevronDown,
   CheckCircle,
+  FileSpreadsheet,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
