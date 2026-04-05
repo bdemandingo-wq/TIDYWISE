@@ -77,6 +77,9 @@ import {
   UserPlus,
   ChevronDown,
   CheckCircle,
+  FileSpreadsheet,
+  FileText,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
@@ -1325,41 +1328,84 @@ export default function BookingsPage() {
     }
   };
 
-  const handleExport = async (type: 'csv' | 'json') => {
+  const getExportRows = () => {
+    const headers = ['Booking #', 'Customer', 'Service', 'Date', 'Time', 'Staff', 'Status', 'Payment', 'Amount'];
+    const rows = filteredBookings.map(b => [
+      String(b.booking_number),
+      b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
+      b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
+      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
+      format(new Date(b.scheduled_at), 'h:mm a'),
+      b.staff?.name || 'Unassigned',
+      statusLabels[b.status] || b.status,
+      getPaymentStatusInfo(b).label,
+      `$${b.total_amount}`
+    ]);
+    return { headers, rows };
+  };
+
+  const handleExport = async (type: 'csv' | 'json' | 'xlsx' | 'pdf' | 'print') => {
     setExporting(true);
     try {
+      const { headers, rows } = getExportRows();
+      const filename = `bookings-${format(new Date(), 'yyyy-MM-dd')}`;
+
       if (type === 'csv') {
-        const headers = ['Booking #', 'Customer', 'Service', 'Date', 'Time', 'Staff', 'Status', 'Payment', 'Amount'];
-        const rows = filteredBookings.map(b => [
-          b.booking_number,
-          b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
-          b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
-          format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
-          format(new Date(b.scheduled_at), 'h:mm a'),
-          b.staff?.name || 'Unassigned',
-          statusLabels[b.status] || b.status,
-          getPaymentStatusInfo(b).label,
-          `$${b.total_amount}`
-        ]);
-        
-        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `bookings-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        a.download = `${filename}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-      } else {
+      } else if (type === 'json') {
         const blob = new Blob([JSON.stringify(filteredBookings, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `bookings-${format(new Date(), 'yyyy-MM-dd')}.json`;
+        a.download = `${filename}.json`;
         a.click();
         URL.revokeObjectURL(url);
+      } else if (type === 'xlsx') {
+        const XLSX = await import('xlsx');
+        const wsData = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = headers.map(() => ({ wch: 18 }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Bookings');
+        XLSX.writeFile(wb, `${filename}.xlsx`);
+      } else if (type === 'pdf') {
+        const { default: jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
+        const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setFontSize(18);
+        doc.setTextColor(40, 40, 40);
+        doc.text('TidyWise — Bookings Report', 14, 18);
+        doc.setFontSize(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')}  •  ${filteredBookings.length} bookings`, 14, 26);
+        autoTable(doc, {
+          head: [headers],
+          body: rows,
+          startY: 32,
+          theme: 'grid',
+          headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          margin: { left: 14, right: 14 },
+        });
+        doc.save(`${filename}.pdf`);
+      } else if (type === 'print') {
+        const printWin = window.open('', '_blank');
+        if (!printWin) { toast({ title: "Error", description: "Popup blocked — please allow popups", variant: "destructive" }); return; }
+        const tableRows = rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:13px">${c}</td>`).join('')}</tr>`).join('');
+        printWin.document.write(`<!DOCTYPE html><html><head><title>Bookings</title><style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%}th{background:#2563eb;color:#fff;padding:8px 10px;font-size:13px;text-align:left}h1{font-size:20px;margin-bottom:4px}p{color:#888;font-size:13px;margin-bottom:16px}@media print{body{margin:0}}</style></head><body><h1>TidyWise — Bookings Report</h1><p>Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')} • ${filteredBookings.length} bookings</p><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
+        printWin.document.close();
+        printWin.focus();
+        printWin.print();
       }
-      toast({ title: "Export completed", description: `Exported ${filteredBookings.length} bookings` });
+      if (type !== 'print') toast({ title: "Export completed", description: `Exported ${filteredBookings.length} bookings` });
     } catch (error) {
       toast({ title: "Error", description: "Failed to export", variant: "destructive" });
     } finally {
@@ -1623,6 +1669,9 @@ export default function BookingsPage() {
             items={[
               { label: 'Export as CSV', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('csv') },
               { label: 'Export as JSON', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('json') },
+              { label: 'Export as Excel', icon: <FileSpreadsheet className="w-4 h-4" />, onClick: () => handleExport('xlsx') },
+              { label: 'Export as PDF', icon: <FileText className="w-4 h-4" />, onClick: () => handleExport('pdf') },
+              { label: 'Print View', icon: <Printer className="w-4 h-4" />, onClick: () => handleExport('print') },
             ]}
           />
           {selectedBookings.size > 0 && (
