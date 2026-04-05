@@ -2499,6 +2499,87 @@ export type Database = {
           },
         ]
       }
+      demo_blocked_dates: {
+        Row: {
+          blocked_date: string
+          created_at: string | null
+          id: string
+          notes: string | null
+          reason: string | null
+        }
+        Insert: {
+          blocked_date: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+        }
+        Update: {
+          blocked_date?: string
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      demo_bookings: {
+        Row: {
+          biggest_challenge: string | null
+          booked_date: string
+          booked_time: string
+          business_name: string
+          cancellation_reason: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          original_date: string | null
+          original_time: string | null
+          phone: string
+          reschedule_note: string | null
+          status: string | null
+          team_size: string | null
+          timezone: string | null
+        }
+        Insert: {
+          biggest_challenge?: string | null
+          booked_date: string
+          booked_time: string
+          business_name: string
+          cancellation_reason?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          original_date?: string | null
+          original_time?: string | null
+          phone: string
+          reschedule_note?: string | null
+          status?: string | null
+          team_size?: string | null
+          timezone?: string | null
+        }
+        Update: {
+          biggest_challenge?: string | null
+          booked_date?: string
+          booked_time?: string
+          business_name?: string
+          cancellation_reason?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          original_date?: string | null
+          original_time?: string | null
+          phone?: string
+          reschedule_note?: string | null
+          status?: string | null
+          team_size?: string | null
+          timezone?: string | null
+        }
+        Relationships: []
+      }
       demo_requests: {
         Row: {
           biggest_challenge: string | null
