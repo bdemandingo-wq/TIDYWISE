@@ -8,7 +8,7 @@ import {
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase
+  CalendarCheck, Phone, Briefcase, Bell
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
