@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
           const smsRes = await fetch("https://api.openphone.com/v1/messages", {
             method: "POST",
             headers: {
-              Authorization: openphoneApiKey.startsWith("Bearer ") ? openphoneApiKey : `Bearer ${openphoneApiKey}`,
+              Authorization: openphoneApiKey.trim().replace(/^Bearer\s+/i, ''),
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
