@@ -711,6 +711,7 @@ export default function PlatformAnalyticsPage() {
             </Card>
           </TabsContent>
           <DemoRequestsTab />
+          <PlatformNotificationsLog />
         </Tabs>
       </div>
 
