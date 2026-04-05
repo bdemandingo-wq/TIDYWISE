@@ -37,7 +37,7 @@ serve(async (req: Request) => {
     // TidyWise org ID
     const TIDYWISE_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
     // Emmanuel's phone
-    const EMMANUEL_PHONE = "+15615718725";
+    const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
     // 1. Send SMS to Emmanuel via OpenPhone
     const { data: smsSettings } = await supabase

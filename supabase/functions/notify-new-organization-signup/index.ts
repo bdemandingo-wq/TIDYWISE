@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMMANUEL_PHONE = "+15615718725";
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {

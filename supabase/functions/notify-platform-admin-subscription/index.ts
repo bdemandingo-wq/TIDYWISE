@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Platform admin phone number
-const PLATFORM_ADMIN_PHONE = "+15615718725";
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
 interface NotifyAdminRequest {
   organizationId: string;
