@@ -3685,6 +3685,112 @@ export type Database = {
           },
         ]
       }
+      openphone_calls: {
+        Row: {
+          ai_summary: string | null
+          caller_name: string | null
+          caller_phone: string | null
+          created_at: string | null
+          direction: string
+          duration: number | null
+          ended_at: string | null
+          has_recording: boolean | null
+          has_summary: boolean | null
+          has_transcript: boolean | null
+          has_voicemail: boolean | null
+          id: string
+          matched_customer_id: string | null
+          matched_lead_id: string | null
+          openphone_call_id: string
+          organization_id: string
+          phone_number_id: string | null
+          raw_data: Json | null
+          recording_url: string | null
+          started_at: string | null
+          status: string
+          transcript: Json | null
+          updated_at: string | null
+          voicemail_transcript: string | null
+          voicemail_url: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          caller_name?: string | null
+          caller_phone?: string | null
+          created_at?: string | null
+          direction?: string
+          duration?: number | null
+          ended_at?: string | null
+          has_recording?: boolean | null
+          has_summary?: boolean | null
+          has_transcript?: boolean | null
+          has_voicemail?: boolean | null
+          id?: string
+          matched_customer_id?: string | null
+          matched_lead_id?: string | null
+          openphone_call_id: string
+          organization_id: string
+          phone_number_id?: string | null
+          raw_data?: Json | null
+          recording_url?: string | null
+          started_at?: string | null
+          status?: string
+          transcript?: Json | null
+          updated_at?: string | null
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          caller_name?: string | null
+          caller_phone?: string | null
+          created_at?: string | null
+          direction?: string
+          duration?: number | null
+          ended_at?: string | null
+          has_recording?: boolean | null
+          has_summary?: boolean | null
+          has_transcript?: boolean | null
+          has_voicemail?: boolean | null
+          id?: string
+          matched_customer_id?: string | null
+          matched_lead_id?: string | null
+          openphone_call_id?: string
+          organization_id?: string
+          phone_number_id?: string | null
+          raw_data?: Json | null
+          recording_url?: string | null
+          started_at?: string | null
+          status?: string
+          transcript?: Json | null
+          updated_at?: string | null
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "openphone_calls_matched_customer_id_fkey"
+            columns: ["matched_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "openphone_calls_matched_lead_id_fkey"
+            columns: ["matched_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "openphone_calls_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations_tracker: {
         Row: {
           closed_deals: number | null
