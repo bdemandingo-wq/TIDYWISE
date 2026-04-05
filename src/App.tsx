@@ -281,6 +281,7 @@ const App = () => (
                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<PricingPage />} />
+                     <Route path="/demo" element={<DemoPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
                     <Route path="/blog" element={<BlogIndex />} />
