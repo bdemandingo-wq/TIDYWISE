@@ -102,16 +102,19 @@ Deno.serve(async (req: Request) => {
       `This Month: ${monthOrgs || 0}\n\n` +
       `→ jointidywise.com/platform-analytics`;
 
-    // Use PLATFORM OpenPhone credentials (separate from org-level credentials)
-    const platformApiKey = Deno.env.get("PLATFORM_OPENPHONE_API_KEY");
-    const platformPhoneId = Deno.env.get("PLATFORM_OPENPHONE_PHONE_ID");
+    // Use TidyWise org's OpenPhone credentials from organization_sms_settings
+    const TIDYWISE_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
+    const { data: smsSettings } = await supabase
+      .from("organization_sms_settings")
+      .select("openphone_api_key, openphone_phone_number_id")
+      .eq("organization_id", TIDYWISE_ORG_ID)
+      .maybeSingle();
 
-    // Fallback to legacy secret names if platform-specific ones aren't set
-    const openphoneApiKey = platformApiKey || Deno.env.get("OPENPHONE_API_KEY");
-    const openphonePhoneNumberId = platformPhoneId || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+    const openphoneApiKey = smsSettings?.openphone_api_key || Deno.env.get("OPENPHONE_API_KEY");
+    const openphonePhoneNumberId = smsSettings?.openphone_phone_number_id || Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
 
-    console.log(`[notify-new-org] Platform API key present: ${!!platformApiKey}, fallback key present: ${!!openphoneApiKey}`);
-    console.log(`[notify-new-org] Platform phone ID present: ${!!platformPhoneId}, fallback ID present: ${!!openphonePhoneNumberId}`);
+    console.log(`[notify-new-org] API key source: ${smsSettings ? 'org_sms_settings' : 'env'}, present: ${!!openphoneApiKey}`);
+    console.log(`[notify-new-org] Phone ID source: ${smsSettings ? 'org_sms_settings' : 'env'}, present: ${!!openphonePhoneNumberId}`);
 
     let smsSent = false;
     const smsResults: { phone: string; success: boolean; error?: string }[] = [];
@@ -123,7 +126,7 @@ Deno.serve(async (req: Request) => {
           const smsRes = await fetch("https://api.openphone.com/v1/messages", {
             method: "POST",
             headers: {
-              Authorization: openphoneApiKey.startsWith("Bearer ") ? openphoneApiKey : `Bearer ${openphoneApiKey}`,
+              Authorization: openphoneApiKey.trim().replace(/^Bearer\s+/i, ''),
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
