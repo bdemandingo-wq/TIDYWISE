@@ -140,10 +140,10 @@ export function DemoBookingForm() {
   // Fetch booked slots and blocked dates
   useEffect(() => {
     const fetchSlots = async () => {
-      const { data: bookings } = await supabase
+      const { data: bookings } = await (supabase
         .from("demo_bookings" as any)
-        .select("booked_date, booked_time, status")
-        .in("status" as any, ["confirmed", "rescheduled"]);
+        .select("booked_date, booked_time, status") as any)
+        .in("status", ["confirmed", "rescheduled"]);
       
       if (bookings) {
         setBookedSlots(
