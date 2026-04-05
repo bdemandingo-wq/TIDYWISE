@@ -2580,6 +2580,35 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_reminder_log: {
+        Row: {
+          demo_booking_id: string
+          id: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          demo_booking_id: string
+          id?: string
+          reminder_type: string
+          sent_at?: string
+        }
+        Update: {
+          demo_booking_id?: string
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_reminder_log_demo_booking_id_fkey"
+            columns: ["demo_booking_id"]
+            isOneToOne: false
+            referencedRelation: "demo_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demo_requests: {
         Row: {
           biggest_challenge: string | null
