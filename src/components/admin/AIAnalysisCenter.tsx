@@ -10,7 +10,7 @@ import {
   Brain, TrendingUp, AlertTriangle, Flame, Target,
   Send, Sparkles, Calendar, Users, ArrowUpRight,
   RefreshCw, MessageSquare, BarChart3, ShieldAlert,
-  BookOpen, Zap
+  BookOpen, Zap, Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
