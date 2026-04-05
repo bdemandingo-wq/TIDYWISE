@@ -123,6 +123,10 @@ export function DemoCalendarTab() {
   // Detail modal
   const [detailBooking, setDetailBooking] = useState<DemoBooking | null>(null);
 
+  // Bulk select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // Table controls
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
