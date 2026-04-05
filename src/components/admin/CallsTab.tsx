@@ -122,9 +122,16 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
     setSyncing(true);
     hapticImpact('light');
     try {
+      // Add a 15-second timeout to prevent infinite syncing state
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
       const { data, error } = await supabase.functions.invoke('sync-openphone-calls', {
         body: { organizationId, maxResults: 50 },
       });
+
+      clearTimeout(timeout);
+
       if (error) throw error;
       if (data?.error) {
         if (data.code === 'NOT_CONFIGURED') {
@@ -134,26 +141,21 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
         }
         throw new Error(data.error);
       }
-      toast.success(`Synced ${data.synced} calls`);
+      toast.success(`Synced ${data.synced || 0} calls`);
       await fetchCalls();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to sync calls');
+      if (err?.name === 'AbortError') {
+        toast.error('Sync timed out — try again');
+      } else {
+        toast.error(err.message || 'Failed to sync calls');
+      }
     } finally {
       setSyncing(false);
     }
   }, [organizationId, fetchCalls]);
 
   useEffect(() => {
-    fetchCalls().then(() => {
-      // Auto-sync if no calls
-      supabase
-        .from('openphone_calls')
-        .select('id', { count: 'exact', head: true })
-        .eq('organization_id', organizationId)
-        .then(({ count }) => {
-          if (count === 0) syncCalls();
-        });
-    });
+    fetchCalls();
   }, [organizationId]);
 
   const fetchCallDetails = useCallback(async (call: OpenPhoneCall) => {
