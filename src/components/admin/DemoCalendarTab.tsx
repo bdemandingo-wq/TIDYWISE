@@ -361,33 +361,38 @@ export function DemoCalendarTab() {
   const handleReschedule = async () => {
     if (!activeBooking || !rescheduleDate || !rescheduleTime) return;
 
-    await updateBookingMutation.mutateAsync({
-      id: activeBooking.id,
-      updates: {
-        status: 'rescheduled',
-        original_date: activeBooking.booked_date,
-        original_time: activeBooking.booked_time,
-        booked_date: rescheduleDate,
-        booked_time: rescheduleTime + ':00',
-        reschedule_note: 'Rescheduled by admin',
-      },
-    });
-
-    const firstName = activeBooking.full_name.split(' ')[0];
-    const oldDate = format(new Date(activeBooking.booked_date + 'T00:00:00'), 'EEEE, MMMM d');
-    const oldTime = formatTime12h(activeBooking.booked_time.substring(0, 5));
-    const newDate = format(new Date(rescheduleDate + 'T00:00:00'), 'EEEE, MMMM d');
-    const newTime = formatTime12h(rescheduleTime);
-
     try {
-      await sendSms(
-        activeBooking.phone,
-        `Hi ${firstName}! Emmanuel from TidyWise here.\n\nI need to move our demo from ${oldDate} at ${oldTime} to:\n\n📆 ${newDate}\n⏰ ${newTime} EST\n\nReply YES to confirm or NO if that doesn't work and we'll find another time together.\n\n— Emmanuel (561) 571-8725`
-      );
-      toast.success('✅ Client notified via SMS');
+      await updateBookingMutation.mutateAsync({
+        id: activeBooking.id,
+        updates: {
+          status: 'rescheduled',
+          original_date: activeBooking.booked_date,
+          original_time: activeBooking.booked_time,
+          booked_date: rescheduleDate,
+          booked_time: rescheduleTime + ':00',
+          reschedule_note: 'Rescheduled by admin',
+        },
+      });
+
+      const firstName = activeBooking.full_name.split(' ')[0];
+      const oldDate = format(new Date(activeBooking.booked_date + 'T00:00:00'), 'EEEE, MMMM d');
+      const oldTime = formatTime12h(activeBooking.booked_time.substring(0, 5));
+      const newDate = format(new Date(rescheduleDate + 'T00:00:00'), 'EEEE, MMMM d');
+      const newTime = formatTime12h(rescheduleTime);
+
+      try {
+        await sendSms(
+          activeBooking.phone,
+          `Hi ${firstName}! Emmanuel from TidyWise here.\n\nI need to move our demo from ${oldDate} at ${oldTime} to:\n\n📆 ${newDate}\n⏰ ${newTime} EST\n\nReply YES to confirm or NO if that doesn't work and we'll find another time together.\n\n— Emmanuel (561) 571-8725`
+        );
+        toast.success('✅ Demo rescheduled & client notified via SMS');
+      } catch (err) {
+        console.error('[DemoCalendarTab] Reschedule SMS failed:', err);
+        toast.error('Demo rescheduled but SMS notification failed');
+      }
     } catch (err) {
-      console.error('[DemoCalendarTab] Reschedule SMS failed:', err);
-      toast.error('Demo rescheduled but SMS notification failed');
+      console.error('[DemoCalendarTab] Reschedule update failed:', err);
+      toast.error('Failed to reschedule demo');
     }
 
     setRescheduleDialogOpen(false);
@@ -602,7 +607,7 @@ export function DemoCalendarTab() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                              {(demo.status === 'confirmed' || demo.status === 'rescheduled') && (
+                              {(demo.status === 'confirmed' || demo.status === 'rescheduled' || demo.status === 'cancelled') && (
                                 <>
                                   <Button
                                     size="sm"
@@ -886,7 +891,7 @@ export function DemoCalendarTab() {
               })()}
 
               {/* Actions */}
-              {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled') && (
+              {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled' || detailBooking.status === 'cancelled') && (
                 <div className="flex gap-2 pt-2 border-t border-border">
                   <Button
                     size="sm"
