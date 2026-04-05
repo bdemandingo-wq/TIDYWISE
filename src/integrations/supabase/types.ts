@@ -4406,6 +4406,47 @@ export type Database = {
           },
         ]
       }
+      platform_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message_preview: string | null
+          metadata: Json | null
+          notification_type: string
+          org_id: string | null
+          sent_at: string | null
+          sent_to: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message_preview?: string | null
+          metadata?: Json | null
+          notification_type: string
+          org_id?: string | null
+          sent_at?: string | null
+          sent_to: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message_preview?: string | null
+          metadata?: Json | null
+          notification_type?: string
+          org_id?: string | null
+          sent_at?: string | null
+          sent_to?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pnl_settings: {
         Row: {
           annual_revenue_goal: number | null

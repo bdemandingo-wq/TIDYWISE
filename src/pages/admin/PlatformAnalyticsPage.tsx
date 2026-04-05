@@ -8,7 +8,7 @@ import {
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase
+  CalendarCheck, Phone, Briefcase, Bell
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +30,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoRequestsTab } from '@/components/admin/DemoRequestsTab';
+import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
 
 interface Subscriber {
   id: string;
@@ -330,7 +331,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsList className="grid w-full grid-cols-6 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -352,8 +353,11 @@ export default function PlatformAnalyticsPage() {
             </TabsTrigger>
             <TabsTrigger value="demos" className="flex items-center gap-2">
               <CalendarCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Demo Requests</span>
-              <span className="sm:hidden">Demos</span>
+              <span className="hidden sm:inline">Demos</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              <span className="hidden sm:inline">Feed</span>
             </TabsTrigger>
           </TabsList>
 
@@ -707,6 +711,7 @@ export default function PlatformAnalyticsPage() {
             </Card>
           </TabsContent>
           <DemoRequestsTab />
+          <PlatformNotificationsLog />
         </Tabs>
       </div>
 

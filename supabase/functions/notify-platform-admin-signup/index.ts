@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Platform admin phone number
-const PLATFORM_ADMIN_PHONE = "+18137356859";
+const PLATFORM_ADMIN_PHONE = "+15615718725";
 
 interface NotifySignupRequest {
   email: string;
