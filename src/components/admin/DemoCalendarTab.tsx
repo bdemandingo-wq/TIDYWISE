@@ -891,7 +891,7 @@ export function DemoCalendarTab() {
               })()}
 
               {/* Actions */}
-              {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled') && (
+              {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled' || detailBooking.status === 'cancelled') && (
                 <div className="flex gap-2 pt-2 border-t border-border">
                   <Button
                     size="sm"
