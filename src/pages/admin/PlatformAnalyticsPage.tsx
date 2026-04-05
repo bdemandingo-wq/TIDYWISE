@@ -331,7 +331,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsList className="grid w-full grid-cols-6 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -353,8 +353,11 @@ export default function PlatformAnalyticsPage() {
             </TabsTrigger>
             <TabsTrigger value="demos" className="flex items-center gap-2">
               <CalendarCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Demo Requests</span>
-              <span className="sm:hidden">Demos</span>
+              <span className="hidden sm:inline">Demos</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              <span className="hidden sm:inline">Feed</span>
             </TabsTrigger>
           </TabsList>
 
