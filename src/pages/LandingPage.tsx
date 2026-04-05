@@ -249,6 +249,7 @@ export default function LandingPage() {
               <Button variant="ghost" onClick={() => navigate("/pricing")} className="text-sm">Pricing</Button>
               <Button variant="ghost" onClick={() => navigate("/portal")} className="text-sm">Client Portal</Button>
               <Button variant="ghost" onClick={() => navigate("/staff/login")} className="text-sm">Staff Portal</Button>
+              <Button variant="ghost" onClick={() => navigate("/demo")} className="text-sm font-medium text-primary">Schedule Demo</Button>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
               <Button variant="premium" onClick={() => navigate("/signup")} className="text-sm">
                 Start Free Trial
