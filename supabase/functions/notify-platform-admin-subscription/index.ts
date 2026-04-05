@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
       `Time: ${timestamp}\n\n` +
       `View in admin panel.`;
 
-    console.log(`[notify-platform-admin-subscription] Sending notification to platform admin: ${PLATFORM_ADMIN_PHONE}`);
+    console.log(`[notify-platform-admin-subscription] Sending notification to platform admins: ${ADMIN_PHONES.join(', ')}`);
 
     // Send SMS via OpenPhone API
     const response = await fetch("https://api.openphone.com/v1/messages", {
