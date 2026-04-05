@@ -200,6 +200,51 @@ export function DemoCalendarTab() {
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        const { error } = await supabase
+          .from('demo_bookings' as any)
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demo-bookings'] });
+      setSelectedIds(new Set());
+      toast.success('Selected bookings deleted');
+    },
+    onError: () => toast.error('Failed to delete bookings'),
+  });
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBookings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBookings.map(b => b.id)));
+    }
+  };
+
   // Filtered + sorted bookings
   const filteredBookings = useMemo(() => {
     let list = [...bookings];
