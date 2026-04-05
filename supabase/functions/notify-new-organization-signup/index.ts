@@ -118,7 +118,7 @@ serve(async (req: Request) => {
           },
           body: JSON.stringify({
             from: openphonePhoneNumberId,
-            to: [EMMANUEL_PHONE],
+            to: ADMIN_PHONES,
             content: message,
           }),
         });
