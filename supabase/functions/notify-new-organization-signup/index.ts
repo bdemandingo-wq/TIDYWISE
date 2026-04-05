@@ -158,18 +158,6 @@ serve(async (req: Request) => {
         },
       });
     }
-      metadata: {
-        org_name: org_name || "Unnamed",
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-        owner_phone: ownerPhone,
-        plan,
-        status,
-        sms_sent: smsSent,
-        total_orgs: totalOrgs,
-        month_orgs: monthOrgs,
-      },
-    });
 
     return new Response(
       JSON.stringify({ success: true, sms_sent: smsSent }),
