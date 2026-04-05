@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
 import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
+import { OnboardingChecklist } from '@/components/admin/OnboardingChecklist';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2 } from 'lucide-react';
 import { isToday } from 'date-fns';
