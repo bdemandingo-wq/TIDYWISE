@@ -10,11 +10,91 @@ import {
   Brain, TrendingUp, AlertTriangle, Flame, Target,
   Send, Sparkles, Calendar, Users, ArrowUpRight,
   RefreshCw, MessageSquare, BarChart3, ShieldAlert,
-  BookOpen, Zap
+  BookOpen, Zap, Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { useQuery as useRQ } from '@tanstack/react-query';
+
+// ─── Call Stats Sub-Component ───
+function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; cardStyle: React.CSSProperties }) {
+  const { data: callStats } = useRQ({
+    queryKey: ['call-stats', orgId],
+    queryFn: async () => {
+      if (!orgId) return { total: 0, missed: 0, avgDuration: 0, incoming: 0, outgoing: 0, voicemails: 0, busiestHours: {} as Record<string, number>, topCallers: [] as { name: string; count: number }[] };
+      const { data } = await supabase.from('openphone_calls').select('*').eq('organization_id', orgId).order('started_at', { ascending: false }).limit(500);
+      const calls = data || [];
+      const total = calls.length;
+      const missed = calls.filter(c => c.status === 'missed' || c.status === 'no-answer').length;
+      const incoming = calls.filter(c => c.direction === 'inbound').length;
+      const outgoing = calls.filter(c => c.direction === 'outbound').length;
+      const voicemails = calls.filter(c => c.has_voicemail).length;
+      const avgDuration = total > 0 ? Math.round(calls.reduce((s, c) => s + (c.duration || 0), 0) / total) : 0;
+      const hourCounts: Record<string, number> = {};
+      const callerCounts: Record<string, number> = {};
+      calls.forEach(c => {
+        if (c.started_at) {
+          const h = new Date(c.started_at).getHours();
+          const label = h < 12 ? `${h || 12}AM` : `${h === 12 ? 12 : h - 12}PM`;
+          hourCounts[label] = (hourCounts[label] || 0) + 1;
+        }
+        const name = c.caller_name || c.caller_phone || 'Unknown';
+        callerCounts[name] = (callerCounts[name] || 0) + 1;
+      });
+      const topCallers = Object.entries(callerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+      return { total, missed, avgDuration, incoming, outgoing, voicemails, busiestHours: hourCounts, topCallers };
+    },
+    enabled: !!orgId,
+  });
+
+  const s = callStats || { total: 0, missed: 0, avgDuration: 0, incoming: 0, outgoing: 0, voicemails: 0, busiestHours: {}, topCallers: [] };
+  const missedPct = s.total > 0 ? Math.round((s.missed / s.total) * 100) : 0;
+  const TEAL = '#00E5C3'; const AMBER = '#FFB547'; const RED = '#FF4B6E'; const BLUE = '#4A9EFF';
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Calls', value: s.total, color: TEAL },
+          { label: 'Missed Calls', value: `${s.missed} (${missedPct}%)`, color: RED },
+          { label: 'Avg Duration', value: `${Math.floor(s.avgDuration / 60)}:${(s.avgDuration % 60).toString().padStart(2, '0')}`, color: BLUE },
+          { label: 'Voicemails', value: s.voicemails, color: AMBER },
+        ].map((k, i) => (
+          <div key={i} style={cardStyle} className="p-4">
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{k.label}</p>
+            <p style={{ fontSize: 24, fontWeight: 600, color: k.color, marginTop: 4 }}>{k.value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div style={cardStyle} className="p-4">
+          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Busiest Hours</p>
+          {Object.entries(s.busiestHours).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([hour, count]) => (
+            <div key={hour} className="flex items-center gap-2 mb-2">
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 40 }}>{hour}</span>
+              <div className="flex-1 h-4 rounded" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <div className="h-full rounded" style={{ width: `${(count / Math.max(...Object.values(s.busiestHours), 1)) * 100}%`, background: TEAL }} />
+              </div>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 24, textAlign: 'right' }}>{count}</span>
+            </div>
+          ))}
+          {Object.keys(s.busiestHours).length === 0 && <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>No call data yet. Sync calls from Messages → Calls tab.</p>}
+        </div>
+        <div style={cardStyle} className="p-4">
+          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Most Frequent Callers</p>
+          {s.topCallers.map((c, i) => (
+            <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/5">
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{c.name}</span>
+              <span style={{ fontSize: 12, color: TEAL }}>{c.count} calls</span>
+            </div>
+          ))}
+          {s.topCallers.length === 0 && <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>No call data yet.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Count-up hook ───
 function useCountUp(target: number, duration = 1200) {
@@ -469,6 +549,7 @@ export function AIAnalysisCenter() {
             { value: 'leads', label: 'Leads', icon: Flame },
             { value: 'retention', label: 'Retention', icon: Users },
             { value: 'scheduling', label: 'Scheduling', icon: Calendar },
+            { value: 'calls', label: 'Call Stats', icon: Phone },
             { value: 'playbook', label: 'Growth Playbook', icon: BookOpen },
             { value: 'ask-ai', label: 'Ask AI', icon: MessageSquare },
           ].map(tab => (
@@ -763,6 +844,11 @@ export function AIAnalysisCenter() {
               {chatLoading ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
             </Button>
           </div>
+        </TabsContent>
+
+        {/* ─── Tab: Call Stats ─── */}
+        <TabsContent value="calls">
+          <CallStatsContent orgId={orgId} cardStyle={cardStyle} />
         </TabsContent>
       </Tabs>
     </div>
