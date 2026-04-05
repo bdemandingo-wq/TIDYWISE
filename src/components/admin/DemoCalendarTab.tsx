@@ -521,6 +521,12 @@ export function DemoCalendarTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filteredBookings.length > 0 && selectedIds.size === filteredBookings.length}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-8">#</TableHead>
                       <TableHead>Name & Business</TableHead>
                       <TableHead>Date & Time</TableHead>
@@ -538,9 +544,15 @@ export function DemoCalendarTab() {
                       return (
                         <TableRow
                           key={demo.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className={`cursor-pointer hover:bg-muted/50 ${selectedIds.has(demo.id) ? 'bg-primary/5' : ''}`}
                           onClick={() => setDetailBooking(demo)}
                         >
+                          <TableCell onClick={e => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(demo.id)}
+                              onCheckedChange={() => toggleSelect(demo.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground">{idx + 1}</TableCell>
                           <TableCell>
                             <div>
