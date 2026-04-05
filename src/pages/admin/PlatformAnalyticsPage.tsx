@@ -30,6 +30,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoRequestsTab } from '@/components/admin/DemoRequestsTab';
+import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
 
 interface Subscriber {
   id: string;
