@@ -195,10 +195,19 @@ export default function SchedulerPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('csv')}>
-                Export as CSV
+                <Download className="w-4 h-4 mr-2" /> Export as CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('json')}>
-                Export as JSON
+                <Download className="w-4 h-4 mr-2" /> Export as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" /> Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                <FileText className="w-4 h-4 mr-2" /> Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('print')}>
+                <Printer className="w-4 h-4 mr-2" /> Print View
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
