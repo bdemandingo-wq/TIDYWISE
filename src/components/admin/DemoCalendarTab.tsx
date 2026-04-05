@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   CalendarCheck, Phone, Mail, Briefcase, Loader2,
   ChevronLeft, ChevronRight, Ban, X, Search,
   Calendar as CalendarIcon, Clock, AlertTriangle,
-  ArrowUpDown, Eye, CheckCircle2
+  ArrowUpDown, Eye, CheckCircle2, Trash2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -122,6 +123,10 @@ export function DemoCalendarTab() {
   // Detail modal
   const [detailBooking, setDetailBooking] = useState<DemoBooking | null>(null);
 
+  // Bulk select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // Table controls
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -194,6 +199,51 @@ export function DemoCalendarTab() {
       queryClient.invalidateQueries({ queryKey: ['demo-bookings'] });
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        const { error } = await supabase
+          .from('demo_bookings' as any)
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demo-bookings'] });
+      setSelectedIds(new Set());
+      toast.success('Selected bookings deleted');
+    },
+    onError: () => toast.error('Failed to delete bookings'),
+  });
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBookings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBookings.map(b => b.id)));
+    }
+  };
 
   // Filtered + sorted bookings
   const filteredBookings = useMemo(() => {
@@ -409,7 +459,18 @@ export function DemoCalendarTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete ({selectedIds.size})
+            </Button>
+          )}
           <Button
             size="sm"
             variant={viewMode === 'table' ? 'default' : 'outline'}
@@ -460,6 +521,12 @@ export function DemoCalendarTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filteredBookings.length > 0 && selectedIds.size === filteredBookings.length}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-8">#</TableHead>
                       <TableHead>Name & Business</TableHead>
                       <TableHead>Date & Time</TableHead>
@@ -477,9 +544,15 @@ export function DemoCalendarTab() {
                       return (
                         <TableRow
                           key={demo.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className={`cursor-pointer hover:bg-muted/50 ${selectedIds.has(demo.id) ? 'bg-primary/5' : ''}`}
                           onClick={() => setDetailBooking(demo)}
                         >
+                          <TableCell onClick={e => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(demo.id)}
+                              onCheckedChange={() => toggleSelect(demo.id)}
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground">{idx + 1}</TableCell>
                           <TableCell>
                             <div>
