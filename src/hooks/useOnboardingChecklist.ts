@@ -56,7 +56,7 @@ export function useOnboardingChecklist() {
           label: 'Connect OpenPhone',
           description: 'Unlock SMS, calls, AI assistant, and daily reports',
           completed: hasOpenPhone,
-          link: '/dashboard/settings',
+          link: '/dashboard/settings?tab=sms',
           icon: '📱',
         },
         {
