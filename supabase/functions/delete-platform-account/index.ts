@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { logToSystem } from "../_shared/system-logger.ts";
 
 const corsHeaders = {
@@ -33,16 +33,17 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Authentication error: Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userEmail = claimsData.claims.email as string | undefined;
-    const userId = claimsData.claims.sub as string | undefined;
+    const userEmail = user.email;
+    const userId = user.id;
     
     if (!userEmail || userEmail !== PLATFORM_ADMIN_EMAIL) {
       await logToSystem({
@@ -90,10 +91,8 @@ serve(async (req) => {
 
     } else if (type === 'organization') {
       // Delete organization and cascade to related data
-      // First delete org_memberships
       await supabaseClient.from('org_memberships').delete().eq('organization_id', targetUserId);
       
-      // Delete the organization itself
       const { error: deleteError } = await supabaseClient
         .from('organizations')
         .delete()
