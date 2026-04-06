@@ -852,7 +852,7 @@ export default function PortalDashboardPage() {
                       )}
                       <button
                         onClick={(e) => deleteNotification(notification.id, e)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-2.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label="Delete notification"
                       >
                         <Trash2 className="h-4 w-4" />
