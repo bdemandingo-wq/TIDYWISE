@@ -59,6 +59,17 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    if (searchParams.get('subscription') === 'success') {
+      const { toast } = require('sonner');
+      toast.success('Subscription activated! You now have full access.');
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const channel = supabase
