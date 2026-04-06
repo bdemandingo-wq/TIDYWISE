@@ -1,5 +1,6 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AIAnalysisCenter } from '@/components/admin/AIAnalysisCenter';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { SEOHead } from '@/components/SEOHead';
 
 export default function AIIntelligencePage() {
@@ -9,7 +10,9 @@ export default function AIIntelligencePage() {
       subtitle="Predictive insights powered by machine learning"
     >
       <SEOHead title="AI Intelligence | TidyWise" description="Predictive insights powered by machine learning" noIndex />
-      <AIAnalysisCenter />
+      <SubscriptionGate feature="AI Intelligence">
+        <AIAnalysisCenter />
+      </SubscriptionGate>
     </AdminLayout>
   );
 }

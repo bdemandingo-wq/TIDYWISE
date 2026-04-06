@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone } from 'lucide-react';
-import { useCreateCustomer } from '@/hooks/useBookings';
+import { Loader2, User, Mail, Phone, Lock } from 'lucide-react';
+import { useCreateCustomer, useCustomers } from '@/hooks/useBookings';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddCustomerDialogProps {
   open: boolean;
@@ -19,6 +21,11 @@ interface AddCustomerDialogProps {
 
 export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps) {
   const createCustomer = useCreateCustomer();
+  const { data: customers } = useCustomers();
+  const { maxCustomers, hasFullAccess } = useSubscription();
+  const { setShowSubscriptionDialog } = useAuth();
+  const customerCount = customers?.length ?? 0;
+  const atLimit = customerCount >= maxCustomers;
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -50,6 +57,12 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (atLimit) {
+      toast.error(`Free plan is limited to ${maxCustomers} customers. Upgrade to add more.`);
+      setShowSubscriptionDialog(true);
+      return;
+    }
     
     if (!formData.first_name || !formData.last_name || !formData.email) {
       toast.error('Please fill in first name, last name, and email');

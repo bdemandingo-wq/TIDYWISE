@@ -45,6 +45,8 @@ import { hapticImpact } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { SEOHead } from '@/components/SEOHead';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
@@ -95,6 +97,9 @@ export default function CustomersPage() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { maxCustomers, hasFullAccess } = useSubscription();
+  const { setShowSubscriptionDialog } = useAuth();
+  const atCustomerLimit = !hasFullAccess && customers.length >= maxCustomers;
   const [batchMode, setBatchMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
@@ -411,13 +416,30 @@ export default function CustomersPage() {
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => setAddDialogOpen(true)}>
+          <Button size="sm" className="gap-2" onClick={() => {
+            if (atCustomerLimit) {
+              toast.error(`Free plan limited to ${maxCustomers} customers. Upgrade to add more.`);
+              setShowSubscriptionDialog(true);
+            } else {
+              setAddDialogOpen(true);
+            }
+          }}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Customer</span>
           </Button>
         </div>
       }
     >
+      {atCustomerLimit && (
+        <div className="mb-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5 flex items-center justify-between gap-3">
+          <p className="text-sm text-destructive">
+            You've reached the free plan limit of {maxCustomers} customers. Upgrade to add unlimited customers.
+          </p>
+          <Button size="sm" variant="destructive" onClick={() => setShowSubscriptionDialog(true)}>
+            Upgrade
+          </Button>
+        </div>
+      )}
       {/* Tabs + Search + Bulk Actions */}
       <div className="space-y-4 mb-4">
         <Tabs value={tabFilter} onValueChange={(v) => setTabFilter(v as TabFilter)} className="w-full">
