@@ -627,7 +627,7 @@ export default function PortalDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="w-full overflow-x-auto flex justify-start gap-1 h-auto p-1">
+          <TabsList className="w-full overflow-x-auto flex justify-start gap-1 h-auto p-1 no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             <TabsTrigger value="upcoming" className="text-xs sm:text-sm shrink-0">Upcoming</TabsTrigger>
             <TabsTrigger value="requests" className="text-xs sm:text-sm shrink-0">Requests</TabsTrigger>
             <TabsTrigger value="history" className="text-xs sm:text-sm shrink-0">History</TabsTrigger>
