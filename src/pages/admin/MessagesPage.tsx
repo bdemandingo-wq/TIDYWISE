@@ -1456,9 +1456,8 @@ export default function MessagesPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* New Conversation Dialog (mobile) */}
-        {isMobile && (
-          <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
+        {/* New Conversation Dialog */}
+        <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
             <DialogContent>
               <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-4">
