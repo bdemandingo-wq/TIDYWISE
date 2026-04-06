@@ -416,7 +416,14 @@ export default function CustomersPage() {
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => setAddDialogOpen(true)}>
+          <Button size="sm" className="gap-2" onClick={() => {
+            if (atCustomerLimit) {
+              toast.error(`Free plan limited to ${maxCustomers} customers. Upgrade to add more.`);
+              setShowSubscriptionDialog(true);
+            } else {
+              setAddDialogOpen(true);
+            }
+          }}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Customer</span>
           </Button>
