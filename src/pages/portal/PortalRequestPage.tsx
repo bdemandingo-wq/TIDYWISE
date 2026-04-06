@@ -325,7 +325,7 @@ export default function PortalRequestPage() {
                       : "Select a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="center" side="bottom" avoidCollisions>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
