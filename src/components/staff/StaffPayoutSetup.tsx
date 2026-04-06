@@ -153,21 +153,20 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         },
       });
 
+      // supabase.functions.invoke returns error for non-2xx, but body is in data
       if (error) {
-        // Try to extract error from response body
-        const edgeError = (data as { error?: string; message?: string } | null)?.error 
-          || (data as { error?: string; message?: string } | null)?.message;
-        throw new Error(edgeError || error.message || 'Failed to start payout setup');
+        const edgeError = data?.error || data?.message || error.message || 'Failed to start payout setup';
+        throw new Error(edgeError);
       }
 
       if (!data?.url) {
-        throw new Error('No onboarding link was returned. Please try again.');
+        const serverError = data?.error || data?.message || 'No onboarding link was returned. Please try again.';
+        throw new Error(serverError);
       }
 
       return data as { url: string; accountId: string };
     },
     onSuccess: (data) => {
-      // Store URL in state so user can tap a direct button
       setOnboardingUrl(data.url);
       toast.success('Setup link ready! Tap the button below to continue.');
     },
