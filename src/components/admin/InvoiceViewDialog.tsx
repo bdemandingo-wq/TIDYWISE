@@ -10,7 +10,7 @@ import {
 import { Download, Printer, ExternalLink, FileText, CheckCircle2, Clock, AlertCircle, X, Send, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
 import { useInvoiceBranding, getFontFamily } from '@/hooks/useInvoiceBranding';
