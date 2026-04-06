@@ -29,13 +29,13 @@ export function useInvoiceBranding() {
     queryKey: ['invoice-branding', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return null;
-      const { data, error } = await supabase
-        .from('invoice_branding' as any)
+      const { data, error } = await (supabase as any)
+        .from('invoice_branding')
         .select('*')
         .eq('organization_id', organization.id)
         .maybeSingle();
       if (error) throw error;
-      return data as InvoiceBranding | null;
+      return (data || null) as InvoiceBranding | null;
     },
     enabled: !!organization?.id,
     staleTime: 1000 * 60 * 10,
