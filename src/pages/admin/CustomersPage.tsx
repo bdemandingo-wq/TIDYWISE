@@ -430,6 +430,16 @@ export default function CustomersPage() {
         </div>
       }
     >
+      {atCustomerLimit && (
+        <div className="mb-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5 flex items-center justify-between gap-3">
+          <p className="text-sm text-destructive">
+            You've reached the free plan limit of {maxCustomers} customers. Upgrade to add unlimited customers.
+          </p>
+          <Button size="sm" variant="destructive" onClick={() => setShowSubscriptionDialog(true)}>
+            Upgrade
+          </Button>
+        </div>
+      )}
       {/* Tabs + Search + Bulk Actions */}
       <div className="space-y-4 mb-4">
         <Tabs value={tabFilter} onValueChange={(v) => setTabFilter(v as TabFilter)} className="w-full">
