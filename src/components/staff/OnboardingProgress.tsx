@@ -122,7 +122,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     {
       id: 'documents',
       label: 'Upload Documents',
-      description: 'W-9 and Government ID required',
+      description: isW2 ? 'Government ID required' : 'W-9 and Government ID required',
       icon: <FileText className="w-5 h-5" />,
       tab: 'documents',
       completed: docsComplete,

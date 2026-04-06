@@ -45,8 +45,10 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle },
 };
 
-export function StaffDocumentUpload({ staffId, organizationId }: Props) {
+export function StaffDocumentUpload({ staffId, organizationId, taxClassification }: Props) {
   const { user } = useAuth();
+  const employmentType = taxClassification || '1099';
+  const DOCUMENT_TYPES = ALL_DOCUMENT_TYPES.filter(dt => dt.employmentTypes.includes(employmentType));
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState('insurance');
