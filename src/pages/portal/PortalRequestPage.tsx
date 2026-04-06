@@ -532,7 +532,7 @@ export default function PortalRequestPage() {
 
             {/* Submit Button */}
             <Button
-              className="w-full gap-2"
+              className="w-full gap-2 min-h-[48px]"
               size="lg"
               onClick={handleSubmit}
               disabled={!selectedDate || !selectedTime || submitting}
