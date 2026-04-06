@@ -26,22 +26,6 @@ interface InvoiceEmailRequest {
   organizationId: string;
 }
 
-interface InvoiceBranding {
-  logo_url: string | null;
-  primary_color: string;
-  accent_color: string;
-  font_style: string;
-  header_layout: string;
-  footer_message: string;
-}
-
-function getFontFamily(style: string): string {
-  switch (style) {
-    case 'classic': return "'Georgia', 'Times New Roman', serif";
-    case 'minimal': return "'Courier New', 'Menlo', monospace";
-    default: return "'Inter', system-ui, -apple-system, Arial, sans-serif";
-  }
-}
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("[send-invoice] Function called");

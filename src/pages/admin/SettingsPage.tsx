@@ -999,10 +999,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Invoice Design */}
-        <TabsContent value="invoice-design" className="space-y-6">
-          <InvoiceDesignSettings />
-        </TabsContent>
 
 
         <TabsContent value="sidebar" className="space-y-6">
