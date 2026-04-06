@@ -608,7 +608,7 @@ export default function StaffPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-4">
+      <main className="container mx-auto px-3 sm:px-4 py-4 pb-24">
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress
