@@ -582,11 +582,11 @@ export default function PortalDashboardPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1 text-xs"
+                    className="gap-1 text-xs min-h-[44px] min-w-[44px]"
                     onClick={() => handleReschedule(nextBooking)}
                   >
                     <CalendarClock className="h-3.5 w-3.5" />
