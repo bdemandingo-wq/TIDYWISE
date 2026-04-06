@@ -227,14 +227,16 @@ export default function SubscriptionPage() {
                   </AlertDialog>
                 )}
 
-                <Button onClick={handleManageSubscription} disabled={openingPortal} variant="outline">
-                  {openingPortal ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                  )}
-                  Manage Subscription
-                </Button>
+                {!status.trial_active && (
+                  <Button onClick={handleManageSubscription} disabled={openingPortal} variant="outline">
+                    {openingPortal ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                    )}
+                    Manage Subscription
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
