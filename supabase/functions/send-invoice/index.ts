@@ -323,8 +323,8 @@ const handler = async (req: Request): Promise<Response> => {
               
               ${data.notes ? `
               <div style="background-color:#fff3cd;padding:15px;border-radius:6px;border-left:4px solid #ffc107;margin-bottom:20px;">
-                <strong>Notes:</strong><br>
-                ${data.notes}
+                <strong style="display:block;margin-bottom:8px;">Notes:</strong>
+                <span style="white-space:pre-wrap;word-wrap:break-word;line-height:1.6;">${data.notes.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</span>
               </div>
               ` : ''}
               
