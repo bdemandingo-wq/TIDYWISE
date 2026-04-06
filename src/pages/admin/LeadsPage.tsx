@@ -888,6 +888,7 @@ export default function LeadsPage() {
         }}
       />
       
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
