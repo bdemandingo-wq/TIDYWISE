@@ -11,12 +11,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
-const DOCUMENT_TYPES = [
-  { value: 'insurance', label: 'Insurance Certificate', icon: Shield, required: false },
-  { value: 'w9', label: 'W-9 Form', icon: FileText, required: true },
-  { value: 'id', label: 'Government ID', icon: FileText, required: true },
-  { value: 'certification', label: 'Certification', icon: FileText, required: false },
-  { value: 'other', label: 'Other', icon: FileText, required: false },
+const ALL_DOCUMENT_TYPES = [
+  { value: 'insurance', label: 'Insurance Certificate', icon: Shield, required: false, employmentTypes: ['w2', '1099'] },
+  { value: 'w9', label: 'W-9 Form', icon: FileText, required: true, employmentTypes: ['1099'] },
+  { value: 'id', label: 'Government ID', icon: FileText, required: true, employmentTypes: ['w2', '1099'] },
+  { value: 'certification', label: 'Certification', icon: FileText, required: false, employmentTypes: ['w2', '1099'] },
+  { value: 'other', label: 'Other', icon: FileText, required: false, employmentTypes: ['w2', '1099'] },
 ];
 
 interface StaffDocument {
