@@ -1496,8 +1496,7 @@ export default function MessagesPage() {
                 <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
               </div>
             </DialogContent>
-          </Dialog>
-        )}
+        </Dialog>
 
         {/* iOS-style Long-Press Context Menu */}
         {contextMenuConvId && contextMenuPosition && (
