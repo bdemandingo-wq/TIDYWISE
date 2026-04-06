@@ -169,48 +169,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
 
-    // Build branded email HTML
-    const fontFamily = getFontFamily(branding.font_style);
-    const primaryColor = branding.primary_color;
-    const accentColor = branding.accent_color;
-
-    // Logo HTML based on header layout
+    // Logo HTML
     let logoHtml = '';
-    if (branding.logo_url) {
-      logoHtml = `<img src="${branding.logo_url}" alt="${companyName}" style="max-height:60px;max-width:200px;object-fit:contain;" />`;
+    if (logoUrl) {
+      logoHtml = `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:200px;object-fit:contain;" />`;
     }
 
-    let headerHtml = '';
-    if (branding.header_layout === 'center') {
-      headerHtml = `
-        <tr>
-          <td style="padding:30px;text-align:center;border-bottom:3px solid ${primaryColor};">
-            ${logoHtml ? `<div style="margin-bottom:10px;">${logoHtml}</div>` : ''}
-            <div style="font-size:24px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
-            <div style="font-size:28px;font-weight:bold;color:${primaryColor};margin-top:8px;font-family:${fontFamily};">INVOICE #${data.invoiceNumber}</div>
-          </td>
-        </tr>`;
-    } else if (branding.header_layout === 'right') {
-      headerHtml = `
-        <tr>
-          <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="vertical-align:top;">
-                  <div style="font-size:28px;font-weight:bold;color:${primaryColor};font-family:${fontFamily};">INVOICE</div>
-                  <div style="color:#666;font-size:14px;margin-top:4px;">#${data.invoiceNumber}</div>
-                </td>
-                <td style="text-align:right;vertical-align:top;">
-                  ${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ''}
-                  <div style="font-size:20px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>`;
-    } else {
-      // Left (default)
-      headerHtml = `
+    // Left layout header (default)
+    const headerHtml = `
         <tr>
           <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -227,7 +193,6 @@ const handler = async (req: Request): Promise<Response> => {
             </table>
           </td>
         </tr>`;
-    }
 
     const emailHtml = `
 <!DOCTYPE html>
