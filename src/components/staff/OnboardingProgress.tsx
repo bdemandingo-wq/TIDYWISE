@@ -88,7 +88,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   });
 
   // Build steps
-  const requiredDocTypes = ['w9', 'government_id'];
+  const isW2 = taxClassification === 'w2';
+  const requiredDocTypes = isW2 ? ['government_id'] : ['w9', 'government_id'];
   const uploadedApprovedDocs = documents.filter(
     d => requiredDocTypes.includes(d.document_type) && d.status === 'approved'
   );
