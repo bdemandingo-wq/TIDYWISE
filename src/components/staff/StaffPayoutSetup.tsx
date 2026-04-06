@@ -17,6 +17,34 @@ interface StaffPayoutSetupProps {
 
 const PRODUCTION_BASE = 'https://jointidywise.com';
 
+async function extractFunctionErrorMessage(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : 'Failed to start payout setup';
+
+  if (typeof error !== 'object' || error === null || !('context' in error)) {
+    return fallback;
+  }
+
+  const context = (error as { context?: Response }).context;
+  if (!(context instanceof Response)) {
+    return fallback;
+  }
+
+  try {
+    const payload = await context.clone().json();
+    if (payload?.message && typeof payload.message === 'string') return payload.message;
+    if (payload?.error && typeof payload.error === 'string') return payload.error;
+  } catch {
+    try {
+      const text = await context.clone().text();
+      if (text) return text;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+}
+
 function mapErrorMessage(raw: string): string {
   if (raw.includes('org_stripe_not_connected') || raw.includes('Stripe not configured')) {
     return "Your employer needs to connect their payment account first. Please ask them to go to Settings → Payment Setup.";
@@ -153,9 +181,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         },
       });
 
-      // supabase.functions.invoke returns error for non-2xx, but body is in data
       if (error) {
-        const edgeError = data?.error || data?.message || error.message || 'Failed to start payout setup';
+        const edgeError = await extractFunctionErrorMessage(error);
         throw new Error(edgeError);
       }
 
@@ -168,7 +195,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     },
     onSuccess: (data) => {
       setOnboardingUrl(data.url);
-      toast.success('Setup link ready! Tap the button below to continue.');
+      toast.success('Redirecting to secure payout setup...');
+      window.location.href = data.url;
     },
     onError: (error: Error) => {
       const msg = mapErrorMessage(error.message);
