@@ -57,12 +57,9 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
     try {
       const { data, error } = await supabase.functions.invoke("create-subscription");
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       if (data?.url) {
-        window.open(data.url, "_blank");
-        toast.info("Complete your subscription in the new tab. This dialog will close automatically once confirmed.");
-        // Start polling only after user initiates subscription
-        const interval = setInterval(checkSubscription, 5000);
-        setTimeout(() => clearInterval(interval), 300000); // stop after 5 min
+        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error("Error creating subscription:", error);
