@@ -249,6 +249,15 @@ export default function CustomersPage() {
     setSelectedIds(newSelected);
   };
 
+  // Compute effective status: override to 'active' if customer has bookings/revenue
+  const getEffectiveStatus = useCallback((customer: any) => {
+    const stats = statsMap.get(customer.id);
+    if (stats && (stats.total_bookings > 0 || stats.total_revenue > 0)) {
+      return 'active';
+    }
+    return customer.customer_status || 'lead';
+  }, [statsMap]);
+
   const filteredCustomers = useMemo(() => {
     let list = customers.filter((customer) => {
       const matchesSearch =
@@ -256,9 +265,10 @@ export default function CustomersPage() {
         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (customer.phone?.includes(searchTerm) ?? false);
 
+      const effectiveStatus = getEffectiveStatus(customer);
       let matchesTab = true;
-      if (tabFilter === 'customers') matchesTab = customer.customer_status === 'active';
-      else if (tabFilter === 'leads') matchesTab = customer.customer_status === 'lead' || (!customer.customer_status || customer.customer_status === '');
+      if (tabFilter === 'customers') matchesTab = effectiveStatus === 'active';
+      else if (tabFilter === 'leads') matchesTab = effectiveStatus === 'lead';
 
       return matchesSearch && matchesTab;
     });
