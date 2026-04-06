@@ -393,8 +393,8 @@ export default function CustomersPage() {
     overscan: 8,
   });
 
-  const customerCount = customers.filter(c => c.customer_status === 'active').length;
-  const leadCount = customers.filter(c => c.customer_status === 'lead' || !c.customer_status || c.customer_status === '').length;
+  const customerCount = customers.filter(c => getEffectiveStatus(c) === 'active').length;
+  const leadCount = customers.filter(c => getEffectiveStatus(c) === 'lead').length;
 
   return (
     <AdminLayout
