@@ -88,7 +88,14 @@ export default function SubscriptionPage() {
       const { data, error } = await supabase.functions.invoke("upgrade-now");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success("Trial ended! Your paid subscription is now active.");
+      
+      if (data?.redirect && data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+        return;
+      }
+      
+      toast.success("Your paid subscription is now active!");
       await checkSubscription();
     } catch (error: any) {
       console.error("Error upgrading:", error);
