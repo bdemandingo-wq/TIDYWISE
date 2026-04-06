@@ -36,6 +36,7 @@ interface StaffDocument {
 interface Props {
   staffId: string;
   organizationId: string;
+  taxClassification?: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle2 }> = {
