@@ -57,6 +57,12 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (atLimit) {
+      toast.error(`Free plan is limited to ${maxCustomers} customers. Upgrade to add more.`);
+      setShowSubscriptionDialog(true);
+      return;
+    }
     
     if (!formData.first_name || !formData.last_name || !formData.email) {
       toast.error('Please fill in first name, last name, and email');
