@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, User, Mail, Phone } from 'lucide-react';
-import { useCreateCustomer } from '@/hooks/useBookings';
+import { Loader2, User, Mail, Phone, Lock } from 'lucide-react';
+import { useCreateCustomer, useCustomers } from '@/hooks/useBookings';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddCustomerDialogProps {
   open: boolean;
