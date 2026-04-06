@@ -19,10 +19,10 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek } from 'date-fns';
 import {
-  MessageSquare, Send, Search, Plus, Phone, Loader2, RefreshCw,
+  MessageSquare, Send, Search, Plus, Loader2, RefreshCw,
   MoreHorizontal, Pencil, Trash2, Users, HardHat, X,
   Check, Mail, Link, Paperclip, ChevronLeft, Forward,
-  Mic, Video, Pin, BellOff, CheckCheck, MessageCircle,
+  Mic, Pin, BellOff, CheckCheck, MessageCircle, Phone,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
