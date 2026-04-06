@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 export interface InvoiceBranding {
@@ -34,7 +34,10 @@ export function useInvoiceBranding() {
         .select('*')
         .eq('organization_id', organization.id)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        console.error('Failed to fetch invoice branding:', error);
+        throw error;
+      }
       return (data || null) as InvoiceBranding | null;
     },
     enabled: !!organization?.id,
