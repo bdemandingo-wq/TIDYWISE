@@ -1371,45 +1371,7 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
-        {/* Page Mode Toggle */}
-        <div className={cn(
-          "flex items-center gap-1 p-1 rounded-xl mx-4 mt-2 mb-2",
-          isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C]" : "bg-muted/50 max-w-xs"
-        )}>
-          <button
-            onClick={() => setPageMode('messages')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-              pageMode === 'messages'
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <MessageSquare className="h-4 w-4" /> Messages
-          </button>
-          <button
-            onClick={() => setPageMode('calls')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-              pageMode === 'calls'
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Phone className="h-4 w-4" /> Calls
-          </button>
-        </div>
-
-        {pageMode === 'calls' ? (
-          <div className={cn(
-            isMobile
-              ? "flex flex-col -mx-1.5 bg-white dark:bg-[#1C1C1E]"
-              : "border rounded-xl overflow-hidden bg-background relative",
-            "h-[calc(100vh-14rem)]"
-          )}>
-            {organizationId && <CallsTab organizationId={organizationId} />}
-          </div>
-        ) : isMobile ? (
+        {isMobile ? (
           <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
