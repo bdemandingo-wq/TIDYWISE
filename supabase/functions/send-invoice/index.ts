@@ -276,7 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
               <hr style="border:none;border-top:1px solid ${accentColor}40;margin:25px 0;">
               
               <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#666;">
-                ${branding.footer_message}
+                Thank you for your business!
               </p>
               <p style="margin:0;text-align:center;font-size:14px;color:#666;">
                 Questions? Reply to this email or contact us anytime.
