@@ -258,11 +258,11 @@ export default function PortalRequestPage() {
         },
       }).catch((err) => console.error("SMS notification error:", err));
 
-      toast.success("Booking request submitted! We'll get back to you soon.");
+      toast.success(isReschedule ? "Reschedule request submitted! We'll confirm the update soon." : "Booking request submitted! We'll get back to you soon.");
       navigate("/portal/dashboard");
     } catch (err: unknown) {
       console.error("Submit error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to submit request. Please try again.";
+      const msg = err instanceof Error ? err.message : (isReschedule ? "Failed to submit reschedule request. Please try again." : "Failed to submit request. Please try again.");
       toast.error(msg);
     } finally {
       setSubmitting(false);
