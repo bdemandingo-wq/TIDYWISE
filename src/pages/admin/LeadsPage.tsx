@@ -429,6 +429,7 @@ export default function LeadsPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Leads">
       {/* Lead Funnel Report */}
       {showFunnel && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
