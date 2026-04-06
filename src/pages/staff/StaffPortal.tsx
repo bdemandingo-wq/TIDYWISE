@@ -579,18 +579,17 @@ export default function StaffPortal() {
       <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Cleaner Portal</h1>
-            <p className="text-sm text-muted-foreground">Welcome, {staffInfo?.name || 'Loading...'}</p>
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold truncate">Cleaner Portal</h1>
+            <p className="text-sm text-muted-foreground truncate">Welcome, {staffInfo?.name || 'Loading...'}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {staffInfo && (
               <>
                 <NotificationBell 
                   staffId={staffInfo.id} 
                   onViewJob={() => {
-                    // Switch to available tab when clicking a job notification
                     const availableTab = document.querySelector('[value="available"]') as HTMLButtonElement;
                     if (availableTab) availableTab.click();
                   }}
@@ -600,9 +599,9 @@ export default function StaffPortal() {
                 </Badge>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px]">
               <LogOut className="w-4 h-4" />
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
