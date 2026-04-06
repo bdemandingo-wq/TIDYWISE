@@ -26,22 +26,6 @@ interface InvoiceEmailRequest {
   organizationId: string;
 }
 
-interface InvoiceBranding {
-  logo_url: string | null;
-  primary_color: string;
-  accent_color: string;
-  font_style: string;
-  header_layout: string;
-  footer_message: string;
-}
-
-function getFontFamily(style: string): string {
-  switch (style) {
-    case 'classic': return "'Georgia', 'Times New Roman', serif";
-    case 'minimal': return "'Courier New', 'Menlo', monospace";
-    default: return "'Inter', system-ui, -apple-system, Arial, sans-serif";
-  }
-}
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("[send-invoice] Function called");
@@ -97,23 +81,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Fetch invoice branding for this organization
-    const { data: brandingData } = await supabase
-      .from("invoice_branding")
-      .select("*")
+    // Fetch org business settings for branding colors and logo
+    const { data: bizSettings } = await supabase
+      .from("business_settings")
+      .select("primary_color, accent_color, logo_url, company_name")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
-    const branding: InvoiceBranding = {
-      logo_url: brandingData?.logo_url || null,
-      primary_color: brandingData?.primary_color || '#3b82f6',
-      accent_color: brandingData?.accent_color || '#e5e7eb',
-      font_style: brandingData?.font_style || 'modern',
-      header_layout: brandingData?.header_layout || 'left',
-      footer_message: brandingData?.footer_message || 'Thank you for your business!',
-    };
+    const primaryColor = bizSettings?.primary_color || '#3b82f6';
+    const accentColor = bizSettings?.accent_color || '#e5e7eb';
+    const logoUrl = bizSettings?.logo_url || null;
+    const fontFamily = "'Inter', system-ui, -apple-system, Arial, sans-serif";
 
-    console.log("[send-invoice] Using branding:", branding);
+    console.log("[send-invoice] Using org branding - primary:", primaryColor, "accent:", accentColor);
 
     // Fetch Stripe settings
     const { data: orgStripeSettings, error: stripeSettingsError } = await supabase
@@ -189,48 +169,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
 
-    // Build branded email HTML
-    const fontFamily = getFontFamily(branding.font_style);
-    const primaryColor = branding.primary_color;
-    const accentColor = branding.accent_color;
-
-    // Logo HTML based on header layout
+    // Logo HTML
     let logoHtml = '';
-    if (branding.logo_url) {
-      logoHtml = `<img src="${branding.logo_url}" alt="${companyName}" style="max-height:60px;max-width:200px;object-fit:contain;" />`;
+    if (logoUrl) {
+      logoHtml = `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:200px;object-fit:contain;" />`;
     }
 
-    let headerHtml = '';
-    if (branding.header_layout === 'center') {
-      headerHtml = `
-        <tr>
-          <td style="padding:30px;text-align:center;border-bottom:3px solid ${primaryColor};">
-            ${logoHtml ? `<div style="margin-bottom:10px;">${logoHtml}</div>` : ''}
-            <div style="font-size:24px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
-            <div style="font-size:28px;font-weight:bold;color:${primaryColor};margin-top:8px;font-family:${fontFamily};">INVOICE #${data.invoiceNumber}</div>
-          </td>
-        </tr>`;
-    } else if (branding.header_layout === 'right') {
-      headerHtml = `
-        <tr>
-          <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="vertical-align:top;">
-                  <div style="font-size:28px;font-weight:bold;color:${primaryColor};font-family:${fontFamily};">INVOICE</div>
-                  <div style="color:#666;font-size:14px;margin-top:4px;">#${data.invoiceNumber}</div>
-                </td>
-                <td style="text-align:right;vertical-align:top;">
-                  ${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ''}
-                  <div style="font-size:20px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>`;
-    } else {
-      // Left (default)
-      headerHtml = `
+    // Left layout header (default)
+    const headerHtml = `
         <tr>
           <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -247,7 +193,6 @@ const handler = async (req: Request): Promise<Response> => {
             </table>
           </td>
         </tr>`;
-    }
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -331,7 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
               <hr style="border:none;border-top:1px solid ${accentColor}40;margin:25px 0;">
               
               <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#666;">
-                ${branding.footer_message}
+                Thank you for your business!
               </p>
               <p style="margin:0;text-align:center;font-size:14px;color:#666;">
                 Questions? Reply to this email or contact us anytime.
