@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
+import { useInvoiceBranding, getFontFamily } from '@/hooks/useInvoiceBranding';
 
 interface InvoiceViewDialogProps {
   open: boolean;
@@ -33,8 +34,9 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const [sending, setSending] = useState(false);
+  const { branding } = useInvoiceBranding();
 
-  // Fetch business settings for branding
+  // Fetch business settings for company info
   const { data: businessSettings } = useQuery({
     queryKey: ['business-settings', organization?.id],
     queryFn: async () => {
@@ -62,6 +64,12 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const statusConfig = STATUS_CONFIG[invoice.status] || STATUS_CONFIG.draft;
   const StatusIcon = statusConfig.icon;
 
+  const primaryColor = branding.primary_color || '#3b82f6';
+  const accentColor = branding.accent_color || '#e5e7eb';
+  const fontFamily = getFontFamily(branding.font_style);
+  const headerLayout = branding.header_layout || 'left';
+  const footerMessage = branding.footer_message || 'Thank you for your business!';
+
   const handlePrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
@@ -76,29 +84,30 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           <title>Invoice INV-${String(invoice.invoice_number).padStart(4, '0')}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+            body { font-family: ${fontFamily}; padding: 40px; max-width: 800px; margin: 0 auto; }
             .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
             .company-name { font-size: 24px; font-weight: bold; color: #1a1a1a; }
-            .invoice-title { font-size: 32px; font-weight: bold; color: #6366f1; }
+            .invoice-title { font-size: 32px; font-weight: bold; color: ${primaryColor}; }
             .invoice-number { color: #666; margin-top: 4px; }
             .section { margin-bottom: 24px; }
             .section-title { font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 8px; }
             .section-content { color: #1a1a1a; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
             table { width: 100%; border-collapse: collapse; margin: 24px 0; }
-            th { background: #f3f4f6; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; }
-            td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+            th { background: ${accentColor}30; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; border-bottom: 2px solid ${accentColor}; }
+            td { padding: 12px; border-bottom: 1px solid ${accentColor}40; }
             .text-right { text-align: right; }
             .totals { max-width: 300px; margin-left: auto; }
             .totals-row { display: flex; justify-content: space-between; padding: 8px 0; }
-            .totals-row.total { font-size: 18px; font-weight: bold; border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 16px; }
+            .totals-row.total { font-size: 18px; font-weight: bold; border-top: 2px solid ${primaryColor}; margin-top: 8px; padding-top: 16px; color: ${primaryColor}; }
             .status { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
             .status-paid { background: #dcfce7; color: #166534; }
             .status-sent { background: #dbeafe; color: #1e40af; }
             .status-draft { background: #f3f4f6; color: #374151; }
             .status-overdue { background: #fee2e2; color: #991b1b; }
             .notes { background: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 24px; }
-            .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center; color: #666; font-size: 14px; }
+            .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid ${accentColor}40; text-align: center; color: #666; font-size: 14px; }
+            .logo { max-height: 48px; max-width: 160px; object-fit: contain; }
             @media print { body { padding: 20px; } }
           </style>
         </head>
@@ -154,6 +163,47 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
     }
   };
 
+  // Logo element
+  const logoImg = branding.logo_url ? (
+    <img src={branding.logo_url} alt="Logo" className="h-12 w-auto max-w-[160px] object-contain" />
+  ) : null;
+
+  // Company info block
+  const companyInfo = (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900">
+        {businessSettings?.company_name || 'Your Company'}
+      </h1>
+      {businessSettings?.company_address && (
+        <p className="text-gray-500 mt-1">
+          {businessSettings.company_address}
+          {businessSettings.company_city && `, ${businessSettings.company_city}`}
+          {businessSettings.company_state && `, ${businessSettings.company_state}`}
+          {businessSettings.company_zip && ` ${businessSettings.company_zip}`}
+        </p>
+      )}
+      {businessSettings?.company_phone && (
+        <p className="text-gray-500">{businessSettings.company_phone}</p>
+      )}
+      {businessSettings?.company_email && (
+        <p className="text-gray-500">{businessSettings.company_email}</p>
+      )}
+    </div>
+  );
+
+  const invoiceTitle = (
+    <div className={headerLayout === 'left' ? 'text-right' : headerLayout === 'right' ? 'text-left' : ''}>
+      <h2 className="text-3xl font-bold" style={{ color: primaryColor }}>INVOICE</h2>
+      <p className="text-gray-500 mt-1">
+        INV-{String(invoice.invoice_number).padStart(4, '0')}
+      </p>
+      <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-2 ${statusConfig.color}`}>
+        <StatusIcon className="w-3 h-3" />
+        {statusConfig.label}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -194,38 +244,39 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
         </DialogHeader>
 
         {/* Printable Invoice */}
-        <div ref={printRef} className="bg-white p-8 rounded-lg border border-gray-200 text-gray-900">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {businessSettings?.company_name || 'Your Company'}
-              </h1>
-              {businessSettings?.company_address && (
-                <p className="text-gray-500 mt-1">
-                  {businessSettings.company_address}
-                  {businessSettings.company_city && `, ${businessSettings.company_city}`}
-                  {businessSettings.company_state && `, ${businessSettings.company_state}`}
-                  {businessSettings.company_zip && ` ${businessSettings.company_zip}`}
-                </p>
-              )}
-              {businessSettings?.company_phone && (
-                <p className="text-gray-500">{businessSettings.company_phone}</p>
-              )}
-              {businessSettings?.company_email && (
-                <p className="text-gray-500">{businessSettings.company_email}</p>
-              )}
-            </div>
-            <div className="text-right">
-              <h2 className="text-3xl font-bold text-blue-600">INVOICE</h2>
-              <p className="text-gray-500 mt-1">
-                INV-{String(invoice.invoice_number).padStart(4, '0')}
-              </p>
-              <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-2 ${statusConfig.color}`}>
-                <StatusIcon className="w-3 h-3" />
-                {statusConfig.label}
+        <div ref={printRef} className="bg-white p-8 rounded-lg border border-gray-200 text-gray-900" style={{ fontFamily }}>
+          {/* Header with branding layout */}
+          <div className="mb-8">
+            {headerLayout === 'center' ? (
+              <div className="text-center space-y-2">
+                {logoImg && <div className="flex justify-center">{logoImg}</div>}
+                {companyInfo}
+                <div>
+                  <h2 className="text-3xl font-bold" style={{ color: primaryColor }}>INVOICE</h2>
+                  <p className="text-gray-500 mt-1">INV-{String(invoice.invoice_number).padStart(4, '0')}</p>
+                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-2 ${statusConfig.color}`}>
+                    <StatusIcon className="w-3 h-3" />
+                    {statusConfig.label}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : headerLayout === 'right' ? (
+              <div className="flex justify-between items-start">
+                {invoiceTitle}
+                <div className="text-right">
+                  {logoImg && <div className="flex justify-end mb-2">{logoImg}</div>}
+                  {companyInfo}
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-start">
+                <div>
+                  {logoImg && <div className="mb-2">{logoImg}</div>}
+                  {companyInfo}
+                </div>
+                {invoiceTitle}
+              </div>
+            )}
           </div>
 
           {/* Bill To & Invoice Details */}
@@ -262,25 +313,25 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           {/* Line Items Table */}
           <table className="w-full mb-8">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 text-xs uppercase text-gray-500 font-medium">Description</th>
-                <th className="text-center py-3 text-xs uppercase text-gray-500 font-medium w-20">Qty</th>
-                <th className="text-right py-3 text-xs uppercase text-gray-500 font-medium w-28">Unit Price</th>
-                <th className="text-right py-3 text-xs uppercase text-gray-500 font-medium w-28">Total</th>
+              <tr style={{ backgroundColor: accentColor + '30', borderBottom: `2px solid ${accentColor}` }}>
+                <th className="text-left py-3 px-2 text-xs uppercase text-gray-600 font-medium">Description</th>
+                <th className="text-center py-3 px-2 text-xs uppercase text-gray-600 font-medium w-20">Qty</th>
+                <th className="text-right py-3 px-2 text-xs uppercase text-gray-600 font-medium w-28">Unit Price</th>
+                <th className="text-right py-3 px-2 text-xs uppercase text-gray-600 font-medium w-28">Total</th>
               </tr>
             </thead>
             <tbody>
               {invoice.invoice_items?.map((item: any, index: number) => (
-                <tr key={item.id || index} className="border-b border-gray-200">
-                  <td className="py-3">
+                <tr key={item.id || index} style={{ borderBottom: `1px solid ${accentColor}40` }}>
+                  <td className="py-3 px-2">
                     <span className="font-medium text-gray-900">{item.description}</span>
                     {item.service?.name && item.service.name !== item.description && (
                       <span className="text-gray-500 text-sm ml-2">({item.service.name})</span>
                     )}
                   </td>
-                  <td className="text-center py-3 text-gray-900">{item.quantity}</td>
-                  <td className="text-right py-3 text-gray-900">${Number(item.unit_price).toFixed(2)}</td>
-                  <td className="text-right py-3 font-medium text-gray-900">${Number(item.total).toFixed(2)}</td>
+                  <td className="text-center py-3 px-2 text-gray-900">{item.quantity}</td>
+                  <td className="text-right py-3 px-2 text-gray-900">${Number(item.unit_price).toFixed(2)}</td>
+                  <td className="text-right py-3 px-2 font-medium text-gray-900">${Number(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -305,7 +356,10 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
                   <span className="text-gray-900">${Number(invoice.tax_amount).toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-2 border-t-2 border-gray-900 font-bold text-lg text-gray-900">
+              <div
+                className="flex justify-between py-2 font-bold text-lg"
+                style={{ borderTop: `2px solid ${primaryColor}`, color: primaryColor }}
+              >
                 <span>Total:</span>
                 <span>${Number(invoice.total_amount).toFixed(2)}</span>
               </div>
@@ -321,8 +375,8 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           )}
 
           {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
-            <p>Thank you for your business!</p>
+          <div className="mt-8 pt-6 text-center text-gray-500 text-sm" style={{ borderTop: `1px solid ${accentColor}40` }}>
+            <p>{footerMessage}</p>
             {businessSettings?.company_email && (
               <p className="mt-1">Questions? Contact us at {businessSettings.company_email}</p>
             )}

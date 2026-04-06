@@ -39,6 +39,7 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+import { InvoiceDesignSettings } from '@/components/admin/InvoiceDesignSettings';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -516,6 +517,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="emails">Emails</TabsTrigger>
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="invoice-design">Invoice Design</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
@@ -997,7 +999,12 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Sidebar Settings */}
+        {/* Invoice Design */}
+        <TabsContent value="invoice-design" className="space-y-6">
+          <InvoiceDesignSettings />
+        </TabsContent>
+
+
         <TabsContent value="sidebar" className="space-y-6">
           <SidebarVisibilitySettings />
         </TabsContent>
