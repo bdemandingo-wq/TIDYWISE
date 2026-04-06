@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const PRICE_ID = "price_1SihrVJv857o86noT8NIIfrq";
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -41,43 +43,81 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Find Stripe customer
+    // Check for existing Stripe customer
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
-    }
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    let customerId: string | undefined;
 
-    // Find active subscription with trial
-    const subscriptions = await stripe.subscriptions.list({
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      logStep("Found Stripe customer", { customerId });
+
+      // Check if they have a trialing subscription — end trial immediately
+      const trialingSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "trialing",
+        limit: 1,
+      });
+
+      if (trialingSubs.data.length > 0) {
+        const subscription = trialingSubs.data[0];
+        logStep("Found trialing subscription, ending trial now", { subscriptionId: subscription.id });
+
+        const updated = await stripe.subscriptions.update(subscription.id, {
+          trial_end: "now",
+        });
+
+        logStep("Trial ended successfully", { status: updated.status });
+
+        return new Response(JSON.stringify({
+          success: true,
+          subscription_id: updated.id,
+          status: updated.status,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // Check if already actively subscribed
+      const activeSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+
+      if (activeSubs.data.length > 0) {
+        logStep("User already has an active subscription");
+        return new Response(JSON.stringify({ error: "You already have an active subscription." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+    }
+
+    // No trialing sub found — user is on org-based free trial
+    // Create a Stripe Checkout session to start their paid subscription
+    const origin = req.headers.get("origin") || "https://jointidywise.lovable.app";
+
+    const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      status: "trialing",
-      limit: 1,
+      customer_email: customerId ? undefined : user.email,
+      line_items: [
+        {
+          price: PRICE_ID,
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      success_url: `${origin}/dashboard?subscription=success`,
+      cancel_url: `${origin}/dashboard/subscription?canceled=true`,
     });
 
-    if (subscriptions.data.length === 0) {
-      throw new Error("No active trial subscription found");
-    }
-
-    const subscription = subscriptions.data[0];
-    logStep("Found trial subscription", { subscriptionId: subscription.id });
-
-    // End trial immediately - this charges the card on file
-    const updated = await stripe.subscriptions.update(subscription.id, {
-      trial_end: "now",
-    });
-
-    logStep("Trial ended successfully", {
-      subscriptionId: updated.id,
-      status: updated.status,
-      currentPeriodEnd: updated.current_period_end,
-    });
+    logStep("Checkout session created for upgrade", { sessionId: session.id });
 
     return new Response(JSON.stringify({
       success: true,
-      subscription_id: updated.id,
-      status: updated.status,
+      url: session.url,
+      redirect: true,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
