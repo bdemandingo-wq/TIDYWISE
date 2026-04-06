@@ -298,7 +298,7 @@ export default function PortalRequestPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-md">
+      <div className="container mx-auto px-4 py-6 max-w-md pb-24">
         <Card>
           <CardHeader>
             <CardTitle>{isReschedule ? "Reschedule Request" : "New Booking Request"}</CardTitle>
