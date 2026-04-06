@@ -45,6 +45,8 @@ import { hapticImpact } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { SEOHead } from '@/components/SEOHead';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
