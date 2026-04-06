@@ -6,6 +6,7 @@ import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { OnboardingChecklist } from '@/components/admin/OnboardingChecklist';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { isToday } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
