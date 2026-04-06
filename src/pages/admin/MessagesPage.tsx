@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import CallsTab from '@/components/admin/CallsTab';
+
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,10 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek } from 'date-fns';
 import {
-  MessageSquare, Send, Search, Plus, Phone, Loader2, RefreshCw,
+  MessageSquare, Send, Search, Plus, Loader2, RefreshCw,
   MoreHorizontal, Pencil, Trash2, Users, HardHat, X,
   Check, Mail, Link, Paperclip, ChevronLeft, Forward,
-  Mic, Video, Pin, BellOff, CheckCheck, MessageCircle,
+  Mic, Pin, BellOff, CheckCheck, MessageCircle, Phone,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -66,7 +66,7 @@ interface Contact {
 }
 
 type ConversationTab = 'all' | 'clients' | 'cleaners' | 'unread';
-type PageMode = 'messages' | 'calls';
+
 
 // ─── Helpers ────────────────────────────────────────
 const normalizePhone = (phone: string): string => {
@@ -106,7 +106,7 @@ export default function MessagesPage() {
   const [newName, setNewName] = useState('');
   const [conversationType, setConversationType] = useState<'client' | 'cleaner'>('client');
   const [activeTab, setActiveTab] = useState<ConversationTab>('all');
-  const [pageMode, setPageMode] = useState<PageMode>('messages');
+  
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -328,19 +328,31 @@ export default function MessagesPage() {
     setLoading(true);
     const [convsRes, customersRes, staffRes] = await Promise.all([
       supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
-      supabase.from('customers').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
-      supabase.from('staff').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('customers').select('phone, first_name, last_name').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('staff').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
     ]);
     if (convsRes.error) {
       toast.error('Failed to load conversations');
     } else {
       const convs = (convsRes.data || []) as Conversation[];
-      const customerPhones = new Set((customersRes.data || []).map(c => normalizePhone(c.phone!)));
-      const staffPhones = new Set((staffRes.data || []).map(s => normalizePhone(s.phone!)));
+      // Build phone-to-name maps
+      const customerPhoneMap = new Map<string, string>();
+      (customersRes.data || []).forEach(c => {
+        if (c.phone) customerPhoneMap.set(normalizePhone(c.phone), `${c.first_name || ''} ${c.last_name || ''}`.trim());
+      });
+      const staffPhoneMap = new Map<string, string>();
+      (staffRes.data || []).forEach(s => {
+        if (s.phone) staffPhoneMap.set(normalizePhone(s.phone), s.name || '');
+      });
       convs.forEach(c => {
         const norm = normalizePhone(c.customer_phone);
-        if (staffPhones.has(norm)) c.conversation_type = 'cleaner';
-        else if (customerPhones.has(norm)) c.conversation_type = 'client';
+        if (staffPhoneMap.has(norm)) {
+          c.conversation_type = 'cleaner';
+          if (!c.customer_name) c.customer_name = staffPhoneMap.get(norm) || null;
+        } else if (customerPhoneMap.has(norm)) {
+          c.conversation_type = 'client';
+          if (!c.customer_name) c.customer_name = customerPhoneMap.get(norm) || null;
+        }
       });
       if (convs.length > 0) {
         const { data: previews } = await supabase
@@ -1371,45 +1383,7 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
-        {/* Page Mode Toggle */}
-        <div className={cn(
-          "flex items-center gap-1 p-1 rounded-xl mx-4 mt-2 mb-2",
-          isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C]" : "bg-muted/50 max-w-xs"
-        )}>
-          <button
-            onClick={() => setPageMode('messages')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-              pageMode === 'messages'
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <MessageSquare className="h-4 w-4" /> Messages
-          </button>
-          <button
-            onClick={() => setPageMode('calls')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-              pageMode === 'calls'
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Phone className="h-4 w-4" /> Calls
-          </button>
-        </div>
-
-        {pageMode === 'calls' ? (
-          <div className={cn(
-            isMobile
-              ? "flex flex-col -mx-1.5 bg-white dark:bg-[#1C1C1E]"
-              : "border rounded-xl overflow-hidden bg-background relative",
-            "h-[calc(100vh-14rem)]"
-          )}>
-            {organizationId && <CallsTab organizationId={organizationId} />}
-          </div>
-        ) : isMobile ? (
+        {isMobile ? (
           <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
@@ -1494,9 +1468,8 @@ export default function MessagesPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* New Conversation Dialog (mobile) */}
-        {isMobile && (
-          <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
+        {/* New Conversation Dialog */}
+        <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
             <DialogContent>
               <DialogHeader><DialogTitle>Start New Conversation</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-4">
@@ -1535,8 +1508,7 @@ export default function MessagesPage() {
                 <Button onClick={handleStartNewConversation} className="w-full" disabled={!newPhone.trim() && !selectedContact}>Start Conversation</Button>
               </div>
             </DialogContent>
-          </Dialog>
-        )}
+        </Dialog>
 
         {/* iOS-style Long-Press Context Menu */}
         {contextMenuConvId && contextMenuPosition && (
