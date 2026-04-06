@@ -664,44 +664,46 @@ export default function PortalDashboardPage() {
             ) : (
               upcomingBookings.map((booking) => (
                 <Card key={booking.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
                       <p className="font-medium">{booking.service?.name || "Service"}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 shrink-0" />
                         {getDateLabel(booking.scheduled_at)}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-4 w-4 shrink-0" />
                         {format(new Date(booking.scheduled_at), "h:mm a")}
                       </div>
                       {booking.address && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          {booking.address}
+                          <MapPin className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{booking.address}</span>
                         </div>
                       )}
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      {getStatusBadge(booking.status)}
-                      <p className="text-lg font-semibold">${booking.total_amount}</p>
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 justify-between">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(booking.status)}
+                        <p className="text-lg font-semibold">${booking.total_amount}</p>
+                      </div>
                       <div className="flex gap-1.5">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs gap-1 h-7"
+                          className="text-xs gap-1 min-h-[44px] px-3"
                           onClick={() => handleReschedule(booking)}
                         >
-                          <CalendarClock className="h-3 w-3" />
+                          <CalendarClock className="h-3.5 w-3.5" />
                           Reschedule
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 h-7"
+                          className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px] min-w-[44px]"
                           onClick={() => handleCancelClick(booking)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
