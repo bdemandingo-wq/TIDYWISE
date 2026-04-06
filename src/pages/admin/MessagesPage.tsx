@@ -328,19 +328,31 @@ export default function MessagesPage() {
     setLoading(true);
     const [convsRes, customersRes, staffRes] = await Promise.all([
       supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
-      supabase.from('customers').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
-      supabase.from('staff').select('phone').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('customers').select('phone, first_name, last_name').eq('organization_id', organizationId).not('phone', 'is', null),
+      supabase.from('staff').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
     ]);
     if (convsRes.error) {
       toast.error('Failed to load conversations');
     } else {
       const convs = (convsRes.data || []) as Conversation[];
-      const customerPhones = new Set((customersRes.data || []).map(c => normalizePhone(c.phone!)));
-      const staffPhones = new Set((staffRes.data || []).map(s => normalizePhone(s.phone!)));
+      // Build phone-to-name maps
+      const customerPhoneMap = new Map<string, string>();
+      (customersRes.data || []).forEach(c => {
+        if (c.phone) customerPhoneMap.set(normalizePhone(c.phone), `${c.first_name || ''} ${c.last_name || ''}`.trim());
+      });
+      const staffPhoneMap = new Map<string, string>();
+      (staffRes.data || []).forEach(s => {
+        if (s.phone) staffPhoneMap.set(normalizePhone(s.phone), s.name || '');
+      });
       convs.forEach(c => {
         const norm = normalizePhone(c.customer_phone);
-        if (staffPhones.has(norm)) c.conversation_type = 'cleaner';
-        else if (customerPhones.has(norm)) c.conversation_type = 'client';
+        if (staffPhoneMap.has(norm)) {
+          c.conversation_type = 'cleaner';
+          if (!c.customer_name) c.customer_name = staffPhoneMap.get(norm) || null;
+        } else if (customerPhoneMap.has(norm)) {
+          c.conversation_type = 'client';
+          if (!c.customer_name) c.customer_name = customerPhoneMap.get(norm) || null;
+        }
       });
       if (convs.length > 0) {
         const { data: previews } = await supabase
