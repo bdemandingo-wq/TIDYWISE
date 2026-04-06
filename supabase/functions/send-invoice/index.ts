@@ -81,23 +81,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Fetch invoice branding for this organization
-    const { data: brandingData } = await supabase
-      .from("invoice_branding")
-      .select("*")
+    // Fetch org business settings for branding colors and logo
+    const { data: bizSettings } = await supabase
+      .from("business_settings")
+      .select("primary_color, accent_color, logo_url, company_name")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
-    const branding: InvoiceBranding = {
-      logo_url: brandingData?.logo_url || null,
-      primary_color: brandingData?.primary_color || '#3b82f6',
-      accent_color: brandingData?.accent_color || '#e5e7eb',
-      font_style: brandingData?.font_style || 'modern',
-      header_layout: brandingData?.header_layout || 'left',
-      footer_message: brandingData?.footer_message || 'Thank you for your business!',
-    };
+    const primaryColor = bizSettings?.primary_color || '#3b82f6';
+    const accentColor = bizSettings?.accent_color || '#e5e7eb';
+    const logoUrl = bizSettings?.logo_url || null;
+    const fontFamily = "'Inter', system-ui, -apple-system, Arial, sans-serif";
 
-    console.log("[send-invoice] Using branding:", branding);
+    console.log("[send-invoice] Using org branding - primary:", primaryColor, "accent:", accentColor);
 
     // Fetch Stripe settings
     const { data: orgStripeSettings, error: stripeSettingsError } = await supabase
