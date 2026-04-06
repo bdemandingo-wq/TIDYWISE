@@ -10,6 +10,7 @@ interface OnboardingProgressProps {
   staffId: string;
   organizationId: string;
   onNavigate?: (tab: string) => void;
+  taxClassification?: string | null;
 }
 
 interface OnboardingStep {
