@@ -3023,6 +3023,53 @@ export type Database = {
           },
         ]
       }
+      invoice_branding: {
+        Row: {
+          accent_color: string | null
+          created_at: string | null
+          font_style: string | null
+          footer_message: string | null
+          header_layout: string | null
+          id: string
+          logo_url: string | null
+          organization_id: string
+          primary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          created_at?: string | null
+          font_style?: string | null
+          footer_message?: string | null
+          header_layout?: string | null
+          id?: string
+          logo_url?: string | null
+          organization_id: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          created_at?: string | null
+          font_style?: string | null
+          footer_message?: string | null
+          header_layout?: string | null
+          id?: string
+          logo_url?: string | null
+          organization_id?: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string
