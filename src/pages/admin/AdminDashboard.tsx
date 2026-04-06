@@ -65,7 +65,6 @@ export default function AdminDashboard() {
   // Handle return from Stripe Checkout
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
-      const { toast } = require('sonner');
       toast.success('Subscription activated! You now have full access.');
       searchParams.delete('subscription');
       setSearchParams(searchParams, { replace: true });
