@@ -1,11 +1,12 @@
 import { useMemo, useEffect, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
 import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { OnboardingChecklist } from '@/components/admin/OnboardingChecklist';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { isToday } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -59,6 +60,16 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    if (searchParams.get('subscription') === 'success') {
+      toast.success('Subscription activated! You now have full access.');
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const channel = supabase
