@@ -797,10 +797,10 @@ export default function PortalDashboardPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs gap-1 h-7"
+                          className="text-xs gap-1 min-h-[44px] px-3"
                           onClick={() => handleRebook(booking)}
                         >
-                          <RotateCcw className="h-3 w-3" />
+                          <RotateCcw className="h-3.5 w-3.5" />
                           Rebook
                         </Button>
                       )}
