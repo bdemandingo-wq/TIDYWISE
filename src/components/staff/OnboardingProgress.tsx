@@ -24,7 +24,7 @@ interface OnboardingStep {
   statusLabel: string;
 }
 
-export function OnboardingProgress({ staffId, organizationId, onNavigate }: OnboardingProgressProps) {
+export function OnboardingProgress({ staffId, organizationId, onNavigate, taxClassification }: OnboardingProgressProps) {
   // Check documents status
   const { data: documents = [] } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
