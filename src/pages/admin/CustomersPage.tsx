@@ -682,7 +682,7 @@ export default function CustomersPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                {getStatusBadge(customer.customer_status)}
+                                {getStatusBadge(getEffectiveStatus(customer))}
                                 {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
                               </div>
                             </TableCell>
