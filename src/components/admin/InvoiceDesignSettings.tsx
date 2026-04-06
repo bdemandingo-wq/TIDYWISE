@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Save, Loader2, Upload, Palette, Type, LayoutTemplate, MessageSquare } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -60,6 +60,7 @@ export function InvoiceDesignSettings() {
       setForm(prev => ({ ...prev, logo_url: urlData.publicUrl }));
       toast.success('Logo uploaded');
     } catch (err: any) {
+      console.error('Logo upload error:', err);
       toast.error(err.message || 'Upload failed');
     } finally {
       setUploading(false);
@@ -71,13 +72,18 @@ export function InvoiceDesignSettings() {
     setSaving(true);
     try {
       const payload = { ...form, organization_id: organization.id, updated_at: new Date().toISOString() };
+      console.log('[InvoiceDesign] Saving branding:', payload);
       const { error } = await (supabase as any)
         .from('invoice_branding')
         .upsert(payload, { onConflict: 'organization_id' });
-      if (error) throw error;
+      if (error) {
+        console.error('[InvoiceDesign] Save error:', error);
+        throw error;
+      }
       queryClient.invalidateQueries({ queryKey: ['invoice-branding'] });
       toast.success('Invoice design saved');
     } catch (err: any) {
+      console.error('[InvoiceDesign] Save failed:', err);
       toast.error(err.message || 'Failed to save');
     } finally {
       setSaving(false);
@@ -138,7 +144,8 @@ export function InvoiceDesignSettings() {
                     type="color"
                     value={form.primary_color}
                     onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
-                    className="w-10 h-10 rounded border cursor-pointer"
+                    className="w-10 h-10 rounded border cursor-pointer p-0"
+                    style={{ WebkitAppearance: 'none', appearance: 'none' }}
                   />
                   <Input
                     value={form.primary_color}
@@ -155,7 +162,8 @@ export function InvoiceDesignSettings() {
                     type="color"
                     value={form.accent_color}
                     onChange={e => setForm(p => ({ ...p, accent_color: e.target.value }))}
-                    className="w-10 h-10 rounded border cursor-pointer"
+                    className="w-10 h-10 rounded border cursor-pointer p-0"
+                    style={{ WebkitAppearance: 'none', appearance: 'none' }}
                   />
                   <Input
                     value={form.accent_color}
@@ -177,7 +185,7 @@ export function InvoiceDesignSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Select value={form.font_style} onValueChange={(v: any) => setForm(p => ({ ...p, font_style: v }))}>
+            <Select value={form.font_style} onValueChange={(v: 'modern' | 'classic' | 'minimal') => setForm(p => ({ ...p, font_style: v }))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -199,7 +207,7 @@ export function InvoiceDesignSettings() {
             <CardDescription>Where the logo appears in the invoice header</CardDescription>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={form.header_layout} onValueChange={(v: any) => setForm(p => ({ ...p, header_layout: v }))} className="flex gap-4">
+            <RadioGroup value={form.header_layout} onValueChange={(v: 'left' | 'center' | 'right') => setForm(p => ({ ...p, header_layout: v }))} className="flex gap-4">
               {(['left', 'center', 'right'] as const).map(opt => (
                 <div key={opt} className="flex items-center gap-2">
                   <RadioGroupItem value={opt} id={`layout-${opt}`} />
