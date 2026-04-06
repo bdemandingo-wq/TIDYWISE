@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
@@ -18,6 +18,7 @@ serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[create-staff-connect-account] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
       return new Response(JSON.stringify({ error: "Server configuration error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,6 +43,7 @@ serve(async (req: Request) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
+      console.error("[create-staff-connect-account] Auth error:", userError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -49,6 +51,7 @@ serve(async (req: Request) => {
     }
 
     const { staffId, organizationId, returnUrl } = await req.json();
+    console.log("[create-staff-connect-account] Request:", { staffId, organizationId, userId: userData.user.id });
 
     if (!staffId || !organizationId) {
       return new Response(JSON.stringify({ error: "staffId and organizationId are required" }), {
@@ -66,6 +69,7 @@ serve(async (req: Request) => {
       .single();
 
     if (staffError || !staffRecord) {
+      console.error("[create-staff-connect-account] Staff lookup failed:", staffError?.message);
       return new Response(JSON.stringify({ error: "Staff record not found or access denied" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -106,6 +110,7 @@ serve(async (req: Request) => {
     let stripeAccountId = existingAccount?.stripe_account_id;
 
     if (!stripeAccountId) {
+      console.log("[create-staff-connect-account] Creating new Express account for staff:", staffId);
       // Create a new Stripe Connect Express account
       const account = await stripe.accounts.create({
         type: "express",
@@ -120,6 +125,7 @@ serve(async (req: Request) => {
       });
 
       stripeAccountId = account.id;
+      console.log("[create-staff-connect-account] Created Stripe account:", stripeAccountId);
 
       // Save to database
       await supabase.from("staff_payout_accounts").upsert({
@@ -129,6 +135,8 @@ serve(async (req: Request) => {
         account_status: "onboarding",
         account_holder_name: staffRecord.name,
       }, { onConflict: "staff_id,organization_id" });
+    } else {
+      console.log("[create-staff-connect-account] Reusing existing Stripe account:", stripeAccountId);
     }
 
     // Create an account link for onboarding
@@ -141,6 +149,8 @@ serve(async (req: Request) => {
       return_url: `${baseReturnUrl}/staff?tab=payouts&setup=complete`,
       type: "account_onboarding",
     });
+
+    console.log("[create-staff-connect-account] Account link created successfully");
 
     // Update onboarding URL
     await supabase
@@ -157,7 +167,7 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error creating Connect account:", error);
+    console.error("[create-staff-connect-account] Error:", error.message, error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
