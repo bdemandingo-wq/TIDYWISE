@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -249,6 +249,15 @@ export default function CustomersPage() {
     setSelectedIds(newSelected);
   };
 
+  // Compute effective status: override to 'active' if customer has bookings/revenue
+  const getEffectiveStatus = useCallback((customer: any) => {
+    const stats = statsMap.get(customer.id);
+    if (stats && (stats.total_bookings > 0 || stats.total_revenue > 0)) {
+      return 'active';
+    }
+    return customer.customer_status || 'lead';
+  }, [statsMap]);
+
   const filteredCustomers = useMemo(() => {
     let list = customers.filter((customer) => {
       const matchesSearch =
@@ -256,9 +265,10 @@ export default function CustomersPage() {
         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (customer.phone?.includes(searchTerm) ?? false);
 
+      const effectiveStatus = getEffectiveStatus(customer);
       let matchesTab = true;
-      if (tabFilter === 'customers') matchesTab = customer.customer_status === 'active';
-      else if (tabFilter === 'leads') matchesTab = customer.customer_status === 'lead' || (!customer.customer_status || customer.customer_status === '');
+      if (tabFilter === 'customers') matchesTab = effectiveStatus === 'active';
+      else if (tabFilter === 'leads') matchesTab = effectiveStatus === 'lead';
 
       return matchesSearch && matchesTab;
     });
@@ -383,8 +393,8 @@ export default function CustomersPage() {
     overscan: 8,
   });
 
-  const customerCount = customers.filter(c => c.customer_status === 'active').length;
-  const leadCount = customers.filter(c => c.customer_status === 'lead' || !c.customer_status || c.customer_status === '').length;
+  const customerCount = customers.filter(c => getEffectiveStatus(c) === 'active').length;
+  const leadCount = customers.filter(c => getEffectiveStatus(c) === 'lead').length;
 
   return (
     <AdminLayout
@@ -535,7 +545,7 @@ export default function CustomersPage() {
                                   <p className="text-xs text-muted-foreground truncate">{maskPhone(customer.phone || '')}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  {getStatusBadge(customer.customer_status)}
+                                  {getStatusBadge(getEffectiveStatus(customer))}
                                   {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Possible Duplicate</Badge>}
                                 </div>
                               </div>
@@ -672,7 +682,7 @@ export default function CustomersPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                {getStatusBadge(customer.customer_status)}
+                                {getStatusBadge(getEffectiveStatus(customer))}
                                 {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
                               </div>
                             </TableCell>
