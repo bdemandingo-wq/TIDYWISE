@@ -214,6 +214,12 @@ export default function PortalRequestPage() {
     try {
       const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
       const combinedNotes = [turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
+      const selectedLocationRecord = locations.find((location) => location.id === selectedLocation);
+      const isSyntheticPrimaryAddress = Boolean(
+        selectedLocationRecord &&
+        selectedLocationRecord.name === "Primary Address" &&
+        selectedLocationRecord.id === user.customer_id
+      );
 
       const rpcArgs: {
         p_client_user_id: string;
@@ -232,7 +238,7 @@ export default function PortalRequestPage() {
 
       if (selectedService) rpcArgs.p_service_id = selectedService;
       if (combinedNotes) rpcArgs.p_notes = combinedNotes;
-      if (selectedLocation) rpcArgs.p_location_id = selectedLocation;
+      if (selectedLocation && !isSyntheticPrimaryAddress) rpcArgs.p_location_id = selectedLocation;
 
       const { data, error } = await supabase.rpc("submit_client_booking_request", rpcArgs);
 
