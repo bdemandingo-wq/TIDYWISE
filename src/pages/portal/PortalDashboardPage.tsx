@@ -369,6 +369,14 @@ export default function PortalDashboardPage() {
                       <CalendarClock className="h-4 w-4" />
                       Manage
                     </Button>
+                    <Button
+                      variant="outline"
+                      className="gap-1 h-11 rounded-xl text-sm font-semibold text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleCancelClick(nextBooking)}
+                    >
+                      <X className="h-4 w-4" />
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               </CardContent>

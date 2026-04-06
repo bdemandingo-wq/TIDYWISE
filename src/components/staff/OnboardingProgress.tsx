@@ -10,6 +10,7 @@ interface OnboardingProgressProps {
   staffId: string;
   organizationId: string;
   onNavigate?: (tab: string) => void;
+  taxClassification?: string | null;
 }
 
 interface OnboardingStep {
@@ -23,7 +24,7 @@ interface OnboardingStep {
   statusLabel: string;
 }
 
-export function OnboardingProgress({ staffId, organizationId, onNavigate }: OnboardingProgressProps) {
+export function OnboardingProgress({ staffId, organizationId, onNavigate, taxClassification }: OnboardingProgressProps) {
   // Check documents status
   const { data: documents = [] } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
@@ -87,7 +88,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate }: Onbo
   });
 
   // Build steps
-  const requiredDocTypes = ['w9', 'government_id'];
+  const isW2 = taxClassification === 'w2';
+  const requiredDocTypes = isW2 ? ['government_id'] : ['w9', 'government_id'];
   const uploadedApprovedDocs = documents.filter(
     d => requiredDocTypes.includes(d.document_type) && d.status === 'approved'
   );
@@ -120,7 +122,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate }: Onbo
     {
       id: 'documents',
       label: 'Upload Documents',
-      description: 'W-9 and Government ID required',
+      description: isW2 ? 'Government ID required' : 'W-9 and Government ID required',
       icon: <FileText className="w-5 h-5" />,
       tab: 'documents',
       completed: docsComplete,
