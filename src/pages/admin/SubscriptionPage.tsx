@@ -69,8 +69,10 @@ export default function SubscriptionPage() {
     try {
       const { data, error } = await supabase.functions.invoke("create-subscription");
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       if (data?.url) {
-        window.open(data.url, "_blank");
+        // Redirect in same tab so user completes payment and comes back to dashboard
+        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error("Error creating subscription:", error);
