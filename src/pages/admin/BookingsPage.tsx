@@ -1598,12 +1598,12 @@ export default function BookingsPage() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-0" align="start" side="bottom" avoidCollisions>
               <CalendarComponent
                 mode="range"
                 selected={dateRange}
                 onSelect={setDateRange}
-                numberOfMonths={2}
+                numberOfMonths={typeof window !== 'undefined' && window.innerWidth < 640 ? 1 : 2}
                 initialFocus
               />
               {dateRange && (

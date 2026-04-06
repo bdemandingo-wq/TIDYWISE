@@ -582,11 +582,11 @@ export default function PortalDashboardPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1 text-xs"
+                    className="gap-1 text-xs min-h-[44px] min-w-[44px]"
                     onClick={() => handleReschedule(nextBooking)}
                   >
                     <CalendarClock className="h-3.5 w-3.5" />
@@ -627,11 +627,11 @@ export default function PortalDashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="w-full overflow-x-auto flex justify-start gap-1 h-auto p-1">
-            <TabsTrigger value="upcoming" className="text-xs sm:text-sm shrink-0">Upcoming</TabsTrigger>
-            <TabsTrigger value="requests" className="text-xs sm:text-sm shrink-0">Requests</TabsTrigger>
-            <TabsTrigger value="history" className="text-xs sm:text-sm shrink-0">History</TabsTrigger>
-            <TabsTrigger value="notifications" className="relative text-xs sm:text-sm shrink-0">
+          <TabsList className="w-full overflow-x-auto flex justify-start gap-1 h-auto p-1 no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <TabsTrigger value="upcoming" className="text-xs sm:text-sm shrink-0 min-h-[44px]">Upcoming</TabsTrigger>
+            <TabsTrigger value="requests" className="text-xs sm:text-sm shrink-0 min-h-[44px]">Requests</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm shrink-0 min-h-[44px]">History</TabsTrigger>
+            <TabsTrigger value="notifications" className="relative text-xs sm:text-sm shrink-0 min-h-[44px]">
               Alerts
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center">
@@ -639,10 +639,10 @@ export default function PortalDashboardPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="profile" className="text-xs sm:text-sm shrink-0">
+            <TabsTrigger value="profile" className="text-xs sm:text-sm shrink-0 min-h-[44px]">
               <User className="h-4 w-4" />
             </TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs sm:text-sm shrink-0">
+            <TabsTrigger value="settings" className="text-xs sm:text-sm shrink-0 min-h-[44px]">
               <Settings className="h-4 w-4" />
             </TabsTrigger>
           </TabsList>
@@ -664,44 +664,46 @@ export default function PortalDashboardPage() {
             ) : (
               upcomingBookings.map((booking) => (
                 <Card key={booking.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
                       <p className="font-medium">{booking.service?.name || "Service"}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 shrink-0" />
                         {getDateLabel(booking.scheduled_at)}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-4 w-4 shrink-0" />
                         {format(new Date(booking.scheduled_at), "h:mm a")}
                       </div>
                       {booking.address && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          {booking.address}
+                          <MapPin className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{booking.address}</span>
                         </div>
                       )}
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      {getStatusBadge(booking.status)}
-                      <p className="text-lg font-semibold">${booking.total_amount}</p>
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 justify-between">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(booking.status)}
+                        <p className="text-lg font-semibold">${booking.total_amount}</p>
+                      </div>
                       <div className="flex gap-1.5">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs gap-1 h-7"
+                          className="text-xs gap-1 min-h-[44px] px-3"
                           onClick={() => handleReschedule(booking)}
                         >
-                          <CalendarClock className="h-3 w-3" />
+                          <CalendarClock className="h-3.5 w-3.5" />
                           Reschedule
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 h-7"
+                          className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px] min-w-[44px]"
                           onClick={() => handleCancelClick(booking)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -744,7 +746,7 @@ export default function PortalDashboardPage() {
                         {getStatusBadge(request.status)}
                         <button
                           onClick={() => deleteRequest(request.id)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          className="p-2.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                           aria-label="Delete request"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -795,10 +797,10 @@ export default function PortalDashboardPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs gap-1 h-7"
+                          className="text-xs gap-1 min-h-[44px] px-3"
                           onClick={() => handleRebook(booking)}
                         >
-                          <RotateCcw className="h-3 w-3" />
+                          <RotateCcw className="h-3.5 w-3.5" />
                           Rebook
                         </Button>
                       )}
@@ -850,7 +852,7 @@ export default function PortalDashboardPage() {
                       )}
                       <button
                         onClick={(e) => deleteNotification(notification.id, e)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-2.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                         aria-label="Delete notification"
                       >
                         <Trash2 className="h-4 w-4" />

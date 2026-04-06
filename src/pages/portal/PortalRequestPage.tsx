@@ -298,7 +298,7 @@ export default function PortalRequestPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-md">
+      <div className="container mx-auto px-4 py-6 max-w-md pb-24">
         <Card>
           <CardHeader>
             <CardTitle>{isReschedule ? "Reschedule Request" : "New Booking Request"}</CardTitle>
@@ -325,7 +325,7 @@ export default function PortalRequestPage() {
                       : "Select a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0" align="center" side="bottom" avoidCollisions>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -532,7 +532,7 @@ export default function PortalRequestPage() {
 
             {/* Submit Button */}
             <Button
-              className="w-full gap-2"
+              className="w-full gap-2 min-h-[48px]"
               size="lg"
               onClick={handleSubmit}
               disabled={!selectedDate || !selectedTime || submitting}
