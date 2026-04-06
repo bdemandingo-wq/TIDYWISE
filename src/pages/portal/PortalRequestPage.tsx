@@ -214,6 +214,12 @@ export default function PortalRequestPage() {
     try {
       const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
       const combinedNotes = [turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
+      const selectedLocationRecord = locations.find((location) => location.id === selectedLocation);
+      const isSyntheticPrimaryAddress = Boolean(
+        selectedLocationRecord &&
+        selectedLocationRecord.name === "Primary Address" &&
+        selectedLocationRecord.id === user.customer_id
+      );
 
       const rpcArgs: {
         p_client_user_id: string;
@@ -232,7 +238,7 @@ export default function PortalRequestPage() {
 
       if (selectedService) rpcArgs.p_service_id = selectedService;
       if (combinedNotes) rpcArgs.p_notes = combinedNotes;
-      if (selectedLocation) rpcArgs.p_location_id = selectedLocation;
+      if (selectedLocation && !isSyntheticPrimaryAddress) rpcArgs.p_location_id = selectedLocation;
 
       const { data, error } = await supabase.rpc("submit_client_booking_request", rpcArgs);
 
@@ -252,11 +258,11 @@ export default function PortalRequestPage() {
         },
       }).catch((err) => console.error("SMS notification error:", err));
 
-      toast.success("Booking request submitted! We'll get back to you soon.");
+      toast.success(isReschedule ? "Reschedule request submitted! We'll confirm the update soon." : "Booking request submitted! We'll get back to you soon.");
       navigate("/portal/dashboard");
     } catch (err: unknown) {
       console.error("Submit error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to submit request. Please try again.";
+      const msg = err instanceof Error ? err.message : (isReschedule ? "Failed to submit reschedule request. Please try again." : "Failed to submit request. Please try again.");
       toast.error(msg);
     } finally {
       setSubmitting(false);
