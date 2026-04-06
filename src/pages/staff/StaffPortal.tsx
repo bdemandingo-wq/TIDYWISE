@@ -871,7 +871,7 @@ export default function StaffPortal() {
           <TabsContent value="documents" className="space-y-4">
             <Suspense fallback={<TabFallback />}>
               {staffInfo?.id && staffInfo?.organization_id ? (
-                <StaffDocumentUpload staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+                <StaffDocumentUpload staffId={staffInfo.id} organizationId={staffInfo.organization_id} taxClassification={staffInfo.tax_classification} />
               ) : (
                 <TabFallback />
               )}

@@ -234,22 +234,24 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
             Upload Documents
           </CardTitle>
           <CardDescription>
-            Upload insurance, W-9, government ID, certifications, or other documents. You can select multiple files.
+            Upload insurance, {employmentType === '1099' ? 'W-9, ' : ''}government ID, certifications, or other documents. You can select multiple files.
           </CardDescription>
-          <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-dashed">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              Need to fill out a W-9?
-            </p>
-            <a
-              href="https://www.irs.gov/pub/irs-pdf/fw9.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary underline hover:text-primary/80 mt-1 inline-block"
-            >
-              Click here to fill out your W-9 form →
-            </a>
-          </div>
+          {employmentType === '1099' && (
+            <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-dashed">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Need to fill out a W-9?
+              </p>
+              <a
+                href="https://www.irs.gov/pub/irs-pdf/fw9.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary underline hover:text-primary/80 mt-1 inline-block"
+              >
+                Click here to fill out your W-9 form →
+              </a>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <input
