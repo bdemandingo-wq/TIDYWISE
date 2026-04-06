@@ -21,6 +21,11 @@ interface AddCustomerDialogProps {
 
 export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps) {
   const createCustomer = useCreateCustomer();
+  const { data: customers } = useCustomers();
+  const { maxCustomers, hasFullAccess } = useSubscription();
+  const { setShowSubscriptionDialog } = useAuth();
+  const customerCount = customers?.length ?? 0;
+  const atLimit = customerCount >= maxCustomers;
   
   const [formData, setFormData] = useState({
     first_name: '',
