@@ -202,6 +202,11 @@ export default function PortalRequestPage() {
       return;
     }
 
+    if (!user.organization_id) {
+      toast.error("Account configuration error. Please contact support.");
+      return;
+    }
+
     setSubmitting(true);
 
     const requestedDateISO = selectedDateTimeToUTCISO(selectedDate, selectedTime, orgTimezone);
@@ -210,17 +215,31 @@ export default function PortalRequestPage() {
       const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
       const combinedNotes = [turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
 
-      const { data, error } = await supabase.rpc("submit_client_booking_request", {
+      const rpcArgs: {
+        p_client_user_id: string;
+        p_customer_id: string;
+        p_organization_id: string;
+        p_requested_date: string;
+        p_service_id?: string;
+        p_notes?: string;
+        p_location_id?: string;
+      } = {
         p_client_user_id: user.id,
         p_customer_id: user.customer_id,
         p_organization_id: user.organization_id,
         p_requested_date: requestedDateISO,
-        p_service_id: selectedService || null,
-        p_notes: combinedNotes,
-        p_location_id: selectedLocation || null,
-      });
+      };
 
-      if (error) throw error;
+      if (selectedService) rpcArgs.p_service_id = selectedService;
+      if (combinedNotes) rpcArgs.p_notes = combinedNotes;
+      if (selectedLocation) rpcArgs.p_location_id = selectedLocation;
+
+      const { data, error } = await supabase.rpc("submit_client_booking_request", rpcArgs);
+
+      if (error) {
+        console.error("RPC error:", error);
+        throw error;
+      }
 
       const serviceName = services.find((s) => s.id === selectedService)?.name;
       supabase.functions.invoke("notify-booking-request", {
@@ -237,7 +256,8 @@ export default function PortalRequestPage() {
       navigate("/portal/dashboard");
     } catch (err: unknown) {
       console.error("Submit error:", err);
-      toast.error("Failed to submit request. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to submit request. Please try again.";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
