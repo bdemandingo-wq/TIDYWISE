@@ -4,7 +4,6 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 
-// Platform-level Resend API key (shared service)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -24,7 +23,24 @@ interface InvoiceEmailRequest {
   address?: string;
   validUntil?: string;
   notes?: string;
-  organizationId: string; // REQUIRED - no fallback allowed
+  organizationId: string;
+}
+
+interface InvoiceBranding {
+  logo_url: string | null;
+  primary_color: string;
+  accent_color: string;
+  font_style: string;
+  header_layout: string;
+  footer_message: string;
+}
+
+function getFontFamily(style: string): string {
+  switch (style) {
+    case 'classic': return "'Georgia', 'Times New Roman', serif";
+    case 'minimal': return "'Courier New', 'Menlo', monospace";
+    default: return "'Inter', system-ui, -apple-system, Arial, sans-serif";
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -38,10 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("[send-invoice] Missing RESEND_API_KEY secret");
     return new Response(
       JSON.stringify({ error: "Email service is not configured" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 
@@ -55,35 +68,25 @@ const handler = async (req: Request): Promise<Response> => {
     if (!customerEmail) {
       return new Response(
         JSON.stringify({ error: "Missing customerEmail" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
     if (!data.organizationId) {
-      console.error("Missing organizationId - cannot send invoice without organization context");
+      console.error("Missing organizationId");
       return new Response(JSON.stringify({ 
         error: "Missing organizationId - organization context is required" 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    // Fetch email settings
     const emailSettingsResult = await getOrgEmailSettings(data.organizationId);
     
     if (!emailSettingsResult.success || !emailSettingsResult.settings) {
       console.error("Failed to get email settings:", emailSettingsResult.error);
       return new Response(JSON.stringify({ 
         error: emailSettingsResult.error || "Email settings not configured" 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     const emailSettings = emailSettingsResult.settings;
@@ -92,9 +95,27 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("[send-invoice] Using org email settings - from:", emailSettings.from_email, "name:", companyName);
 
-    // STRICT ISOLATION: Get organization-specific Stripe credentials - NO FALLBACK ALLOWED
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    
+
+    // Fetch invoice branding for this organization
+    const { data: brandingData } = await supabase
+      .from("invoice_branding")
+      .select("*")
+      .eq("organization_id", data.organizationId)
+      .maybeSingle();
+
+    const branding: InvoiceBranding = {
+      logo_url: brandingData?.logo_url || null,
+      primary_color: brandingData?.primary_color || '#3b82f6',
+      accent_color: brandingData?.accent_color || '#e5e7eb',
+      font_style: brandingData?.font_style || 'modern',
+      header_layout: brandingData?.header_layout || 'left',
+      footer_message: brandingData?.footer_message || 'Thank you for your business!',
+    };
+
+    console.log("[send-invoice] Using branding:", branding);
+
+    // Fetch Stripe settings
     const { data: orgStripeSettings, error: stripeSettingsError } = await supabase
       .from("org_stripe_settings")
       .select("stripe_secret_key")
@@ -102,14 +123,13 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (stripeSettingsError) {
-      console.error("[send-invoice] Error fetching Stripe settings for org:", data.organizationId, stripeSettingsError);
+      console.error("[send-invoice] Error fetching Stripe settings:", stripeSettingsError);
       return new Response(
         JSON.stringify({ error: "Failed to fetch Stripe configuration" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // CRITICAL: NO FALLBACK - Organization must have its own Stripe key configured
     if (!orgStripeSettings?.stripe_secret_key) {
       console.error("[send-invoice] No Stripe key configured for organization:", data.organizationId);
       return new Response(
@@ -118,35 +138,30 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("[send-invoice] Using organization-specific Stripe key for org:", data.organizationId);
     const stripe = new Stripe(orgStripeSettings.stripe_secret_key, {
       apiVersion: "2025-08-27.basil",
     });
 
-    // STRICT ISOLATION: Look for customer scoped to this org by email + org metadata
+    // Find or create Stripe customer
     const customers = await stripe.customers.list({ email: customerEmail, limit: 100 });
     let customerId: string | undefined;
 
-    // Only accept customers explicitly tagged to this organization
     const orgCustomer = customers.data.find((c: Stripe.Customer) =>
       c.metadata?.organization_id === data.organizationId
     );
 
     if (orgCustomer) {
       customerId = orgCustomer.id;
-      console.log("[send-invoice] Found existing org-specific Stripe customer:", customerId);
     } else {
-      // Create new customer WITH organization_id in metadata for isolation
       const newCustomer = await stripe.customers.create({
         email: customerEmail,
         name: customerName,
         metadata: { organization_id: data.organizationId },
       });
       customerId = newCustomer.id;
-      console.log("[send-invoice] Created new org-specific Stripe customer:", customerId);
     }
 
-    // Create a Stripe Checkout session for this invoice payment
+    // Create Stripe Checkout session
     const origin = req.headers.get("origin") || "https://tidywisecleaning.com";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -158,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
               name: `Invoice #${data.invoiceNumber} - ${data.serviceName || 'Cleaning Service'}`,
               description: data.address ? `Service at ${data.address}` : undefined,
             },
-            unit_amount: Math.round(data.amount * 100), // Convert to cents
+            unit_amount: Math.round(data.amount * 100),
           },
           quantity: 1,
         },
@@ -173,7 +188,66 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const paymentUrl = session.url;
-    console.log("Created Stripe checkout session:", session.id, "URL:", paymentUrl);
+
+    // Build branded email HTML
+    const fontFamily = getFontFamily(branding.font_style);
+    const primaryColor = branding.primary_color;
+    const accentColor = branding.accent_color;
+
+    // Logo HTML based on header layout
+    let logoHtml = '';
+    if (branding.logo_url) {
+      logoHtml = `<img src="${branding.logo_url}" alt="${companyName}" style="max-height:60px;max-width:200px;object-fit:contain;" />`;
+    }
+
+    let headerHtml = '';
+    if (branding.header_layout === 'center') {
+      headerHtml = `
+        <tr>
+          <td style="padding:30px;text-align:center;border-bottom:3px solid ${primaryColor};">
+            ${logoHtml ? `<div style="margin-bottom:10px;">${logoHtml}</div>` : ''}
+            <div style="font-size:24px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
+            <div style="font-size:28px;font-weight:bold;color:${primaryColor};margin-top:8px;font-family:${fontFamily};">INVOICE #${data.invoiceNumber}</div>
+          </td>
+        </tr>`;
+    } else if (branding.header_layout === 'right') {
+      headerHtml = `
+        <tr>
+          <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:top;">
+                  <div style="font-size:28px;font-weight:bold;color:${primaryColor};font-family:${fontFamily};">INVOICE</div>
+                  <div style="color:#666;font-size:14px;margin-top:4px;">#${data.invoiceNumber}</div>
+                </td>
+                <td style="text-align:right;vertical-align:top;">
+                  ${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ''}
+                  <div style="font-size:20px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`;
+    } else {
+      // Left (default)
+      headerHtml = `
+        <tr>
+          <td style="padding:30px;border-bottom:3px solid ${primaryColor};">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:top;">
+                  ${logoHtml ? `<div style="margin-bottom:8px;">${logoHtml}</div>` : ''}
+                  <div style="font-size:20px;font-weight:bold;color:#1a1a1a;font-family:${fontFamily};">${companyName}</div>
+                </td>
+                <td style="text-align:right;vertical-align:top;">
+                  <div style="font-size:28px;font-weight:bold;color:${primaryColor};font-family:${fontFamily};">INVOICE</div>
+                  <div style="color:#666;font-size:14px;margin-top:4px;">#${data.invoiceNumber}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`;
+    }
 
     const emailHtml = `
 <!DOCTYPE html>
@@ -183,65 +257,48 @@ const handler = async (req: Request): Promise<Response> => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice #${data.invoiceNumber}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#333333;line-height:1.6;">
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:${fontFamily};color:#333333;line-height:1.6;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
     <tr>
       <td style="padding:20px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
           
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#1e5bb0;padding:30px;text-align:center;">
-              <div style="font-size:32px;font-weight:bold;color:#ffffff;">
-                ${companyName}
-              </div>
-              <p style="color:#ffffff;font-size:14px;margin:5px 0 0 0;">Professional Cleaning Services</p>
-            </td>
-          </tr>
-          
-          <!-- Invoice Banner -->
-          <tr>
-            <td style="background-color:#2563eb;padding:15px;text-align:center;">
-              <span style="color:#ffffff;font-size:18px;font-weight:600;">Invoice #${data.invoiceNumber}</span>
-            </td>
-          </tr>
+          <!-- Branded Header -->
+          ${headerHtml}
           
           <!-- Main Content -->
           <tr>
-            <td style="padding:30px;">
+            <td style="padding:30px;font-family:${fontFamily};">
               <p style="font-size:16px;margin:0 0 15px 0;">Hi ${customerName || "there"},</p>
               
               <p style="margin:0 0 20px 0;">Please find your invoice details below. Payment is due ${data.validUntil ? `by ${data.validUntil}` : 'upon receipt'}.</p>
               
-              <!-- Invoice Details -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9f9f9;border-radius:8px;margin-bottom:20px;">
+              <!-- Invoice Details Table -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:20px;">
                 <tr>
-                  <td style="padding:20px;">
-                    <h3 style="margin:0 0 15px 0;color:#1e5bb0;font-size:16px;">INVOICE DETAILS</h3>
+                  <td>
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Invoice Number</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">#${data.invoiceNumber}</td>
+                      <tr style="background-color:${accentColor}30;">
+                        <td style="padding:10px 12px;font-weight:600;color:#666;font-size:12px;text-transform:uppercase;border-bottom:2px solid ${accentColor};">Description</td>
+                        <td style="padding:10px 12px;font-weight:600;color:#666;font-size:12px;text-transform:uppercase;text-align:right;border-bottom:2px solid ${accentColor};">Amount</td>
                       </tr>
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Service</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${data.serviceName || 'Cleaning Service'}</td>
+                        <td style="padding:12px;border-bottom:1px solid ${accentColor}40;font-weight:500;">${data.serviceName || 'Cleaning Service'}</td>
+                        <td style="padding:12px;border-bottom:1px solid ${accentColor}40;text-align:right;font-weight:500;">$${data.amount.toFixed(2)}</td>
                       </tr>
                       ${data.address ? `
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Address</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${data.address}</td>
+                        <td colspan="2" style="padding:8px 12px;color:#666;font-size:13px;">📍 ${data.address}</td>
                       </tr>
                       ` : ''}
                       ${data.validUntil ? `
                       <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;color:#666;">Due Date</td>
-                        <td style="padding:8px 0;border-bottom:1px solid #e0e0e0;text-align:right;font-weight:600;">${data.validUntil}</td>
+                        <td colspan="2" style="padding:8px 12px;color:#666;font-size:13px;">📅 Due: ${data.validUntil}</td>
                       </tr>
                       ` : ''}
                       <tr>
-                        <td style="padding:12px 0;color:#666;font-size:18px;">Total Amount Due</td>
-                        <td style="padding:12px 0;text-align:right;font-weight:bold;font-size:24px;color:#2563eb;">$${data.amount.toFixed(2)}</td>
+                        <td style="padding:16px 12px;font-weight:bold;font-size:18px;border-top:2px solid ${primaryColor};color:${primaryColor};">Total Due</td>
+                        <td style="padding:16px 12px;font-weight:bold;font-size:24px;text-align:right;border-top:2px solid ${primaryColor};color:${primaryColor};">$${data.amount.toFixed(2)}</td>
                       </tr>
                     </table>
                   </td>
@@ -252,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:20px;">
                 <tr>
                   <td style="text-align:center;">
-                    <a href="${paymentUrl}" target="_blank" style="display:inline-block;background-color:#22c55e;color:#ffffff;font-size:18px;font-weight:bold;text-decoration:none;padding:16px 40px;border-radius:8px;box-shadow:0 4px 6px rgba(34,197,94,0.3);">
+                    <a href="${paymentUrl}" target="_blank" style="display:inline-block;background-color:${primaryColor};color:#ffffff;font-size:18px;font-weight:bold;text-decoration:none;padding:16px 40px;border-radius:8px;">
                       💳 Pay Now - $${data.amount.toFixed(2)}
                     </a>
                   </td>
@@ -271,13 +328,13 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               ` : ''}
               
-              <hr style="border:none;border-top:1px solid #e0e0e0;margin:25px 0;">
+              <hr style="border:none;border-top:1px solid ${accentColor}40;margin:25px 0;">
               
               <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#666;">
-                Questions? Reply to this email or contact us anytime.
+                ${branding.footer_message}
               </p>
-              <p style="margin:0;text-align:center;font-size:16px;font-weight:bold;color:#1e5bb0;">
-                Thank you for choosing ${companyName}!
+              <p style="margin:0;text-align:center;font-size:14px;color:#666;">
+                Questions? Reply to this email or contact us anytime.
               </p>
             </td>
           </tr>
@@ -324,10 +381,8 @@ const handler = async (req: Request): Promise<Response> => {
       responseData = null;
     }
 
-    // If domain not verified, return helpful error
     if (!response.ok && responseData?.name === 'validation_error' && responseData?.message?.includes('not verified')) {
       const domain = emailSettings.from_email.split('@')[1];
-      console.error(`Domain ${domain} is not verified on Resend`);
       throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
     }
 
@@ -338,7 +393,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Invoice email sent successfully:", responseData);
 
-    // Audit log: successful invoice email
     logAudit({
       action: AuditActions.EMAIL_INVOICE,
       organizationId: data.organizationId,
@@ -355,15 +409,11 @@ const handler = async (req: Request): Promise<Response> => {
         paymentUrl: paymentUrl,
         stripeSessionId: session.id,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
     console.error("Error in send-invoice function:", error);
 
-    // Audit log: failed invoice email
     logAudit({
       action: AuditActions.EMAIL_INVOICE,
       organizationId: 'unknown',
@@ -373,10 +423,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({ error: error?.message || "Unknown error" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
