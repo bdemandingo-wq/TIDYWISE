@@ -615,6 +615,7 @@ export default function StaffPortal() {
           <OnboardingProgress
             staffId={staffInfo.id}
             organizationId={staffInfo.organization_id}
+            taxClassification={staffInfo.tax_classification}
             onNavigate={(tab) => setActiveTab(tab)}
           />
         )}
