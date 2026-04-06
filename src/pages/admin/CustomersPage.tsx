@@ -97,6 +97,9 @@ export default function CustomersPage() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { maxCustomers, hasFullAccess } = useSubscription();
+  const { setShowSubscriptionDialog } = useAuth();
+  const atCustomerLimit = !hasFullAccess && customers.length >= maxCustomers;
   const [batchMode, setBatchMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
