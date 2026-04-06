@@ -238,7 +238,12 @@ serve(async (req) => {
       daysRemaining: isWithinTrial ? Math.ceil((trialEndMs - now) / (1000 * 60 * 60 * 24)) : 0,
     });
 
-    if (isWithinTrial) {
+    // Orgs created on or after 2026-04-06 do NOT get a free auto-trial.
+    // They must subscribe (pay) to get full access.
+    const TRIAL_CUTOFF_DATE = "2026-04-06T00:00:00Z";
+    const orgCreatedAfterCutoff = orgCreatedAt >= TRIAL_CUTOFF_DATE;
+
+    if (isWithinTrial && !orgCreatedAfterCutoff) {
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: true,

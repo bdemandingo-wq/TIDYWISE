@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -428,6 +429,7 @@ export default function LeadsPage() {
         </div>
       }
     >
+      <SubscriptionGate feature="Leads">
       {/* Lead Funnel Report */}
       {showFunnel && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -886,6 +888,7 @@ export default function LeadsPage() {
         }}
       />
       
+      </SubscriptionGate>
     </AdminLayout>
   );
 }
