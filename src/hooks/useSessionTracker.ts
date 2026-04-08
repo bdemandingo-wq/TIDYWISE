@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 
