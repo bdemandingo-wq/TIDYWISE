@@ -125,6 +125,7 @@ export default function PayrollPage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const [payPeriodSelected, setPayPeriodSelected] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
