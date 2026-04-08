@@ -57,6 +57,7 @@ interface RecurringBooking {
   next_scheduled_at: string | null;
   recurring_days_of_week: number[] | null;
   created_at: string;
+  ends_at: string | null;
   customer?: { first_name: string; last_name: string; email: string };
   service?: { name: string };
   staff?: { name: string };
