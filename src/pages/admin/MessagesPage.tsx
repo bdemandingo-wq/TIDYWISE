@@ -100,6 +100,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
   const [sending, setSending] = useState(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
