@@ -611,6 +611,7 @@ export default function RecurringBookingsPage() {
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Next Date</TableHead>
+                <TableHead>Ends</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
