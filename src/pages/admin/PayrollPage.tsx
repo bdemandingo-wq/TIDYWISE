@@ -161,14 +161,14 @@ export default function PayrollPage() {
 
   const settings = payrollSettings || DEFAULT_SETTINGS;
 
-  // Fetch paid staff for current week
+  // Fetch paid staff for current period
   const { data: paidPayments = [] } = useQuery({
     queryKey: ['payroll-payments', organizationId, weekStart],
     queryFn: async () => {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('payroll_payments')
-        .select('staff_id')
+        .select('staff_id, payment_method, stripe_transfer_id, amount, paid_at')
         .eq('organization_id', organizationId)
         .eq('week_start', weekStart);
       if (error) throw error;
@@ -177,44 +177,113 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
+  const paidStaffMap = useMemo(() => {
+    const map = new Map<string, { payment_method: string; stripe_transfer_id: string | null; amount: number | null; paid_at: string }>();
+    for (const p of paidPayments) {
+      map.set(p.staff_id, p);
+    }
+    return map;
+  }, [paidPayments]);
+
   const paidStaffIds = new Set(paidPayments.map(p => p.staff_id));
 
-  // Mark paid mutation
-  const markPaidMutation = useMutation({
-    mutationFn: async ({ staffId, staffName, isPaid, amount }: { staffId: string; staffName: string; isPaid: boolean; amount?: number }) => {
-      if (!organizationId || !user) throw new Error('Missing context');
-      if (isPaid) {
-        const { error } = await supabase
-          .from('payroll_payments')
-          .delete()
-          .eq('organization_id', organizationId)
-          .eq('staff_id', staffId)
-          .eq('week_start', weekStart);
-        if (error) throw error;
-        return { staffName, isPaid: false };
-      } else {
-        const { error } = await supabase
-          .from('payroll_payments')
-          .insert({
-            organization_id: organizationId,
-            staff_id: staffId,
-            week_start: weekStart,
-            paid_by: user.id,
-            amount: amount || null,
-          });
-        if (error) throw error;
-        return { staffName, isPaid: true };
-      }
+  // Fetch staff payout accounts to know who has Stripe set up
+  const { data: payoutAccounts = [] } = useQuery({
+    queryKey: ['staff-payout-accounts', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('staff_payout_accounts')
+        .select('staff_id, account_status, payouts_enabled, stripe_account_id')
+        .eq('organization_id', organizationId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  const payoutAccountMap = useMemo(() => {
+    const map = new Map<string, { account_status: string; payouts_enabled: boolean | null; stripe_account_id: string | null }>();
+    for (const a of payoutAccounts) {
+      map.set(a.staff_id, a);
+    }
+    return map;
+  }, [payoutAccounts]);
+
+  // Payout dialog state
+  const [payoutDialog, setPayoutDialog] = useState<{
+    open: boolean;
+    staffId: string;
+    staffName: string;
+    amount: number;
+  }>({ open: false, staffId: '', staffName: '', amount: 0 });
+  const [payoutNotes, setPayoutNotes] = useState('');
+
+  // Process payout mutation
+  const payoutMutation = useMutation({
+    mutationFn: async ({ staffId, amount, payment_method, notes }: { staffId: string; amount: number; payment_method: string; notes: string }) => {
+      if (!organizationId) throw new Error('Missing organization');
+      const { data, error } = await supabase.functions.invoke('process-staff-payout', {
+        body: {
+          staff_id: staffId,
+          organization_id: organizationId,
+          amount,
+          week_start: weekStart,
+          payment_method,
+          notes,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ...data, payment_method };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payroll-payments'] });
-      toast[data.isPaid ? 'success' : 'info'](`${data.staffName} marked as ${data.isPaid ? 'paid' : 'unpaid'}`);
+      setPayoutDialog({ open: false, staffId: '', staffName: '', amount: 0 });
+      setPayoutNotes('');
+      if (data.payment_method === 'stripe_transfer') {
+        toast.success('Payout sent via Stripe! Funds will arrive in the cleaner\'s bank account.');
+      } else {
+        toast.success('Payment recorded as paid externally.');
+      }
     },
-    onError: () => toast.error('Failed to update payment status'),
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to process payout');
+    },
   });
 
-  const handleMarkPaid = (staffId: string, staffName: string, amount?: number) => {
-    markPaidMutation.mutate({ staffId, staffName, isPaid: paidStaffIds.has(staffId), amount });
+  // Undo payment mutation
+  const undoPaymentMutation = useMutation({
+    mutationFn: async ({ staffId, staffName }: { staffId: string; staffName: string }) => {
+      if (!organizationId || !user) throw new Error('Missing context');
+      const { error } = await supabase
+        .from('payroll_payments')
+        .delete()
+        .eq('organization_id', organizationId)
+        .eq('staff_id', staffId)
+        .eq('week_start', weekStart);
+      if (error) throw error;
+      return { staffName };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-payments'] });
+      toast.info(`${data.staffName} marked as unpaid`);
+    },
+    onError: () => toast.error('Failed to undo payment'),
+  });
+
+  const openPayoutDialog = (staffId: string, staffName: string, amount: number) => {
+    setPayoutDialog({ open: true, staffId, staffName, amount });
+    setPayoutNotes('');
+  };
+
+  const handlePayout = (method: 'stripe_transfer' | 'external') => {
+    payoutMutation.mutate({
+      staffId: payoutDialog.staffId,
+      amount: payoutDialog.amount,
+      payment_method: method,
+      notes: payoutNotes,
+    });
   };
 
   // Fetch staff
