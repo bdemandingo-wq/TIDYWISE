@@ -357,6 +357,12 @@ export default function RecurringBookingsPage() {
       return;
     }
 
+    // Check if series has ended
+    if (recurring.ends_at && new Date(recurring.ends_at) < new Date()) {
+      toast.error('This recurring series has ended. Extend the end date or create a new one.');
+      return;
+    }
+
     const applyTime = (date: Date) => {
       if (recurring.preferred_time) {
         const [time, period] = recurring.preferred_time.split(' ');
