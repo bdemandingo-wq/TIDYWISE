@@ -100,6 +100,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
   const [sending, setSending] = useState(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
@@ -265,7 +266,7 @@ export default function MessagesPage() {
 
   // ─── Pull to refresh ─────────────────────────────
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
-    await fetchConversations();
+    await fetchConversations(false);
   });
 
   // ─── Fetch contacts ──────────────────────────────
@@ -285,35 +286,45 @@ export default function MessagesPage() {
   };
 
   // ─── Realtime ─────────────────────────────────────
+  // Use a ref so the realtime handler can read the latest selected conversation
+  // without re-subscribing the channel on every selection change.
+  const selectedConvRef = useRef<Conversation | null>(null);
+  selectedConvRef.current = selectedConversation;
+
   useEffect(() => {
-    if (organizationId) {
-      fetchConversations();
-      fetchContacts();
-      const channel = supabase
-        .channel('sms-messages')
-        .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'sms_messages',
-          filter: `organization_id=eq.${organizationId}`,
-        }, (payload) => {
-          const newMsg = payload.new as any;
-          if (selectedConversation && newMsg.conversation_id === selectedConversation.id) {
-            setMessages(prev => [...prev, {
-              id: newMsg.id, direction: newMsg.direction as 'inbound' | 'outbound',
-              content: newMsg.content, sent_at: newMsg.sent_at, status: newMsg.status,
-              media_urls: newMsg.media_urls || null,
-            }]);
-          }
-          if (newMsg.direction === 'inbound') {
-            toast.info('New message received', {
-              description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
-            });
-          }
-          fetchConversations();
-        })
-        .subscribe();
-      return () => { supabase.removeChannel(channel); };
-    }
-  }, [organizationId, selectedConversation?.id]);
+    if (!organizationId) return;
+
+    // Initial fetch — only this one shows the loading spinner
+    fetchConversations(true);
+    fetchContacts();
+
+    const channel = supabase
+      .channel('sms-messages')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'sms_messages',
+        filter: `organization_id=eq.${organizationId}`,
+      }, (payload) => {
+        const newMsg = payload.new as any;
+        const currentConv = selectedConvRef.current;
+        if (currentConv && newMsg.conversation_id === currentConv.id) {
+          setMessages(prev => [...prev, {
+            id: newMsg.id, direction: newMsg.direction as 'inbound' | 'outbound',
+            content: newMsg.content, sent_at: newMsg.sent_at, status: newMsg.status,
+            media_urls: newMsg.media_urls || null,
+          }]);
+        }
+        if (newMsg.direction === 'inbound') {
+          toast.info('New message received', {
+            description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
+          });
+        }
+        // Silent background refresh — no loading spinner
+        fetchConversations(false);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId]);
 
   useEffect(() => {
     if (selectedConversation) fetchMessages(selectedConversation.id);
@@ -324,49 +335,53 @@ export default function MessagesPage() {
   }, [messages]);
 
   // ─── Fetch conversations ──────────────────────────
-  const fetchConversations = async () => {
-    setLoading(true);
-    const [convsRes, customersRes, staffRes] = await Promise.all([
-      supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
-      supabase.from('customers').select('phone, first_name, last_name').eq('organization_id', organizationId).not('phone', 'is', null),
-      supabase.from('staff').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
-    ]);
-    if (convsRes.error) {
-      toast.error('Failed to load conversations');
-    } else {
-      const convs = (convsRes.data || []) as Conversation[];
-      // Build phone-to-name maps
-      const customerPhoneMap = new Map<string, string>();
-      (customersRes.data || []).forEach(c => {
-        if (c.phone) customerPhoneMap.set(normalizePhone(c.phone), `${c.first_name || ''} ${c.last_name || ''}`.trim());
-      });
-      const staffPhoneMap = new Map<string, string>();
-      (staffRes.data || []).forEach(s => {
-        if (s.phone) staffPhoneMap.set(normalizePhone(s.phone), s.name || '');
-      });
-      convs.forEach(c => {
-        const norm = normalizePhone(c.customer_phone);
-        if (staffPhoneMap.has(norm)) {
-          c.conversation_type = 'cleaner';
-          if (!c.customer_name) c.customer_name = staffPhoneMap.get(norm) || null;
-        } else if (customerPhoneMap.has(norm)) {
-          c.conversation_type = 'client';
-          if (!c.customer_name) c.customer_name = customerPhoneMap.get(norm) || null;
+  const fetchConversations = async (showSpinner = false) => {
+    if (showSpinner && !initialLoadDone.current) setLoading(true);
+    try {
+      const [convsRes, customersRes, staffRes] = await Promise.all([
+        supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
+        supabase.from('customers').select('phone, first_name, last_name').eq('organization_id', organizationId).not('phone', 'is', null),
+        supabase.from('staff').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
+      ]);
+      if (convsRes.error) {
+        toast.error('Failed to load conversations');
+      } else {
+        const convs = (convsRes.data || []) as Conversation[];
+        // Build phone-to-name maps
+        const customerPhoneMap = new Map<string, string>();
+        (customersRes.data || []).forEach(c => {
+          if (c.phone) customerPhoneMap.set(normalizePhone(c.phone), `${c.first_name || ''} ${c.last_name || ''}`.trim());
+        });
+        const staffPhoneMap = new Map<string, string>();
+        (staffRes.data || []).forEach(s => {
+          if (s.phone) staffPhoneMap.set(normalizePhone(s.phone), s.name || '');
+        });
+        convs.forEach(c => {
+          const norm = normalizePhone(c.customer_phone);
+          if (staffPhoneMap.has(norm)) {
+            c.conversation_type = 'cleaner';
+            if (!c.customer_name) c.customer_name = staffPhoneMap.get(norm) || null;
+          } else if (customerPhoneMap.has(norm)) {
+            c.conversation_type = 'client';
+            if (!c.customer_name) c.customer_name = customerPhoneMap.get(norm) || null;
+          }
+        });
+        if (convs.length > 0) {
+          const { data: previews } = await supabase
+            .from('sms_messages').select('conversation_id, content')
+            .in('conversation_id', convs.map(c => c.id)).order('sent_at', { ascending: false });
+          if (previews) {
+            const previewMap = new Map<string, string>();
+            for (const p of previews) { if (!previewMap.has(p.conversation_id)) previewMap.set(p.conversation_id, p.content); }
+            convs.forEach(c => { c.last_message_preview = previewMap.get(c.id) || undefined; });
+          }
         }
-      });
-      if (convs.length > 0) {
-        const { data: previews } = await supabase
-          .from('sms_messages').select('conversation_id, content')
-          .in('conversation_id', convs.map(c => c.id)).order('sent_at', { ascending: false });
-        if (previews) {
-          const previewMap = new Map<string, string>();
-          for (const p of previews) { if (!previewMap.has(p.conversation_id)) previewMap.set(p.conversation_id, p.content); }
-          convs.forEach(c => { c.last_message_preview = previewMap.get(c.id) || undefined; });
-        }
+        setConversations(convs);
       }
-      setConversations(convs);
+    } finally {
+      setLoading(false);
+      initialLoadDone.current = true;
     }
-    setLoading(false);
   };
 
   const fetchMessages = async (conversationId: string) => {
@@ -961,11 +976,11 @@ export default function MessagesPage() {
         !isMobile && "border-b pb-2"
       )}>
         {isMobile ? (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchConversations}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchConversations(false)}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         ) : (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchConversations}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchConversations(false)}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         )}
