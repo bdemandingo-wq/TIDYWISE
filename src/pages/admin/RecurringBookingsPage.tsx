@@ -829,6 +829,8 @@ function RecurringBookingDialog({
     is_active: true,
     day_prices: {} as Record<string, string>,
     day_services: {} as Record<string, string>,
+    duration_type: 'until_cancelled' as string,
+    ends_at: null as Date | null,
   });
 
   // Team members state
