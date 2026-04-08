@@ -29,6 +29,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { calculateBookingWage } from '@/lib/wageCalculation';
 import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
+import { getCurrentPeriod, formatPeriodLabel, getPeriodTitle } from '@/lib/payrollPeriod';
+import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
 import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 import { SEOHead } from '@/components/SEOHead';
