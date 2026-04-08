@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,20 +84,20 @@ serve(async (req: Request) => {
       });
     }
 
-    // Get org Stripe client - STRICT ISOLATION: no platform fallback for payouts
-    const stripeResult = await getOrgStripeClient(organizationId);
-    if (!stripeResult.success || !stripeResult.stripe) {
-      console.log("[create-staff-connect-account] Org has no Stripe connected:", organizationId);
+    // Use PLATFORM Stripe key for creating Connect Express accounts
+    // Org keys are connected accounts themselves and cannot create sub-accounts
+    const platformStripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!platformStripeKey) {
+      console.error("[create-staff-connect-account] Missing STRIPE_SECRET_KEY (platform key)");
       return new Response(JSON.stringify({ 
-        error: "org_stripe_not_connected",
-        message: "Your employer has not connected their payment account yet. Please contact your employer to set up payments before you can configure payouts."
+        error: "Platform payment configuration missing. Please contact support."
       }), {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const stripe = stripeResult.stripe;
-    console.log("[create-staff-connect-account] Using org-specific Stripe key for org:", organizationId);
+    const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
+    console.log("[create-staff-connect-account] Using platform Stripe key for Connect account creation");
 
     // Check if account already exists
     const { data: existingAccount } = await supabase
