@@ -987,58 +987,95 @@ export default function PayrollPage() {
                     <TableHead className="text-right">Profit</TableHead>
                     <TableHead className="text-right">Labor %</TableHead>
                     <TableHead className="text-right">YTD</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payrollData.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{maskName(s.name)}</p>
-                          <p className="text-xs text-muted-foreground">{maskEmail(s.email)}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={s.tax_classification === 'w2' ? 'default' : 'secondary'}>
-                          {s.tax_classification === 'w2' ? 'W-2' : '1099'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isTestMode ? '$XXX' : `$${s.revenueAttributed.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
-                        {isTestMode ? '$XXX' : `$${s.profitAttributed.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
-                        {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isTestMode ? '$X,XXX' : `$${s.ytdEarnings.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {s.requiresTaxFiling && (
-                            <Badge variant="outline" className="border-amber-500 text-amber-600">
-                              <AlertTriangle className="w-3 h-3 mr-1" />1099
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {payrollData.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        No staff members found
-                      </TableCell>
-                    </TableRow>
-                  )}
+                     <TableHead>Status</TableHead>
+                     <TableHead className="text-center">Actions</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {payrollData.map((s) => {
+                     const isPaid = paidStaffIds.has(s.id);
+                     const paymentInfo = paidStaffMap.get(s.id);
+                     const payoutAccount = payoutAccountMap.get(s.id);
+                     const hasStripeSetup = payoutAccount?.account_status === 'active' && payoutAccount?.payouts_enabled;
+
+                     return (
+                     <TableRow key={s.id}>
+                       <TableCell>
+                         <div>
+                           <p className="font-medium">{maskName(s.name)}</p>
+                           <p className="text-xs text-muted-foreground">{maskEmail(s.email)}</p>
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant={s.tax_classification === 'w2' ? 'default' : 'secondary'}>
+                           {s.tax_classification === 'w2' ? 'W-2' : '1099'}
+                         </Badge>
+                       </TableCell>
+                       <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
+                       <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
+                       <TableCell className="text-right font-medium text-green-600">
+                         {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className="text-right">
+                         {isTestMode ? '$XXX' : `$${s.revenueAttributed.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
+                         {isTestMode ? '$XXX' : `$${s.profitAttributed.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
+                         {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
+                       </TableCell>
+                       <TableCell className="text-right">
+                         {isTestMode ? '$X,XXX' : `$${s.ytdEarnings.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           {s.requiresTaxFiling && (
+                             <Badge variant="outline" className="border-amber-500 text-amber-600">
+                               <AlertTriangle className="w-3 h-3 mr-1" />1099
+                             </Badge>
+                           )}
+                           {isPaid && (
+                             <Badge variant="default" className="bg-green-600">
+                               <CheckCircle2 className="w-3 h-3 mr-1" />
+                               {paymentInfo?.payment_method === 'stripe_transfer' ? 'Paid (Stripe)' : 'Paid (External)'}
+                             </Badge>
+                           )}
+                         </div>
+                       </TableCell>
+                       <TableCell className="text-center">
+                         {isPaid ? (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => undoPaymentMutation.mutate({ staffId: s.id, staffName: s.name })}
+                             disabled={undoPaymentMutation.isPending}
+                             className="text-xs text-muted-foreground"
+                           >
+                             Undo
+                           </Button>
+                         ) : s.totalPay > 0 ? (
+                           <Button
+                             size="sm"
+                             onClick={() => openPayoutDialog(s.id, s.name, s.totalPay)}
+                             className="gap-1"
+                           >
+                             <DollarSign className="w-3 h-3" />
+                             Pay ${s.totalPay.toFixed(2)}
+                           </Button>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">$0</span>
+                         )}
+                       </TableCell>
+                     </TableRow>
+                   );})}
+                   {payrollData.length === 0 && (
+                     <TableRow>
+                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                         No staff members found
+                       </TableCell>
+                     </TableRow>
+                   )}
                 </TableBody>
               </Table>
               </div>
