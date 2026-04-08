@@ -869,6 +869,14 @@ function RecurringBookingDialog({
         if (matchedCf) resolvedFrequency = `custom_${matchedCf.id}`;
       }
 
+      // Resolve duration type from ends_at
+      let durationType = 'until_cancelled';
+      let endsAtDate: Date | null = null;
+      if (booking?.ends_at) {
+        endsAtDate = new Date(booking.ends_at);
+        durationType = 'custom_date';
+      }
+
       setFormData({
         customer_id: booking?.customer_id || '',
         service_id: booking?.service_id || '',
@@ -880,6 +888,8 @@ function RecurringBookingDialog({
         is_active: booking?.is_active ?? true,
         day_prices: dayPricesStr,
         day_services: dayServicesStr,
+        duration_type: durationType,
+        ends_at: endsAtDate,
       });
 
       if (booking?.staff_id) {
