@@ -338,10 +338,11 @@ export default function MessagesPage() {
   const fetchConversations = async (showSpinner = false) => {
     if (showSpinner && !initialLoadDone.current) setLoading(true);
     try {
-      const [convsRes, customersRes, staffRes] = await Promise.all([
+      const [convsRes, customersRes, staffRes, leadsRes] = await Promise.all([
         supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).order('last_message_at', { ascending: false }),
         supabase.from('customers').select('phone, first_name, last_name').eq('organization_id', organizationId).not('phone', 'is', null),
         supabase.from('staff').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
+        supabase.from('leads').select('phone, name').eq('organization_id', organizationId).not('phone', 'is', null),
       ]);
       if (convsRes.error) {
         toast.error('Failed to load conversations');
@@ -350,20 +351,30 @@ export default function MessagesPage() {
         // Build phone-to-name maps
         const customerPhoneMap = new Map<string, string>();
         (customersRes.data || []).forEach(c => {
-          if (c.phone) customerPhoneMap.set(normalizePhone(c.phone), `${c.first_name || ''} ${c.last_name || ''}`.trim());
+          if (c.phone) {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+            if (name) customerPhoneMap.set(normalizePhone(c.phone), name);
+          }
         });
         const staffPhoneMap = new Map<string, string>();
         (staffRes.data || []).forEach(s => {
-          if (s.phone) staffPhoneMap.set(normalizePhone(s.phone), s.name || '');
+          if (s.phone && s.name) staffPhoneMap.set(normalizePhone(s.phone), s.name);
+        });
+        const leadPhoneMap = new Map<string, string>();
+        (leadsRes.data || []).forEach(l => {
+          if (l.phone && l.name) leadPhoneMap.set(normalizePhone(l.phone), l.name);
         });
         convs.forEach(c => {
           const norm = normalizePhone(c.customer_phone);
           if (staffPhoneMap.has(norm)) {
             c.conversation_type = 'cleaner';
-            if (!c.customer_name) c.customer_name = staffPhoneMap.get(norm) || null;
+            c.customer_name = staffPhoneMap.get(norm) || c.customer_name;
           } else if (customerPhoneMap.has(norm)) {
             c.conversation_type = 'client';
-            if (!c.customer_name) c.customer_name = customerPhoneMap.get(norm) || null;
+            c.customer_name = customerPhoneMap.get(norm) || c.customer_name;
+          } else if (leadPhoneMap.has(norm)) {
+            c.conversation_type = 'client';
+            c.customer_name = leadPhoneMap.get(norm) || c.customer_name;
           }
         });
         if (convs.length > 0) {
