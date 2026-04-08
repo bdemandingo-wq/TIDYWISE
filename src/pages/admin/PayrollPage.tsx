@@ -1205,6 +1205,79 @@ export default function PayrollPage() {
         </TabsContent>
       </Tabs>
       </SubscriptionGate>
+
+      {/* Payout Dialog */}
+      <Dialog open={payoutDialog.open} onOpenChange={(open) => setPayoutDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pay {payoutDialog.staffName}</DialogTitle>
+            <DialogDescription>
+              Choose how to send ${payoutDialog.amount.toFixed(2)} for the period starting {weekStart}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Textarea
+              placeholder="Optional notes (e.g., 'Includes bonus for extra shift')"
+              value={payoutNotes}
+              onChange={(e) => setPayoutNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            {(() => {
+              const acct = payoutAccountMap.get(payoutDialog.staffId);
+              const hasStripe = acct?.account_status === 'active' && acct?.payouts_enabled;
+              return (
+                <>
+                  <Button
+                    onClick={() => handlePayout('stripe_transfer')}
+                    disabled={!hasStripe || payoutMutation.isPending}
+                    className="w-full gap-2"
+                  >
+                    {payoutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    Pay via Stripe — ${payoutDialog.amount.toFixed(2)}
+                  </Button>
+                  {!hasStripe && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This cleaner hasn't set up Stripe payouts yet
+                    </p>
+                  )}
+                  <div className="relative my-1">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePayout('external')}
+                    disabled={payoutMutation.isPending}
+                    className="w-full gap-2"
+                  >
+                    {payoutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Banknote className="w-4 h-4" />
+                    )}
+                    Mark as Paid Externally
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Use this if you paid via cash, Zelle, Venmo, or check
+                  </p>
+                </>
+              );
+            })()}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
