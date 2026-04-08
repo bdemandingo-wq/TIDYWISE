@@ -524,6 +524,12 @@ export default function RecurringBookingsPage() {
 
       const scheduledAt = applyTime(new Date(nextDate)).toISOString();
 
+      // Check if this booking would be past the end date
+      if (recurring.ends_at && new Date(scheduledAt) > new Date(recurring.ends_at)) {
+        toast.error('Series has ended — no more bookings to generate');
+        return;
+      }
+
       const { error } = await supabase.from('bookings').insert([{
         ...baseBooking,
         service_id: bookingServiceId,
