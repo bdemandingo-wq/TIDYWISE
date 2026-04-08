@@ -121,6 +121,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   useEffect(() => {
     if (setupComplete) {
       setIsCheckingReturn(true);
+      setJustSubmitted(true);
       // Force immediate refresh
       queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] });
       queryClient.invalidateQueries({ queryKey: ['staff-payout-cached', staffId, organizationId] });
@@ -133,8 +134,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       setIsCheckingReturn(false);
       if (liveStatus.payoutsEnabled) {
         toast.success('Payout setup complete! Your account is active.');
+        setJustSubmitted(false);
       } else if (liveStatus.detailsSubmitted) {
-        toast.info('Details submitted. Verification is in progress.');
+        toast.info('Details submitted! Stripe is reviewing your application.');
       }
     }
   }, [isCheckingReturn, liveStatus, isLiveLoading]);
