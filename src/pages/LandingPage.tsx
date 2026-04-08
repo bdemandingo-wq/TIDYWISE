@@ -440,11 +440,11 @@ export default function LandingPage() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  60-day free trial
+                  Free forever
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  Cancel anytime
+                  Unlimited bookings
                 </span>
               </div>
 
