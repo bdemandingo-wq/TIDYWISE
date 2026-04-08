@@ -286,35 +286,45 @@ export default function MessagesPage() {
   };
 
   // ─── Realtime ─────────────────────────────────────
+  // Use a ref so the realtime handler can read the latest selected conversation
+  // without re-subscribing the channel on every selection change.
+  const selectedConvRef = useRef<Conversation | null>(null);
+  selectedConvRef.current = selectedConversation;
+
   useEffect(() => {
-    if (organizationId) {
-      fetchConversations();
-      fetchContacts();
-      const channel = supabase
-        .channel('sms-messages')
-        .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'sms_messages',
-          filter: `organization_id=eq.${organizationId}`,
-        }, (payload) => {
-          const newMsg = payload.new as any;
-          if (selectedConversation && newMsg.conversation_id === selectedConversation.id) {
-            setMessages(prev => [...prev, {
-              id: newMsg.id, direction: newMsg.direction as 'inbound' | 'outbound',
-              content: newMsg.content, sent_at: newMsg.sent_at, status: newMsg.status,
-              media_urls: newMsg.media_urls || null,
-            }]);
-          }
-          if (newMsg.direction === 'inbound') {
-            toast.info('New message received', {
-              description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
-            });
-          }
-          fetchConversations();
-        })
-        .subscribe();
-      return () => { supabase.removeChannel(channel); };
-    }
-  }, [organizationId, selectedConversation?.id]);
+    if (!organizationId) return;
+
+    // Initial fetch — only this one shows the loading spinner
+    fetchConversations(true);
+    fetchContacts();
+
+    const channel = supabase
+      .channel('sms-messages')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'sms_messages',
+        filter: `organization_id=eq.${organizationId}`,
+      }, (payload) => {
+        const newMsg = payload.new as any;
+        const currentConv = selectedConvRef.current;
+        if (currentConv && newMsg.conversation_id === currentConv.id) {
+          setMessages(prev => [...prev, {
+            id: newMsg.id, direction: newMsg.direction as 'inbound' | 'outbound',
+            content: newMsg.content, sent_at: newMsg.sent_at, status: newMsg.status,
+            media_urls: newMsg.media_urls || null,
+          }]);
+        }
+        if (newMsg.direction === 'inbound') {
+          toast.info('New message received', {
+            description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
+          });
+        }
+        // Silent background refresh — no loading spinner
+        fetchConversations(false);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId]);
 
   useEffect(() => {
     if (selectedConversation) fetchMessages(selectedConversation.id);
