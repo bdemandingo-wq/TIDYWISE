@@ -240,7 +240,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           const dueDateText = data.dueDate 
-            ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
+            ? ` Due: ${new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate))}.`
             : '';
           
           const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
