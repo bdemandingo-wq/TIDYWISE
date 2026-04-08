@@ -4615,30 +4615,39 @@ export type Database = {
           amount: number | null
           created_at: string
           id: string
+          notes: string | null
           organization_id: string | null
           paid_at: string
           paid_by: string
+          payment_method: string
           staff_id: string
+          stripe_transfer_id: string | null
           week_start: string
         }
         Insert: {
           amount?: number | null
           created_at?: string
           id?: string
+          notes?: string | null
           organization_id?: string | null
           paid_at?: string
           paid_by: string
+          payment_method?: string
           staff_id: string
+          stripe_transfer_id?: string | null
           week_start: string
         }
         Update: {
           amount?: number | null
           created_at?: string
           id?: string
+          notes?: string | null
           organization_id?: string | null
           paid_at?: string
           paid_by?: string
+          payment_method?: string
           staff_id?: string
+          stripe_transfer_id?: string | null
           week_start?: string
         }
         Relationships: [
