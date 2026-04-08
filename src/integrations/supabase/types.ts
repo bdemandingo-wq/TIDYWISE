@@ -6462,6 +6462,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_page_views: {
+        Row: {
+          id: string
+          page_path: string
+          page_title: string | null
+          session_id: string | null
+          user_email: string | null
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          page_path: string
+          page_title?: string | null
+          session_id?: string | null
+          user_email?: string | null
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          page_path?: string
+          page_title?: string | null
+          session_id?: string | null
+          user_email?: string | null
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_page_views_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preferences: {
         Row: {
           created_at: string
