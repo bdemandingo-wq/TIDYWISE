@@ -1058,17 +1058,19 @@ export default function PayrollPage() {
                            >
                              Undo
                            </Button>
-                         ) : s.totalPay > 0 ? (
-                           <Button
-                             size="sm"
-                             onClick={() => openPayoutDialog(s.id, s.name, s.totalPay)}
-                             className="gap-1"
-                           >
-                             <DollarSign className="w-3 h-3" />
-                             Pay ${s.totalPay.toFixed(2)}
-                           </Button>
-                         ) : (
-                           <span className="text-xs text-muted-foreground">$0</span>
+                          ) : s.totalPay > 0 && payPeriodSelected ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openPayoutDialog(s.id, s.name, s.totalPay)}
+                              className="gap-1"
+                            >
+                              <DollarSign className="w-3 h-3" />
+                              Pay ${s.totalPay.toFixed(2)}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
+                            </span>
                          )}
                        </TableCell>
                      </TableRow>
