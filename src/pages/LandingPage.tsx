@@ -369,8 +369,8 @@ export default function LandingPage() {
                          navigate("/signup");
                        }}
                      >
-                       Start Free Trial
-                       <ArrowRight className="ml-1 h-4 w-4" />
+                        Get Started Free
+                        <ArrowRight className="ml-1 h-4 w-4" />
                      </Button>
                    </div>
                  </div>
