@@ -135,7 +135,7 @@ export function CompetitorComparison() {
                   </span>
                 </div>
                 <p className={`text-sm mt-2 font-medium ${plan.highlight ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
-                  {plan.trial}
+                  {plan.subtitle}
                 </p>
               </div>
 
@@ -143,9 +143,9 @@ export function CompetitorComparison() {
                 <Button
                   variant="secondary"
                   className="w-full mt-6"
-                  onClick={() => navigate("/auth?mode=signup")}
+                  onClick={() => navigate("/signup")}
                 >
-                  Start 2-Month Free Trial
+                  Get Started Free
                 </Button>
               )}
             </div>

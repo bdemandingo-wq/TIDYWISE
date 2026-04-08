@@ -815,15 +815,15 @@ export default function LandingPage() {
             <Button 
               size="xl" 
               variant="secondary"
-              onClick={handleStartFreeTrial}
+              onClick={handleStartFree}
               className="group shadow-2xl"
             >
-              Start Free Trial
+              Get Started Free
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-lg font-medium">First 60 days free</span>
+              <span className="text-lg font-medium">Free forever — no credit card</span>
             </div>
           </div>
         </div>
