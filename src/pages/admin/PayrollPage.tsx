@@ -1216,6 +1216,12 @@ export default function PayrollPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium">💡 How payouts work:</p>
+            <p><span className="font-medium">Pay via Stripe</span> — Transfers funds from your Stripe balance to the cleaner's bank account. Your Stripe account needs funds (from customer card payments) for this to work.</p>
+            <p><span className="font-medium">Mark as Paid Externally</span> — Use this if you paid via cash, Zelle, Venmo, or check. This records the payment for your bookkeeping only.</p>
+          </div>
+
           <div className="space-y-3">
             <Textarea
               placeholder="Optional notes (e.g., 'Includes bonus for extra shift')"
