@@ -1126,6 +1126,59 @@ function RecurringBookingDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Duration / How Long */}
+          <div>
+            <Label className="flex items-center gap-1.5">
+              <CalendarClock className="w-3.5 h-3.5" />
+              How long?
+            </Label>
+            <Select
+              value={formData.duration_type}
+              onValueChange={(v) => {
+                setFormData({ ...formData, duration_type: v, ends_at: v === 'custom_date' ? formData.ends_at : null });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="until_cancelled">Until Cancelled</SelectItem>
+                <SelectItem value="2_weeks">2 Weeks</SelectItem>
+                <SelectItem value="1_month">1 Month</SelectItem>
+                <SelectItem value="3_months">3 Months</SelectItem>
+                <SelectItem value="6_months">6 Months</SelectItem>
+                <SelectItem value="1_year">1 Year</SelectItem>
+                <SelectItem value="custom_date">Custom Date</SelectItem>
+              </SelectContent>
+            </Select>
+            {formData.duration_type === 'custom_date' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal mt-2",
+                      !formData.ends_at && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {formData.ends_at ? format(formData.ends_at, 'PPP') : 'Pick end date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={formData.ends_at || undefined}
+                    onSelect={(date) => setFormData({ ...formData, ends_at: date || null })}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             {['weekly', 'biweekly', 'triweekly'].includes(formData.frequency) ? (
               <div>
