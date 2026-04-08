@@ -83,7 +83,7 @@ serve(async (req) => {
     const normalizedEmail = user.email.toLowerCase();
 
     // Bypass subscription check for owner account and Apple review
-    const FREE_ACCOUNTS = ["support@tidywisecleaning.com", "applereview@tidywise.com"];
+    const FREE_ACCOUNTS = ["support@tidywisecleaning.com", "applereview@tidywise.com", "info@openarmscleaning.com"];
     if (FREE_ACCOUNTS.includes(normalizedEmail)) {
       logStep("Free account detected - bypassing subscription check", { email: user.email });
       return new Response(JSON.stringify({
