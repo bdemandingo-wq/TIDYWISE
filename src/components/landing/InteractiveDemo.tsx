@@ -5,7 +5,7 @@ import { ArrowRight, Play } from "lucide-react";
 export function InteractiveDemo() {
   const navigate = useNavigate();
 
-  const handleStartFreeTrial = () => {
+  const handleStartFree = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
     navigate("/signup");
   };
