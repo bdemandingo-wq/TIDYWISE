@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get admin phone and notification settings from business settings
     const { data: businessSettings, error: businessError } = await supabase
       .from('business_settings')
-      .select('company_phone, company_name, notify_new_booking')
+      .select('company_phone, company_name, notify_new_booking, timezone')
       .eq('organization_id', organizationId)
       .maybeSingle();
 
