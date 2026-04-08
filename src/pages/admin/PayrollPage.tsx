@@ -802,13 +802,13 @@ export default function PayrollPage() {
           variant="secondary"
           className="gap-2"
           onClick={() => {
-            const period = getCurrentPeriod(payPeriodConfig);
+            const period = getCurrentPeriod(periodConfig);
             setDateRange({ from: period.start, to: period.end });
             setPayPeriodSelected(true);
           }}
         >
           <Briefcase className="w-4 h-4" />
-          {getPeriodTitle(payPeriodConfig, 'current')}
+          {getPeriodTitle(periodConfig, 'current')}
         </Button>
       </div>
 
