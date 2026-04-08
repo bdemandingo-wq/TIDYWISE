@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,20 +75,23 @@ serve(async (req: Request) => {
       });
     }
 
-    // Fetch latest status from Stripe - STRICT ISOLATION: org key only
-    const stripeResult = await getOrgStripeClient(organizationId);
-    if (!stripeResult.success || !stripeResult.stripe) {
-      return new Response(JSON.stringify({ 
-        error: "org_stripe_not_connected",
-        status: "org_not_connected",
+    // Fetch latest status from Stripe using the PLATFORM key.
+    // Cleaner payout accounts are Stripe Connect Express accounts created under the platform,
+    // so they must be retrieved with the platform secret key rather than the organization's key.
+    const platformStripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!platformStripeKey) {
+      return new Response(JSON.stringify({
+        error: "platform_stripe_not_configured",
+        status: "not_started",
         payoutsEnabled: false,
         detailsSubmitted: false,
       }), {
-        status: 200,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const stripe = stripeResult.stripe;
+
+    const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
 
     const account = await stripe.accounts.retrieve(payoutAccount.stripe_account_id);
 
