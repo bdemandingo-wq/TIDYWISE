@@ -798,6 +798,18 @@ export default function PayrollPage() {
             />
           </PopoverContent>
         </Popover>
+        <Button
+          variant="secondary"
+          className="gap-2"
+          onClick={() => {
+            const period = getCurrentPeriod(periodConfig);
+            setDateRange({ from: period.start, to: period.end });
+            setPayPeriodSelected(true);
+          }}
+        >
+          <Briefcase className="w-4 h-4" />
+          {getPeriodTitle(periodConfig, 'current')}
+        </Button>
       </div>
 
       {/* Summary Cards */}
