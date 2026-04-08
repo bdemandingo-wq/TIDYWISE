@@ -126,18 +126,21 @@ const handler = async (req: Request): Promise<Response> => {
       formattedDate = preFormattedDate;
       formattedTime = preFormattedTime;
     } else {
-      // Fallback: parse scheduledAt (may have timezone issues)
+      // Fallback: format in org timezone from business_settings
+      const orgTimezone = businessSettings?.timezone || "America/New_York";
       const bookingDate = new Date(scheduledAt);
-      formattedDate = bookingDate.toLocaleDateString('en-US', { 
+      formattedDate = new Intl.DateTimeFormat('en-US', { 
+        timeZone: orgTimezone,
         weekday: 'short', 
         month: 'short', 
         day: 'numeric' 
-      });
-      formattedTime = bookingDate.toLocaleTimeString('en-US', { 
+      }).format(bookingDate);
+      formattedTime = new Intl.DateTimeFormat('en-US', { 
+        timeZone: orgTimezone,
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true 
-      });
+      }).format(bookingDate);
     }
 
     // Build cancellation notification message
