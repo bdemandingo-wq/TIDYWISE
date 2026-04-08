@@ -316,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const { data: bizSettings } = await supabase
         .from('business_settings')
-        .select('company_phone, company_name')
+        .select('company_phone, company_name, timezone')
         .eq('organization_id', organizationId)
         .maybeSingle();
 
