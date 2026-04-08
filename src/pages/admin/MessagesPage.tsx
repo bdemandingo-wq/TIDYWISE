@@ -266,7 +266,7 @@ export default function MessagesPage() {
 
   // ─── Pull to refresh ─────────────────────────────
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
-    await fetchConversations();
+    await fetchConversations(false);
   });
 
   // ─── Fetch contacts ──────────────────────────────
