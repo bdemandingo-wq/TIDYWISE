@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
-import { Search, FileDown, Loader2, Clock, CalendarDays, Activity, Timer } from 'lucide-react';
+import { Search, FileDown, Loader2, Clock, CalendarDays, Activity, Timer, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -19,6 +19,21 @@ interface SessionRow {
   is_active: boolean;
 }
 
+interface PageView {
+  page_path: string;
+  page_title: string | null;
+  visited_at: string;
+  session_id: string | null;
+}
+
+interface PageSummary {
+  page_path: string;
+  page_title: string;
+  visit_count: number;
+  first_visit: string;
+  last_visit: string;
+}
+
 interface SessionReport {
   email: string;
   totalSessions: number;
@@ -26,6 +41,8 @@ interface SessionReport {
   lastSession: string;
   totalDurationSeconds: number;
   sessions: SessionRow[];
+  pageViews: PageView[];
+  pageSummary: PageSummary[];
 }
 
 function formatDuration(seconds: number): string {
@@ -55,23 +72,54 @@ export function UserSessionEvidence() {
     setReport(null);
 
     try {
-      const { data, error } = await supabase
-        .from('user_sessions')
-        .select('id, session_start, session_end, duration_seconds, is_active')
-        .eq('user_email', trimmed)
-        .order('session_start', { ascending: false });
+      // Fetch sessions and page views in parallel
+      const [sessionsRes, pageViewsRes] = await Promise.all([
+        supabase
+          .from('user_sessions')
+          .select('id, session_start, session_end, duration_seconds, is_active')
+          .eq('user_email', trimmed)
+          .order('session_start', { ascending: false }),
+        supabase
+          .from('user_page_views')
+          .select('page_path, page_title, visited_at, session_id')
+          .eq('user_email', trimmed)
+          .order('visited_at', { ascending: false })
+          .limit(5000),
+      ]);
 
-      if (error) throw error;
+      if (sessionsRes.error) throw sessionsRes.error;
 
-      if (!data || data.length === 0) {
+      const sessions: SessionRow[] = sessionsRes.data || [];
+      const pageViews: PageView[] = pageViewsRes.data || [];
+
+      if (sessions.length === 0) {
         setReport(null);
-        setLoading(false);
         return;
       }
 
-      const sessions: SessionRow[] = data;
       const totalDuration = sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
       const sorted = [...sessions].sort((a, b) => new Date(a.session_start).getTime() - new Date(b.session_start).getTime());
+
+      // Build page summary
+      const pageMap = new Map<string, PageSummary>();
+      for (const pv of pageViews) {
+        const key = pv.page_path;
+        const existing = pageMap.get(key);
+        if (existing) {
+          existing.visit_count++;
+          if (pv.visited_at < existing.first_visit) existing.first_visit = pv.visited_at;
+          if (pv.visited_at > existing.last_visit) existing.last_visit = pv.visited_at;
+        } else {
+          pageMap.set(key, {
+            page_path: pv.page_path,
+            page_title: pv.page_title || pv.page_path,
+            visit_count: 1,
+            first_visit: pv.visited_at,
+            last_visit: pv.visited_at,
+          });
+        }
+      }
+      const pageSummary = Array.from(pageMap.values()).sort((a, b) => b.visit_count - a.visit_count);
 
       setReport({
         email: trimmed,
@@ -80,6 +128,8 @@ export function UserSessionEvidence() {
         lastSession: sorted[sorted.length - 1].session_start,
         totalDurationSeconds: totalDuration,
         sessions,
+        pageViews,
+        pageSummary,
       });
     } catch (err: any) {
       toast.error('Failed to fetch session data');
@@ -116,15 +166,45 @@ export function UserSessionEvidence() {
         ['First Session', format(new Date(report.firstSession), 'MMM d, yyyy h:mm a')],
         ['Last Session', format(new Date(report.lastSession), 'MMM d, yyyy h:mm a')],
         ['Total Time in Platform', formatDuration(report.totalDurationSeconds)],
+        ['Unique Pages Accessed', String(report.pageSummary.length)],
+        ['Total Page Views', String(report.pageViews.length)],
       ],
       theme: 'grid',
       headStyles: { fillColor: [30, 30, 30] },
       margin: { left: 14 },
     });
 
-    // Session details
-    const finalY = (doc as any).lastAutoTable?.finalY || 100;
+    // Features / Pages Accessed
+    let finalY = (doc as any).lastAutoTable?.finalY || 100;
     doc.setFontSize(12);
+    doc.text('Features & Pages Accessed', 14, finalY + 12);
+
+    if (report.pageSummary.length > 0) {
+      autoTable(doc, {
+        startY: finalY + 16,
+        head: [['Page / Feature', 'Path', 'Times Visited', 'First Visit', 'Last Visit']],
+        body: report.pageSummary.map((p) => [
+          p.page_title,
+          p.page_path,
+          String(p.visit_count),
+          format(new Date(p.first_visit), 'MMM d, yyyy h:mm a'),
+          format(new Date(p.last_visit), 'MMM d, yyyy h:mm a'),
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [30, 30, 30] },
+        margin: { left: 14 },
+        styles: { fontSize: 9 },
+      });
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.text('No page view data recorded yet (tracking started recently).', 14, finalY + 18);
+    }
+
+    // Session details
+    finalY = (doc as any).lastAutoTable?.finalY || finalY + 30;
+    doc.setFontSize(12);
+    doc.setTextColor(0);
     doc.text('Session Log', 14, finalY + 12);
 
     autoTable(doc, {
@@ -172,7 +252,7 @@ export function UserSessionEvidence() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Search by email to view session history. Export as PDF for dispute reference.
+          Search by email to view session history and pages accessed. Export as PDF for dispute reference.
         </p>
 
         {/* Search */}
@@ -202,7 +282,7 @@ export function UserSessionEvidence() {
         {report && (
           <div className="space-y-4">
             {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div className="rounded-lg border bg-card p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                   <Activity className="h-3.5 w-3.5" />
@@ -231,6 +311,13 @@ export function UserSessionEvidence() {
                 </div>
                 <p className="text-xl font-bold">{formatDuration(report.totalDurationSeconds)}</p>
               </div>
+              <div className="rounded-lg border bg-card p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                  <Globe className="h-3.5 w-3.5" />
+                  Pages Accessed
+                </div>
+                <p className="text-xl font-bold">{report.pageSummary.length}</p>
+              </div>
             </div>
 
             {/* Export button */}
@@ -238,6 +325,28 @@ export function UserSessionEvidence() {
               <FileDown className="h-4 w-4" />
               Export as PDF
             </Button>
+
+            {/* Pages accessed */}
+            {report.pageSummary.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Features & Pages Accessed ({report.pageSummary.length})</h4>
+                <ScrollArea className="h-[200px] rounded-md border">
+                  <div className="divide-y">
+                    {report.pageSummary.map((p) => (
+                      <div key={p.page_path} className="flex items-center justify-between p-3 text-sm">
+                        <div>
+                          <p className="font-medium">{p.page_title}</p>
+                          <p className="text-xs text-muted-foreground">{p.page_path}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">{p.visit_count}x</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
             {/* Session list */}
             <div>
