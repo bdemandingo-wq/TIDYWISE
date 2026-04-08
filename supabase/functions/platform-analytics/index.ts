@@ -8,6 +8,24 @@ const corsHeaders = {
 };
 
 const PLATFORM_ADMIN_EMAIL = "support@tidywisecleaning.com";
+const FREE_ACCOUNTS = new Set([
+  "support@tidywisecleaning.com",
+  "applereview@tidywise.com",
+  "info@openarmscleaning.com",
+]);
+
+function normalizeEmail(email: string | null | undefined): string | null {
+  return email ? email.trim().toLowerCase() : null;
+}
+
+function resolveSubscriptionStatus(email: string | null | undefined, status: string): string {
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail && FREE_ACCOUNTS.has(normalizedEmail)) {
+    return "active";
+  }
+
+  return status;
+}
 
 // Safe date formatter
 function safeFormatDate(timestamp: number | undefined | null): string {
@@ -180,11 +198,7 @@ serve(async (req) => {
         const subscriberEmails = new Set<string>();
         
         for (const sub of crmSubscriptions) {
-          if (sub.status === 'active') activeSubscriptions++;
-          if (sub.status === 'trialing') trialSubscriptions++;
-          if (sub.status === 'canceled') canceledSubscriptions++;
-          
-          // Get customer details
+          // Get customer details first so any account overrides can apply to metrics and badges
           let customerEmail = 'Unknown';
           let customerName = null;
           let customerId = '';
@@ -203,21 +217,25 @@ serve(async (req) => {
               console.log("[PLATFORM-ANALYTICS] Could not fetch customer:", e);
             }
           }
+
+          const resolvedStatus = resolveSubscriptionStatus(customerEmail, sub.status);
+
+          if (resolvedStatus === 'active') activeSubscriptions++;
+          if (resolvedStatus === 'trialing') trialSubscriptions++;
+          if (resolvedStatus === 'canceled') canceledSubscriptions++;
           
           subscriptionList.push({
             id: sub.id,
             customer_email: customerEmail,
-            status: sub.status,
+            status: resolvedStatus,
             created: safeFormatDate(sub.created),
             current_period_end: safeFormatDate(sub.current_period_end),
           });
           
-          // Add to subscribers list (only once per email, prioritize active subscriptions)
           if (customerEmail !== 'Unknown' && !subscriberEmails.has(customerEmail)) {
             subscriberEmails.add(customerEmail);
             totalSubscribers++;
             
-            // Check if recent subscriber (last 30 days)
             if (sub.created >= thirtyDaysAgoTimestamp) {
               recentSubscribers++;
             }
@@ -227,7 +245,7 @@ serve(async (req) => {
               email: customerEmail,
               name: customerName,
               created: safeFormatDate(customerCreated),
-              subscriptionStatus: sub.status,
+              subscriptionStatus: resolvedStatus,
               subscriptionCreated: safeFormatDate(sub.created),
               source: 'tidywise_subscriber',
             });
