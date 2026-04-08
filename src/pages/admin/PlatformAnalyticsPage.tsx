@@ -8,7 +8,7 @@ import {
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase, Bell
+  CalendarCheck, Phone, Briefcase, Bell, Search
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +31,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
+import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
 
 interface Subscriber {
   id: string;
@@ -331,7 +332,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-4">
+          <TabsList className="grid w-full grid-cols-7 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -350,6 +351,10 @@ export default function PlatformAnalyticsPage() {
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Activity</span>
+            </TabsTrigger>
+            <TabsTrigger value="evidence" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Evidence</span>
             </TabsTrigger>
             <TabsTrigger value="demos" className="flex items-center gap-2">
               <CalendarCheck className="w-4 h-4" />
@@ -709,6 +714,9 @@ export default function PlatformAnalyticsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="evidence">
+            <UserSessionEvidence />
           </TabsContent>
           <DemoCalendarTab />
           <PlatformNotificationsLog />
