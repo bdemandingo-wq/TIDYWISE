@@ -161,23 +161,49 @@ export function useSessionTracker() {
     sessionIdRef.current = null;
   }, []);
 
-  // Track page views
+  // Track page views using window.location (works outside Router)
   useEffect(() => {
-    if (!user || !sessionIdRef.current) return;
-    const pagePath = location.pathname;
-    // Derive a readable title from the path
-    const pageTitle = pagePath === '/' ? 'Home' : pagePath.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ')).join(' > ');
+    if (!user) return;
 
-    supabase.from('user_page_views').insert({
-      user_id: user.id,
-      user_email: user.email,
-      session_id: sessionIdRef.current,
-      page_path: pagePath,
-      page_title: pageTitle,
-    }).then(({ error }) => {
-      if (error) console.error('[SESSION_TRACKER] page view insert failed', error);
-    });
-  }, [user, location.pathname]);
+    const trackPage = () => {
+      const pagePath = window.location.pathname;
+      if (pagePath === lastPathRef.current || !sessionIdRef.current) return;
+      lastPathRef.current = pagePath;
+      const pageTitle = pagePath === '/' ? 'Home' : pagePath.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ')).join(' > ');
+
+      supabase.from('user_page_views').insert({
+        user_id: user.id,
+        user_email: user.email,
+        session_id: sessionIdRef.current,
+        page_path: pagePath,
+        page_title: pageTitle,
+      }).then(({ error }) => {
+        if (error) console.error('[SESSION_TRACKER] page view insert failed', error);
+      });
+    };
+
+    // Track initial page
+    trackPage();
+
+    // Listen for pushState/popstate navigation
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = function (...args) {
+      origPush(...args);
+      trackPage();
+    };
+    history.replaceState = function (...args) {
+      origReplace(...args);
+      trackPage();
+    };
+    window.addEventListener('popstate', trackPage);
+
+    return () => {
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+      window.removeEventListener('popstate', trackPage);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
