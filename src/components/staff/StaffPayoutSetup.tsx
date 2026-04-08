@@ -69,6 +69,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
   // Detect return from Stripe onboarding via URL params
   const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   // Instant load from local DB cache (no edge function, no Stripe API)
   const { data: cachedStatus, isLoading: isCacheLoading } = useQuery({
