@@ -928,18 +928,59 @@ function RecurringBookingDialog({
         <div className="space-y-4">
           <div>
             <Label>Customer *</Label>
-            <Select value={formData.customer_id} onValueChange={(v) => setFormData({ ...formData, customer_id: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.first_name} {c.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between font-normal">
+                  {formData.customer_id
+                    ? (() => {
+                        const c = customers.find((c: any) => c.id === formData.customer_id);
+                        return c ? `${c.first_name} ${c.last_name}` : 'Select customer';
+                      })()
+                    : 'Select customer'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <div className="p-2 border-b">
+                  <Input
+                    placeholder="Search customers..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto p-1">
+                  {customers
+                    .filter((c: any) => {
+                      if (!customerSearch) return true;
+                      const name = `${c.first_name} ${c.last_name}`.toLowerCase();
+                      return name.includes(customerSearch.toLowerCase());
+                    })
+                    .map((c: any) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors",
+                          formData.customer_id === c.id && "bg-primary text-primary-foreground"
+                        )}
+                        onClick={() => {
+                          setFormData({ ...formData, customer_id: c.id });
+                          setCustomerSearch('');
+                        }}
+                      >
+                        {c.first_name} {c.last_name}
+                      </button>
+                    ))}
+                  {customers.filter((c: any) => {
+                    if (!customerSearch) return true;
+                    const name = `${c.first_name} ${c.last_name}`.toLowerCase();
+                    return name.includes(customerSearch.toLowerCase());
+                  }).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-3">No customers found</p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           {!isMultiDay && (
             <div>
