@@ -361,8 +361,27 @@ export default function SignupPage() {
                 )}
               </div>
 
+              {/* TOS & Refund Policy Checkbox */}
+              <div className="flex items-start gap-3 pt-2">
+                <Checkbox
+                  id="tos"
+                  checked={tosAccepted}
+                  onCheckedChange={(checked) => setTosAccepted(checked === true)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="tos" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                  I agree to the TidyWise{' '}
+                  <TermsOfServiceDialog>
+                    <button type="button" className="underline underline-offset-2 hover:text-foreground transition-colors">
+                      Terms of Service
+                    </button>
+                  </TermsOfServiceDialog>
+                  . All payments are non-refundable. Subscriptions can be cancelled anytime but no refunds are issued for time already paid.
+                </label>
+              </div>
+
               {/* Submit button */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || !tosAccepted}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>
