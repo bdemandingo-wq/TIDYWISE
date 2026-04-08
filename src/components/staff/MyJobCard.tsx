@@ -265,14 +265,6 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
             </span>
           </div>
         )}
-        {booking.customer?.phone && (
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="w-4 h-4 text-muted-foreground" />
-            <a href={`tel:${booking.customer.phone}`} className="text-primary hover:underline">
-              {booking.customer.phone}
-            </a>
-          </div>
-        )}
         {/* Always show address section - show message if missing */}
         <div className="flex items-start gap-2 text-sm">
           <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
