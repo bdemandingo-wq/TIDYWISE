@@ -699,6 +699,29 @@ export default function RecurringBookingsPage() {
                       })()}
                     </TableCell>
                     <TableCell>
+                      {(() => {
+                        if (!booking.ends_at) {
+                          return <span className="text-muted-foreground text-xs">Until cancelled</span>;
+                        }
+                        const endsDate = new Date(booking.ends_at);
+                        const daysLeft = differenceInDays(endsDate, new Date());
+                        // Estimate remaining cleanings based on frequency
+                        let freqDays = 7;
+                        if (booking.frequency === 'biweekly') freqDays = 14;
+                        else if (booking.frequency === 'triweekly') freqDays = 21;
+                        else if (booking.frequency === 'monthly') freqDays = 30;
+                        const remaining = Math.max(0, Math.ceil(daysLeft / freqDays));
+                        return (
+                          <div>
+                            <p className="text-sm">{format(endsDate, 'MMM d, yyyy')}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {daysLeft <= 0 ? 'Ended' : `~${remaining} left`}
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
