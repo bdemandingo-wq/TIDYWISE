@@ -31,6 +31,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
+import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
 
 interface Subscriber {
   id: string;
