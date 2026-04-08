@@ -340,12 +340,21 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-yellow-500" />
                   <div>
-                    <p className="font-medium">Verification Pending</p>
+                    <p className="font-medium">✅ Submitted to Stripe for Review</p>
                     <p className="text-sm text-muted-foreground">
-                      Your details have been submitted. Verification usually takes 1-2 business days.
+                      Your application has been submitted. Stripe typically reviews and approves accounts within 1-2 business days. You'll see your status update here automatically.
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="p-3 rounded-lg border bg-card text-sm text-muted-foreground space-y-1">
+                <p><strong>What happens next:</strong></p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Stripe verifies your identity and bank details</li>
+                  <li>Once approved, your status will change to <span className="text-green-400 font-medium">Active</span></li>
+                  <li>You'll then receive payouts directly to your bank account</li>
+                </ul>
               </div>
 
               <Button
@@ -354,7 +363,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 onClick={() => refetch()}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh Status
+                Check for Updates
               </Button>
             </>
           ) : isOrgNotConnected ? (
