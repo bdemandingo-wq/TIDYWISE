@@ -83,6 +83,11 @@ export default function SignupPage() {
     e.preventDefault();
     
     if (!validateForm()) return;
+
+    if (!tosAccepted) {
+      toast.error('You must agree to the Terms of Service and refund policy to continue.');
+      return;
+    }
     
     setLoading(true);
 
