@@ -223,11 +223,10 @@ export default function LandingPage() {
             "operatingSystem": "Web, iOS, Android",
             "offers": {
               "@type": "Offer",
-              "price": "50.00",
-              "priceCurrency": "USD",
-              "priceValidUntil": "2027-12-31"
+              "price": "0",
+              "priceCurrency": "USD"
             },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management."
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever."
           }
         ]}
       />
