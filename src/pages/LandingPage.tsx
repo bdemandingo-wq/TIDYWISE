@@ -196,7 +196,7 @@ export default function LandingPage() {
     navigate("/signup");
   };
 
-  const handleStartFreeTrial = () => {
+  const handleStartFree = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
     navigate("/signup");
   };
