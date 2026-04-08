@@ -418,7 +418,7 @@ export default function LandingPage() {
                   onClick={handleGetStarted}
                   className="group flex-1 sm:flex-none"
                 >
-                  Start Free Trial
+                  Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <Button 
