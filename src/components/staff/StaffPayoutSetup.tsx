@@ -244,8 +244,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
   const isOrgNotConnected = payoutStatus?.status === 'org_not_connected';
   const isSetUp = payoutStatus?.status === 'active';
-  const isOnboarding = payoutStatus?.status === 'onboarding';
-  const isPending = payoutStatus?.status === 'pending_verification';
+  const isOnboarding = payoutStatus?.status === 'onboarding' && !justSubmitted;
+  const isPending = payoutStatus?.status === 'pending_verification' || (justSubmitted && payoutStatus?.detailsSubmitted);
 
   return (
     <div className="space-y-4">
