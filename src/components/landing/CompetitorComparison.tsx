@@ -57,9 +57,9 @@ const pricingPlans = [
   {
     name: "TIDYWISE",
     tagline: "Built for cleaning businesses",
-    price: "$50",
-    priceNote: "/month",
-    trial: "2 months free",
+    price: "Free",
+    priceNote: "forever",
+    subtitle: "No credit card required",
     highlight: true,
   },
   {
@@ -67,7 +67,7 @@ const pricingPlans = [
     tagline: "General service booking",
     price: "$197",
     priceNote: "/month",
-    trial: "14-day trial",
+    subtitle: "14-day trial",
     highlight: false,
   },
   {
@@ -75,7 +75,7 @@ const pricingPlans = [
     tagline: "Field service management",
     price: "$349",
     priceNote: "/month",
-    trial: "14-day trial",
+    subtitle: "14-day trial",
     highlight: false,
   },
 ];
