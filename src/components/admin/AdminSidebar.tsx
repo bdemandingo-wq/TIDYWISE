@@ -88,7 +88,7 @@ const defaultNavigation = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Subscription', href: '/dashboard/subscription', icon: Sparkles },
+  
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
   { name: 'Help', href: '/dashboard/help', icon: HelpCircle },

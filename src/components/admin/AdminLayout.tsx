@@ -51,19 +51,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         </main>
       </div>
 
-      {/* Only show subscription dialog when payment flows are allowed */}
-      {canShowPaymentFlows && (
-        <Suspense fallback={null}>
-          {showSubscriptionDialog ? (
-            <SubscriptionDialog
-              open={showSubscriptionDialog}
-              onOpenChange={setShowSubscriptionDialog}
-              onSubscriptionActive={checkSubscription}
-            />
-          ) : null}
-        </Suspense>
-      )}
-      
       <OfflineIndicator />
       
       <MobileBottomNav />
