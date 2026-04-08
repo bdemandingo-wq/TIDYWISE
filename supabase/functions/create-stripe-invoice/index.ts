@@ -121,11 +121,12 @@ const handler = async (req: Request): Promise<Response> => {
     // Get business settings for branding
     const { data: businessSettings } = await supabase
       .from("business_settings")
-      .select("company_name")
+      .select("company_name, timezone")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
     const companyName = businessSettings?.company_name || "Your Business";
+    const orgTimezone = businessSettings?.timezone || "America/New_York";
 
     // Get organization invoice/payment settings
     const { data: invoiceSettings } = await supabase
