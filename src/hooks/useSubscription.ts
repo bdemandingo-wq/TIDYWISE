@@ -16,6 +16,7 @@ import { useAuth } from './useAuth';
 const FREE_ACCOUNTS = [
   'support@tidywisecleaning.com',
   'applereview@tidywise.com',
+  'info@openarmscleaning.com',
 ];
 
 export interface SubscriptionAccess {
