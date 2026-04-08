@@ -69,6 +69,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
   // Detect return from Stripe onboarding via URL params
   const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   // Instant load from local DB cache (no edge function, no Stripe API)
   const { data: cachedStatus, isLoading: isCacheLoading } = useQuery({
@@ -120,6 +121,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   useEffect(() => {
     if (setupComplete) {
       setIsCheckingReturn(true);
+      setJustSubmitted(true);
       // Force immediate refresh
       queryClient.invalidateQueries({ queryKey: ['staff-payout-status', staffId, organizationId] });
       queryClient.invalidateQueries({ queryKey: ['staff-payout-cached', staffId, organizationId] });
@@ -132,8 +134,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       setIsCheckingReturn(false);
       if (liveStatus.payoutsEnabled) {
         toast.success('Payout setup complete! Your account is active.');
+        setJustSubmitted(false);
       } else if (liveStatus.detailsSubmitted) {
-        toast.info('Details submitted. Verification is in progress.');
+        toast.info('Details submitted! Stripe is reviewing your application.');
       }
     }
   }, [isCheckingReturn, liveStatus, isLiveLoading]);
@@ -241,8 +244,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
   const isOrgNotConnected = payoutStatus?.status === 'org_not_connected';
   const isSetUp = payoutStatus?.status === 'active';
-  const isOnboarding = payoutStatus?.status === 'onboarding';
-  const isPending = payoutStatus?.status === 'pending_verification';
+  const isOnboarding = payoutStatus?.status === 'onboarding' && !justSubmitted;
+  const isPending = payoutStatus?.status === 'pending_verification' || (justSubmitted && payoutStatus?.detailsSubmitted);
 
   return (
     <div className="space-y-4">
@@ -337,12 +340,21 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <div className="flex items-center gap-3">
                   <Clock className="w-8 h-8 text-yellow-500" />
                   <div>
-                    <p className="font-medium">Verification Pending</p>
+                    <p className="font-medium">✅ Submitted to Stripe for Review</p>
                     <p className="text-sm text-muted-foreground">
-                      Your details have been submitted. Verification usually takes 1-2 business days.
+                      Your application has been submitted. Stripe typically reviews and approves accounts within 1-2 business days. You'll see your status update here automatically.
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="p-3 rounded-lg border bg-card text-sm text-muted-foreground space-y-1">
+                <p><strong>What happens next:</strong></p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Stripe verifies your identity and bank details</li>
+                  <li>Once approved, your status will change to <span className="text-green-400 font-medium">Active</span></li>
+                  <li>You'll then receive payouts directly to your bank account</li>
+                </ul>
               </div>
 
               <Button
@@ -351,7 +363,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 onClick={() => refetch()}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh Status
+                Check for Updates
               </Button>
             </>
           ) : isOrgNotConnected ? (
