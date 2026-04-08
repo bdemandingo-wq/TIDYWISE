@@ -122,6 +122,20 @@ export default function SignupPage() {
         if (profileError && !profileError.message.includes('duplicate key')) {
           console.error('Error creating profile:', profileError);
         }
+
+        // Log TOS acceptance
+        try {
+          const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
+          const ipData = ipRes ? await ipRes.json().catch(() => ({})) : {};
+          await supabaseNoSession.from('tos_acceptances').insert({
+            user_id: data.user.id,
+            email: formData.email,
+            ip_address: ipData?.ip || null,
+            tos_version: '2025-02-01',
+          });
+        } catch (tosErr) {
+          console.error('TOS acceptance logging failed (non-critical):', tosErr);
+        }
         
         // Send welcome SMS if phone provided
         if (formData.phone) {
