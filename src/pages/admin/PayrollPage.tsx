@@ -788,7 +788,10 @@ export default function PayrollPage() {
               mode="range"
               selected={{ from: dateRange.from, to: dateRange.to }}
               onSelect={(range) => {
-                if (range?.from) setDateRange({ from: range.from, to: range.to || range.from });
+                if (range?.from) {
+                  setDateRange({ from: range.from, to: range.to || range.from });
+                  setPayPeriodSelected(true);
+                }
               }}
               numberOfMonths={2}
               className="pointer-events-auto"
