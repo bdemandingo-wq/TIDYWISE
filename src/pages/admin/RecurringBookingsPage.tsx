@@ -944,6 +944,22 @@ function RecurringBookingDialog({
     const dbFrequency = formData.frequency.startsWith('custom_') ? 'custom' : formData.frequency;
     const recurringDaysOfWeek = selectedCustomFreq?.days_of_week || null;
 
+    // Compute ends_at from duration_type
+    let endsAt: string | null = null;
+    if (formData.duration_type !== 'until_cancelled') {
+      const now = new Date();
+      switch (formData.duration_type) {
+        case '2_weeks': endsAt = addDays(now, 14).toISOString(); break;
+        case '1_month': endsAt = addMonths(now, 1).toISOString(); break;
+        case '3_months': endsAt = addMonths(now, 3).toISOString(); break;
+        case '6_months': endsAt = addMonths(now, 6).toISOString(); break;
+        case '1_year': endsAt = addMonths(now, 12).toISOString(); break;
+        case 'custom_date':
+          endsAt = formData.ends_at ? formData.ends_at.toISOString() : null;
+          break;
+      }
+    }
+
     onSave({
       customer_id: formData.customer_id,
       service_id: formData.service_id || null,
@@ -957,6 +973,7 @@ function RecurringBookingDialog({
       day_prices: dayPricesPayload,
       day_services: dayServicesPayload,
       recurring_days_of_week: recurringDaysOfWeek,
+      ends_at: endsAt,
     });
   };
 
