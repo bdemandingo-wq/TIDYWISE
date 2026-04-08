@@ -459,13 +459,18 @@ export default function RecurringBookingsPage() {
             }
 
             const scheduledAt = applyTime(new Date(candidate)).toISOString();
-            bookingsToInsert.push({
-              ...baseBooking,
-              service_id: bookingServiceId,
-              total_amount: bookingAmount,
-              scheduled_at: scheduledAt,
-            });
-            collectedDays.add(dayIdx);
+            // Skip if past ends_at
+            if (recurring.ends_at && new Date(scheduledAt) > new Date(recurring.ends_at)) {
+              collectedDays.add(dayIdx);
+            } else {
+              bookingsToInsert.push({
+                ...baseBooking,
+                service_id: bookingServiceId,
+                total_amount: bookingAmount,
+                scheduled_at: scheduledAt,
+              });
+              collectedDays.add(dayIdx);
+            }
           }
         }
         cursor = addDays(cursor, 1);
