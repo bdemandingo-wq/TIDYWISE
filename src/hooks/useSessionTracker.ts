@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -8,6 +9,7 @@ const SESSION_RESUME_WINDOW_MS = 30 * 60 * 1000; // Resume sessions started with
 
 export function useSessionTracker() {
   const { user } = useAuth();
+  const location = useLocation();
   const sessionIdRef = useRef<string | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const sessionStartRef = useRef<number>(Date.now());
@@ -159,6 +161,24 @@ export function useSessionTracker() {
     
     sessionIdRef.current = null;
   }, []);
+
+  // Track page views
+  useEffect(() => {
+    if (!user || !sessionIdRef.current) return;
+    const pagePath = location.pathname;
+    // Derive a readable title from the path
+    const pageTitle = pagePath === '/' ? 'Home' : pagePath.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ')).join(' > ');
+
+    supabase.from('user_page_views').insert({
+      user_id: user.id,
+      user_email: user.email,
+      session_id: sessionIdRef.current,
+      page_path: pagePath,
+      page_title: pageTitle,
+    }).then(({ error }) => {
+      if (error) console.error('[SESSION_TRACKER] page view insert failed', error);
+    });
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (!user) return;

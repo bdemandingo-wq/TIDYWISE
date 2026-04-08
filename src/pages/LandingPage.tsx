@@ -196,7 +196,7 @@ export default function LandingPage() {
     navigate("/signup");
   };
 
-  const handleStartFreeTrial = () => {
+  const handleStartFree = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
     navigate("/signup");
   };
@@ -205,7 +205,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business Software | TIDYWISE"
-        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Start your 60-day free trial today."
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -223,11 +223,10 @@ export default function LandingPage() {
             "operatingSystem": "Web, iOS, Android",
             "offers": {
               "@type": "Offer",
-              "price": "50.00",
-              "priceCurrency": "USD",
-              "priceValidUntil": "2027-12-31"
+              "price": "0",
+              "priceCurrency": "USD"
             },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management."
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever."
           }
         ]}
       />
@@ -255,7 +254,7 @@ export default function LandingPage() {
               <Button variant="ghost" onClick={() => navigate("/demo")} className="text-sm font-medium text-primary">Schedule Demo</Button>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
               <Button variant="premium" onClick={() => navigate("/signup")} className="text-sm">
-                Start Free Trial
+                Get Started Free
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
@@ -370,8 +369,8 @@ export default function LandingPage() {
                          navigate("/signup");
                        }}
                      >
-                       Start Free Trial
-                       <ArrowRight className="ml-1 h-4 w-4" />
+                        Get Started Free
+                        <ArrowRight className="ml-1 h-4 w-4" />
                      </Button>
                    </div>
                  </div>
@@ -419,7 +418,7 @@ export default function LandingPage() {
                   onClick={handleGetStarted}
                   className="group flex-1 sm:flex-none"
                 >
-                  Start Free Trial
+                  Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <Button 
@@ -441,11 +440,11 @@ export default function LandingPage() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  60-day free trial
+                  Free forever
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  Cancel anytime
+                  Unlimited bookings
                 </span>
               </div>
 
@@ -721,9 +720,9 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: '60', label: 'Day free trial', delay: '0.1s' },
-                   { value: '$50', label: 'Per month', delay: '0.2s' },
-                   { value: '∞', label: 'Unlimited bookings', delay: '0.3s' },
+                   { value: 'Free', label: 'Forever', delay: '0.1s' },
+                   { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
+                   { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
                   <Card 
                     key={i}
@@ -816,15 +815,15 @@ export default function LandingPage() {
             <Button 
               size="xl" 
               variant="secondary"
-              onClick={handleStartFreeTrial}
+              onClick={handleStartFree}
               className="group shadow-2xl"
             >
-              Start Free Trial
+              Get Started Free
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-lg font-medium">First 60 days free</span>
+              <span className="text-lg font-medium">Free forever — no credit card</span>
             </div>
           </div>
         </div>
