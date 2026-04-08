@@ -286,7 +286,7 @@ const handler = async (req: Request): Promise<Response> => {
             serviceName: data.items.map(i => i.description).join(', '),
             amount: data.totalAmount,
             paymentLink: session.url,
-            validUntil: data.dueDate ? new Date(data.dueDate).toLocaleDateString() : undefined,
+            validUntil: data.dueDate ? new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate)) : undefined,
             notes: data.notes || undefined,
           },
         });
