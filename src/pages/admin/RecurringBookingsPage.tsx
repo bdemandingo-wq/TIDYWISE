@@ -195,6 +195,7 @@ function formatDateKey(d: Date): string {
 export default function RecurringBookingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<RecurringBooking | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   
