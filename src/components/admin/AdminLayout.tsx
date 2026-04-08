@@ -1,19 +1,12 @@
-import { ReactNode, Suspense, lazy, useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
-import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
-import { usePlatform } from '@/hooks/usePlatform';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-// Performance: only load subscription UI when it's actually needed (opened).
-const SubscriptionDialog = lazy(() =>
-  import('./SubscriptionDialog').then((m) => ({ default: m.SubscriptionDialog }))
-);
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -24,8 +17,6 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
-  const { canShowPaymentFlows } = usePlatform();
   const location = useLocation();
   
   // Apply org branding colors to entire CRM theme
@@ -60,19 +51,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         </main>
       </div>
 
-      {/* Only show subscription dialog when payment flows are allowed */}
-      {canShowPaymentFlows && (
-        <Suspense fallback={null}>
-          {showSubscriptionDialog ? (
-            <SubscriptionDialog
-              open={showSubscriptionDialog}
-              onOpenChange={setShowSubscriptionDialog}
-              onSubscriptionActive={checkSubscription}
-            />
-          ) : null}
-        </Suspense>
-      )}
-      
       <OfflineIndicator />
       
       <MobileBottomNav />
