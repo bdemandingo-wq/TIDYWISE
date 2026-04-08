@@ -17,8 +17,6 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { showSubscriptionDialog, setShowSubscriptionDialog, checkSubscription } = useAuth();
-  const { canShowPaymentFlows } = usePlatform();
   const location = useLocation();
   
   // Apply org branding colors to entire CRM theme
