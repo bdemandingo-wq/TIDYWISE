@@ -807,6 +807,7 @@ function RecurringBookingDialog({
 
   // Team members state
   const [teamMembers, setTeamMembers] = useState<{ staff_id: string }[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
 
   const selectedCustomFreq = formData.frequency.startsWith('custom_')
     ? customFrequencies.find(cf => cf.id === formData.frequency.replace('custom_', ''))
