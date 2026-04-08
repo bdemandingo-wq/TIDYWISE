@@ -9,6 +9,7 @@ import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
@@ -42,6 +43,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -81,6 +83,11 @@ export default function SignupPage() {
     e.preventDefault();
     
     if (!validateForm()) return;
+
+    if (!tosAccepted) {
+      toast.error('You must agree to the Terms of Service and refund policy to continue.');
+      return;
+    }
     
     setLoading(true);
 
@@ -114,6 +121,20 @@ export default function SignupPage() {
         
         if (profileError && !profileError.message.includes('duplicate key')) {
           console.error('Error creating profile:', profileError);
+        }
+
+        // Log TOS acceptance
+        try {
+          const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
+          const ipData = ipRes ? await ipRes.json().catch(() => ({})) : {};
+          await supabaseNoSession.from('tos_acceptances').insert({
+            user_id: data.user.id,
+            email: formData.email,
+            ip_address: ipData?.ip || null,
+            tos_version: '2025-02-01',
+          });
+        } catch (tosErr) {
+          console.error('TOS acceptance logging failed (non-critical):', tosErr);
         }
         
         // Send welcome SMS if phone provided
@@ -340,8 +361,27 @@ export default function SignupPage() {
                 )}
               </div>
 
+              {/* TOS & Refund Policy Checkbox */}
+              <div className="flex items-start gap-3 pt-2">
+                <Checkbox
+                  id="tos"
+                  checked={tosAccepted}
+                  onCheckedChange={(checked) => setTosAccepted(checked === true)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="tos" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                  I agree to the TidyWise{' '}
+                  <TermsOfServiceDialog>
+                    <button type="button" className="underline underline-offset-2 hover:text-foreground transition-colors">
+                      Terms of Service
+                    </button>
+                  </TermsOfServiceDialog>
+                  . All payments are non-refundable. Subscriptions can be cancelled anytime but no refunds are issued for time already paid.
+                </label>
+              </div>
+
               {/* Submit button */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || !tosAccepted}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>

@@ -112,6 +112,14 @@ export default function PrivacyPolicyPage() {
               Upon receiving a deletion request, we will delete or anonymize your personal data within 30 days, unless we are required to retain it for legal or compliance purposes.
             </p>
 
+            <h2>Refund Policy</h2>
+            <p>
+              All subscription payments are non-refundable. By subscribing to TidyWise, you acknowledge that you have had
+              access to the full platform during your subscription period and that no refunds will be issued for any used or
+              unused portion of your subscription. You may cancel your subscription at any time to prevent future charges.
+              This policy was agreed to at the time of account creation.
+            </p>
+
             <h2>Children's Privacy</h2>
             <p>The Services are not directed to children under 13, and we do not knowingly collect information from them.</p>
 
