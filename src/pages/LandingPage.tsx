@@ -205,7 +205,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business Software | TIDYWISE"
-        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Start your 60-day free trial today."
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
