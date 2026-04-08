@@ -16,10 +16,12 @@ import {
 } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
-import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3 } from 'lucide-react';
+import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3, CreditCard, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -159,14 +161,14 @@ export default function PayrollPage() {
 
   const settings = payrollSettings || DEFAULT_SETTINGS;
 
-  // Fetch paid staff for current week
+  // Fetch paid staff for current period
   const { data: paidPayments = [] } = useQuery({
     queryKey: ['payroll-payments', organizationId, weekStart],
     queryFn: async () => {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('payroll_payments')
-        .select('staff_id')
+        .select('staff_id, payment_method, stripe_transfer_id, amount, paid_at')
         .eq('organization_id', organizationId)
         .eq('week_start', weekStart);
       if (error) throw error;
@@ -175,44 +177,113 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
+  const paidStaffMap = useMemo(() => {
+    const map = new Map<string, { payment_method: string; stripe_transfer_id: string | null; amount: number | null; paid_at: string }>();
+    for (const p of paidPayments) {
+      map.set(p.staff_id, p);
+    }
+    return map;
+  }, [paidPayments]);
+
   const paidStaffIds = new Set(paidPayments.map(p => p.staff_id));
 
-  // Mark paid mutation
-  const markPaidMutation = useMutation({
-    mutationFn: async ({ staffId, staffName, isPaid, amount }: { staffId: string; staffName: string; isPaid: boolean; amount?: number }) => {
-      if (!organizationId || !user) throw new Error('Missing context');
-      if (isPaid) {
-        const { error } = await supabase
-          .from('payroll_payments')
-          .delete()
-          .eq('organization_id', organizationId)
-          .eq('staff_id', staffId)
-          .eq('week_start', weekStart);
-        if (error) throw error;
-        return { staffName, isPaid: false };
-      } else {
-        const { error } = await supabase
-          .from('payroll_payments')
-          .insert({
-            organization_id: organizationId,
-            staff_id: staffId,
-            week_start: weekStart,
-            paid_by: user.id,
-            amount: amount || null,
-          });
-        if (error) throw error;
-        return { staffName, isPaid: true };
-      }
+  // Fetch staff payout accounts to know who has Stripe set up
+  const { data: payoutAccounts = [] } = useQuery({
+    queryKey: ['staff-payout-accounts', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('staff_payout_accounts')
+        .select('staff_id, account_status, payouts_enabled, stripe_account_id')
+        .eq('organization_id', organizationId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  const payoutAccountMap = useMemo(() => {
+    const map = new Map<string, { account_status: string; payouts_enabled: boolean | null; stripe_account_id: string | null }>();
+    for (const a of payoutAccounts) {
+      map.set(a.staff_id, a);
+    }
+    return map;
+  }, [payoutAccounts]);
+
+  // Payout dialog state
+  const [payoutDialog, setPayoutDialog] = useState<{
+    open: boolean;
+    staffId: string;
+    staffName: string;
+    amount: number;
+  }>({ open: false, staffId: '', staffName: '', amount: 0 });
+  const [payoutNotes, setPayoutNotes] = useState('');
+
+  // Process payout mutation
+  const payoutMutation = useMutation({
+    mutationFn: async ({ staffId, amount, payment_method, notes }: { staffId: string; amount: number; payment_method: string; notes: string }) => {
+      if (!organizationId) throw new Error('Missing organization');
+      const { data, error } = await supabase.functions.invoke('process-staff-payout', {
+        body: {
+          staff_id: staffId,
+          organization_id: organizationId,
+          amount,
+          week_start: weekStart,
+          payment_method,
+          notes,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ...data, payment_method };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payroll-payments'] });
-      toast[data.isPaid ? 'success' : 'info'](`${data.staffName} marked as ${data.isPaid ? 'paid' : 'unpaid'}`);
+      setPayoutDialog({ open: false, staffId: '', staffName: '', amount: 0 });
+      setPayoutNotes('');
+      if (data.payment_method === 'stripe_transfer') {
+        toast.success('Payout sent via Stripe! Funds will arrive in the cleaner\'s bank account.');
+      } else {
+        toast.success('Payment recorded as paid externally.');
+      }
     },
-    onError: () => toast.error('Failed to update payment status'),
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to process payout');
+    },
   });
 
-  const handleMarkPaid = (staffId: string, staffName: string, amount?: number) => {
-    markPaidMutation.mutate({ staffId, staffName, isPaid: paidStaffIds.has(staffId), amount });
+  // Undo payment mutation
+  const undoPaymentMutation = useMutation({
+    mutationFn: async ({ staffId, staffName }: { staffId: string; staffName: string }) => {
+      if (!organizationId || !user) throw new Error('Missing context');
+      const { error } = await supabase
+        .from('payroll_payments')
+        .delete()
+        .eq('organization_id', organizationId)
+        .eq('staff_id', staffId)
+        .eq('week_start', weekStart);
+      if (error) throw error;
+      return { staffName };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-payments'] });
+      toast.info(`${data.staffName} marked as unpaid`);
+    },
+    onError: () => toast.error('Failed to undo payment'),
+  });
+
+  const openPayoutDialog = (staffId: string, staffName: string, amount: number) => {
+    setPayoutDialog({ open: true, staffId, staffName, amount });
+    setPayoutNotes('');
+  };
+
+  const handlePayout = (method: 'stripe_transfer' | 'external') => {
+    payoutMutation.mutate({
+      staffId: payoutDialog.staffId,
+      amount: payoutDialog.amount,
+      payment_method: method,
+      notes: payoutNotes,
+    });
   };
 
   // Fetch staff
@@ -916,58 +987,95 @@ export default function PayrollPage() {
                     <TableHead className="text-right">Profit</TableHead>
                     <TableHead className="text-right">Labor %</TableHead>
                     <TableHead className="text-right">YTD</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payrollData.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{maskName(s.name)}</p>
-                          <p className="text-xs text-muted-foreground">{maskEmail(s.email)}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={s.tax_classification === 'w2' ? 'default' : 'secondary'}>
-                          {s.tax_classification === 'w2' ? 'W-2' : '1099'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isTestMode ? '$XXX' : `$${s.revenueAttributed.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
-                        {isTestMode ? '$XXX' : `$${s.profitAttributed.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
-                        {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isTestMode ? '$X,XXX' : `$${s.ytdEarnings.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {s.requiresTaxFiling && (
-                            <Badge variant="outline" className="border-amber-500 text-amber-600">
-                              <AlertTriangle className="w-3 h-3 mr-1" />1099
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {payrollData.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        No staff members found
-                      </TableCell>
-                    </TableRow>
-                  )}
+                     <TableHead>Status</TableHead>
+                     <TableHead className="text-center">Actions</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {payrollData.map((s) => {
+                     const isPaid = paidStaffIds.has(s.id);
+                     const paymentInfo = paidStaffMap.get(s.id);
+                     const payoutAccount = payoutAccountMap.get(s.id);
+                     const hasStripeSetup = payoutAccount?.account_status === 'active' && payoutAccount?.payouts_enabled;
+
+                     return (
+                     <TableRow key={s.id}>
+                       <TableCell>
+                         <div>
+                           <p className="font-medium">{maskName(s.name)}</p>
+                           <p className="text-xs text-muted-foreground">{maskEmail(s.email)}</p>
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant={s.tax_classification === 'w2' ? 'default' : 'secondary'}>
+                           {s.tax_classification === 'w2' ? 'W-2' : '1099'}
+                         </Badge>
+                       </TableCell>
+                       <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
+                       <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
+                       <TableCell className="text-right font-medium text-green-600">
+                         {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className="text-right">
+                         {isTestMode ? '$XXX' : `$${s.revenueAttributed.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
+                         {isTestMode ? '$XXX' : `$${s.profitAttributed.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
+                         {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
+                       </TableCell>
+                       <TableCell className="text-right">
+                         {isTestMode ? '$X,XXX' : `$${s.ytdEarnings.toFixed(2)}`}
+                       </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           {s.requiresTaxFiling && (
+                             <Badge variant="outline" className="border-amber-500 text-amber-600">
+                               <AlertTriangle className="w-3 h-3 mr-1" />1099
+                             </Badge>
+                           )}
+                           {isPaid && (
+                             <Badge variant="default" className="bg-green-600">
+                               <CheckCircle2 className="w-3 h-3 mr-1" />
+                               {paymentInfo?.payment_method === 'stripe_transfer' ? 'Paid (Stripe)' : 'Paid (External)'}
+                             </Badge>
+                           )}
+                         </div>
+                       </TableCell>
+                       <TableCell className="text-center">
+                         {isPaid ? (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => undoPaymentMutation.mutate({ staffId: s.id, staffName: s.name })}
+                             disabled={undoPaymentMutation.isPending}
+                             className="text-xs text-muted-foreground"
+                           >
+                             Undo
+                           </Button>
+                         ) : s.totalPay > 0 ? (
+                           <Button
+                             size="sm"
+                             onClick={() => openPayoutDialog(s.id, s.name, s.totalPay)}
+                             className="gap-1"
+                           >
+                             <DollarSign className="w-3 h-3" />
+                             Pay ${s.totalPay.toFixed(2)}
+                           </Button>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">$0</span>
+                         )}
+                       </TableCell>
+                     </TableRow>
+                   );})}
+                   {payrollData.length === 0 && (
+                     <TableRow>
+                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                         No staff members found
+                       </TableCell>
+                     </TableRow>
+                   )}
                 </TableBody>
               </Table>
               </div>
@@ -1097,6 +1205,79 @@ export default function PayrollPage() {
         </TabsContent>
       </Tabs>
       </SubscriptionGate>
+
+      {/* Payout Dialog */}
+      <Dialog open={payoutDialog.open} onOpenChange={(open) => setPayoutDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pay {payoutDialog.staffName}</DialogTitle>
+            <DialogDescription>
+              Choose how to send ${payoutDialog.amount.toFixed(2)} for the period starting {weekStart}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Textarea
+              placeholder="Optional notes (e.g., 'Includes bonus for extra shift')"
+              value={payoutNotes}
+              onChange={(e) => setPayoutNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            {(() => {
+              const acct = payoutAccountMap.get(payoutDialog.staffId);
+              const hasStripe = acct?.account_status === 'active' && acct?.payouts_enabled;
+              return (
+                <>
+                  <Button
+                    onClick={() => handlePayout('stripe_transfer')}
+                    disabled={!hasStripe || payoutMutation.isPending}
+                    className="w-full gap-2"
+                  >
+                    {payoutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    Pay via Stripe — ${payoutDialog.amount.toFixed(2)}
+                  </Button>
+                  {!hasStripe && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This cleaner hasn't set up Stripe payouts yet
+                    </p>
+                  )}
+                  <div className="relative my-1">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePayout('external')}
+                    disabled={payoutMutation.isPending}
+                    className="w-full gap-2"
+                  >
+                    {payoutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Banknote className="w-4 h-4" />
+                    )}
+                    Mark as Paid Externally
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Use this if you paid via cash, Zelle, Venmo, or check
+                  </p>
+                </>
+              );
+            })()}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
