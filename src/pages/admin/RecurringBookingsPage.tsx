@@ -35,7 +35,7 @@ import { Plus, Calendar, RefreshCw, Pause, Play, Trash2, Edit, X, CalendarClock 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { format, addDays, addWeeks, addMonths, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, addWeeks, addMonths, isBefore, startOfDay, differenceInDays } from 'date-fns';
 import { useCustomers, useServices, useStaff } from '@/hooks/useBookings';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
