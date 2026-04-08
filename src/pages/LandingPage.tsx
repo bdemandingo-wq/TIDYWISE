@@ -720,9 +720,9 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: '60', label: 'Day free trial', delay: '0.1s' },
-                   { value: '$50', label: 'Per month', delay: '0.2s' },
-                   { value: '∞', label: 'Unlimited bookings', delay: '0.3s' },
+                   { value: 'Free', label: 'Forever', delay: '0.1s' },
+                   { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
+                   { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
                   <Card 
                     key={i}
