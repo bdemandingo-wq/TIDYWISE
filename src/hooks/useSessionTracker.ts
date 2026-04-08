@@ -9,6 +9,7 @@ const SESSION_RESUME_WINDOW_MS = 30 * 60 * 1000; // Resume sessions started with
 
 export function useSessionTracker() {
   const { user } = useAuth();
+  const location = useLocation();
   const sessionIdRef = useRef<string | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const sessionStartRef = useRef<number>(Date.now());
