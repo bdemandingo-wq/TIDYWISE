@@ -316,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const { data: bizSettings } = await supabase
         .from('business_settings')
-        .select('company_phone, company_name')
+        .select('company_phone, company_name, timezone')
         .eq('organization_id', organizationId)
         .maybeSingle();
 
@@ -325,9 +325,10 @@ const handler = async (req: Request): Promise<Response> => {
         if (adminPhone.length === 10) adminPhone = '1' + adminPhone;
         if (!adminPhone.startsWith('+')) adminPhone = '+' + adminPhone;
 
+        const orgTimezone = bizSettings?.timezone || "America/New_York";
         const bookingDate = new Date(payload.scheduled_at);
-        const dateStr = bookingDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        const timeStr = bookingDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const dateStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, weekday: 'short', month: 'short', day: 'numeric' }).format(bookingDate);
+        const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, hour: 'numeric', minute: '2-digit', hour12: true }).format(bookingDate);
 
         const smsBody = `📋 New Online Booking #BK-${booking.booking_number}\n` +
           `Customer: ${payload.first_name} ${payload.last_name}\n` +

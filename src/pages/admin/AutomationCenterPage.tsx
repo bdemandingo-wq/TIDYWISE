@@ -1,100 +1,100 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
-import { SEOHead } from '@/components/SEOHead';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Zap, HelpCircle, Home, Calendar, ClipboardList, Users, Target,
-  MessageSquare, Briefcase, UserCircle, CheckSquare, Package, DollarSign,
-  Receipt, BarChart3, Sparkles, CreditCard, Tag, MapPin, Globe, Brain,
-  Activity, Lightbulb, Repeat,
-} from 'lucide-react';
-import { AutomationsTab } from '@/components/admin/automation/AutomationsTab';
-import { HealthMonitorTab } from '@/components/admin/automation/HealthMonitorTab';
-import { SuggestionsTab } from '@/components/admin/automation/SuggestionsTab';
-
-const sidebarGuide = [
-  { icon: Home, name: 'Dashboard', description: 'Your business overview — today\'s stats, upcoming bookings, and key metrics at a glance.' },
-  { icon: Brain, name: 'AI Intelligence', description: 'AI-powered insights including lead scoring, churn prediction, and revenue forecasting.' },
-  { icon: Calendar, name: 'Scheduler', description: 'Drag-and-drop calendar to manage and assign bookings across your team.' },
-  { icon: ClipboardList, name: 'Bookings', description: 'View, create, and manage all one-time bookings with full status tracking.' },
-  { icon: Repeat, name: 'Recurring', description: 'Manage recurring/subscription bookings that automatically repeat on schedule.' },
-  { icon: Users, name: 'Customers', description: 'Your full customer database — contact info, booking history, and loyalty status.' },
-  { icon: Globe, name: 'Client Portal', description: 'Manage client portal accounts so customers can self-serve bookings and view history.' },
-  { icon: Receipt, name: 'Invoices', description: 'Create, send, and track invoices with automated payment reminders.' },
-  { icon: MessageSquare, name: 'Messages', description: 'View all SMS conversations with customers sent through your OpenPhone number.' },
-  { icon: CheckSquare, name: 'Tasks', description: 'Internal task manager for daily to-dos, notes, and team coordination.' },
-  { icon: Target, name: 'Leads', description: 'Track and manage new leads from inquiries to converted customers.' },
-  { icon: MapPin, name: 'Operations', description: 'Track daily operations — job statuses, team locations, and route planning.' },
-  { icon: Zap, name: 'Campaigns', description: 'Create and send SMS marketing campaigns to targeted customer segments.' },
-  { icon: MessageSquare, name: 'Feedback', description: 'Track client complaints, feedback, and resolution status.' },
-  { icon: Briefcase, name: 'Services', description: 'Configure your service offerings, pricing, and duration settings.' },
-  { icon: UserCircle, name: 'Staff', description: 'Manage your cleaning team — profiles, assignments, availability, and performance.' },
-  { icon: CheckSquare, name: 'Checklists', description: 'Create cleaning checklists that staff follow during each job for quality control.' },
-  { icon: Package, name: 'Inventory', description: 'Track cleaning supplies, equipment, and reorder levels.' },
-  { icon: Tag, name: 'Discounts', description: 'Create and manage discount codes for promotions and special offers.' },
-  { icon: DollarSign, name: 'Payroll', description: 'Track staff wages, hours worked, and process payroll payments.' },
-  { icon: Receipt, name: 'Expenses', description: 'Log and categorize business expenses for P&L tracking.' },
-  { icon: Receipt, name: 'Finance', description: 'Financial overview — revenue trends, profit margins, and cash flow analysis.' },
-  { icon: BarChart3, name: 'Reports', description: 'Detailed business reports including revenue, staff productivity, and customer analytics.' },
-  { icon: Sparkles, name: 'Subscription', description: 'Manage your platform subscription plan and billing.' },
-  { icon: CreditCard, name: 'Payment Setup', description: 'Configure Stripe integration for accepting customer payments and deposits.' },
-  { icon: HelpCircle, name: 'Help', description: 'Tutorial videos and help resources to get the most out of the platform.' },
-];
+import { Seo } from '@/components/Seo';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Zap, Activity, Lightbulb, ScrollText } from 'lucide-react';
+import { AutomationRowList } from '@/components/admin/automation/AutomationRowList';
+import { AutomationLogTable } from '@/components/admin/automation/AutomationLogTable';
+import { CRMSuggestionsPanel } from '@/components/admin/automation/CRMSuggestionsPanel';
 
 export default function AutomationCenterPage() {
+  const { organization } = useOrganization();
+  const queryClient = useQueryClient();
+
+  const { data: automations = [], isLoading } = useQuery({
+    queryKey: ['organization-automations', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('organization_automations')
+        .select('*')
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, is_enabled }: { id: string; is_enabled: boolean }) => {
+      const { error } = await supabase
+        .from('organization_automations')
+        .update({ is_enabled })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization-automations'] });
+      toast.success('Automation updated');
+    },
+    onError: () => toast.error('Failed to update automation'),
+  });
+
+  const activeCount = automations.filter(a => a.is_enabled).length;
+
   return (
     <AdminLayout title="Automation Center">
-      <SEOHead title="Automation Center" description="Manage your automated workflows and learn about platform features." />
+      <Seo title="Automation Center" description="Manage automated workflows, view logs, and get smart suggestions." />
       <SubscriptionGate feature="Automation Center">
         <div className="space-y-6">
-          <Tabs defaultValue="automations" className="space-y-4">
-            <TabsList className="flex-wrap h-auto gap-1 w-full">
-              <TabsTrigger value="automations" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Zap className="w-4 h-4" /> Automations</TabsTrigger>
-              <TabsTrigger value="health" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Activity className="w-4 h-4" /> Health</TabsTrigger>
-              <TabsTrigger value="suggestions" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><Lightbulb className="w-4 h-4" /> Suggestions</TabsTrigger>
-              <TabsTrigger value="guide" className="gap-2 min-h-[44px] flex-1 sm:flex-none"><HelpCircle className="w-4 h-4" /> Guide</TabsTrigger>
-            </TabsList>
+          {/* Summary bar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm font-medium">
+              <Zap className="w-4 h-4" />
+              {activeCount} of {automations.length} active
+            </div>
+          </div>
 
-            <TabsContent value="automations">
-              <AutomationsTab />
-            </TabsContent>
+          {/* SECTION 1 — Active Automations */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold text-foreground">Active Automations</h2>
+            </div>
+            <AutomationRowList
+              automations={automations}
+              isLoading={isLoading}
+              onToggle={(id, enabled) => toggleMutation.mutate({ id, is_enabled: enabled })}
+            />
+          </section>
 
-            <TabsContent value="health">
-              <HealthMonitorTab />
-            </TabsContent>
+          {/* SECTION 2 — Recent Automation Log */}
+          <section>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <ScrollText className="w-4 h-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Recent Activity</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <AutomationLogTable />
+              </CardContent>
+            </Card>
+          </section>
 
-            <TabsContent value="suggestions">
-              <SuggestionsTab />
-            </TabsContent>
-
-            <TabsContent value="guide" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform Feature Guide</CardTitle>
-                  <CardDescription>Learn what each section of the platform does to get the most out of your account.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {sidebarGuide.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div key={item.name} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-                          <div className="p-2 rounded-md bg-muted flex-shrink-0">
-                            <Icon className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm text-foreground">{item.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          {/* SECTION 3 — Smart Suggestions */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb className="w-4 h-4 text-yellow-500" />
+              <h2 className="text-base font-semibold text-foreground">Smart Suggestions</h2>
+            </div>
+            <CRMSuggestionsPanel />
+          </section>
         </div>
       </SubscriptionGate>
     </AdminLayout>

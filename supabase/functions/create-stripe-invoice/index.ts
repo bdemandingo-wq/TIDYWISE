@@ -121,11 +121,12 @@ const handler = async (req: Request): Promise<Response> => {
     // Get business settings for branding
     const { data: businessSettings } = await supabase
       .from("business_settings")
-      .select("company_name")
+      .select("company_name, timezone")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
     const companyName = businessSettings?.company_name || "Your Business";
+    const orgTimezone = businessSettings?.timezone || "America/New_York";
 
     // Get organization invoice/payment settings
     const { data: invoiceSettings } = await supabase
@@ -239,7 +240,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           const dueDateText = data.dueDate 
-            ? ` Due: ${new Date(data.dueDate).toLocaleDateString()}.`
+            ? ` Due: ${new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate))}.`
             : '';
           
           const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
@@ -285,7 +286,7 @@ const handler = async (req: Request): Promise<Response> => {
             serviceName: data.items.map(i => i.description).join(', '),
             amount: data.totalAmount,
             paymentLink: session.url,
-            validUntil: data.dueDate ? new Date(data.dueDate).toLocaleDateString() : undefined,
+            validUntil: data.dueDate ? new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate)) : undefined,
             notes: data.notes || undefined,
           },
         });

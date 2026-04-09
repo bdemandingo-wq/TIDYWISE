@@ -2779,6 +2779,133 @@ export type Database = {
           },
         ]
       }
+      estimates: {
+        Row: {
+          bathrooms: string | null
+          bedrooms: string | null
+          client_address: string | null
+          client_city: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_state: string | null
+          client_zip: string | null
+          converted_booking_id: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_line_items: Json | null
+          customer_id: string | null
+          estimated_total: number | null
+          floors: string | null
+          has_pets: boolean | null
+          id: string
+          notes: string | null
+          organization_id: string
+          photos: Json | null
+          property_type: string | null
+          quote_approved_at: string | null
+          quote_declined_at: string | null
+          quote_sent_at: string | null
+          quote_token: string | null
+          room_notes: Json | null
+          selected_extras: Json | null
+          selected_services: Json | null
+          square_footage: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          bathrooms?: string | null
+          bedrooms?: string | null
+          client_address?: string | null
+          client_city?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_state?: string | null
+          client_zip?: string | null
+          converted_booking_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_line_items?: Json | null
+          customer_id?: string | null
+          estimated_total?: number | null
+          floors?: string | null
+          has_pets?: boolean | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          photos?: Json | null
+          property_type?: string | null
+          quote_approved_at?: string | null
+          quote_declined_at?: string | null
+          quote_sent_at?: string | null
+          quote_token?: string | null
+          room_notes?: Json | null
+          selected_extras?: Json | null
+          selected_services?: Json | null
+          square_footage?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          bathrooms?: string | null
+          bedrooms?: string | null
+          client_address?: string | null
+          client_city?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_state?: string | null
+          client_zip?: string | null
+          converted_booking_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_line_items?: Json | null
+          customer_id?: string | null
+          estimated_total?: number | null
+          floors?: string | null
+          has_pets?: boolean | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          photos?: Json | null
+          property_type?: string | null
+          quote_approved_at?: string | null
+          quote_declined_at?: string | null
+          quote_sent_at?: string | null
+          quote_token?: string | null
+          room_notes?: Json | null
+          selected_extras?: Json | null
+          selected_services?: Json | null
+          square_footage?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -5120,6 +5247,7 @@ export type Database = {
           customer_id: string | null
           day_prices: Json | null
           day_services: Json | null
+          ends_at: string | null
           extras: Json | null
           frequency: string
           id: string
@@ -5149,6 +5277,7 @@ export type Database = {
           customer_id?: string | null
           day_prices?: Json | null
           day_services?: Json | null
+          ends_at?: string | null
           extras?: Json | null
           frequency?: string
           id?: string
@@ -5178,6 +5307,7 @@ export type Database = {
           customer_id?: string | null
           day_prices?: Json | null
           day_services?: Json | null
+          ends_at?: string | null
           extras?: Json | null
           frequency?: string
           id?: string
