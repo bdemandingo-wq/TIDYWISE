@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +30,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { Plus, Calendar, RefreshCw, Pause, Play, Trash2, Edit, X, CalendarClock } from 'lucide-react';
+import { Plus, Calendar, RefreshCw, Pause, Play, Trash2, Edit, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { format, addDays, addWeeks, addMonths, isBefore, startOfDay, differenceInDays } from 'date-fns';
+import { format, addDays, addWeeks, addMonths, isBefore, startOfDay } from 'date-fns';
 import { useCustomers, useServices, useStaff } from '@/hooks/useBookings';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
@@ -57,7 +56,6 @@ interface RecurringBooking {
   next_scheduled_at: string | null;
   recurring_days_of_week: number[] | null;
   created_at: string;
-  ends_at: string | null;
   customer?: { first_name: string; last_name: string; email: string };
   service?: { name: string };
   staff?: { name: string };
@@ -357,12 +355,6 @@ export default function RecurringBookingsPage() {
       return;
     }
 
-    // Check if series has ended
-    if (recurring.ends_at && new Date(recurring.ends_at) < new Date()) {
-      toast.error('This recurring series has ended. Extend the end date or create a new one.');
-      return;
-    }
-
     const applyTime = (date: Date) => {
       if (recurring.preferred_time) {
         const [time, period] = recurring.preferred_time.split(' ');
@@ -459,18 +451,13 @@ export default function RecurringBookingsPage() {
             }
 
             const scheduledAt = applyTime(new Date(candidate)).toISOString();
-            // Skip if past ends_at
-            if (recurring.ends_at && new Date(scheduledAt) > new Date(recurring.ends_at)) {
-              collectedDays.add(dayIdx);
-            } else {
-              bookingsToInsert.push({
-                ...baseBooking,
-                service_id: bookingServiceId,
-                total_amount: bookingAmount,
-                scheduled_at: scheduledAt,
-              });
-              collectedDays.add(dayIdx);
-            }
+            bookingsToInsert.push({
+              ...baseBooking,
+              service_id: bookingServiceId,
+              total_amount: bookingAmount,
+              scheduled_at: scheduledAt,
+            });
+            collectedDays.add(dayIdx);
           }
         }
         cursor = addDays(cursor, 1);
@@ -523,12 +510,6 @@ export default function RecurringBookingsPage() {
       }
 
       const scheduledAt = applyTime(new Date(nextDate)).toISOString();
-
-      // Check if this booking would be past the end date
-      if (recurring.ends_at && new Date(scheduledAt) > new Date(recurring.ends_at)) {
-        toast.error('Series has ended — no more bookings to generate');
-        return;
-      }
 
       const { error } = await supabase.from('bookings').insert([{
         ...baseBooking,
@@ -628,20 +609,19 @@ export default function RecurringBookingsPage() {
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Next Date</TableHead>
-                <TableHead>Ends</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : recurringBookings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No recurring bookings yet
                   </TableCell>
                 </TableRow>
@@ -712,29 +692,6 @@ export default function RecurringBookingsPage() {
                           format(nextDate, 'MMM d, yyyy')
                         ) : (
                           <span className="text-muted-foreground">-</span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        if (!booking.ends_at) {
-                          return <span className="text-muted-foreground text-xs">Until cancelled</span>;
-                        }
-                        const endsDate = new Date(booking.ends_at);
-                        const daysLeft = differenceInDays(endsDate, new Date());
-                        // Estimate remaining cleanings based on frequency
-                        let freqDays = 7;
-                        if (booking.frequency === 'biweekly') freqDays = 14;
-                        else if (booking.frequency === 'triweekly') freqDays = 21;
-                        else if (booking.frequency === 'monthly') freqDays = 30;
-                        const remaining = Math.max(0, Math.ceil(daysLeft / freqDays));
-                        return (
-                          <div>
-                            <p className="text-sm">{format(endsDate, 'MMM d, yyyy')}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {daysLeft <= 0 ? 'Ended' : `~${remaining} left`}
-                            </p>
-                          </div>
                         );
                       })()}
                     </TableCell>
@@ -846,8 +803,6 @@ function RecurringBookingDialog({
     is_active: true,
     day_prices: {} as Record<string, string>,
     day_services: {} as Record<string, string>,
-    duration_type: 'until_cancelled' as string,
-    ends_at: null as Date | null,
   });
 
   // Team members state
@@ -886,14 +841,6 @@ function RecurringBookingDialog({
         if (matchedCf) resolvedFrequency = `custom_${matchedCf.id}`;
       }
 
-      // Resolve duration type from ends_at
-      let durationType = 'until_cancelled';
-      let endsAtDate: Date | null = null;
-      if (booking?.ends_at) {
-        endsAtDate = new Date(booking.ends_at);
-        durationType = 'custom_date';
-      }
-
       setFormData({
         customer_id: booking?.customer_id || '',
         service_id: booking?.service_id || '',
@@ -905,8 +852,6 @@ function RecurringBookingDialog({
         is_active: booking?.is_active ?? true,
         day_prices: dayPricesStr,
         day_services: dayServicesStr,
-        duration_type: durationType,
-        ends_at: endsAtDate,
       });
 
       if (booking?.staff_id) {
@@ -961,22 +906,6 @@ function RecurringBookingDialog({
     const dbFrequency = formData.frequency.startsWith('custom_') ? 'custom' : formData.frequency;
     const recurringDaysOfWeek = selectedCustomFreq?.days_of_week || null;
 
-    // Compute ends_at from duration_type
-    let endsAt: string | null = null;
-    if (formData.duration_type !== 'until_cancelled') {
-      const now = new Date();
-      switch (formData.duration_type) {
-        case '2_weeks': endsAt = addDays(now, 14).toISOString(); break;
-        case '1_month': endsAt = addMonths(now, 1).toISOString(); break;
-        case '3_months': endsAt = addMonths(now, 3).toISOString(); break;
-        case '6_months': endsAt = addMonths(now, 6).toISOString(); break;
-        case '1_year': endsAt = addMonths(now, 12).toISOString(); break;
-        case 'custom_date':
-          endsAt = formData.ends_at ? formData.ends_at.toISOString() : null;
-          break;
-      }
-    }
-
     onSave({
       customer_id: formData.customer_id,
       service_id: formData.service_id || null,
@@ -990,7 +919,6 @@ function RecurringBookingDialog({
       day_prices: dayPricesPayload,
       day_services: dayServicesPayload,
       recurring_days_of_week: recurringDaysOfWeek,
-      ends_at: endsAt,
     });
   };
 
@@ -1142,59 +1070,6 @@ function RecurringBookingDialog({
                 )}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Duration / How Long */}
-          <div>
-            <Label className="flex items-center gap-1.5">
-              <CalendarClock className="w-3.5 h-3.5" />
-              How long?
-            </Label>
-            <Select
-              value={formData.duration_type}
-              onValueChange={(v) => {
-                setFormData({ ...formData, duration_type: v, ends_at: v === 'custom_date' ? formData.ends_at : null });
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="until_cancelled">Until Cancelled</SelectItem>
-                <SelectItem value="2_weeks">2 Weeks</SelectItem>
-                <SelectItem value="1_month">1 Month</SelectItem>
-                <SelectItem value="3_months">3 Months</SelectItem>
-                <SelectItem value="6_months">6 Months</SelectItem>
-                <SelectItem value="1_year">1 Year</SelectItem>
-                <SelectItem value="custom_date">Custom Date</SelectItem>
-              </SelectContent>
-            </Select>
-            {formData.duration_type === 'custom_date' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal mt-2",
-                      !formData.ends_at && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {formData.ends_at ? format(formData.ends_at, 'PPP') : 'Pick end date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={formData.ends_at || undefined}
-                    onSelect={(date) => setFormData({ ...formData, ends_at: date || null })}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             {['weekly', 'biweekly', 'triweekly'].includes(formData.frequency) ? (

@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get admin phone and notification settings from business settings
     const { data: businessSettings, error: businessError } = await supabase
       .from('business_settings')
-      .select('company_phone, company_name, notify_new_booking, timezone')
+      .select('company_phone, company_name, notify_new_booking')
       .eq('organization_id', organizationId)
       .maybeSingle();
 
@@ -128,21 +128,18 @@ const handler = async (req: Request): Promise<Response> => {
       formattedDate = preFormattedDate;
       formattedTime = preFormattedTime;
     } else {
-      // Fallback: format in org timezone from business_settings
-      const orgTimezone = businessSettings?.timezone || "America/New_York";
+      // Fallback: parse scheduledAt (may have timezone issues)
       const bookingDate = new Date(scheduledAt);
-      formattedDate = new Intl.DateTimeFormat('en-US', { 
-        timeZone: orgTimezone,
+      formattedDate = bookingDate.toLocaleDateString('en-US', { 
         weekday: 'short', 
         month: 'short', 
         day: 'numeric' 
-      }).format(bookingDate);
-      formattedTime = new Intl.DateTimeFormat('en-US', { 
-        timeZone: orgTimezone,
+      });
+      formattedTime = bookingDate.toLocaleTimeString('en-US', { 
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true 
-      }).format(bookingDate);
+      });
     }
 
     // Build admin notification message
