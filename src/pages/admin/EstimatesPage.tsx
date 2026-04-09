@@ -108,8 +108,10 @@ export default function EstimatesPage() {
       return (
         <SwipeableRow
           key={estimate.id}
-          leftAction={{ label: 'Convert', color: 'bg-primary', onAction: () => navigate(`/dashboard/estimates/${estimate.id}?action=convert`) }}
-          rightAction={{ label: 'Delete', color: 'bg-destructive', onAction: () => setDeleteId(estimate.id) }}
+          rightActions={[
+            { label: 'Convert', variant: 'default', onAction: () => navigate(`/dashboard/estimates/${estimate.id}?action=convert`) },
+            { label: 'Delete', variant: 'destructive', onAction: () => setDeleteId(estimate.id) },
+          ]}
         >
           {content}
         </SwipeableRow>
