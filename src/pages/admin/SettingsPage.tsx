@@ -165,7 +165,7 @@ function AccountDeletionCard() {
           Permanently delete your account and all associated data
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="flex items-start gap-3 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div className="text-sm">
@@ -538,8 +538,8 @@ export default function SettingsPage() {
                 Update your business details and contact information
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="businessName">Business Name</Label>
                   <Input
@@ -600,7 +600,7 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
                   <Select
@@ -666,7 +666,7 @@ export default function SettingsPage() {
                 Configure your customer loyalty tiers and benefits
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Enable Loyalty Program</p>
@@ -769,7 +769,7 @@ export default function SettingsPage() {
                 Configure your Google review settings for customer feedback
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="googleReviewUrl">Google Review URL</Label>
                 <Input
@@ -938,7 +938,7 @@ export default function SettingsPage() {
               <Separator />
               
               {/* Color Pickers */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label>Primary Color</Label>
                   <div className="flex gap-3">
@@ -1043,8 +1043,8 @@ export default function SettingsPage() {
                 Update your account password
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>New Password</Label>
                   <div className="relative">

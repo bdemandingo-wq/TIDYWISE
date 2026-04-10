@@ -14,7 +14,14 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['var(--font-display)', 'Georgia', 'serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      letterSpacing: {
+        tight: '-0.018em',
+        tighter: '-0.025em',
       },
       colors: {
         border: "hsl(var(--border))",

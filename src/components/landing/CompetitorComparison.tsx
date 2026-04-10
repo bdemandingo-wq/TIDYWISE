@@ -161,28 +161,31 @@ export function CompetitorComparison() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-px">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-muted/50">
-                  <th className="text-left p-4 font-medium text-foreground">Feature</th>
-                  <th className="text-center p-4 font-medium text-primary">TIDYWISE</th>
-                  <th className="text-center p-4 font-medium text-foreground">Booking Koala</th>
-                  <th className="text-center p-4 font-medium text-foreground">Jobber</th>
+                  <th className="text-left p-3 sm:p-4 text-sm font-medium text-foreground">Feature</th>
+                  <th className="text-center p-3 sm:p-4 text-sm font-semibold text-primary">TIDYWISE</th>
+                  <th className="text-center p-3 sm:p-4 text-sm font-medium text-foreground">Booking Koala</th>
+                  <th className="text-center p-3 sm:p-4 text-sm font-medium text-foreground">Jobber</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {features.map((feature, index) => (
                   <tr key={feature.name} className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                    <td className="p-4 text-sm text-foreground">{feature.name}</td>
-                    <td className="p-4 text-center">{renderFeatureValue(feature.tidywise)}</td>
-                    <td className="p-4 text-center">{renderFeatureValue(feature.bookingKoala)}</td>
-                    <td className="p-4 text-center">{renderFeatureValue(feature.jobber)}</td>
+                    <td className="p-3 sm:p-4 text-sm text-foreground">{feature.name}</td>
+                    <td className="p-3 sm:p-4 text-center">{renderFeatureValue(feature.tidywise)}</td>
+                    <td className="p-3 sm:p-4 text-center">{renderFeatureValue(feature.bookingKoala)}</td>
+                    <td className="p-3 sm:p-4 text-center">{renderFeatureValue(feature.jobber)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="sm:hidden text-xs text-muted-foreground text-center py-2 border-t border-border">
+            Swipe to see all columns →
+          </p>
         </div>
 
         <div className="text-center mt-12">

@@ -186,7 +186,7 @@ export function PerformanceAnalytics({ entries }: PerformanceAnalyticsProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold md:font-semibold text-primary md:text-foreground flex items-center gap-2">
+      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
         <TrendingUp className="w-5 h-5" />
         Performance Analytics
       </h3>

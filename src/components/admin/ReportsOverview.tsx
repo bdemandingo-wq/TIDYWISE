@@ -183,9 +183,9 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   }, [filteredBookings, filteredCustomers]);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold md:font-semibold text-primary md:text-foreground">Reports overview</h3>
+        <h3 className="text-lg font-semibold text-foreground">Reports overview</h3>
       </div>
       
       {/* Time period tabs */}

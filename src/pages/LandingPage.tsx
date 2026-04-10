@@ -380,170 +380,83 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section - Premium redesign */}
-      <section className="relative pt-[calc(6.5rem+env(safe-area-inset-top))] md:pt-[calc(8.5rem+env(safe-area-inset-top))] pb-16 md:pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Animated gradient background */}
-        <div className="hero-gradient-bg" />
-        
-        {/* Decorative elements */}
-        <div className="absolute top-40 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '-3s' }} />
+      {/* Hero Section - Editorial redesign */}
+      <section className="relative pt-[calc(7rem+env(safe-area-inset-top))] md:pt-[calc(10rem+env(safe-area-inset-top))] pb-20 md:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Warm radial wash */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'var(--gradient-hero)' }} />
 
-        <div className="max-w-7xl mx-auto relative">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left side - Text content */}
-            <div className="text-center lg:text-left animate-fade-up">
-              {/* Trust badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 backdrop-blur-sm rounded-full text-primary text-sm font-medium mb-5 border border-primary/20 animate-pulse-glow">
-                <Sparkles className="h-4 w-4" />
-                <span>All-in-One Cleaning Business Software</span>
-                <ChevronRight className="h-4 w-4" />
-              </div>
-              
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-[1.1] mb-6 tracking-tight">
-                The best{" "}
-                <span className="text-gradient-hero">maid service software</span>{" "}
-                to grow your business
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Looking for Booking Koala or Jobber alternatives? TIDYWISE gives you online booking, smart scheduling, automated payroll, and CRM—all in one platform.
-              </p>
+        <div className="max-w-5xl mx-auto relative text-center">
+          {/* Eyebrow */}
+          <div className="inline-flex items-center gap-2 mb-8 text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">
+            <span className="h-px w-8 bg-foreground/30" />
+            <span>Cleaning Business Software</span>
+            <span className="h-px w-8 bg-foreground/30" />
+          </div>
 
-              {/* CTA - Clean and focused */}
-              <div className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto lg:mx-0">
-                <Button 
-                  size="xl" 
-                  variant="premium"
-                  onClick={handleGetStarted}
-                  className="group flex-1 sm:flex-none"
-                >
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button 
-                  size="xl" 
-                  variant="outline"
-                  onClick={() => navigate("/demo")}
-                  className="gap-2"
-                >
-                  <Calendar className="h-5 w-5" />
-                  Book a Demo
-                </Button>
-              </div>
-              
-              {/* Trust signals */}
-              <div className="flex flex-wrap items-center gap-4 mt-5 justify-center lg:justify-start text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  No credit card required
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  Free forever
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  Unlimited bookings
-                </span>
-              </div>
+          {/* Editorial headline */}
+          <h1 className="font-serif text-[2.75rem] sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] mb-8 text-foreground">
+            Run your cleaning<br />
+            business like a{" "}
+            <span className="italic text-primary">work of art</span>.
+          </h1>
 
-              {/* Social proof mini */}
-               <div className="flex items-center gap-4 mt-7 justify-center lg:justify-start">
-                <div className="flex -space-x-2">
-                  {['bg-primary', 'bg-accent', 'bg-warning', 'bg-success'].map((bg, i) => (
-                    <div key={i} className={`w-10 h-10 rounded-full ${bg} border-2 border-background flex items-center justify-center text-white text-xs font-medium`}>
-                      {String.fromCharCode(65 + i)}
-                    </div>
-                  ))}
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-warning text-warning" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Trusted by cleaning businesses</p>
-                </div>
-              </div>
-            </div>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+            Online booking, smart scheduling, automated payroll, and CRM —
+            all in one quietly powerful platform. No fluff. Built for operators who care about the craft.
+          </p>
 
-            {/* Right side - Premium Dashboard preview */}
-            <div className="relative animate-fade-up" style={{ animationDelay: '0.2s' }}>
-              {/* Glow effect behind card */}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl transform scale-95" />
-              
-              <Card variant="glass" className="relative rounded-2xl overflow-hidden border-white/10">
-                {/* Browser chrome */}
-                <div className="bg-sidebar/95 backdrop-blur-sm p-4 flex items-center gap-3 border-b border-white/10">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-destructive/80" />
-                    <div className="w-3 h-3 rounded-full bg-warning/80" />
-                    <div className="w-3 h-3 rounded-full bg-success/80" />
-                  </div>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-sidebar-accent/50 rounded-lg px-4 py-1.5 text-sidebar-foreground/50 text-sm">
-                      app.tidywise.com/dashboard
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Dashboard content */}
-                <div className="p-6 space-y-4 bg-card/95 backdrop-blur-sm">
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: `Today's ${cleaningConfig.jobLabel}`, value: cleaningConfig.dashboardStats.bookings, color: 'primary' },
-                      { label: 'Revenue', value: cleaningConfig.dashboardStats.revenue, color: 'success' },
-                      { label: `${cleaningConfig.staffLabel}`, value: cleaningConfig.dashboardStats.staff, color: 'accent' },
-                    ].map((stat, i) => (
-                      <div key={i} className="bg-secondary/80 rounded-xl p-4 hover:bg-secondary transition-colors">
-                        <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-                        <p className={`text-2xl font-bold text-${stat.color === 'primary' ? 'foreground' : stat.color}`}>
-                          {stat.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Upcoming jobs */}
-                  <div className="bg-secondary/50 rounded-xl p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-foreground">Upcoming {cleaningConfig.jobLabel}</span>
-                      <button className="text-xs text-primary hover:underline">View all</button>
-                    </div>
-                    <div className="space-y-2">
-                      {cleaningConfig.serviceExamples.map((service, i) => (
-                        <div 
-                          key={i} 
-                          className="flex items-center gap-3 bg-card/80 rounded-lg p-3 hover:bg-card transition-colors group"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Sparkles className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{service}</p>
-                            <p className="text-xs text-muted-foreground">123 Main St • 10:00 AM</p>
-                          </div>
-                          <div className="px-2.5 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
-                            Confirmed
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-              
-              {/* Floating elements */}
-              <div className="absolute -right-4 top-1/4 bg-success text-white px-4 py-2 rounded-xl shadow-lg text-sm font-medium animate-float" style={{ animationDelay: '-2s' }}>
-                +$450 Today ✨
+          {/* CTA */}
+          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto justify-center">
+            <Button
+              size="xl"
+              variant="premium"
+              onClick={handleGetStarted}
+              className="group flex-1"
+            >
+              Start Free
+              <ArrowRight className="ml-1 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button
+              size="xl"
+              variant="outline"
+              onClick={() => navigate("/demo")}
+              className="flex-1 gap-2"
+            >
+              <Calendar className="h-5 w-5" />
+              Book a Demo
+            </Button>
+          </div>
+
+          {/* Trust line */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-foreground" />
+              No credit card
+            </span>
+            <span className="hidden sm:inline text-foreground/30">·</span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-foreground" />
+              Free forever
+            </span>
+            <span className="hidden sm:inline text-foreground/30">·</span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-foreground" />
+              Unlimited bookings
+            </span>
+          </div>
+
+          {/* Stats strip — editorial proof */}
+          <div className="mt-20 grid grid-cols-3 gap-px bg-border rounded-md overflow-hidden border-[1.5px] border-border max-w-3xl mx-auto">
+            {[
+              { value: '12k+', label: 'Bookings managed' },
+              { value: '$4M', label: 'Revenue processed' },
+              { value: '99.9%', label: 'Uptime' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-card px-4 py-6 sm:py-8">
+                <div className="font-serif text-3xl sm:text-5xl text-foreground tabular-nums">{stat.value}</div>
+                <div className="mt-2 text-xs sm:text-sm text-muted-foreground uppercase tracking-wider">{stat.label}</div>
               </div>
-              <div className="absolute -left-4 bottom-1/4 bg-card border border-border px-4 py-2 rounded-xl shadow-lg text-sm flex items-center gap-2 animate-float" style={{ animationDelay: '-4s' }}>
-                <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                New booking!
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -676,7 +589,7 @@ export default function LandingPage() {
       {/* Stats Section - Enhanced with animations */}
       <section 
         ref={statsReveal.ref}
-        className={`py-20 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
+        className={`py-16 md:py-20 px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
           statsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -744,7 +657,7 @@ export default function LandingPage() {
       <section 
         id="testimonials" 
         ref={testimonialsReveal.ref}
-        className={`py-20 md:py-28 px-4 sm:px-6 lg:px-8 bg-secondary/30 transition-all duration-700 ${
+        className={`py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-secondary/30 transition-all duration-700 ${
           testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -798,7 +711,7 @@ export default function LandingPage() {
       </Suspense>
 
       {/* Final CTA - Premium gradient */}
-      <section className="py-20 md:py-28 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--primary-glow)/0.3)_0%,transparent_50%)]" />

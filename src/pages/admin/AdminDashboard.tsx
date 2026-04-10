@@ -23,7 +23,7 @@ function DashboardSkeleton() {
       <div className="xl:col-span-2 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-card rounded-2xl p-5 border border-border/50 animate-pulse">
+            <div key={i} className="bg-card rounded-xl p-4 border border-border shadow-sm animate-pulse">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10" />
                 <div className="h-4 w-20 bg-muted rounded" />
@@ -32,7 +32,7 @@ function DashboardSkeleton() {
             </div>
           ))}
         </div>
-        <div className="bg-card rounded-2xl p-6 border border-border/50 animate-pulse">
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm animate-pulse">
           <div className="h-5 w-32 bg-muted rounded mb-4" />
           <div className="h-64 bg-muted/50 rounded-xl" />
         </div>
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
           />
           
           <Suspense fallback={
-            <div className="bg-card rounded-2xl p-6 border border-border/50 animate-pulse">
+            <div className="bg-card rounded-xl p-4 border border-border shadow-sm animate-pulse">
               <div className="h-5 w-32 bg-muted rounded mb-4" />
               <div className="h-64 bg-muted/50 rounded-xl flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

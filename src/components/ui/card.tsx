@@ -5,16 +5,16 @@ import { cn } from "@/lib/utils";
 import { usePlatform } from "@/hooks/usePlatform";
 
 const cardVariants = cva(
-  "rounded-xl border bg-card text-card-foreground transition-all duration-200",
+  "rounded-md border-[1.5px] border-border bg-card text-card-foreground transition-all duration-150",
   {
     variants: {
       variant: {
-        default: "shadow-sm hover:shadow-md",
-        elevated: "shadow-md hover:shadow-xl hover:-translate-y-1",
-        glass: "bg-card/80 backdrop-blur-xl border-white/20 shadow-lg",
-        gradient: "bg-gradient-to-br from-card to-secondary/50 shadow-md hover:shadow-lg",
-        interactive: "shadow-md hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/30 cursor-pointer",
-        feature: "shadow-md hover:shadow-xl hover:-translate-y-1 hover:border-primary/20 overflow-hidden relative before:absolute before:-top-20 before:-right-20 before:w-40 before:h-40 before:rounded-full before:bg-primary/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300",
+        default: "",
+        elevated: "shadow-md",
+        glass: "bg-card/90 backdrop-blur-xl",
+        gradient: "bg-gradient-to-br from-card to-secondary/40",
+        interactive: "hover:border-primary hover:shadow-sm cursor-pointer",
+        feature: "hover:border-primary overflow-hidden relative",
       },
     },
     defaultVariants: {

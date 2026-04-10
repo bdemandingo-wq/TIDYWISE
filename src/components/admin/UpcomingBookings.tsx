@@ -42,9 +42,15 @@ const statusLabels: Record<string, string> = {
   no_show: 'no show',
 };
 
-// Default service colors
-const serviceColors = [
-  '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
+// Service accent classes — token-driven, cycles through semantic palette
+const serviceAccentClasses = [
+  'bg-primary',
+  'bg-success',
+  'bg-info',
+  'bg-warning',
+  'bg-accent',
+  'bg-secondary',
+  'bg-destructive',
 ];
 
 export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
@@ -69,8 +75,8 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
       .slice(0, 5);
   }, [bookings]);
 
-  const getServiceColor = (index: number) => {
-    return serviceColors[index % serviceColors.length];
+  const getServiceAccentClass = (index: number) => {
+    return serviceAccentClasses[index % serviceAccentClasses.length];
   };
 
   const sendCleanerNotification = async (booking: BookingWithDetails) => {
@@ -190,7 +196,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
     <>
       <div className="bg-card rounded-xl border border-border shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold md:font-semibold text-primary md:text-foreground">Upcoming Bookings</h3>
+          <h3 className="text-lg font-semibold text-foreground">Upcoming Bookings</h3>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -214,8 +220,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className="w-1 h-full min-h-[60px] rounded-full"
-                    style={{ backgroundColor: getServiceColor(index) }}
+                    className={cn("w-1 h-full min-h-[60px] rounded-full", getServiceAccentClass(index))}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">

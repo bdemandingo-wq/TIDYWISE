@@ -631,21 +631,23 @@ export default function PublicBookingPage() {
                   <p className="text-muted-foreground mb-4">Optional add-on services</p>
                   <Card>
                     <CardContent className="p-5">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {extras.map((extra) => (
-                          <div 
-                            key={extra.id} 
+                          <button
+                            type="button"
+                            key={extra.id}
                             onClick={() => toggleExtra(extra.id)}
+                            aria-pressed={selectedExtras.includes(extra.id)}
                             className={cn(
-                              "flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all h-[100px]",
-                              selectedExtras.includes(extra.id) 
-                                ? "border-primary bg-primary/10" 
+                              "flex flex-col items-center justify-center text-center p-4 min-h-[88px] rounded-lg border-2 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              selectedExtras.includes(extra.id)
+                                ? "border-primary bg-primary/10"
                                 : "border-border hover:border-primary/50"
                             )}
                           >
-                            <span className="font-medium text-center text-sm mb-1 text-foreground">{extra.name}</span>
-                            <span className="text-primary font-bold text-base">+${extra.price}</span>
-                          </div>
+                            <span className="font-medium text-sm mb-1 text-foreground">{extra.name}</span>
+                            <span className="text-primary font-semibold text-base">+${extra.price}</span>
+                          </button>
                         ))}
                       </div>
                     </CardContent>
@@ -862,45 +864,45 @@ export default function PublicBookingPage() {
                 <CardContent className="p-6 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
+                      <Label htmlFor="name">Full Name <span className="text-destructive" aria-hidden="true">*</span></Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input id="name" placeholder="John Doe" className="pl-9" value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} />
+                        <Input id="name" required placeholder="John Doe" className="pl-9" value={customerInfo.name} onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address *</Label>
+                      <Label htmlFor="email">Email Address <span className="text-destructive" aria-hidden="true">*</span></Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input id="email" type="email" placeholder="john@example.com" className="pl-9" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} />
+                        <Input id="email" required type="email" inputMode="email" autoComplete="email" placeholder="john@example.com" className="pl-9" value={customerInfo.email} onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Label htmlFor="phone">Phone Number <span className="text-destructive" aria-hidden="true">*</span></Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input id="phone" placeholder="(555) 123-4567" className="pl-9" value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} />
+                        <Input id="phone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="(555) 123-4567" className="pl-9" value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="address">Street Address *</Label>
+                      <Label htmlFor="address">Street Address <span className="text-destructive" aria-hidden="true">*</span></Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input id="address" placeholder="123 Main Street" className="pl-9" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} />
+                        <Input id="address" required autoComplete="street-address" placeholder="123 Main Street" className="pl-9" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="city">City</Label>
-                      <Input id="city" placeholder="City" value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} />
+                      <Input id="city" autoComplete="address-level2" placeholder="City" value={customerInfo.city} onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })} />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="state">State</Label>
-                        <Input id="state" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} />
+                        <Input id="state" autoComplete="address-level1" placeholder="State" value={customerInfo.state} onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="zipCode">ZIP Code</Label>
-                        <Input id="zipCode" placeholder="12345" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} />
+                        <Input id="zipCode" inputMode="numeric" autoComplete="postal-code" placeholder="12345" value={customerInfo.zipCode} onChange={(e) => setCustomerInfo({ ...customerInfo, zipCode: e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -1127,19 +1129,21 @@ export default function PublicBookingPage() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex items-center justify-between mt-8">
-            {step > 1 && step < 5 && (
-              <Button variant="outline" onClick={handleBack} className="gap-2">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-8">
+            {step > 1 && step < 5 ? (
+              <Button variant="outline" size="lg" onClick={handleBack} className="gap-2 sm:w-auto">
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
+            ) : (
+              <span className="hidden sm:block" />
             )}
-            {step === 1 && <div />}
             {step < 5 && (
-              <Button 
-                onClick={handleNext} 
-                disabled={!canProceed() || isSubmitting} 
-                className="gap-2 ml-auto"
+              <Button
+                onClick={handleNext}
+                size="lg"
+                disabled={!canProceed() || isSubmitting}
+                className="gap-2 sm:w-auto sm:ml-auto"
                 style={formColors.button ? {
                   backgroundColor: formColors.button,
                   color: formColors.buttonText || '#ffffff',
@@ -1160,7 +1164,7 @@ export default function PublicBookingPage() {
               </Button>
             )}
             {step === 5 && (
-              <Button onClick={() => { setStep(1); setCardSaved(false); }} className="mx-auto">
+              <Button size="lg" onClick={() => { setStep(1); setCardSaved(false); }} className="sm:mx-auto">
                 Book Another Service
               </Button>
             )}

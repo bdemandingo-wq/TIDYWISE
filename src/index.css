@@ -10,108 +10,134 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 224 71% 4%;
+    /* === Print Shop: Bauhaus editorial — white + Klein blue + hard offsets === */
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display-weight: 700;
+    --display-tracking: -0.035em;
+    --display-leading: 0.95;
+
+    /* Printer's dot grid */
+    --bg-pattern: radial-gradient(circle at 1px 1px, hsl(0 0% 6% / 0.08) 1px, transparent 0);
+    --bg-pattern-size: 16px 16px;
+
+    --background: 0 0% 100%;
+    --foreground: 0 0% 6%;
 
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card-foreground: 0 0% 6%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover-foreground: 0 0% 6%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --primary-glow: 221 90% 60%;
+    /* Klein blue */
+    --primary: 230 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 230 100% 60%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 9% 46%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 6%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 35%;
 
-    --accent: 172 66% 50%;
+    --accent: 5 90% 55%;
     --accent-foreground: 0 0% 100%;
-    --accent-glow: 172 80% 55%;
+    --accent-glow: 5 90% 65%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 5 90% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    /* Thick black borders are a feature */
+    --border: 0 0% 6%;
+    --input: 0 0% 6%;
+    --ring: 230 100% 50%;
 
-    --radius: 0.75rem;
+    /* Hard, square corners */
+    --radius: 0rem;
 
-    --sidebar-background: 224 71% 4%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 6%;
+    --sidebar-primary: 230 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 50% 12%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 224 50% 12%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 6%;
+    --sidebar-border: 0 0% 6%;
+    --sidebar-ring: 230 100% 50%;
 
-    --success: 142 76% 36%;
+    --success: 140 80% 35%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --warning: 45 100% 50%;
+    --warning-foreground: 0 0% 6%;
+    --info: 230 100% 50%;
     --info-foreground: 0 0% 100%;
 
-    /* Premium gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%) 0%, hsl(172 66% 50%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(221 83% 53% / 0.15) 0%, hsl(172 66% 50% / 0.1) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 20% 98%) 100%);
-    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.9) 0%, hsl(0 0% 100% / 0.7) 100%);
-    --gradient-sidebar: linear-gradient(180deg, hsl(224 71% 4%) 0%, hsl(224 71% 2%) 100%);
-    --gradient-cta: linear-gradient(135deg, hsl(221 83% 53%) 0%, hsl(221 90% 45%) 50%, hsl(172 66% 45%) 100%);
+    /* Gradients (mostly unused in Print Shop but kept for legacy callers) */
+    --gradient-primary: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(260 100% 55%) 100%);
+    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(230 100% 50% / 0.1) 0%, transparent 60%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95) 0%, hsl(0 0% 98% / 0.85) 100%);
+    --gradient-sidebar: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
+    --gradient-cta: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(230 100% 42%) 100%);
     --gradient-shine: linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.4) 50%, transparent 100%);
 
-    /* Enhanced shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-    --shadow-lg: 0 10px 25px -3px rgb(0 0 0 / 0.08), 0 4px 10px -4px rgb(0 0 0 / 0.04);
-    --shadow-xl: 0 20px 40px -5px rgb(0 0 0 / 0.1), 0 8px 16px -6px rgb(0 0 0 / 0.05);
-    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-    --shadow-glow: 0 0 30px -5px hsl(221 83% 53% / 0.3);
-    --shadow-glow-accent: 0 0 30px -5px hsl(172 66% 50% / 0.3);
-    --shadow-inner-glow: inset 0 1px 0 0 hsl(0 0% 100% / 0.1);
+    /* Hard offset shadows — no softness, no blur */
+    --shadow-sm: 2px 2px 0 0 hsl(0 0% 6%);
+    --shadow-md: 4px 4px 0 0 hsl(0 0% 6%);
+    --shadow-lg: 6px 6px 0 0 hsl(0 0% 6%);
+    --shadow-xl: 8px 8px 0 0 hsl(0 0% 6%);
+    --shadow-2xl: 12px 12px 0 0 hsl(0 0% 6%);
+    --shadow-glow: 4px 4px 0 0 hsl(230 100% 50%);
+    --shadow-glow-accent: 4px 4px 0 0 hsl(5 90% 55%);
+    --shadow-inner-glow: none;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
+    /* Linear dark: near-black with cool tint */
+    --background: 240 10% 5%;
+    --foreground: 240 6% 95%;
 
-    --card: 224 50% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 8% 8%;
+    --card-foreground: 240 6% 95%;
 
-    --popover: 224 50% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 8% 8%;
+    --popover-foreground: 240 6% 95%;
 
-    --primary: 221 83% 60%;
-    --primary-foreground: 210 40% 98%;
-    --primary-glow: 221 90% 70%;
+    --primary: 234 60% 65%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 234 70% 75%;
 
-    --secondary: 224 50% 12%;
-    --secondary-foreground: 210 40% 90%;
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 240 6% 80%;
 
-    --muted: 224 50% 12%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 5% 60%;
 
-    --accent: 172 66% 55%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glow: 172 80% 60%;
+    --accent: 234 30% 18%;
+    --accent-foreground: 234 60% 80%;
+    --accent-glow: 234 60% 65%;
 
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 358 75% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 224 50% 15%;
-    --input: 224 50% 15%;
-    --ring: 221 83% 60%;
+    --border: 240 6% 16%;
+    --input: 240 6% 16%;
+    --ring: 234 60% 65%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(221 83% 53% / 0.1) 0%, hsl(172 66% 50% / 0.05) 100%);
-    --gradient-glass: linear-gradient(135deg, hsl(224 50% 10% / 0.9) 0%, hsl(224 50% 8% / 0.7) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(224 50% 10%) 0%, hsl(224 50% 6%) 100%);
+    --sidebar-background: 240 10% 6%;
+    --sidebar-foreground: 240 6% 70%;
+    --sidebar-primary: 234 60% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 12%;
+    --sidebar-accent-foreground: 240 6% 95%;
+    --sidebar-border: 240 6% 14%;
+    --sidebar-ring: 234 60% 65%;
+
+    --gradient-hero: radial-gradient(ellipse at top, hsl(234 60% 65% / 0.12) 0%, transparent 60%);
+    --gradient-glass: linear-gradient(135deg, hsl(240 8% 10% / 0.95) 0%, hsl(240 8% 8% / 0.85) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(240 8% 9%) 0%, hsl(240 8% 7%) 100%);
+    --gradient-sidebar: linear-gradient(180deg, hsl(240 10% 6%) 0%, hsl(240 10% 5%) 100%);
   }
 }
 
@@ -121,10 +147,17 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Print Shop: thicker "stamped" borders */
+  .border,
+  [class*="border-"] {
+    border-width: 2px;
+  }
+
   html {
     @apply scroll-smooth;
     -webkit-overflow-scrolling: touch;
     overflow-y: scroll;
+    overflow-x: hidden;
     /* Prevent zoom getting stuck on native apps */
     touch-action: pan-x pan-y;
   }
@@ -133,30 +166,46 @@
     @apply bg-background text-foreground font-sans antialiased;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
+    overflow-x: hidden;
     touch-action: pan-x pan-y;
-    /* Prevent double-tap zoom */
     -ms-touch-action: manipulation;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    font-optical-sizing: auto;
+    letter-spacing: -0.011em;
+    /* Theme-driven background pattern */
+    background-image: var(--bg-pattern);
+    background-size: var(--bg-pattern-size);
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+  /* Tabular numbers everywhere data is displayed */
+  table, .tabular-nums, input[type="number"] {
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Mobile compact overrides */
+  /* Display headings — driven by --font-display so themes can swap */
+  h1, h2 {
+    font-family: var(--font-display);
+    font-weight: var(--display-weight, 400);
+    letter-spacing: var(--display-tracking, -0.025em);
+    line-height: var(--display-leading, 1.05);
+  }
+
+  h3, h4, h5, h6 {
+    @apply font-semibold;
+    letter-spacing: -0.018em;
+  }
+
+  /* Mobile touch & input safety */
   @media (max-width: 768px) {
-    button, a, [role="button"] {
-      min-height: 36px;
-      min-width: 36px;
+    /* iOS recommends 44px minimum tap target */
+    button, a[role="button"], [role="button"] {
+      min-height: 44px;
     }
 
+    /* Prevent iOS auto-zoom on focused inputs */
     input, select, textarea {
-      font-size: 16px !important; /* Prevents zoom on iOS */
+      font-size: 16px;
     }
-
-    h1 { font-size: 1.25rem !important; }
-    h2 { font-size: 1.1rem !important; }
-    h3 { font-size: 0.95rem !important; }
-    h4, h5, h6 { font-size: 0.85rem !important; }
   }
 }
 

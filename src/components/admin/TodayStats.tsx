@@ -33,10 +33,10 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
 
   return (
     <div className="mb-6">
-      <h2 className="text-lg font-bold md:font-semibold text-primary md:text-foreground mb-3">Today</h2>
-      <div 
+      <h2 className="text-lg font-semibold text-foreground mb-3">Today</h2>
+      <div
         className={cn(
-          "bg-card border border-border rounded-xl p-4 transition-all duration-300",
+          "bg-card border border-border rounded-xl p-4 shadow-sm transition-all duration-300",
           isPulsing && "ring-2 ring-primary/50 animate-pulse"
         )}
       >
