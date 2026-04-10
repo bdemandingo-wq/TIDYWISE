@@ -543,7 +543,7 @@ export function AIAnalysisCenter() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 flex-wrap">
+        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 overflow-x-auto scrollbar-hide flex-nowrap">
           {[
             { value: 'overview', label: 'Overview', icon: Brain },
             { value: 'leads', label: 'Leads', icon: Flame },
