@@ -1,0 +1,147 @@
+/**
+ * Auto-sitemap generator.
+ *
+ * Parses `src/App.tsx` using @babel/parser, walks the AST with @babel/traverse,
+ * extracts every static `<Route path="...">` value, applies exclusion rules,
+ * deduplicates (App.tsx uses both HashRouter and BrowserRouter with overlapping
+ * routes), and writes `public/sitemap.xml`.
+ *
+ * Invoked from vite.config.ts via `sitemapPlugin()` on `buildEnd`.
+ */
+import { parse } from "@babel/parser";
+import _traverse from "@babel/traverse";
+import * as t from "@babel/types";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// @babel/traverse ships as CJS; under ESM the default export lives on `.default`.
+const traverse =
+  ((_traverse as unknown as { default?: typeof _traverse }).default as typeof _traverse) ??
+  _traverse;
+
+const BASE_URL = "https://www.jointidywise.com";
+
+// Exact path exclusions.
+const EXCLUDED_PATHS = new Set<string>([
+  "/login",
+  "/signup",
+  "/logout",
+  "/auth",
+  "/onboarding",
+  "/card-saved",
+  "/delete-account",
+  "*",
+]);
+
+// Prefix exclusions — any route whose path starts with one of these is skipped.
+const EXCLUDED_PREFIXES = ["/dashboard", "/staff", "/portal", "/admin"];
+
+function shouldExclude(path: string): boolean {
+  if (EXCLUDED_PATHS.has(path)) return true;
+  if (path.includes(":")) return true; // dynamic segments
+  for (const prefix of EXCLUDED_PREFIXES) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return true;
+  }
+  return false;
+}
+
+function extractRoutePaths(source: string): string[] {
+  const ast = parse(source, {
+    sourceType: "module",
+    plugins: ["typescript", "jsx"],
+  });
+
+  const paths = new Set<string>();
+
+  traverse(ast, {
+    JSXOpeningElement(nodePath) {
+      const name = nodePath.node.name;
+      if (!t.isJSXIdentifier(name) || name.name !== "Route") return;
+
+      for (const attr of nodePath.node.attributes) {
+        if (!t.isJSXAttribute(attr)) continue;
+        if (!t.isJSXIdentifier(attr.name) || attr.name.name !== "path") continue;
+
+        const value = attr.value;
+        if (t.isStringLiteral(value)) {
+          paths.add(value.value);
+        } else if (
+          t.isJSXExpressionContainer(value) &&
+          t.isStringLiteral(value.expression)
+        ) {
+          paths.add(value.expression.value);
+        }
+      }
+    },
+  });
+
+  return [...paths];
+}
+
+function buildSitemap(paths: string[]): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const sorted = [...paths].sort((a, b) => {
+    if (a === "/") return -1;
+    if (b === "/") return 1;
+    return a.localeCompare(b);
+  });
+
+  const urls = sorted
+    .map((p) => {
+      const loc = p === "/" ? `${BASE_URL}/` : `${BASE_URL}${p}`;
+      const priority = p === "/" ? "1.0" : "0.8";
+      const changefreq = p === "/" ? "weekly" : "monthly";
+      return `  <url>
+    <loc>${loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+  </url>`;
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`;
+}
+
+export function generateSitemap(): { count: number; outputPath: string } {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const projectRoot = resolve(__dirname, "..", "..");
+
+  const appTsxPath = resolve(projectRoot, "src", "App.tsx");
+  const outputPath = resolve(projectRoot, "public", "sitemap.xml");
+
+  const source = readFileSync(appTsxPath, "utf8");
+  const rawPaths = extractRoutePaths(source);
+  const includedPaths = rawPaths.filter((p) => !shouldExclude(p));
+
+  // Dedupe (HashRouter + BrowserRouter branches in App.tsx share most routes).
+  const uniquePaths = [...new Set(includedPaths)];
+
+  const xml = buildSitemap(uniquePaths);
+  writeFileSync(outputPath, xml, "utf8");
+
+  return { count: uniquePaths.length, outputPath };
+}
+
+// Allow direct execution: `tsx src/lib/generate-sitemap.ts`
+const isDirectRun = (() => {
+  try {
+    return (
+      process.argv[1] &&
+      fileURLToPath(import.meta.url) === resolve(process.argv[1])
+    );
+  } catch {
+    return false;
+  }
+})();
+
+if (isDirectRun) {
+  const { count, outputPath } = generateSitemap();
+  console.log(`[sitemap] wrote ${count} urls to ${outputPath}`);
+}
