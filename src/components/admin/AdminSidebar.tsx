@@ -32,6 +32,7 @@ import {
   Camera,
   Plus,
   Check,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -88,6 +89,7 @@ const defaultNavigation = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
