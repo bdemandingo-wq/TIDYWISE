@@ -180,14 +180,39 @@ export default function NotificationsPage() {
             </CardContent>
           </Card>
 
+          {/* Morning Brief */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                Morning Brief
+              </CardTitle>
+              <CardDescription>
+                Daily email summary of today's jobs, open estimates, and new requests — sent at 8:00 AM Eastern
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Send Morning Brief Now</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Trigger a test email to support@tidywisecleaning.com with today's summary
+                  </p>
+                </div>
+                <Button onClick={handleSendBrief} disabled={sendingBrief} variant="outline" className="gap-2">
+                  {sendingBrief ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {sendingBrief ? 'Sending...' : 'Run Now'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Changes
             </Button>
           </div>
-        </>
-      )}
     </AdminLayout>
   );
 }
