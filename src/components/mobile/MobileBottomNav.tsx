@@ -140,13 +140,12 @@ export function MobileBottomNav() {
   return (
     <nav
       className={cn(
-        'fixed left-0 right-0 z-50 md:hidden',
-        'bottom-0 pb-[env(safe-area-inset-bottom)]',
+        'fixed left-0 right-0 bottom-0 z-50 md:hidden',
         'bg-background/95 backdrop-blur-md border-t border-border/30'
       )}
       aria-label="Primary"
     >
-      <div className="relative grid grid-cols-5 items-end">
+      <div className="relative grid grid-cols-5 items-end pb-[env(safe-area-inset-bottom)]">
         {/* Left 2 slots */}
         {leftSlots.map((item) => (
           <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
