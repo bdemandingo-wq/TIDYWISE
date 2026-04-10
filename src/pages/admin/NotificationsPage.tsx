@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Loader2 } from 'lucide-react';
+import { Bell, MessageSquare, Loader2, Mail, Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +30,7 @@ export default function NotificationsPage() {
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingBrief, setSendingBrief] = useState(false);
 
   // Load settings from business_settings table
   useEffect(() => {
@@ -75,6 +76,22 @@ export default function NotificationsPage() {
       toast.error('Failed to save notification settings');
     } else {
       toast.success('Notification settings saved!');
+    }
+  };
+
+  const handleSendBrief = async () => {
+    if (!organization?.id) return;
+    setSendingBrief(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('morning-brief', {
+        body: { org_id: organization.id },
+      });
+      if (error) throw error;
+      toast.success(`Morning brief sent! Jobs: ${data?.sections?.jobs ?? 0}, Estimates: ${data?.sections?.estimates ?? 0}, Requests: ${data?.sections?.requests ?? 0}`);
+    } catch (e: any) {
+      toast.error(`Failed to send morning brief: ${e.message}`);
+    } finally {
+      setSendingBrief(false);
     }
   };
 
@@ -159,6 +176,33 @@ export default function NotificationsPage() {
                   checked={settings.notify_sms} 
                   onCheckedChange={() => handleToggle('notify_sms')} 
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Morning Brief */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                Morning Brief
+              </CardTitle>
+              <CardDescription>
+                Daily email summary of today's jobs, open estimates, and new requests — sent at 8:00 AM Eastern
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Send Morning Brief Now</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Trigger a test email to support@tidywisecleaning.com with today's summary
+                  </p>
+                </div>
+                <Button onClick={handleSendBrief} disabled={sendingBrief} variant="outline" className="gap-2">
+                  {sendingBrief ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {sendingBrief ? 'Sending...' : 'Run Now'}
+                </Button>
               </div>
             </CardContent>
           </Card>
