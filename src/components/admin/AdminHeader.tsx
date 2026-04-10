@@ -27,7 +27,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
   return (
     <>
       <div className="sticky top-0 z-30">
-        <header className="bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
+        <header className="bg-background/80 backdrop-blur-sm border-b border-border">
           <div className="flex items-center justify-between h-10 md:h-14 px-2 md:px-4">
             <div className="flex items-center gap-2">
               <div className="w-14 md:hidden shrink-0" aria-hidden="true" />
