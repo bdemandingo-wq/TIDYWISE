@@ -31,7 +31,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   );
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={cn(
@@ -43,7 +43,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
         <main
           className={cn(
-            "animate-page-enter overflow-y-auto flex-1",
+            "animate-page-enter flex-1",
             "p-1.5 md:p-4 pt-1.5 md:pt-4 pb-[calc(3rem+env(safe-area-inset-bottom))] md:pb-4"
           )}
         >
