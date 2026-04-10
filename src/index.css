@@ -156,8 +156,8 @@
   html {
     @apply scroll-smooth;
     -webkit-overflow-scrolling: touch;
-    overflow-y: scroll;
-    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-x: clip;
     /* Prevent zoom getting stuck on native apps */
     touch-action: pan-x pan-y;
   }
@@ -166,7 +166,7 @@
     @apply bg-background text-foreground font-sans antialiased;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
-    overflow-x: hidden;
+    overflow-x: clip;
     touch-action: pan-x pan-y;
     -ms-touch-action: manipulation;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
@@ -811,9 +811,10 @@ img {
 
   /* ── MOBILE OPTIMIZATION PASS ── */
 
-  /* No horizontal overflow on any page — only on html to avoid nested scroll containers */
+  /* No horizontal overflow on any page without creating a scroll container */
   body {
     max-width: 100vw;
+    overflow-x: clip;
   }
 
   /* Minimum font size 14px for readability */
