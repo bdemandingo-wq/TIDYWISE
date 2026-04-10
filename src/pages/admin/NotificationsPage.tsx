@@ -79,6 +79,22 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleSendBrief = async () => {
+    if (!organization?.id) return;
+    setSendingBrief(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('morning-brief', {
+        body: { org_id: organization.id },
+      });
+      if (error) throw error;
+      toast.success(`Morning brief sent! Jobs: ${data?.sections?.jobs ?? 0}, Estimates: ${data?.sections?.estimates ?? 0}, Requests: ${data?.sections?.requests ?? 0}`);
+    } catch (e: any) {
+      toast.error(`Failed to send morning brief: ${e.message}`);
+    } finally {
+      setSendingBrief(false);
+    }
+  };
+
   return (
     <AdminLayout
       title="Notifications"
