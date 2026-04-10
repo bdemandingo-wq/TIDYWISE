@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Lazy load below-the-fold heavy components for better LCP
 const AIBusinessTools = lazy(() => import("@/components/landing/AIBusinessTools").then(m => ({ default: m.AIBusinessTools })));
@@ -163,6 +164,7 @@ const baseFeatures = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -181,9 +183,19 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMobile && mobileMenuOpen) {
+      setMobileMenuOpen(false);
+    }
+  }, [isMobile, mobileMenuOpen]);
+
   // Prevent the page behind the mobile menu from scrolling
   useEffect(() => {
-    if (!mobileMenuOpen) return;
+    if (!mobileMenuOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
