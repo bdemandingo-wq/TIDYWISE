@@ -556,7 +556,7 @@ export function AIAnalysisCenter() {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="data-[state=active]:bg-white/5 data-[state=active]:text-white text-white/40 rounded-lg px-4 py-2 gap-2 border-0"
+              className="data-[state=active]:bg-white/5 data-[state=active]:text-white text-white/40 rounded-lg px-4 py-2 gap-2 border-0 whitespace-nowrap shrink-0"
               style={{ fontFamily: labelFont }}
             >
               <tab.icon size={15} />
