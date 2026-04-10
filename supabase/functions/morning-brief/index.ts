@@ -24,7 +24,10 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Parse optional org_id from body, default to first org
+  // LOCKED: Only allowed for TidyWise organization
+  const ALLOWED_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
+
+  // Parse optional org_id from body
   let orgId: string | null = null;
   try {
     if (req.method === "POST") {
@@ -33,19 +36,15 @@ Deno.serve(async (req) => {
     }
   } catch { /* ignore */ }
 
+  // Default to allowed org if none provided
   if (!orgId) {
-    // Fallback: get the first organization
-    const { data: orgs } = await supabase
-      .from("organizations")
-      .select("id")
-      .limit(1)
-      .single();
-    orgId = orgs?.id || null;
+    orgId = ALLOWED_ORG_ID;
   }
 
-  if (!orgId) {
-    return new Response(JSON.stringify({ error: "No organization found" }), {
-      status: 400,
+  // Enforce org restriction
+  if (orgId !== ALLOWED_ORG_ID) {
+    return new Response(JSON.stringify({ error: "This feature is not available for your organization" }), {
+      status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
