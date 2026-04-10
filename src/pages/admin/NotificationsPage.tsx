@@ -31,6 +31,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingBrief, setSendingBrief] = useState(false);
+  const [sendingEvening, setSendingEvening] = useState(false);
 
   // Load settings from business_settings table
   useEffect(() => {
