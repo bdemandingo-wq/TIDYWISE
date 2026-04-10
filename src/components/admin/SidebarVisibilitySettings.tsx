@@ -31,6 +31,7 @@ import {
   RotateCcw,
   Loader2,
   Zap,
+  Bell,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -53,6 +54,7 @@ const sidebarItems = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Sparkles },
   { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
