@@ -213,6 +213,8 @@ export default function NotificationsPage() {
               Save Changes
             </Button>
           </div>
+        </>
+      )}
     </AdminLayout>
   );
 }
