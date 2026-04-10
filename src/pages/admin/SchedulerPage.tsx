@@ -81,6 +81,11 @@ export default function SchedulerPage() {
         a.click();
         URL.revokeObjectURL(url);
       } else if (type === 'xlsx') {
+        // xlsx (SheetJS) is write-only here. The outstanding CVEs
+        // (GHSA-4r6h-8v6p-xvw6 prototype pollution, GHSA-5pgg-2g8v-p4x9
+        // ReDoS) only trigger on XLSX.read() of attacker-controlled input.
+        // We only call writeFile() with server-constructed data, so the
+        // audit warnings do not apply to this usage. See PR discussion.
         const XLSX = await import('xlsx');
         const wsData = [headers, ...rows];
         const ws = XLSX.utils.aoa_to_sheet(wsData);
