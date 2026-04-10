@@ -31,6 +31,7 @@ import {
   RotateCcw,
   Loader2,
   Zap,
+  Bell,
 } from 'lucide-react';
 
 const sidebarItems = [
