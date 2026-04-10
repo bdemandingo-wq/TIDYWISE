@@ -197,6 +197,33 @@ export default function NotificationsPage() {
             </CardContent>
           </Card>
 
+          {/* End of Day Report */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                End of Day Report
+              </CardTitle>
+              <CardDescription>
+                Daily email summary of completed jobs, revenue, unpaid invoices, and tomorrow's preview — sent at 7:00 PM Eastern
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Send End of Day Report Now</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Trigger a test email to support@tidywisecleaning.com with today's end-of-day summary
+                  </p>
+                </div>
+                <Button onClick={handleSendEvening} disabled={sendingEvening} variant="outline" className="gap-2">
+                  {sendingEvening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {sendingEvening ? 'Sending...' : 'Run Now'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Morning Brief */}
           <Card className="mb-6">
             <CardHeader>
