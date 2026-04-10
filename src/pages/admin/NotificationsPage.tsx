@@ -30,6 +30,7 @@ export default function NotificationsPage() {
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingBrief, setSendingBrief] = useState(false);
 
   // Load settings from business_settings table
   useEffect(() => {
