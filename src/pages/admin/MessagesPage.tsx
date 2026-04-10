@@ -331,7 +331,7 @@ export default function MessagesPage() {
   }, [selectedConversation]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
   }, [messages]);
 
   // ─── Fetch conversations ──────────────────────────
@@ -400,6 +400,8 @@ export default function MessagesPage() {
     if (!error) {
       setMessages((data || []).map(msg => ({ ...msg, direction: msg.direction as 'inbound' | 'outbound' })));
       await supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', conversationId);
+      // Immediately update local state so the blue dot disappears
+      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
     }
   };
 
@@ -983,7 +985,8 @@ export default function MessagesPage() {
     <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
       {/* Header */}
       <div className={cn(
-        "flex items-center justify-between px-4 pt-2 pb-1",
+        "flex items-center justify-between px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit",
+        isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
         !isMobile && "border-b pb-2"
       )}>
         {isMobile ? (
@@ -1162,11 +1165,10 @@ export default function MessagesPage() {
         )}>
           {isMobile && (
             <button
-              className="flex items-center gap-0.5 shrink-0 text-[#007AFF] active:opacity-60 transition-opacity"
+              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted shrink-0 text-[#007AFF] active:opacity-60 transition-opacity"
               onClick={handleBackToList}
             >
-              <ChevronLeft className="h-7 w-7 -mr-1" />
-              <span className="text-[17px] font-normal">Messages</span>
+              <ChevronLeft className="h-5 w-5" />
             </button>
           )}
           <div className="flex-1 flex items-center justify-center gap-2 min-w-0">

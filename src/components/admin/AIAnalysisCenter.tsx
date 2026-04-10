@@ -543,7 +543,7 @@ export function AIAnalysisCenter() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 flex-wrap">
+        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 overflow-x-auto scrollbar-hide flex-nowrap">
           {[
             { value: 'overview', label: 'Overview', icon: Brain },
             { value: 'leads', label: 'Leads', icon: Flame },
@@ -556,7 +556,7 @@ export function AIAnalysisCenter() {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="data-[state=active]:bg-white/5 data-[state=active]:text-white text-white/40 rounded-lg px-4 py-2 gap-2 border-0"
+              className="data-[state=active]:bg-white/5 data-[state=active]:text-white text-white/40 rounded-lg px-4 py-2 gap-2 border-0 whitespace-nowrap shrink-0"
               style={{ fontFamily: labelFont }}
             >
               <tab.icon size={15} />

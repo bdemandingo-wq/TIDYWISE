@@ -667,7 +667,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       >
         <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
         {/* Calendar Header */}
-        <div className="flex items-center justify-between p-2 md:p-4 border-b border-border flex-wrap gap-2 md:gap-4">
+        <div className="flex items-center justify-between p-2 md:p-4 border-b border-border flex-wrap gap-2 md:gap-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:pt-4">
           <div className="flex items-center gap-2 md:gap-4">
             <h2 className="text-sm md:text-lg font-semibold whitespace-nowrap">
               {getHeaderTitle()}
