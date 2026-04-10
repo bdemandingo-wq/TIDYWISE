@@ -96,6 +96,22 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleSendEvening = async () => {
+    if (!organization?.id) return;
+    setSendingEvening(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('evening-brief', {
+        body: { org_id: organization.id },
+      });
+      if (error) throw error;
+      toast.success(`End of day report sent! Completed: ${data?.summary?.completed ?? 0}, Revenue: $${data?.summary?.revenue?.toFixed(0) ?? 0}, Tomorrow: ${data?.summary?.tomorrow ?? 0}`);
+    } catch (e: any) {
+      toast.error(`Failed to send evening report: ${e.message}`);
+    } finally {
+      setSendingEvening(false);
+    }
+  };
+
   return (
     <AdminLayout
       title="Notifications"
