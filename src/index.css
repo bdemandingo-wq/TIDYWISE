@@ -811,9 +811,8 @@ img {
 
   /* ── MOBILE OPTIMIZATION PASS ── */
 
-  /* No horizontal overflow on any page */
-  body, #root {
-    overflow-x: hidden;
+  /* No horizontal overflow on any page — only on html to avoid nested scroll containers */
+  body {
     max-width: 100vw;
   }
 

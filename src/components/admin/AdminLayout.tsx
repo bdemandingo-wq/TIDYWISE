@@ -31,7 +31,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   );
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={cn(
