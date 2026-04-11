@@ -689,16 +689,34 @@ export default function PaymentIntegrationPage() {
                             onChange={(e) => setManualPublishableKey(e.target.value)}
                           />
                         </div>
+
+                        {/* Ownership confirmation checkbox */}
+                        <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                          <Checkbox
+                            id="confirm-ownership"
+                            checked={confirmedOwnership}
+                            onCheckedChange={(v) => setConfirmedOwnership(v === true)}
+                            className="mt-0.5"
+                          />
+                          <label htmlFor="confirm-ownership" className="text-sm cursor-pointer">
+                            <span className="font-medium text-foreground">I confirm this is MY Stripe account</span>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              I am the legal owner of the Stripe account I&apos;m connecting. The business name, 
+                              EIN/SSN, and bank account belong to my business, not to TidyWise or any other company.
+                            </p>
+                          </label>
+                        </div>
+
                         <div className="flex gap-2 pt-1">
                           <Button
                             onClick={handleSaveManualKeys}
-                            disabled={savingKeys || !manualSecretKey.trim()}
+                            disabled={savingKeys || !manualSecretKey.trim() || !confirmedOwnership}
                             className="gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
                           >
                             {savingKeys ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                            {savingKeys ? "Validating..." : "Save & Connect"}
+                            {savingKeys ? "Validating..." : "Connect My Stripe Account"}
                           </Button>
-                          <Button variant="ghost" onClick={() => { setShowManualKeys(false); setManualSecretKey(""); setManualPublishableKey(""); }}>
+                          <Button variant="ghost" onClick={() => { setShowManualKeys(false); setManualSecretKey(""); setManualPublishableKey(""); setConfirmedOwnership(false); }}>
                             Cancel
                           </Button>
                         </div>
