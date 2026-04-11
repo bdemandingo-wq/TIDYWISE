@@ -579,6 +579,7 @@ export default function StaffPortal() {
       <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
+        <div className="pt-[env(safe-area-inset-top,0px)]" />
         <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold truncate">Cleaner Portal</h1>

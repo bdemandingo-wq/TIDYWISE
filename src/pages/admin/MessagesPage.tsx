@@ -1219,7 +1219,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Messages — add top padding on mobile for fixed header */}
-        <div className={cn("flex-1 overflow-y-auto px-3 py-4", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")}>
+        <div className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 py-4", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")} style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
           <div className="space-y-0.5">
             {groupedMessages.map((item, i) => {
               if (item.type === 'timestamp') {
