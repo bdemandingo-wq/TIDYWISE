@@ -133,7 +133,6 @@ export function PortalProfileTab() {
         p_first_name: firstName.trim(),
         p_last_name: lastName.trim(),
         p_phone: phone.trim() || null,
-        p_property_type: propertyType,
       });
 
       if (error) throw error;
@@ -671,13 +670,8 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
       ].join("\n");
 
       // Download file
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `tax-report-${selectedYear}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const { exportFile } = await import('@/lib/exportFile');
+      await exportFile(`tax-report-${selectedYear}.csv`, csvContent, 'text/csv');
 
       toast.success("Tax report downloaded!");
     } catch (err) {
