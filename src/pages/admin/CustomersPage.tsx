@@ -325,7 +325,7 @@ export default function CustomersPage() {
       : <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
-  const exportToCsv = () => {
+  const exportToCsv = async () => {
     const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Status', 'Total Bookings', 'Lifetime Revenue', 'Last Booking'];
     const rows = filteredCustomers.map(c => {
       const s = statsMap.get(c.id);
