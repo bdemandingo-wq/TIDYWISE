@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   CreditCard,
   CheckCircle2,
@@ -20,6 +21,8 @@ import {
   BarChart3,
   Link2,
   Banknote,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +56,7 @@ interface ConnectionStatus {
   connected_at?: string;
   default_currency?: string;
   has_publishable_key?: boolean;
+  needs_business_name_change?: boolean;
 }
 
 interface ManualPayment {
@@ -79,6 +83,7 @@ export default function PaymentIntegrationPage() {
   const [manualSecretKey, setManualSecretKey] = useState("");
   const [manualPublishableKey, setManualPublishableKey] = useState("");
   const [savingKeys, setSavingKeys] = useState(false);
+  const [confirmedOwnership, setConfirmedOwnership] = useState(false);
 
   // Charge modal state
   const [chargeOpen, setChargeOpen] = useState(false);
@@ -412,6 +417,39 @@ export default function PaymentIntegrationPage() {
               </CardContent>
             </Card>
 
+            {/* Suspicious business name warning */}
+            {connectionStatus.needs_business_name_change && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-destructive text-base">
+                        ⚠️ Your Stripe business name says &ldquo;{connectionStatus.display_name}&rdquo;
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This looks wrong. Your Stripe account should have <strong>YOUR</strong> business name, not TidyWise&apos;s. 
+                        This probably means you typed &ldquo;TidyWise&rdquo; during Stripe signup by mistake.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        <strong>To fix it:</strong> go to your Stripe dashboard → Settings → Business → Public details 
+                        and change the business name to your actual business.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 gap-2"
+                        onClick={() => openExternalUrl("https://dashboard.stripe.com/settings/business")}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Open Stripe Settings
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Legacy upgrade prompt */}
             {connectionStatus.legacy && (
               <Card className="border-amber-500/30 bg-amber-500/5">
@@ -555,6 +593,25 @@ export default function PaymentIntegrationPage() {
           </>
         ) : (
           <>
+            {/* Pre-connect warning */}
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">Before you connect: this must be YOUR Stripe account</p>
+                    <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
+                      <li>✕ Do NOT connect the TidyWise platform&apos;s Stripe account</li>
+                      <li>✓ You need your OWN Stripe account with your business name, EIN, and bank account</li>
+                      <li>✓ If you don&apos;t have one yet, create it at <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">dashboard.stripe.com/register</a> first</li>
+                      <li>✓ During Stripe signup, enter YOUR business name — NOT &ldquo;TidyWise&rdquo;</li>
+                      <li>✓ All charges will go directly to YOUR bank account</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Connect Button - Hero Card */}
             <Card className="border-[#635BFF]/30 overflow-hidden">
               <div className="bg-gradient-to-br from-[#635BFF]/10 to-[#635BFF]/5 p-8 text-center">
@@ -579,7 +636,7 @@ export default function PaymentIntegrationPage() {
                   {isConnecting ? "Connecting..." : "Connect with Stripe"}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Already have a Stripe account? You'll be asked to log in — no need to create a new one.
+                  Already have a Stripe account? You&apos;ll be asked to log in — no need to create a new one.
                 </p>
               </div>
             </Card>
@@ -632,16 +689,34 @@ export default function PaymentIntegrationPage() {
                             onChange={(e) => setManualPublishableKey(e.target.value)}
                           />
                         </div>
+
+                        {/* Ownership confirmation checkbox */}
+                        <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                          <Checkbox
+                            id="confirm-ownership"
+                            checked={confirmedOwnership}
+                            onCheckedChange={(v) => setConfirmedOwnership(v === true)}
+                            className="mt-0.5"
+                          />
+                          <label htmlFor="confirm-ownership" className="text-sm cursor-pointer">
+                            <span className="font-medium text-foreground">I confirm this is MY Stripe account</span>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              I am the legal owner of the Stripe account I&apos;m connecting. The business name, 
+                              EIN/SSN, and bank account belong to my business, not to TidyWise or any other company.
+                            </p>
+                          </label>
+                        </div>
+
                         <div className="flex gap-2 pt-1">
                           <Button
                             onClick={handleSaveManualKeys}
-                            disabled={savingKeys || !manualSecretKey.trim()}
+                            disabled={savingKeys || !manualSecretKey.trim() || !confirmedOwnership}
                             className="gap-2 bg-[#635BFF] hover:bg-[#5851DB] text-white"
                           >
                             {savingKeys ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                            {savingKeys ? "Validating..." : "Save & Connect"}
+                            {savingKeys ? "Validating..." : "Connect My Stripe Account"}
                           </Button>
-                          <Button variant="ghost" onClick={() => { setShowManualKeys(false); setManualSecretKey(""); setManualPublishableKey(""); }}>
+                          <Button variant="ghost" onClick={() => { setShowManualKeys(false); setManualSecretKey(""); setManualPublishableKey(""); setConfirmedOwnership(false); }}>
                             Cancel
                           </Button>
                         </div>

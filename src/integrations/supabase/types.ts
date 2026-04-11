@@ -7106,6 +7106,14 @@ export type Database = {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
       }
+      stripe_duplicate_accounts: {
+        Args: never
+        Returns: {
+          org_count: number
+          organization_ids: string[]
+          stripe_account_id: string
+        }[]
+      }
       submit_client_booking_request: {
         Args: {
           p_client_user_id: string
