@@ -22,7 +22,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       mobileOffset={SAFE_AREA_OFFSET}
       toastOptions={{
         duration: 3000,
-        dismissible: true,
         classNames: {
           toast:
             "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
