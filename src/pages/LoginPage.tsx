@@ -121,14 +121,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
       <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
+        {/* Back to home link - only on web */}
+        {!isNative && (
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to home
+          </Link>
+        )}
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
