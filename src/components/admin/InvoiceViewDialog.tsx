@@ -6,8 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Download, Printer, ExternalLink, FileText, CheckCircle2, Clock, AlertCircle, X, Send, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Printer, ExternalLink, Send, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -16,28 +15,18 @@ import {
   buildInvoiceEmailPayload,
   formatInvoiceNumber,
   getInvoiceContact,
+  getInvoiceDueDate,
   getInvoiceLineItems,
   getInvoiceServiceAddressLines,
+  isInvoicePaid,
 } from '@/lib/invoiceUtils';
+import { InvoiceDocument } from './invoice/InvoiceDocument';
 
 interface InvoiceViewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoice: any | null;
 }
-
-const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof FileText }> = {
-  draft: { label: 'Draft', className: 'bg-muted text-muted-foreground', icon: FileText },
-  sent: { label: 'Sent', className: 'bg-secondary text-foreground', icon: Clock },
-  paid: { label: 'Paid', className: 'bg-primary/10 text-primary', icon: CheckCircle2 },
-  overdue: { label: 'Overdue', className: 'bg-destructive/10 text-destructive', icon: AlertCircle },
-  cancelled: { label: 'Cancelled', className: 'bg-muted text-muted-foreground', icon: X },
-};
-
-const ACCENT = '#0ea5e9';
-const SLATE = '#0f172a';
-const MUTED = '#475569';
-const BORDER = '#e2e8f0';
 
 export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
@@ -66,11 +55,11 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const contact = getInvoiceContact(invoice);
   const lineItems = getInvoiceLineItems(invoice);
   const addressLines = getInvoiceServiceAddressLines(invoice);
-  const statusConfig = STATUS_CONFIG[invoice.status] || STATUS_CONFIG.draft;
-  const StatusIcon = statusConfig.icon;
   const invoiceNumber = formatInvoiceNumber(invoice.invoice_number);
+  const dueDate = getInvoiceDueDate(invoice);
+  const isPaid = isInvoicePaid(invoice);
 
-  const companyAddressLine = [
+  const companyAddressLines = [
     businessSettings?.company_address,
     [businessSettings?.company_city, businessSettings?.company_state, businessSettings?.company_zip].filter(Boolean).join(', '),
   ].filter(Boolean);
@@ -89,11 +78,8 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           <title>${invoiceNumber}</title>
           <style>
             * { box-sizing: border-box; }
-            body { margin: 0; padding: 32px; background: #ffffff; color: ${SLATE}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-            table { width: 100%; border-collapse: collapse; }
-            th { text-align: left; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: ${MUTED}; padding: 12px 0; border-bottom: 1px solid ${BORDER}; }
-            td { padding: 14px 0; border-bottom: 1px solid ${BORDER}; vertical-align: top; }
-            .text-right { text-align: right; }
+            body { margin: 0; padding: 32px; background: #ffffff; color: #111827; font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+            a { color: inherit; }
           </style>
         </head>
         <body>${printContent.innerHTML}</body>
@@ -163,99 +149,30 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
           </div>
         </DialogHeader>
 
-        <div ref={printRef} className="rounded-xl border bg-card p-4 md:p-8" style={{ backgroundColor: '#ffffff', color: SLATE }}>
-          <div className="flex flex-col gap-6 border-b pb-6 md:flex-row md:items-start md:justify-between" style={{ borderColor: BORDER }}>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold tracking-tight">{businessSettings?.company_name || 'TidyWise'}</div>
-              {companyAddressLine.map((line: string) => (
-                <div key={line} className="text-sm" style={{ color: MUTED }}>{line}</div>
-              ))}
-              <div className="text-sm" style={{ color: MUTED }}>
-                {[businessSettings?.company_phone, businessSettings?.company_email].filter(Boolean).join(' · ')}
-              </div>
-            </div>
-
-            <div className="space-y-2 md:text-right">
-              <div className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: ACCENT }}>Invoice</div>
-              <div className="text-3xl font-bold tracking-tight">{invoiceNumber}</div>
-              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${statusConfig.className}`}>
-                <StatusIcon className="h-4 w-4" />
-                {statusConfig.label}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-6 py-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: ACCENT }}>Bill To</div>
-              <div className="font-semibold">{contact.name}</div>
-              {contact.email && <div className="text-sm" style={{ color: MUTED }}>{contact.email}</div>}
-              {contact.phone && <div className="text-sm" style={{ color: MUTED }}>{contact.phone}</div>}
-              {addressLines.length > 0 && (
-                <div className="pt-2 text-sm whitespace-pre-line" style={{ color: MUTED }}>
-                  {addressLines.join('\n')}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 md:text-right">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: ACCENT }}>Invoice Date</div>
-              <div className="font-medium">{format(new Date(invoice.created_at), 'MMM d, yyyy')}</div>
-              {invoice.due_date && (
-                <>
-                  <div className="pt-3 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: ACCENT }}>Due Date</div>
-                  <div className="font-medium">{format(new Date(invoice.due_date), 'MMM d, yyyy')}</div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th className="text-right">Qty</th>
-                  <th className="text-right">Unit Price</th>
-                  <th className="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineItems.map((item, index) => (
-                  <tr key={`${item.description}-${index}`}>
-                    <td>
-                      <div className="font-medium">{item.description}</div>
-                    </td>
-                    <td className="text-right">{item.quantity}</td>
-                    <td className="text-right">${item.unitPrice.toFixed(2)}</td>
-                    <td className="text-right">${item.total.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-end py-6">
-            <div className="w-full max-w-sm space-y-3 rounded-xl border p-4" style={{ borderColor: BORDER }}>
-              <div className="flex items-center justify-between text-sm">
-                <span style={{ color: MUTED }}>Subtotal</span>
-                <span>${Number(invoice.subtotal ?? invoice.total_amount).toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between text-base font-semibold">
-                <span style={{ color: ACCENT }}>Total</span>
-                <span style={{ color: ACCENT }}>${Number(invoice.total_amount).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {invoice.notes && (
-            <div className="rounded-xl border p-4" style={{ borderColor: BORDER }}>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: ACCENT }}>Notes</div>
-              <div className="text-sm whitespace-pre-line" style={{ color: MUTED }}>{invoice.notes}</div>
-            </div>
-          )}
-
-          <div className="mt-6 border-t pt-6 text-sm text-center" style={{ borderColor: BORDER, color: MUTED }}>
+        <div ref={printRef}>
+          <InvoiceDocument
+            businessName={businessSettings?.company_name || 'TidyWise Cleaning'}
+            businessEmail={businessSettings?.company_email}
+            businessPhone={businessSettings?.company_phone}
+            businessAddressLines={companyAddressLines}
+            invoiceNumber={invoiceNumber}
+            invoiceDate={invoice.created_at}
+            dueDate={dueDate}
+            customerName={contact.name}
+            customerEmail={contact.email}
+            customerPhone={contact.phone}
+            customerAddressLines={addressLines}
+            lineItems={lineItems}
+            subtotal={Number(invoice.subtotal ?? invoice.total_amount)}
+            total={Number(invoice.total_amount)}
+            notes={invoice.notes}
+            isPaid={isPaid}
+            paidAt={invoice.paid_at}
+            amountPaid={isPaid ? Number(invoice.total_amount) : undefined}
+            remainingBalance={isPaid ? 0 : Number(invoice.total_amount)}
+            paymentUrl={!isPaid ? invoice.stripe_invoice_url : null}
+          />
+          <div className="mt-4 text-center text-sm text-muted-foreground">
             Questions? Reply to this email or call {businessSettings?.company_phone || 'your office'}
           </div>
         </div>

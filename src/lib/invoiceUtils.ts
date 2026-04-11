@@ -21,6 +21,7 @@ export interface InvoiceLineItemLike {
 
 export interface InvoiceLike {
   invoice_number: number;
+  status?: string | null;
   customer?: InvoicePartyLike | null;
   lead?: InvoicePartyLike | null;
   invoice_items?: InvoiceLineItemLike[] | null;
@@ -30,6 +31,13 @@ export interface InvoiceLike {
   address?: string | null;
   created_at: string;
   due_date?: string | null;
+  paid_at?: string | null;
+}
+
+function addDaysToDateString(value: string, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
 }
 
 export function formatInvoiceNumber(invoiceNumber: number | string) {
@@ -85,6 +93,14 @@ export function getInvoiceServiceAddress(invoice: InvoiceLike) {
   return getInvoiceServiceAddressLines(invoice).join("\n");
 }
 
+export function getInvoiceDueDate(invoice: InvoiceLike) {
+  return invoice.due_date || addDaysToDateString(invoice.created_at, 7);
+}
+
+export function isInvoicePaid(invoice: InvoiceLike) {
+  return invoice.status === 'paid' || Boolean(invoice.paid_at);
+}
+
 export function buildInvoiceEmailPayload(invoice: InvoiceLike, organizationId: string) {
   const contact = getInvoiceContact(invoice);
 
@@ -95,11 +111,13 @@ export function buildInvoiceEmailPayload(invoice: InvoiceLike, organizationId: s
     customerEmail: contact.email,
     customerPhone: contact.phone || undefined,
     invoiceDate: invoice.created_at,
-    dueDate: invoice.due_date || undefined,
+    dueDate: getInvoiceDueDate(invoice),
     subtotal: Number(invoice.subtotal ?? invoice.total_amount ?? 0),
     total: Number(invoice.total_amount ?? 0),
     address: getInvoiceServiceAddress(invoice) || undefined,
     notes: invoice.notes || undefined,
+    isPaid: isInvoicePaid(invoice),
+    paidAt: invoice.paid_at || undefined,
     lineItems: getInvoiceLineItems(invoice),
   };
 }

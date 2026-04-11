@@ -264,7 +264,7 @@ export default function InvoicesPage() {
       stripe_invoice_url: null,
       sent_at: null,
       paid_at: null,
-      due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+        due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
     });
     setFormDialogOpen(true);
   };
