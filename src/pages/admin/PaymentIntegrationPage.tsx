@@ -417,6 +417,39 @@ export default function PaymentIntegrationPage() {
               </CardContent>
             </Card>
 
+            {/* Suspicious business name warning */}
+            {connectionStatus.needs_business_name_change && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-destructive text-base">
+                        ⚠️ Your Stripe business name says &ldquo;{connectionStatus.display_name}&rdquo;
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This looks wrong. Your Stripe account should have <strong>YOUR</strong> business name, not TidyWise&apos;s. 
+                        This probably means you typed &ldquo;TidyWise&rdquo; during Stripe signup by mistake.
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        <strong>To fix it:</strong> go to your Stripe dashboard → Settings → Business → Public details 
+                        and change the business name to your actual business.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 gap-2"
+                        onClick={() => openExternalUrl("https://dashboard.stripe.com/settings/business")}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Open Stripe Settings
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Legacy upgrade prompt */}
             {connectionStatus.legacy && (
               <Card className="border-amber-500/30 bg-amber-500/5">
