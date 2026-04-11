@@ -25,6 +25,7 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const isNative = Capacitor.isNativePlatform();
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
   
   const [loading, setLoading] = useState(false);
