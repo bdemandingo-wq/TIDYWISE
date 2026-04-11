@@ -593,6 +593,25 @@ export default function PaymentIntegrationPage() {
           </>
         ) : (
           <>
+            {/* Pre-connect warning */}
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground">Before you connect: this must be YOUR Stripe account</p>
+                    <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
+                      <li>✕ Do NOT connect the TidyWise platform&apos;s Stripe account</li>
+                      <li>✓ You need your OWN Stripe account with your business name, EIN, and bank account</li>
+                      <li>✓ If you don&apos;t have one yet, create it at <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">dashboard.stripe.com/register</a> first</li>
+                      <li>✓ During Stripe signup, enter YOUR business name — NOT &ldquo;TidyWise&rdquo;</li>
+                      <li>✓ All charges will go directly to YOUR bank account</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Connect Button - Hero Card */}
             <Card className="border-[#635BFF]/30 overflow-hidden">
               <div className="bg-gradient-to-br from-[#635BFF]/10 to-[#635BFF]/5 p-8 text-center">
@@ -617,7 +636,7 @@ export default function PaymentIntegrationPage() {
                   {isConnecting ? "Connecting..." : "Connect with Stripe"}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-3">
-                  Already have a Stripe account? You'll be asked to log in — no need to create a new one.
+                  Already have a Stripe account? You&apos;ll be asked to log in — no need to create a new one.
                 </p>
               </div>
             </Card>
