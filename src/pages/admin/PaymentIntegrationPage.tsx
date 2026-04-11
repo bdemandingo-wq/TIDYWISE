@@ -83,6 +83,7 @@ export default function PaymentIntegrationPage() {
   const [manualSecretKey, setManualSecretKey] = useState("");
   const [manualPublishableKey, setManualPublishableKey] = useState("");
   const [savingKeys, setSavingKeys] = useState(false);
+  const [confirmedOwnership, setConfirmedOwnership] = useState(false);
 
   // Charge modal state
   const [chargeOpen, setChargeOpen] = useState(false);
