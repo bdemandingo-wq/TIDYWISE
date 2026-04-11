@@ -15,6 +15,7 @@ import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
 import { z } from 'zod';
+import { Capacitor } from '@capacitor/core';
 
 // Validation schema
 const loginSchema = z.object({
@@ -24,6 +25,7 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const isNative = Capacitor.isNativePlatform();
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
   
   const [loading, setLoading] = useState(false);
@@ -119,14 +121,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
       <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
+        {/* Back to home link - only on web */}
+        {!isNative && (
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to home
+          </Link>
+        )}
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
@@ -237,32 +241,36 @@ export default function LoginPage() {
 
             </form>
 
-            {/* Sign up link */}
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Link
-                to="/signup"
-                className="text-primary hover:underline font-medium"
-              >
-                Create account
-              </Link>
-            </div>
+            {/* Sign up link - HIDDEN on native (App Store Guideline 3.1.1) */}
+            {!isNative && (
+              <div className="mt-6 text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Link
+                  to="/signup"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Create account
+                </Link>
+              </div>
+            )}
 
-            {/* Staff & Client Portal links */}
-            <div className="mt-4 pt-4 border-t border-border space-y-2">
-              <Link
-                to="/staff/login"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-              >
-                Staff Portal Login
-              </Link>
-              <Link
-                to="/portal/login"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-              >
-                Client Portal Login
-              </Link>
-            </div>
+            {/* Staff & Client Portal links - HIDDEN on native */}
+            {!isNative && (
+              <div className="mt-4 pt-4 border-t border-border space-y-2">
+                <Link
+                  to="/staff/login"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  Staff Portal Login
+                </Link>
+                <Link
+                  to="/portal/login"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  Client Portal Login
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
