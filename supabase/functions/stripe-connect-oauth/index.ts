@@ -115,6 +115,12 @@ serve(async (req) => {
       }
 
       const account = await stripe.accounts.retrieve(response.stripe_user_id);
+      const oauthDisplayName = account.business_profile?.name || account.settings?.dashboard?.display_name || null;
+
+      // Guard 3 — Detect suspicious business name on OAuth connect
+      const isSuspiciousName = oauthDisplayName &&
+        (oauthDisplayName.toLowerCase().includes("tidywise") ||
+         oauthDisplayName.toLowerCase() === "tidy wise");
 
       const { error: upsertError } = await supabase
         .from("org_stripe_settings")
@@ -126,7 +132,7 @@ serve(async (req) => {
           stripe_publishable_key: response.stripe_publishable_key || null,
           stripe_secret_key: response.access_token || "",
           stripe_user_email: account.email || null,
-          stripe_display_name: account.business_profile?.name || account.settings?.dashboard?.display_name || null,
+          stripe_display_name: oauthDisplayName,
           stripe_payouts_enabled: account.payouts_enabled || false,
           stripe_default_currency: account.default_currency || "usd",
           is_connected: true,
@@ -144,8 +150,9 @@ serve(async (req) => {
         success: true,
         account_id: response.stripe_user_id,
         email: account.email,
-        display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+        display_name: oauthDisplayName,
         payouts_enabled: account.payouts_enabled,
+        needs_business_name_change: isSuspiciousName || false,
       });
     }
 
@@ -163,6 +170,10 @@ serve(async (req) => {
       const isConnectedViaOAuth = !!(data?.is_connected && data?.stripe_account_id);
       const isConnectedViaManualKeys = !!(data?.stripe_secret_key && !data?.stripe_account_id);
 
+      // Helper to detect suspicious name
+      const checkSuspiciousName = (name: string | null | undefined) =>
+        name && (name.toLowerCase().includes("tidywise") || name.toLowerCase() === "tidy wise");
+
       if (isConnectedViaManualKeys) {
         return jsonResponse({
           connected: true,
@@ -173,6 +184,7 @@ serve(async (req) => {
           connected_at: data?.connected_at || null,
           default_currency: data?.stripe_default_currency || "usd",
           has_publishable_key: !!data?.stripe_publishable_key,
+          needs_business_name_change: checkSuspiciousName(data?.stripe_display_name) || false,
         });
       }
 
@@ -182,13 +194,14 @@ serve(async (req) => {
           if (apiKey) {
             const stripe = new Stripe(apiKey, { apiVersion: STRIPE_API_VERSION });
             const account = await stripe.accounts.retrieve(data.stripe_account_id);
+            const liveDisplayName = account.business_profile?.name || account.settings?.dashboard?.display_name;
 
             await supabase
               .from("org_stripe_settings")
               .update({
                 stripe_payouts_enabled: account.payouts_enabled,
                 stripe_user_email: account.email,
-                stripe_display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+                stripe_display_name: liveDisplayName,
               })
               .eq("organization_id", organization_id);
 
@@ -196,10 +209,11 @@ serve(async (req) => {
               connected: true,
               account_id: data.stripe_account_id,
               email: account.email,
-              display_name: account.business_profile?.name || account.settings?.dashboard?.display_name,
+              display_name: liveDisplayName,
               payouts_enabled: account.payouts_enabled,
               connected_at: data.connected_at,
               default_currency: account.default_currency || data.stripe_default_currency,
+              needs_business_name_change: checkSuspiciousName(liveDisplayName) || false,
             });
           }
         } catch (refreshError) {
@@ -214,6 +228,7 @@ serve(async (req) => {
           payouts_enabled: data.stripe_payouts_enabled,
           connected_at: data.connected_at,
           default_currency: data.stripe_default_currency,
+          needs_business_name_change: checkSuspiciousName(data.stripe_display_name) || false,
         });
       }
 
