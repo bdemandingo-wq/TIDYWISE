@@ -334,7 +334,7 @@ export default function LeadsPage() {
     })).sort((a, b) => b.total - a.total);
   }, [leads]);
 
-  const exportLeadsExcel = () => {
+  const exportLeadsExcel = async () => {
     const headers = ['Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Service Interest', 'Source', 'Status', 'Notes', 'Message', 'Created'];
     const rows = filteredLeads.map(lead => [
       lead.name,

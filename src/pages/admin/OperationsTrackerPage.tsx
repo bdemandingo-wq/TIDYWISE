@@ -166,7 +166,7 @@ export default function OperationsTrackerPage() {
     return { weeklyTotals, monthlyTotals, weeklyCloseRate, monthlyCloseRate };
   }, [entries]);
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const headers = ['Date', 'Incoming Calls', 'Closed Deals', 'Revenue Booked', 'Cold Emails', 'Cold Calls', 'Leads Followed Up', 'Notes'];
     const rows = entries.map(e => [
       e.track_date,
