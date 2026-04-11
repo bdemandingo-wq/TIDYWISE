@@ -4,7 +4,7 @@ import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
 import { cn } from '@/lib/utils';
-import { useLocation } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router-dom';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -24,11 +24,14 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
   // Hide the top header bar on mobile for immersive tabs (Messages, Scheduler)
   const isMobileView = useIsMobile();
+  const isInsideConversation = Boolean(
+    matchPath('/dashboard/messages/:conversationId', location.pathname)
+  );
   const hideHeader = isMobileView && (
     location.pathname.includes('/messages') ||
     location.pathname.includes('/scheduler') ||
     location.pathname.includes('/calendar')
-  );
+  ) || isInsideConversation;
 
   return (
     <div className="min-h-screen bg-background">

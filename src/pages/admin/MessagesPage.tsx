@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
@@ -94,6 +96,7 @@ const formatUnreadCount = (count: number) => {
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -329,6 +332,24 @@ export default function MessagesPage() {
   useEffect(() => {
     if (selectedConversation) fetchMessages(selectedConversation.id);
   }, [selectedConversation]);
+
+  const handleBackToList = useCallback(() => {
+    setSelectedConversation(null);
+    setMessages([]);
+    navigate('/dashboard/messages');
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    const listener = CapacitorApp.addListener('backButton', () => {
+      handleBackToList();
+    });
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, [handleBackToList, selectedConversation]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
@@ -644,8 +665,6 @@ export default function MessagesPage() {
     setContextMenuConvId(null);
     setContextMenuPosition(null);
   };
-
-  const handleBackToList = () => { setSelectedConversation(null); setMessages([]); };
 
   // ─── Message grouping with timestamps ─────────────
   const groupedMessages = useMemo(() => {
@@ -1155,6 +1174,8 @@ export default function MessagesPage() {
     );
 
     const isPinned = pinnedIds.has(selectedConversation.id);
+    const contactName = selectedConversation.customer_name || selectedConversation.customer_phone;
+    const contactRole = selectedConversation.conversation_type === 'cleaner' ? 'Cleaner' : 'Client';
 
     return (
       <div className="flex flex-col h-full bg-background">
@@ -1163,15 +1184,15 @@ export default function MessagesPage() {
           "px-3 py-2.5 border-b flex items-center gap-2 bg-background/80 backdrop-blur-xl z-20 shrink-0",
           isMobile ? "fixed top-0 left-0 right-0 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]" : "sticky top-0"
         )}>
-          {isMobile && (
-            <button
-              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted shrink-0 text-[#007AFF] active:opacity-60 transition-opacity"
-              onClick={handleBackToList}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          )}
-          <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={handleBackToList}
+            className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-muted active:bg-muted shrink-0"
+            aria-label="Back to messages"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex flex-1 items-center gap-2 min-w-0">
             <Avatar className="h-8 w-8">
               <AvatarFallback className={cn(
                 "text-xs font-semibold",
@@ -1184,10 +1205,10 @@ export default function MessagesPage() {
             </Avatar>
             <div className="min-w-0">
               <p className="font-semibold text-sm truncate leading-tight">
-                {selectedConversation.customer_name || selectedConversation.customer_phone}
+                {contactName}
               </p>
               <p className="text-[11px] text-muted-foreground leading-tight">
-                {selectedConversation.conversation_type === 'cleaner' ? 'Cleaner' : 'Client'}
+                {contactRole}
               </p>
             </div>
           </div>
