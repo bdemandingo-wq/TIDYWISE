@@ -1352,21 +1352,12 @@ export default function BookingsPage() {
 
       if (type === 'csv') {
         const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const { exportFile } = await import('@/lib/exportFile');
+        await exportFile(`${filename}.csv`, csvContent, 'text/csv');
       } else if (type === 'json') {
-        const blob = new Blob([JSON.stringify(filteredBookings, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const jsonContent = JSON.stringify(filteredBookings, null, 2);
+        const { exportFile } = await import('@/lib/exportFile');
+        await exportFile(`${filename}.json`, jsonContent, 'application/json');
       } else if (type === 'xlsx') {
         // xlsx (SheetJS) is write-only here. The outstanding CVEs
         // (GHSA-4r6h-8v6p-xvw6 prototype pollution, GHSA-5pgg-2g8v-p4x9
@@ -1379,7 +1370,10 @@ export default function BookingsPage() {
         ws['!cols'] = headers.map(() => ({ wch: 18 }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Bookings');
-        XLSX.writeFile(wb, `${filename}.xlsx`);
+        const xlsxBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const xlsxBlob = new Blob([xlsxBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const { exportFile } = await import('@/lib/exportFile');
+        await exportFile(`${filename}.xlsx`, xlsxBlob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       } else if (type === 'pdf') {
         const { default: jsPDF } = await import('jspdf');
         const autoTable = (await import('jspdf-autotable')).default;
@@ -1400,7 +1394,9 @@ export default function BookingsPage() {
           alternateRowStyles: { fillColor: [245, 247, 250] },
           margin: { left: 14, right: 14 },
         });
-        doc.save(`${filename}.pdf`);
+        const pdfBlob = doc.output('blob');
+        const { exportFile } = await import('@/lib/exportFile');
+        await exportFile(`${filename}.pdf`, pdfBlob, 'application/pdf');
       } else if (type === 'print') {
         const printWin = window.open('', '_blank');
         if (!printWin) { toast({ title: "Error", description: "Popup blocked — please allow popups", variant: "destructive" }); return; }
