@@ -157,16 +157,16 @@ const App = () => (
                   <HashRouter>
                      <ErrorBoundary featureName="App">
                        <Suspense fallback={<PageLoader />}>
-                         <Routes>
+                          <Routes>
                     {/* Auth Routes - No Session Persistence */}
                         <Route path="/login" element={<LoginPage />} />
-                        {/* Guideline 4.0: signup must happen in-app, not in browser */}
-                        <Route path="/signup" element={<SignupPage />} />
+                        {/* App Store Guideline 3.1.1: No signup/registration on native */}
+                        <Route path="/signup" element={<Navigate to="/login" replace />} />
+                        <Route path="/auth" element={<Navigate to="/login" replace />} />
                         <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}
                         <Route path="/" element={<LoginPage />} />
-                        <Route path="/auth" element={<AuthPage />} />
 
                       {/* Public Routes - Lazy Loaded */}
                       <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
@@ -176,33 +176,15 @@ const App = () => (
                       <Route path="/deposit/:token" element={<DepositPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
-                      <Route path="/pricing" element={<LoginPage />} />
-                      <Route path="/onboarding" element={<OnboardingPage />} />
+                      {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
+                      <Route path="/pricing" element={<Navigate to="/login" replace />} />
+                      <Route path="/onboarding" element={<Navigate to="/login" replace />} />
+                      <Route path="/demo" element={<Navigate to="/login" replace />} />
                       <Route path="/review/:token" element={<ReviewPage />} />
-                      <Route path="/blog" element={<BlogIndex />} />
-                      <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
-                      <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
-                      <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
-                      <Route path="/blog/post/:slug" element={<DynamicBlogPost />} />
-                      <Route path="/blog/how-to-grow-cleaning-business-2025" element={<GrowCleaningBusiness2025 />} />
-                      <Route path="/blog/best-software-for-cleaning-business" element={<BestSoftwareForCleaners />} />
-                      <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
-                      
-                      {/* Comparison Pages */}
-                      <Route path="/compare/jobber" element={<CompareJobber />} />
-                      <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
-                      <Route path="/compare/housecall-pro" element={<CompareHousecallPro />} />
-                      
-                      {/* Feature Pages */}
-                      <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
-                      <Route path="/features/quote-software" element={<QuoteSoftware />} />
-                      <Route path="/features/sms-notifications" element={<SMSNotifications />} />
-                      <Route path="/features/payment-processing" element={<PaymentProcessing />} />
-                      <Route path="/features/route-optimization" element={<RouteOptimization />} />
-                      <Route path="/features/invoicing-software" element={<InvoicingSoftware />} />
-                      <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
-                      <Route path="/features/booking" element={<BookingSoftware />} />
-                      <Route path="/features/crm" element={<CRMSoftware />} />
+                      {/* Redirect all marketing pages to login on native */}
+                      <Route path="/blog/*" element={<Navigate to="/login" replace />} />
+                      <Route path="/compare/*" element={<Navigate to="/login" replace />} />
+                      <Route path="/features/*" element={<Navigate to="/login" replace />} />
 
                       {/* Staff Portal */}
                       <Route path="/staff/login" element={<StaffLoginPage />} />

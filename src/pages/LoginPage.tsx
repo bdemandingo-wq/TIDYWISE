@@ -15,6 +15,7 @@ import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
 import { z } from 'zod';
+import { Capacitor } from '@capacitor/core';
 
 // Validation schema
 const loginSchema = z.object({
