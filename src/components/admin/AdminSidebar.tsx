@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, matchPath } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Calendar,
@@ -610,16 +610,18 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Mobile Toggle Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-1 z-50 min-w-[44px] min-h-[44px] md:hidden bg-background/80 backdrop-blur-sm touch-manipulation pointer-events-auto"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open navigation menu"
-      >
-        <Menu className="w-6 h-6" />
-      </Button>
+      {/* Mobile Toggle Button — hidden when inside a conversation thread */}
+      {!matchPath('/dashboard/messages/:conversationId', location.pathname) && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-1 z-50 min-w-[44px] min-h-[44px] md:hidden bg-background/80 backdrop-blur-sm touch-manipulation pointer-events-auto"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu className="w-6 h-6" />
+        </Button>
+      )}
 
       {/* Desktop Sidebar */}
       <aside className={cn(

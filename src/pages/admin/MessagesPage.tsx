@@ -1240,7 +1240,17 @@ export default function MessagesPage() {
         </div>
 
         {/* Messages — add top padding on mobile for fixed header */}
-        <div className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 py-4", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")} style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+        <div
+          ref={scrollContainerRef}
+          className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 relative", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")}
+          style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+          onScroll={() => {
+            if (!scrollContainerRef.current) return;
+            const el = scrollContainerRef.current;
+            const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            setShowScrollToBottom(distFromBottom > 200);
+          }}
+        >
           <div className="space-y-0.5">
             {groupedMessages.map((item, i) => {
               if (item.type === 'timestamp') {
@@ -1283,7 +1293,7 @@ export default function MessagesPage() {
                         ))}
                       </div>
                     )}
-                    <p className="text-[15px] leading-snug whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">{msg.content}</p>
                     {item.isLast && (
                       <p className={cn("text-[10px] mt-0.5", isOutbound ? 'text-white/60 text-right' : 'text-muted-foreground')}>
                         {format(new Date(msg.sent_at), 'h:mm a')}
@@ -1297,6 +1307,18 @@ export default function MessagesPage() {
             })}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Scroll to bottom FAB */}
+          {showScrollToBottom && (
+            <button
+              type="button"
+              onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="sticky bottom-2 left-1/2 -translate-x-1/2 z-10 h-9 w-9 rounded-full bg-muted/90 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center hover:bg-muted active:scale-95 transition-all"
+              aria-label="Scroll to latest message"
+            >
+              <ChevronLeft className="h-5 w-5 rotate-[-90deg]" />
+            </button>
+          )}
         </div>
 
         {/* Input bar */}
