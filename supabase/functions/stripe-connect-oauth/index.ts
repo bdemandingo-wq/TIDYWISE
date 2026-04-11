@@ -260,6 +260,27 @@ serve(async (req) => {
         return jsonResponse({ error: "Stripe secret key is required" }, 400);
       }
 
+      // Guard 1 — Block platform key reuse
+      if (stripeSecretKey && secret_key.trim() === stripeSecretKey.trim()) {
+        return jsonResponse({
+          error: "This appears to be the TidyWise platform's Stripe key, not your personal Stripe account key. Please log into YOUR Stripe account at dashboard.stripe.com and copy your own Secret key from Developers → API keys.",
+        }, 400);
+      }
+
+      // Guard 2 — Block cross-tenant key reuse
+      const { data: existingOrgWithKey } = await supabase
+        .from("org_stripe_settings")
+        .select("organization_id")
+        .eq("stripe_secret_key", secret_key)
+        .neq("organization_id", organization_id)
+        .maybeSingle();
+
+      if (existingOrgWithKey) {
+        return jsonResponse({
+          error: "This Stripe key is already connected to another TidyWise account. Each business must use its own separate Stripe account.",
+        }, 400);
+      }
+
       if (!secret_key.startsWith("sk_live_") && !secret_key.startsWith("sk_test_") && !secret_key.startsWith("rk_live_") && !secret_key.startsWith("rk_test_")) {
         let hint = "Stripe secret keys start with sk_live_ or sk_test_.";
         if (secret_key.startsWith("pk_")) {
@@ -316,6 +337,11 @@ serve(async (req) => {
           warning = warning || "Key saved. Some Stripe account details could not be loaded because this key has limited permissions.";
         }
 
+        // Guard 3 — Detect suspicious business name
+        const isSuspiciousName = displayName &&
+          (displayName.toLowerCase().includes("tidywise") ||
+           displayName.toLowerCase() === "tidy wise");
+
         const { error: upsertError } = await supabase
           .from("org_stripe_settings")
           .upsert({
@@ -345,6 +371,7 @@ serve(async (req) => {
           display_name: displayName,
           payouts_enabled: payoutsEnabled,
           warning,
+          needs_business_name_change: isSuspiciousName || false,
         });
       } catch (stripeError) {
         const message = extractStripeErrorMessage(stripeError);
