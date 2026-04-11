@@ -241,32 +241,36 @@ export default function LoginPage() {
 
             </form>
 
-            {/* Sign up link */}
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Link
-                to="/signup"
-                className="text-primary hover:underline font-medium"
-              >
-                Create account
-              </Link>
-            </div>
+            {/* Sign up link - HIDDEN on native (App Store Guideline 3.1.1) */}
+            {!isNative && (
+              <div className="mt-6 text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Link
+                  to="/signup"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Create account
+                </Link>
+              </div>
+            )}
 
-            {/* Staff & Client Portal links */}
-            <div className="mt-4 pt-4 border-t border-border space-y-2">
-              <Link
-                to="/staff/login"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-              >
-                Staff Portal Login
-              </Link>
-              <Link
-                to="/portal/login"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-              >
-                Client Portal Login
-              </Link>
-            </div>
+            {/* Staff & Client Portal links - HIDDEN on native */}
+            {!isNative && (
+              <div className="mt-4 pt-4 border-t border-border space-y-2">
+                <Link
+                  to="/staff/login"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  Staff Portal Login
+                </Link>
+                <Link
+                  to="/portal/login"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  Client Portal Login
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
