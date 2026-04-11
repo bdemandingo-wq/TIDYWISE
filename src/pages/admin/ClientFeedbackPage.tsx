@@ -122,7 +122,7 @@ export default function ClientFeedbackPage() {
     needsFollowup: entries.filter(e => e.followup_needed && !e.is_resolved).length,
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const headers = ['Customer Name', 'Date', 'Resolved', 'Followup Needed', 'Issue', 'Resolution'];
     const rows = entries.map(e => [
       e.customer_name,
@@ -138,11 +138,8 @@ export default function ClientFeedbackPage() {
       ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `client-feedback-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`client-feedback-${format(new Date(), 'yyyy-MM-dd')}.csv`, csvContent, 'text/csv');
   };
 
   return (

@@ -353,13 +353,8 @@ export default function LeadsPage() {
     ]);
 
     const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leads-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`leads-export-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
     toast.success('Leads exported successfully');
   };
 

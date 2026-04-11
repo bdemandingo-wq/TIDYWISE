@@ -109,14 +109,9 @@ export default function ServicesPage() {
       }
 
       // Download
-      const csv = rows.join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `service-pricing-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const csvContent = rows.join('\n');
+      const { exportFile } = await import('@/lib/exportFile');
+      await exportFile(`service-pricing-${new Date().toISOString().slice(0, 10)}.csv`, csvContent, 'text/csv');
       toast.success('Pricing sheet downloaded');
     } catch (err) {
       console.error('CSV export error:', err);

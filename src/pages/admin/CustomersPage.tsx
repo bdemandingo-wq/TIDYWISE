@@ -339,13 +339,8 @@ export default function CustomersPage() {
       ];
     });
     const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `customers-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`customers-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
     toast.success('Exported to CSV');
   };
 

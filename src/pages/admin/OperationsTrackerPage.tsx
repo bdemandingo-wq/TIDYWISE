@@ -184,11 +184,8 @@ export default function OperationsTrackerPage() {
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `operations-tracker-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`operations-tracker-${format(new Date(), 'yyyy-MM-dd')}.csv`, csvContent, 'text/csv');
   };
 
   // Filter entries by date range
