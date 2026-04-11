@@ -549,7 +549,6 @@ export function AIAnalysisCenter() {
             { value: 'leads', label: 'Leads', icon: Flame },
             { value: 'retention', label: 'Retention', icon: Users },
             { value: 'scheduling', label: 'Scheduling', icon: Calendar },
-            { value: 'calls', label: 'Call Stats', icon: Phone },
             { value: 'playbook', label: 'Growth Playbook', icon: BookOpen },
             { value: 'ask-ai', label: 'Ask AI', icon: MessageSquare },
           ].map(tab => (
@@ -584,19 +583,17 @@ export function AIAnalysisCenter() {
             {insights.map((ins, i) => {
               const s = priorityStyles[ins.priority] || priorityStyles.Watch;
               return (
-                <div key={i} style={{ ...cardStyle, borderColor: s.border }} className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span style={{ background: s.bg, color: s.text, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, fontFamily: labelFont }}>{ins.priority}</span>
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: labelFont }}>{ins.confidence}</span>
-                    </div>
-                    <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>{ins.insight}</p>
+                <div key={i} style={{ ...cardStyle, borderColor: s.border }} className="p-4 overflow-hidden">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ background: s.bg, color: s.text, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, fontFamily: labelFont }}>{ins.priority}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: labelFont }}>{ins.confidence}</span>
                   </div>
+                  <p className="break-words" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, wordBreak: 'break-word' }}>{ins.insight}</p>
                   <Button
                     size="sm"
                     onClick={() => { setActiveTab('ask-ai'); setChatInput(ins.promptText || ''); }}
-                    style={{ background: `${s.text}20`, color: s.text, border: `1px solid ${s.border}`, fontSize: 12, fontFamily: labelFont }}
-                    className="shrink-0 hover:opacity-80"
+                    style={{ background: `${s.text}20`, color: s.text, border: `1px solid ${s.border}`, fontSize: 12, fontFamily: labelFont, marginTop: 8 }}
+                    className="hover:opacity-80"
                   >
                     {ins.action} <ArrowUpRight size={12} className="ml-1" />
                   </Button>
@@ -846,10 +843,6 @@ export function AIAnalysisCenter() {
           </div>
         </TabsContent>
 
-        {/* ─── Tab: Call Stats ─── */}
-        <TabsContent value="calls">
-          <CallStatsContent orgId={orgId} cardStyle={cardStyle} />
-        </TabsContent>
       </Tabs>
     </div>
   );
