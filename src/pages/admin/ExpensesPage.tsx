@@ -220,7 +220,7 @@ export default function ExpensesPage() {
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   // Export CSV
-  const exportCSV = () => {
+  const exportCSV = async () => {
     const headers = ['Date', 'Category', 'Description', 'Vendor', 'Amount'];
     const rows = expenses.map(e => [
       e.expense_date,
@@ -230,13 +230,8 @@ export default function ExpensesPage() {
       e.amount.toFixed(2),
     ]);
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
   };
 
   const getCategoryIcon = (category: string) => {

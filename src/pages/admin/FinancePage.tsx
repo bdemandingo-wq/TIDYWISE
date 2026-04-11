@@ -331,15 +331,10 @@ export default function FinancePage() {
     downloadCSV('sales-tax-by-zipcode', headers, rows);
   };
 
-  const downloadCSV = (filename: string, headers: string[], rows: string[][]) => {
+  const downloadCSV = async (filename: string, headers: string[], rows: string[][]) => {
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { exportFile } = await import('@/lib/exportFile');
+    await exportFile(`${filename}-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
   };
 
   return (
