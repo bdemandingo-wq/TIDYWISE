@@ -102,7 +102,32 @@ const handler = async (req: Request): Promise<Response> => {
           ownerEmail: email,
           subscriptionType: subscription.status === 'trialing' ? 'Trial Started' : 'Active',
         });
-        
+
+        // Trigger Make subscription confirmation email
+        try {
+          const makeSubWebhookUrl = "https://hook.us2.make.com/1dcdsn08refadbtlbj1v1j8uxel4dwil";
+          const profileData = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('email', email)
+            .maybeSingle();
+
+          await fetch(makeSubWebhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              full_name: profileData?.data?.full_name || orgName,
+              organization_name: orgName,
+              subscription_status: subscription.status === 'trialing' ? 'Trial Started' : 'Active',
+              subscribed_at: new Date().toISOString(),
+            }),
+          });
+          console.log("[stripe-invoice-webhook] Make subscription confirmation webhook triggered");
+        } catch (makeErr) {
+          console.error("[stripe-invoice-webhook] Make webhook failed (non-critical):", makeErr);
+        }
+
       } catch (notifyError) {
         console.error("[stripe-invoice-webhook] Failed to notify admin:", notifyError);
         // Don't fail the webhook - notification is non-critical
@@ -153,7 +178,32 @@ const handler = async (req: Request): Promise<Response> => {
             ownerEmail: customerEmail,
             subscriptionType: 'New Subscription',
           });
-          
+
+          // Trigger Make subscription confirmation email
+          try {
+            const makeSubWebhookUrl = "https://hook.us2.make.com/1dcdsn08refadbtlbj1v1j8uxel4dwil";
+            const profileData = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('email', customerEmail)
+              .maybeSingle();
+
+            await fetch(makeSubWebhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: customerEmail,
+                full_name: profileData?.data?.full_name || orgName,
+                organization_name: orgName,
+                subscription_status: 'New Subscription',
+                subscribed_at: new Date().toISOString(),
+              }),
+            });
+            console.log("[stripe-invoice-webhook] Make subscription confirmation webhook triggered (checkout)");
+          } catch (makeErr) {
+            console.error("[stripe-invoice-webhook] Make webhook failed (non-critical):", makeErr);
+          }
+
         } catch (notifyError) {
           console.error("[stripe-invoice-webhook] Failed to notify admin on checkout:", notifyError);
         }
