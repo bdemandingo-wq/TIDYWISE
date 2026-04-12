@@ -158,6 +158,19 @@ export default function SignupPage() {
         }).catch(err => console.log('Admin notification failed (non-critical):', err));
         
         toast.success('Account created! Welcome aboard.');
+
+        // Fire-and-forget welcome email via Make webhook
+        fetch("https://hook.us2.make.com/zsyiy664w5qhstih2w2e4dqvcpljrzml", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            full_name: formData.fullName,
+            phone: formData.phone || "",
+            signup_method: "email",
+            signed_up_at: new Date().toISOString(),
+          }),
+        }).catch(() => {});
         setLoading(false);
         setShowSplash(true);
       }
