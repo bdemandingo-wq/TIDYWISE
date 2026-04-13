@@ -174,6 +174,7 @@ const App = () => (
                       <Route path="/card-saved" element={<CardSavedPage />} />
                       <Route path="/tip/:token" element={<TipPage />} />
                       <Route path="/deposit/:token" element={<DepositPage />} />
+                      <Route path="/track/:token" element={<TrackCleanerPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
                       {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
@@ -259,8 +260,9 @@ const App = () => (
                     <Route path="/c/:code" element={<RedirectPage />} />
                     <Route path="/card-saved" element={<CardSavedPage />} />
                     <Route path="/tip/:token" element={<TipPage />} />
-                    <Route path="/deposit/:token" element={<DepositPage />} />
-                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                     <Route path="/deposit/:token" element={<DepositPage />} />
+                     <Route path="/track/:token" element={<TrackCleanerPage />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<PricingPage />} />
                      <Route path="/demo" element={<DemoPage />} />
