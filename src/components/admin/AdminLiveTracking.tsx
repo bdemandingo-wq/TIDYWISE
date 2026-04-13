@@ -76,10 +76,10 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
 
-  // Don't render for completed bookings
-  if (bookingStatus === 'completed') return null;
+  const isCompleted = bookingStatus === 'completed';
 
   useEffect(() => {
+    if (isCompleted) return;
     const fetchData = async () => {
       const { data: trackingData } = await supabase
         .from('cleaner_location_tracking')
