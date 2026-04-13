@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Navigation, Clock, MapPin, Car, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime } from '@/lib/distanceUtils';
+import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
 
 interface TrackingInfo {
   latitude: number;
@@ -15,6 +15,12 @@ interface TrackingInfo {
 
 interface OnTheWayInfo {
   sent_at: string;
+}
+
+interface DrivingETA {
+  durationMinutes: number;
+  distanceMiles: number;
+  source: string;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
@@ -64,14 +70,17 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
   return <div ref={mapRef} style={{ width: '100%', height: '200px', borderRadius: '8px' }} />;
 }
 
-export function AdminLiveTracking({ bookingId, address }: { bookingId: string; address?: string }) {
+export function AdminLiveTracking({ bookingId, address, bookingStatus }: { bookingId: string; address?: string; bookingStatus?: string }) {
   const [tracking, setTracking] = useState<TrackingInfo | null>(null);
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
+
+  // Don't render for completed bookings
+  if (bookingStatus === 'completed') return null;
 
   useEffect(() => {
     const fetchData = async () => {
-      // Check for active GPS tracking
       const { data: trackingData } = await supabase
         .from('cleaner_location_tracking')
         .select('latitude, longitude, is_active, recorded_at, created_at')
@@ -84,7 +93,6 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
         return;
       }
 
-      // Fallback: check if "on the way" SMS was sent
       const { data: reminderData } = await supabase
         .from('booking_reminder_log')
         .select('sent_at')
@@ -100,7 +108,6 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
     };
     fetchData();
 
-    // Realtime for GPS tracking
     const channel = supabase
       .channel(`admin-tracking-${bookingId}`)
       .on('postgres_changes', {
@@ -121,7 +128,7 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
     return () => { supabase.removeChannel(channel); };
   }, [bookingId]);
 
-  // Geocode destination for map
+  // Geocode destination
   useEffect(() => {
     if (!address || destCoords || !tracking) return;
     supabase.functions.invoke('geocode-address', { body: { address } })
@@ -131,16 +138,56 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
       .catch(() => {});
   }, [address, tracking]);
 
+  // Fetch real driving ETA from Google Maps
+  useEffect(() => {
+    if (!tracking || !destCoords) return;
+
+    const fetchEta = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-driving-eta', {
+          body: {
+            originLat: tracking.latitude,
+            originLng: tracking.longitude,
+            destLat: destCoords.lat,
+            destLng: destCoords.lng,
+          },
+        });
+
+        if (!error && data && !data.fallback) {
+          setDrivingEta(data);
+        } else {
+          // Fallback: Haversine × 1.4 road factor
+          const straightDist = calculateDistanceMiles(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
+          const roadDist = straightDist * 1.4;
+          const avgSpeedMph = 25;
+          setDrivingEta({
+            durationMinutes: Math.round((roadDist / avgSpeedMph) * 60),
+            distanceMiles: Math.round(roadDist * 10) / 10,
+            source: 'estimate',
+          });
+        }
+      } catch {
+        // Fallback
+        const straightDist = calculateDistanceMiles(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
+        const roadDist = straightDist * 1.4;
+        setDrivingEta({
+          durationMinutes: Math.round((roadDist / 25) * 60),
+          distanceMiles: Math.round(roadDist * 10) / 10,
+          source: 'estimate',
+        });
+      }
+    };
+
+    fetchEta();
+    // Refresh ETA every 60s
+    const interval = setInterval(fetchEta, 60000);
+    return () => clearInterval(interval);
+  }, [tracking?.latitude, tracking?.longitude, destCoords]);
+
   // GPS-based live tracking with map
   if (tracking) {
     const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
     const startedAt = new Date(tracking.created_at);
-    let etaMinutes: number | null = null;
-    let distanceMiles: number | null = null;
-    if (destCoords) {
-      distanceMiles = calculateDistanceMiles(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
-      etaMinutes = estimateDriveMinutes(distanceMiles);
-    }
 
     return (
       <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -167,11 +214,11 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
             <Clock className="h-3 w-3" />
             <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
           </div>
-          {distanceMiles !== null && (
+          {drivingEta && (
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
               <span className="font-medium text-primary">
-                {formatDistance(distanceMiles)} · ETA {formatDriveTime(etaMinutes!)}
+                {drivingEta.distanceMiles} mi · ETA ~{drivingEta.durationMinutes} min (driving)
               </span>
             </div>
           )}
@@ -189,7 +236,6 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
     const sentTime = new Date(onTheWay.sent_at);
     const minutesAgo = Math.round((Date.now() - sentTime.getTime()) / 60000);
 
-    // Only show if sent within the last 2 hours
     if (minutesAgo > 120) return null;
 
     return (
