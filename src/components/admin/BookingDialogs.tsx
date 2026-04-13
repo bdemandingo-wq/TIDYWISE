@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, DollarSign, Percent, Clock, Send, CreditCard, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
+import { AdminLiveTracking } from "./AdminLiveTracking";
 
 const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string }> = [
   { value: "pending", label: "Pending Payment" },
@@ -235,6 +236,11 @@ export function BookingDetailsDialog({
               <p className="text-sm whitespace-pre-wrap">{booking.notes}</p>
             </div>
           ) : null}
+
+          <AdminLiveTracking
+            bookingId={booking.id}
+            address={[booking.address, booking.city, booking.state].filter(Boolean).join(', ')}
+          />
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
