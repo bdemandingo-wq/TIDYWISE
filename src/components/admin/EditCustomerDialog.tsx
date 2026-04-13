@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
+import { Capacitor } from '@capacitor/core';
 import { format } from 'date-fns';
 
 interface Customer {
@@ -541,19 +542,25 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
               Securely save a card for future billing. The card will not be charged.
             </p>
             {showCardForm && organization?.id && formData.email && (
-              <StripeCardForm
-                email={formData.email}
-                customerName={`${formData.first_name} ${formData.last_name}`}
-                organizationId={organization.id}
-                showHoldOption={false}
-                onCardSaved={(cardInfo) => {
-                  toast.success(`Card saved: ${cardInfo.brand} ending in ${cardInfo.last4}`);
-                  setShowCardForm(false);
-                }}
-                onError={(error) => {
-                  toast.error(error);
-                }}
-              />
+              Capacitor.isNativePlatform() ? (
+                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                  Card setup is available on the web app at jointidywise.com.
+                </p>
+              ) : (
+                <StripeCardForm
+                  email={formData.email}
+                  customerName={`${formData.first_name} ${formData.last_name}`}
+                  organizationId={organization.id}
+                  showHoldOption={false}
+                  onCardSaved={(cardInfo) => {
+                    toast.success(`Card saved: ${cardInfo.brand} ending in ${cardInfo.last4}`);
+                    setShowCardForm(false);
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+              )
             )}
             {showCardForm && !formData.email && (
               <p className="text-sm text-destructive">Please enter a customer email first to add a card.</p>

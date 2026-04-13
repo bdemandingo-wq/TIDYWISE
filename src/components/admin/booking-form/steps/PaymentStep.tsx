@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { invokeSmsFunction } from '@/lib/smsErrorHandler';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
+import { Capacitor } from '@capacitor/core';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useBookingForm } from '../BookingFormContext';
 import { useDiscounts } from '@/hooks/useDiscounts';
@@ -697,15 +698,21 @@ export function PaymentStep() {
 
               <div className="space-y-3">
                 <p className="text-sm font-medium">Add Card Now</p>
-                <StripeCardForm
-                  email={customerEmail}
-                  customerName={customerName}
-                  organizationId={organizationId || ''}
-                  onCardSaved={handleCardSaved}
-                  onError={(error) => setChargeError(error)}
-                  showHoldOption={true}
-                  defaultHoldAmount={pricingBreakdown.grandTotal || 50}
-                />
+                {Capacitor.isNativePlatform() ? (
+                  <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                    Card setup is available on the web app at jointidywise.com. Use the link below to collect payment from your customer.
+                  </p>
+                ) : (
+                  <StripeCardForm
+                    email={customerEmail}
+                    customerName={customerName}
+                    organizationId={organizationId || ''}
+                    onCardSaved={handleCardSaved}
+                    onError={(error) => setChargeError(error)}
+                    showHoldOption={true}
+                    defaultHoldAmount={pricingBreakdown.grandTotal || 50}
+                  />
+                )}
               </div>
 
               <div className="relative">
