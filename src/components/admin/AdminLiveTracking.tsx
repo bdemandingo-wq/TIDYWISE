@@ -1,17 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Navigation, Clock, MapPin } from 'lucide-react';
+import { Navigation, Clock, MapPin, Car } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3959;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime } from '@/lib/distanceUtils';
 
 interface TrackingInfo {
   latitude: number;
@@ -19,6 +10,10 @@ interface TrackingInfo {
   is_active: boolean;
   recorded_at: string;
   created_at: string;
+}
+
+interface OnTheWayInfo {
+  sent_at: string;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
@@ -70,22 +65,41 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 
 export function AdminLiveTracking({ bookingId, address }: { bookingId: string; address?: string }) {
   const [tracking, setTracking] = useState<TrackingInfo | null>(null);
+  const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      // Check for active GPS tracking
+      const { data: trackingData } = await supabase
         .from('cleaner_location_tracking')
         .select('latitude, longitude, is_active, recorded_at, created_at')
         .eq('booking_id', bookingId)
         .eq('is_active', true)
         .maybeSingle();
 
-      if (data) setTracking(data as any);
-    };
-    fetch();
+      if (trackingData) {
+        setTracking(trackingData as any);
+        return;
+      }
 
-    // Realtime
+      // Fallback: check if "on the way" SMS was sent (from booking_reminder_log)
+      const { data: reminderData } = await supabase
+        .from('booking_reminder_log')
+        .select('sent_at')
+        .eq('booking_id', bookingId)
+        .eq('reminder_type', 'on_the_way')
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (reminderData) {
+        setOnTheWay(reminderData as OnTheWayInfo);
+      }
+    };
+    fetchData();
+
+    // Realtime for GPS tracking
     const channel = supabase
       .channel(`admin-tracking-${bookingId}`)
       .on('postgres_changes', {
@@ -109,59 +123,104 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
   // Geocode destination
   useEffect(() => {
     if (!address || destCoords) return;
+    // Only geocode if we have GPS tracking (for map display)
+    if (!tracking) return;
     supabase.functions.invoke('geocode-address', { body: { address } })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
       })
       .catch(() => {});
-  }, [address]);
+  }, [address, tracking]);
 
-  if (!tracking) return null;
+  // Show GPS-based live tracking with map
+  if (tracking) {
+    const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
+    const startedAt = new Date(tracking.created_at);
+    let etaMinutes: number | null = null;
+    let distanceMiles: number | null = null;
+    if (destCoords) {
+      distanceMiles = calculateDistanceMiles(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
+      etaMinutes = estimateDriveMinutes(distanceMiles);
+    }
 
-  const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
-  const startedAt = new Date(tracking.created_at);
-  let etaMinutes: number | null = null;
-  if (destCoords) {
-    const dist = haversineDistance(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
-    etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+    return (
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Navigation className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium">Live Tracking</span>
+          </div>
+          <Badge variant="default" className="bg-blue-600 text-xs">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1" />
+            En Route
+          </Badge>
+        </div>
+
+        <MiniMap
+          lat={tracking.latitude}
+          lng={tracking.longitude}
+          destLat={destCoords?.lat}
+          destLng={destCoords?.lng}
+        />
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+          </div>
+          {distanceMiles !== null && (
+            <div className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              <span className="font-medium text-blue-600">
+                {formatDistance(distanceMiles)} · ETA {formatDriveTime(etaMinutes!)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
+        </p>
+      </div>
+    );
   }
 
-  return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Navigation className="h-4 w-4 text-blue-500" />
-          <span className="text-sm font-medium">Live Tracking</span>
-        </div>
-        <Badge variant="default" className="bg-blue-600 text-xs">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1" />
-          En Route
-        </Badge>
-      </div>
+  // Fallback: show "on the way" status from SMS log (no GPS)
+  if (onTheWay) {
+    const sentTime = new Date(onTheWay.sent_at);
+    const minutesAgo = Math.round((Date.now() - sentTime.getTime()) / 60000);
+    
+    // Only show if sent within the last 2 hours (likely still relevant)
+    if (minutesAgo > 120) return null;
 
-      <MiniMap
-        lat={tracking.latitude}
-        lng={tracking.longitude}
-        destLat={destCoords?.lat}
-        destLng={destCoords?.lng}
-      />
-
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-        </div>
-        {etaMinutes && (
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span className="font-medium text-blue-600">ETA ~{etaMinutes} min</span>
+    return (
+      <div className="rounded-lg border bg-card p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium">Cleaner En Route</span>
           </div>
-        )}
-      </div>
+          <Badge variant="default" className="bg-blue-600 text-xs">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1" />
+            On The Way
+          </Badge>
+        </div>
 
-      <p className="text-xs text-muted-foreground">
-        Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
-      </p>
-    </div>
-  );
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>
+              "On My Way" sent at {sentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              {minutesAgo > 0 && ` (${minutesAgo} min ago)`}
+            </span>
+          </div>
+          <p className="text-muted-foreground/70 italic">
+            GPS location unavailable — cleaner may not have granted location permissions
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
