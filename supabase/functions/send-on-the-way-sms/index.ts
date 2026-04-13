@@ -126,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch SMS settings
     const { data: smsSettings, error: settingsError } = await supabase
       .from('organization_sms_settings')
-      .select('openphone_api_key, openphone_phone_number_id, sms_enabled')
+      .select('openphone_api_key, openphone_phone_number_id, sms_enabled, notify_admin_on_the_way, notify_client_on_the_way')
       .eq('organization_id', booking.organization_id)
       .maybeSingle();
 
