@@ -37,6 +37,7 @@ import {
 const sidebarItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, required: true },
   { name: 'Scheduler', href: '/dashboard/scheduler', icon: Calendar },
+  { name: 'Tracking', href: '/dashboard/tracking', icon: Navigation },
   { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
   { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
   { name: 'Customers', href: '/dashboard/customers', icon: Users },

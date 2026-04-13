@@ -33,6 +33,7 @@ import {
   Plus,
   Check,
   Bell,
+  Navigation,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -68,6 +69,7 @@ const defaultNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Brain },
   { name: 'Scheduler', href: '/dashboard/scheduler', icon: Calendar },
+  { name: 'Tracking', href: '/dashboard/tracking', icon: Navigation },
   { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
   { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
   { name: 'Customers', href: '/dashboard/customers', icon: Users },
