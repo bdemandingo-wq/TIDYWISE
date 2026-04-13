@@ -184,6 +184,9 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
     return () => clearInterval(interval);
   }, [tracking?.latitude, tracking?.longitude, destCoords]);
 
+  // Don't render for completed bookings
+  if (isCompleted) return null;
+
   // GPS-based live tracking with map
   if (tracking) {
     const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
