@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, isPast, isFuture, isToday, isTomorrow } from "date-fns";
-import { 
-  CalendarDays, 
-  Clock, 
-  LogOut, 
-  MapPin, 
-  Star, 
+import {
+  CalendarDays,
+  Clock,
+  LogOut,
+  MapPin,
+  Star,
   Trophy,
   Calendar,
   Plus,
@@ -20,7 +20,11 @@ import {
   X,
   RotateCcw,
   CalendarClock,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  Package,
+  BarChart2,
+  ImageIcon
 } from "lucide-react";
 import {
   AlertDialog,
@@ -77,12 +81,43 @@ interface Notification {
   created_at: string;
 }
 
+interface InspectionReport {
+  id: string;
+  photo_url: string;
+  inspection_note: string | null;
+  issue_category: 'broken' | 'missing' | 'low_inventory' | 'general' | null;
+  created_at: string | null;
+  booking: {
+    booking_number: number;
+    scheduled_at: string;
+  } | null;
+}
+
+const INSPECTION_CATEGORY_CONFIG = {
+  broken: { label: 'Broken', icon: AlertTriangle, color: 'bg-red-100 text-red-700' },
+  missing: { label: 'Missing', icon: Package, color: 'bg-orange-100 text-orange-700' },
+  low_inventory: { label: 'Low Inventory', icon: BarChart2, color: 'bg-yellow-100 text-yellow-700' },
+  general: { label: 'General Note', icon: ImageIcon, color: 'bg-blue-100 text-blue-700' },
+} as const;
+
+function InspectionPhoto({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.storage.from('booking-photos').createSignedUrl(path, 3600).then(({ data }) => {
+      if (data?.signedUrl) setUrl(data.signedUrl);
+    });
+  }, [path]);
+  if (!url) return <div className="w-full h-40 bg-muted rounded-lg flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+  return <img src={url} alt="Inspection" className="w-full h-40 object-cover rounded-lg" />;
+}
+
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
   const { user, customer, loyalty, signOut, loading } = useClientPortal();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [inspectionReports, setInspectionReports] = useState<InspectionReport[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -126,6 +161,22 @@ export default function PortalDashboardPage() {
         .rpc("get_client_portal_notifications", { p_client_user_id: user.id });
 
       setNotifications((notificationsData || []) as Notification[]);
+
+      // Fetch inspection reports for this customer's bookings
+      const bookingIds = (bookingsData || []).map((b: any) => b.id);
+      if (bookingIds.length > 0) {
+        const { data: inspectionData } = await supabase
+          .from('booking_photos')
+          .select(`
+            id, photo_url, inspection_note, issue_category, created_at,
+            booking:bookings!booking_photos_booking_id_fkey(booking_number, scheduled_at)
+          `)
+          .in('booking_id', bookingIds)
+          .eq('photo_type', 'inspection')
+          .order('created_at', { ascending: false });
+
+        setInspectionReports((inspectionData || []) as InspectionReport[]);
+      }
 
       setLoadingData(false);
     };
@@ -639,6 +690,14 @@ export default function PortalDashboardPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="reports" className="relative text-xs sm:text-sm shrink-0 min-h-[44px]">
+              Reports
+              {inspectionReports.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-[10px] text-white flex items-center justify-center">
+                  {inspectionReports.length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="profile" className="text-xs sm:text-sm shrink-0 min-h-[44px]">
               <User className="h-4 w-4" />
             </TabsTrigger>
@@ -861,6 +920,57 @@ export default function PortalDashboardPage() {
                   </div>
                 </Card>
               ))
+            )}
+          </TabsContent>
+
+          {/* Inspection Reports Tab */}
+          <TabsContent value="reports" className="space-y-3 mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <h2 className="font-semibold text-base">Property Reports</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Your cleaner flagged the following items during their visit.
+            </p>
+            {loadingData ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : inspectionReports.length === 0 ? (
+              <Card className="p-8 text-center">
+                <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-3" />
+                <p className="font-medium">All good!</p>
+                <p className="text-sm text-muted-foreground mt-1">No property issues have been reported.</p>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {inspectionReports.map((report) => {
+                  const cat = report.issue_category || 'general';
+                  const config = INSPECTION_CATEGORY_CONFIG[cat as keyof typeof INSPECTION_CATEGORY_CONFIG] || INSPECTION_CATEGORY_CONFIG.general;
+                  const Icon = config.icon;
+                  return (
+                    <Card key={report.id} className="overflow-hidden">
+                      <InspectionPhoto path={report.photo_url} />
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+                            <Icon className="w-3 h-3" />
+                            {config.label}
+                          </span>
+                        </div>
+                        {report.inspection_note && (
+                          <p className="text-sm text-foreground">{report.inspection_note}</p>
+                        )}
+                        {report.booking && (
+                          <p className="text-xs text-muted-foreground">
+                            Booking #{report.booking.booking_number} &middot; {format(new Date(report.booking.scheduled_at), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </TabsContent>
 

@@ -40,6 +40,7 @@ export function CleanerReviews({ staffId }: CleanerReviewsProps) {
           customer:customers(first_name, last_name)
         `)
         .eq('staff_id', staffId)
+        .gte('rating', 4)
         .not('rating', 'is', null)
         .order('responded_at', { ascending: false });
 

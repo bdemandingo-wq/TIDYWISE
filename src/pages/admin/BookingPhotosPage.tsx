@@ -25,6 +25,8 @@ interface BookingPhoto {
   caption: string | null;
   created_at: string | null;
   media_type?: string;
+  inspection_note?: string | null;
+  issue_category?: string | null;
   booking?: {
     booking_number: number;
     scheduled_at: string;
@@ -92,7 +94,7 @@ export default function BookingPhotosPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const bookingPhotoSelect = `
-    *,
+    *, inspection_note, issue_category,
     booking:bookings!booking_photos_booking_id_fkey(
       booking_number,
       scheduled_at,
@@ -231,6 +233,7 @@ export default function BookingPhotosPage() {
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="before">Before</SelectItem>
                 <SelectItem value="after">After</SelectItem>
+                <SelectItem value="inspection">Inspection</SelectItem>
               </SelectContent>
             </Select>
             <Select value={mediaFilter} onValueChange={setMediaFilter}>
@@ -255,6 +258,8 @@ export default function BookingPhotosPage() {
             <span>{photos.filter((photo) => photo.photo_type === 'before').length} before</span>
             <span>•</span>
             <span>{photos.filter((photo) => photo.photo_type === 'after').length} after</span>
+            <span>•</span>
+            <span>⚠️ {photos.filter((photo) => photo.photo_type === 'inspection').length} inspection</span>
           </div>
 
           {isLoading ? (
@@ -295,9 +300,12 @@ export default function BookingPhotosPage() {
                           }
                         />
                       )}
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        <Badge className="text-xs capitalize" variant={photo.photo_type === 'before' ? 'secondary' : 'default'}>
-                          {photo.photo_type || 'photo'}
+                      <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
+                        <Badge
+                          className="text-xs capitalize"
+                          variant={photo.photo_type === 'before' ? 'secondary' : photo.photo_type === 'inspection' ? 'destructive' : 'default'}
+                        >
+                          {photo.photo_type === 'inspection' ? '⚠️ Inspection' : (photo.photo_type || 'photo')}
                         </Badge>
                         <Badge className="text-xs" variant="outline">
                           {isVideo ? '🎥' : '📷'}
@@ -331,7 +339,7 @@ export default function BookingPhotosPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {selectedPhoto && isVideoMedia(selectedPhoto) ? <Video className="w-5 h-5" /> : <Camera className="w-5 h-5" />}
-                {selectedPhoto?.photo_type === 'before' ? 'Before' : 'After'} {selectedPhoto && isVideoMedia(selectedPhoto) ? 'Video' : 'Photo'} — Booking #{selectedPhoto?.booking?.booking_number}
+                {selectedPhoto?.photo_type === 'inspection' ? 'Inspection Report' : selectedPhoto?.photo_type === 'before' ? 'Before' : 'After'} {selectedPhoto && isVideoMedia(selectedPhoto) ? 'Video' : 'Photo'} — Booking #{selectedPhoto?.booking?.booking_number}
               </DialogTitle>
             </DialogHeader>
             {selectedPhoto && (
@@ -357,6 +365,18 @@ export default function BookingPhotosPage() {
                     />
                   )}
                 </div>
+                {selectedPhoto.photo_type === 'inspection' && (
+                  <div className="rounded-lg border bg-orange-50 dark:bg-orange-950/20 p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive" className="text-xs capitalize">
+                        ⚠️ {selectedPhoto.issue_category?.replace('_', ' ') || 'Inspection'}
+                      </Badge>
+                    </div>
+                    {selectedPhoto.inspection_note && (
+                      <p className="text-sm mt-1">{selectedPhoto.inspection_note}</p>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground" />
