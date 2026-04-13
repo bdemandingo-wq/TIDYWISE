@@ -239,6 +239,67 @@ export default function LandingPage() {
               "priceCurrency": "USD"
             },
             "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever."
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is TidyWise free?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. TidyWise is free forever — no credit card required, no hidden fees, no per-user charges. Every feature including scheduling, CRM, invoicing, payroll, GPS tracking, and the mobile app is included at no cost."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What does TidyWise do for cleaning businesses?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "TidyWise is an all-in-one platform for cleaning businesses. It handles online booking, team scheduling, client CRM, automated invoicing, payroll calculation, GPS tracking, route optimization, and staff management — all from one dashboard and mobile app."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does TidyWise compare to Jobber?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "TidyWise is free forever, while Jobber starts at $69/month. Both offer scheduling, invoicing, and client management. TidyWise also includes built-in payroll, GPS tracking, a loyalty program, AI business intelligence, and a client self-service portal — features that require paid add-ons or higher tiers on Jobber."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does TidyWise work for small cleaning businesses?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. TidyWise is designed for cleaning businesses of all sizes — from solo operators to multi-team companies. Setup takes about 5 minutes and there are no minimums or seat limits. It scales with your business without ever charging you."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does TidyWise have GPS tracking for cleaners?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. TidyWise includes real-time GPS tracking for cleaning teams. You can see where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports for reimbursements — all included in the free plan."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I manage payroll with TidyWise?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. TidyWise includes built-in payroll for cleaning businesses. It automatically calculates wages from completed jobs — flat per-job rates, hourly, or a percentage of the service price. Tips, mileage reimbursements, and pay period reports are all handled inside the platform."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does TidyWise have a mobile app?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. TidyWise has a mobile app for both iOS and Android. Staff can see their schedules, check in via GPS, document jobs with photos, and send on-my-way texts. Business owners can manage bookings, view reports, and communicate with clients from the app."
+                }
+              }
+            ]
           }
         ]}
       />
@@ -721,6 +782,52 @@ export default function LandingPage() {
       <Suspense fallback={<SectionSkeleton />}>
         <BlogSection />
       </Suspense>
+
+      {/* FAQ Section */}
+      <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Frequently Asked Questions</h2>
+            <p className="text-lg text-muted-foreground">Everything you need to know before getting started.</p>
+          </div>
+          <div className="space-y-4">
+            {[
+              {
+                q: "Is TidyWise free?",
+                a: "Yes — free forever. No credit card, no hidden fees, no per-user charges. Every feature including scheduling, CRM, invoicing, payroll, GPS tracking, and the mobile app is included at no cost."
+              },
+              {
+                q: "How does TidyWise compare to Jobber?",
+                a: "TidyWise is free; Jobber starts at $69/month. Both handle scheduling, invoicing, and client management. TidyWise also includes built-in payroll, GPS tracking, a loyalty program, AI business intelligence, and a client self-service portal — features that cost extra or require higher tiers on Jobber."
+              },
+              {
+                q: "Does TidyWise work for small cleaning businesses?",
+                a: "Yes. TidyWise works for solo operators and multi-team companies alike. Setup takes about 5 minutes, there are no minimums or seat limits, and it scales with your business without ever charging you."
+              },
+              {
+                q: "Does TidyWise have GPS tracking for cleaners?",
+                a: "Yes. Real-time GPS tracking is included. See where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports — all on the free plan."
+              },
+              {
+                q: "Can I run payroll through TidyWise?",
+                a: "Yes. TidyWise automatically calculates wages from completed jobs — flat per-job rates, hourly, or a percentage of the service price. Tips, mileage reimbursements, and pay period summaries are all handled inside the platform."
+              },
+              {
+                q: "Is there a mobile app?",
+                a: "Yes, for iOS and Android. Staff see their schedules, check in via GPS, document jobs with photos, and send on-my-way texts. Owners can manage bookings, view reports, and message clients from the app."
+              },
+            ].map((item, i) => (
+              <details key={i} className="group bg-card border border-border rounded-xl">
+                <summary className="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer list-none">
+                  <span className="font-semibold text-foreground">{item.q}</span>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 group-open:rotate-90 transition-transform" />
+                </summary>
+                <div className="px-6 pb-5 text-muted-foreground leading-relaxed">{item.a}</div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Final CTA - Premium gradient */}
       <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
