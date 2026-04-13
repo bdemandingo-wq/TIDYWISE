@@ -115,6 +115,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.jointidywise.com/features/payroll-software</loc>
+    <lastmod>2026-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.jointidywise.com/features/scheduling-software</loc>
     <lastmod>2026-04-11</lastmod>
     <changefreq>monthly</changefreq>
@@ -123,6 +129,18 @@
   <url>
     <loc>https://www.jointidywise.com/features/sms-notifications</loc>
     <lastmod>2026-04-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.jointidywise.com/blog/payroll-software-for-cleaning-businesses</loc>
+    <lastmod>2026-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.jointidywise.com/blog/gps-tracking-cleaning-business</loc>
+    <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

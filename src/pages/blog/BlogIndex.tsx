@@ -67,6 +67,26 @@ const staticPosts = [
     date: "October 2025",
     featured: false,
     isStatic: true
+  },
+  {
+    slug: "payroll-software-for-cleaning-businesses",
+    title: "Best Payroll Software for Cleaning Businesses (2026 Guide)",
+    excerpt: "Compare the best payroll software for cleaning businesses. Automate cleaner wages, tips, mileage, and tax filings. Save hours every pay period.",
+    category: "Payroll",
+    readTime: "9 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "gps-tracking-cleaning-business",
+    title: "GPS Tracking for Cleaning Businesses — Do You Need It?",
+    excerpt: "GPS tracking for cleaning teams: what it actually does, when it's worth it, and how to implement it without micromanaging your staff.",
+    category: "Operations",
+    readTime: "7 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
   }
 ];
 
@@ -129,6 +149,16 @@ const featureArticles = [
     category: "Comparison",
     readTime: "6 min read",
     date: "January 2026",
+    featured: false,
+    isFeaturePage: true
+  },
+  {
+    slug: "/features/payroll-software",
+    title: "Payroll Software for Cleaning Businesses — Free Forever",
+    excerpt: "Automate cleaner wages, tips, mileage reimbursements, and W-2/1099 docs. Built specifically for cleaning businesses.",
+    category: "Features",
+    readTime: "5 min read",
+    date: "April 2026",
     featured: false,
     isFeaturePage: true
   }

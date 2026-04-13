@@ -96,6 +96,8 @@ const DynamicBlogPost = lazy(() => import("./pages/blog/DynamicBlogPost"));
 const GrowCleaningBusiness2025 = lazy(() => import("./pages/blog/GrowCleaningBusiness2025"));
 const BestSoftwareForCleaners = lazy(() => import("./pages/blog/BestSoftwareForCleaners"));
 const AutomateCleaningCompany = lazy(() => import("./pages/blog/AutomateCleaningCompany"));
+const PayrollSoftwareForCleaners = lazy(() => import("./pages/blog/PayrollSoftwareForCleaners"));
+const GPSTrackingForCleaners = lazy(() => import("./pages/blog/GPSTrackingForCleaners"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompareJobber = lazy(() => import("./pages/compare/CompareJobber"));
 const CompareBookingKoala = lazy(() => import("./pages/compare/CompareBookingKoala"));
@@ -108,6 +110,7 @@ const InvoicingSoftware = lazy(() => import("./pages/features/InvoicingSoftware"
 const SchedulingSoftware = lazy(() => import("./pages/features/SchedulingSoftware"));
 const BookingSoftware = lazy(() => import("./pages/features/BookingSoftware"));
 const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
+const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const DemoPage = lazy(() => import("./pages/DemoPage"));
@@ -279,7 +282,9 @@ const App = () => (
                     <Route path="/blog/how-to-grow-cleaning-business-2025" element={<GrowCleaningBusiness2025 />} />
                     <Route path="/blog/best-software-for-cleaning-business" element={<BestSoftwareForCleaners />} />
                     <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
-                    
+                    <Route path="/blog/payroll-software-for-cleaning-businesses" element={<PayrollSoftwareForCleaners />} />
+                    <Route path="/blog/gps-tracking-cleaning-business" element={<GPSTrackingForCleaners />} />
+
                     {/* Comparison Pages */}
                     <Route path="/compare/jobber" element={<CompareJobber />} />
                     <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
@@ -295,6 +300,7 @@ const App = () => (
                     <Route path="/features/scheduling-software" element={<SchedulingSoftware />} />
                     <Route path="/features/booking" element={<BookingSoftware />} />
                     <Route path="/features/crm" element={<CRMSoftware />} />
+                    <Route path="/features/payroll-software" element={<PayrollSoftware />} />
 
                     {/* Staff Portal */}
                     <Route path="/staff/login" element={<StaffLoginPage />} />

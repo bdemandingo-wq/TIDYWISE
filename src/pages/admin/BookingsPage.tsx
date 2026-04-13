@@ -1724,6 +1724,17 @@ export default function BookingsPage() {
               <p className="text-muted-foreground">Loading bookings...</p>
             </div>
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <XCircle className="w-8 h-8 text-destructive" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load bookings</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm">There was a problem fetching your bookings. Please try refreshing the page.</p>
+            <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['bookings'] })}>
+              Retry
+            </Button>
+          </div>
         ) : filteredBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center p-8">
             <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">

@@ -93,6 +93,21 @@ export const allArticles: RelatedArticle[] = [
     title: "Payment Processing for Cleaning Companies",
     category: "Features",
   },
+  {
+    slug: "/blog/payroll-software-for-cleaning-businesses",
+    title: "Best Payroll Software for Cleaning Businesses (2026 Guide)",
+    category: "Payroll",
+  },
+  {
+    slug: "/blog/gps-tracking-cleaning-business",
+    title: "GPS Tracking for Cleaning Businesses — Do You Need It?",
+    category: "Operations",
+  },
+  {
+    slug: "/features/payroll-software",
+    title: "Payroll Software for Cleaning Businesses — Free Forever",
+    category: "Features",
+  },
   // Comparison Pages
   {
     slug: "/compare/jobber",

@@ -35,7 +35,7 @@ export default function PricingPage() {
     <>
       <SEOHead
         title="Pricing | TidyWise – Free Cleaning Business Software"
-        description="TidyWise is completely free. No credit card required. Sign up and start managing your cleaning business today."
+        description="TidyWise is free forever — no credit card, no hidden fees. Full scheduling, CRM, invoicing & payroll for cleaning businesses. Beat Jobber's $69/mo."
       />
 
       <div className="min-h-screen bg-background">
