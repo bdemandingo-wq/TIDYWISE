@@ -104,6 +104,7 @@ interface SavedLocation {
   state: string | null;
   zip_code: string | null;
   is_primary: boolean | null;
+  price_override: number | null;
 }
 
 interface BookingFormContextType extends BookingFormState {
@@ -117,6 +118,8 @@ interface BookingFormContextType extends BookingFormState {
   
   // Computed
   customerLocations: SavedLocation[];
+  selectedLocationId: string | null;
+  selectedLocationPriceOverride: number | null;
   selectedService: any;
   selectedCustomer: any;
   customerEmail: string;
@@ -169,6 +172,7 @@ interface BookingFormContextType extends BookingFormState {
   setCardInfo: (info: CardInfo | null) => void;
   setAppliedDiscount: (discount: AppliedDiscount | null) => void;
   setSelectedChecklistId: (id: string | null) => void;
+  setSelectedLocationId: (id: string | null) => void;
   loadCardInfo: (email: string) => Promise<void>;
   resetForm: () => void;
   prefillFromBooking: (booking: BookingWithDetails) => void;
