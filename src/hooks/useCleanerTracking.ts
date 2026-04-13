@@ -4,65 +4,61 @@ import { toast } from 'sonner';
 import { calculateDistanceMiles, estimateDriveMinutes } from '@/lib/distanceUtils';
 
 /**
- * Get current position using Capacitor native geolocation (preferred on mobile)
- * or browser geolocation as fallback.
+ * Get current position — tries browser geolocation first (works everywhere
+ * and always triggers the permission prompt), then Capacitor native as fallback.
  */
-async function getCurrentPosition(options?: { enableHighAccuracy?: boolean; timeout?: number }): Promise<{ latitude: number; longitude: number }> {
-  const opts = {
-    enableHighAccuracy: options?.enableHighAccuracy ?? true,
-    timeout: options?.timeout ?? 15000,
-  };
+async function getCurrentPosition(timeoutMs = 15000): Promise<{ latitude: number; longitude: number }> {
+  // 1) Try browser geolocation first — this works on both web AND Capacitor WebView
+  //    and will trigger the native permission dialog if not yet granted.
+  if (navigator.geolocation) {
+    try {
+      console.log('[GPS] Attempting browser geolocation...');
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: timeoutMs,
+          maximumAge: 0,
+        });
+      });
+      console.log('[GPS] Browser geolocation succeeded:', pos.coords.latitude, pos.coords.longitude);
+      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch (browserError: any) {
+      console.warn('[GPS] Browser geolocation failed:', browserError?.code, browserError?.message);
+      // PERMISSION_DENIED (code 1) — don't try Capacitor, user said no
+      if (browserError?.code === 1) {
+        throw new Error('Location permission denied by user');
+      }
+      // For timeout (3) or position unavailable (2), try Capacitor as fallback
+    }
+  }
 
-  // Try Capacitor native geolocation first (better reliability on iOS/Android)
+  // 2) Fallback: Capacitor native geolocation plugin
   try {
+    console.log('[GPS] Attempting Capacitor geolocation...');
     const { Geolocation } = await import('@capacitor/geolocation');
-    
-    // Request permissions first on native
+
     const permStatus = await Geolocation.checkPermissions();
+    console.log('[GPS] Capacitor permission status:', permStatus.location);
+
     if (permStatus.location === 'denied') {
       const requested = await Geolocation.requestPermissions();
+      console.log('[GPS] Capacitor permission after request:', requested.location);
       if (requested.location === 'denied') {
         throw new Error('Location permission denied');
       }
     }
-    
+
     const position = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: opts.enableHighAccuracy,
-      timeout: opts.timeout,
+      enableHighAccuracy: true,
+      timeout: timeoutMs,
     });
-    
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    };
-  } catch (capacitorError: any) {
-    // If Capacitor plugin not available (web), fall through to browser API
-    if (capacitorError?.message?.includes('not implemented') || 
-        capacitorError?.code === 'UNIMPLEMENTED' ||
-        !('Capacitor' in window)) {
-      // Fall through to browser geolocation
-    } else {
-      // Re-throw actual Capacitor errors (permission denied, timeout, etc.)
-      throw capacitorError;
-    }
+    console.log('[GPS] Capacitor geolocation succeeded:', position.coords.latitude, position.coords.longitude);
+    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+  } catch (capError: any) {
+    console.warn('[GPS] Capacitor geolocation failed:', capError?.message || capError);
+    // If Capacitor not available, just throw
+    throw new Error(capError?.message || 'Unable to get location');
   }
-
-  // Fallback: browser geolocation API
-  if (!navigator.geolocation) {
-    throw new Error('GPS is not available on this device');
-  }
-
-  const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: opts.enableHighAccuracy,
-      timeout: opts.timeout,
-    });
-  });
-
-  return {
-    latitude: pos.coords.latitude,
-    longitude: pos.coords.longitude,
-  };
 }
 
 interface UseCleanerTrackingOptions {
@@ -96,7 +92,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     if (!trackingIdRef.current) return;
 
     try {
-      const { latitude, longitude } = await getCurrentPosition({ timeout: 10000 });
+      const { latitude, longitude } = await getCurrentPosition(10000);
 
       await supabase
         .from('cleaner_location_tracking')
@@ -107,7 +103,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         } as any)
         .eq('id', trackingIdRef.current);
     } catch (err) {
-      console.warn('GPS update failed:', err);
+      console.warn('[GPS] Periodic update failed:', err);
     }
   }, []);
 
@@ -117,8 +113,11 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     latitude: number;
     longitude: number;
   } | null> => {
+    console.log('[GPS] startTracking called for booking:', bookingId);
+
     try {
-      const { latitude, longitude } = await getCurrentPosition({ timeout: 15000 });
+      const { latitude, longitude } = await getCurrentPosition(15000);
+      console.log('[GPS] Got position:', latitude, longitude);
 
       // Insert tracking record
       const { data, error } = await supabase
@@ -134,6 +133,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         .single();
 
       if (error) {
+        console.error('[GPS] Insert error:', error);
         // If there's already an active tracking for this booking, update it
         if (error.code === '23505') {
           const { data: existing } = await supabase
@@ -150,7 +150,6 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
               .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
               .eq('id', existing.id);
 
-            // Calculate ETA
             let etaMinutes: number | null = null;
             if (destinationAddress) {
               try {
@@ -175,13 +174,12 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
             };
           }
         }
-        console.error('Error inserting tracking:', error);
         return null;
       }
 
+      console.log('[GPS] Tracking record created:', data.id);
       trackingIdRef.current = data.id;
 
-      // Calculate ETA
       let etaMinutes: number | null = null;
       if (destinationAddress) {
         try {
@@ -206,16 +204,17 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       };
     } catch (err: any) {
       const message = err?.message || '';
-      if (err?.code === 1 || message.includes('denied')) {
-        toast.error('Location access denied. Please enable GPS permissions in your device settings.');
-      } else if (err?.code === 2 || message.includes('unavailable')) {
+      console.error('[GPS] startTracking failed:', message, err);
+
+      if (message.includes('denied')) {
+        toast.error('Location access denied. Please enable GPS in your device settings.');
+      } else if (message.includes('unavailable')) {
         toast.error('Unable to determine your location. Please try again.');
-      } else if (err?.code === 3 || message.includes('timeout')) {
+      } else if (message.includes('timeout') || err?.code === 3) {
         toast.error('Location request timed out. Please try again.');
       } else {
         toast.error('Failed to get your location');
       }
-      console.error('GPS tracking start failed:', err);
       return null;
     }
   }, [bookingId, staffId, organizationId, destinationAddress, updatePosition]);
