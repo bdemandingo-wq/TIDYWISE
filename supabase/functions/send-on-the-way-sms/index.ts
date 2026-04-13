@@ -11,6 +11,7 @@ interface OnTheWayRequest {
   bookingId: string;
   staffId: string;
   etaMinutes?: number;
+  trackingToken?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -32,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bookingId, staffId, etaMinutes } = await req.json() as OnTheWayRequest;
+    const { bookingId, staffId, etaMinutes, trackingToken } = await req.json() as OnTheWayRequest;
 
     if (!bookingId || !staffId) {
       console.error("[send-on-the-way-sms] Missing bookingId or staffId");
@@ -153,21 +154,33 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get business settings for company name and admin phone
+    // Get business settings for company name, admin phone, and app URL
     const { data: businessSettings } = await supabase
       .from('business_settings')
-      .select('company_name, company_phone')
+      .select('company_name, company_phone, app_url')
       .eq('organization_id', booking.organization_id)
       .maybeSingle();
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
     const adminPhone = businessSettings?.company_phone;
 
+    // Resolve the app URL for tracking link
+    let appBaseUrl = businessSettings?.app_url || Deno.env.get("PROJECT_URL") || '';
+    appBaseUrl = appBaseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!appBaseUrl) {
+      appBaseUrl = 'jointidywise.lovable.app';
+    }
+
     // Build customer SMS message
     let customerMessage = `🚗 ${staff.name} from ${companyName} is on the way to your appointment!`;
     
     if (etaMinutes && etaMinutes > 0) {
       customerMessage += `\n\nEstimated arrival: ~${etaMinutes} minutes`;
+    }
+
+    // Add tracking link if available
+    if (trackingToken) {
+      customerMessage += `\n\n📍 Track your cleaner live:\nhttps://${appBaseUrl}/track/${trackingToken}`;
     }
     
     customerMessage += `\n\nBooking #${booking.booking_number}`;
