@@ -33,7 +33,7 @@ import {
   Plus,
   Check,
   Bell,
-  Navigation,
+  Navigation as NavigationIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
