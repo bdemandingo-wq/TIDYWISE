@@ -117,6 +117,7 @@ const RedirectPage = lazy(() => import("./pages/RedirectPage"));
 const CardSavedPage = lazy(() => import("./pages/CardSavedPage"));
 const TipPage = lazy(() => import("./pages/TipPage"));
 const DepositPage = lazy(() => import("./pages/DepositPage"));
+const TrackCleanerPage = lazy(() => import("./pages/TrackCleanerPage"));
 
 // Optimized QueryClient with stale time and caching
 const queryClient = new QueryClient({
