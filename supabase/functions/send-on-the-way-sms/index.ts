@@ -251,32 +251,43 @@ const handler = async (req: Request): Promise<Response> => {
       return { success: true, messageId: result.data?.id };
     };
 
-    // Send customer SMS
-    const customerResult = await sendSms(formattedCustomerPhone, customerMessage, 'customer');
+    // Check notification preferences (default to true if not set)
+    const notifyClient = smsSettings.notify_client_on_the_way !== false;
+    const notifyAdmin = smsSettings.notify_admin_on_the_way !== false;
 
-    if (!customerResult.success) {
-      let errorCode = 'SMS_FAILED';
-      let userMessage = 'SMS delivery failed. Please try again later.';
+    // Send customer SMS if enabled
+    let customerResult = { success: true, messageId: undefined as string | undefined };
+    if (notifyClient) {
+      customerResult = await sendSms(formattedCustomerPhone, customerMessage, 'customer');
 
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: userMessage,
-          errorCode,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (!customerResult.success) {
+        let errorCode = 'SMS_FAILED';
+        let userMessage = 'SMS delivery failed. Please try again later.';
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: userMessage,
+            errorCode,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      console.log("[send-on-the-way-sms] Client notification disabled by org settings, skipping");
     }
 
-    // Send admin SMS if admin phone is configured
+    // Send admin SMS if admin phone is configured and enabled
     let adminSent = false;
-    if (adminPhone) {
+    if (notifyAdmin && adminPhone) {
       const formattedAdminPhone = formatPhoneNumber(adminPhone);
       const adminResult = await sendSms(formattedAdminPhone, adminMessage, 'admin');
       adminSent = adminResult.success;
       if (!adminResult.success) {
         console.warn(`[send-on-the-way-sms] Admin notification failed, but customer was notified`);
       }
+    } else if (!notifyAdmin) {
+      console.log(`[send-on-the-way-sms] Admin notification disabled by org settings, skipping`);
     } else {
       console.log(`[send-on-the-way-sms] No admin phone configured, skipping admin notification`);
     }
