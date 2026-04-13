@@ -199,6 +199,7 @@ const App = () => (
                       <Route path="/blog/*" element={<Navigate to="/login" replace />} />
                       <Route path="/compare/*" element={<Navigate to="/login" replace />} />
                       <Route path="/features/*" element={<Navigate to="/login" replace />} />
+                      <Route path="/cleaning-business-software/*" element={<Navigate to="/login" replace />} />
 
                       {/* Staff Portal */}
                       <Route path="/staff/login" element={<StaffLoginPage />} />

@@ -130,6 +130,51 @@ const faqs = [
   },
 ];
 
+const locationStates = [
+  { slug: "california",     name: "California" },
+  { slug: "texas",          name: "Texas" },
+  { slug: "florida",        name: "Florida" },
+  { slug: "new-york",       name: "New York" },
+  { slug: "illinois",       name: "Illinois" },
+  { slug: "pennsylvania",   name: "Pennsylvania" },
+  { slug: "georgia",        name: "Georgia" },
+  { slug: "washington",     name: "Washington" },
+  { slug: "colorado",       name: "Colorado" },
+  { slug: "arizona",        name: "Arizona" },
+  { slug: "north-carolina", name: "North Carolina" },
+  { slug: "ohio",           name: "Ohio" },
+  { slug: "michigan",       name: "Michigan" },
+  { slug: "virginia",       name: "Virginia" },
+  { slug: "tennessee",      name: "Tennessee" },
+  { slug: "new-jersey",     name: "New Jersey" },
+  { slug: "massachusetts",  name: "Massachusetts" },
+  { slug: "maryland",       name: "Maryland" },
+  { slug: "minnesota",      name: "Minnesota" },
+  { slug: "nevada",         name: "Nevada" },
+  { slug: "oregon",         name: "Oregon" },
+];
+
+const locationCities = [
+  { slug: "los-angeles",   name: "Los Angeles, CA" },
+  { slug: "new-york-city", name: "New York City, NY" },
+  { slug: "chicago",       name: "Chicago, IL" },
+  { slug: "houston",       name: "Houston, TX" },
+  { slug: "phoenix",       name: "Phoenix, AZ" },
+  { slug: "san-antonio",   name: "San Antonio, TX" },
+  { slug: "dallas",        name: "Dallas, TX" },
+  { slug: "austin",        name: "Austin, TX" },
+  { slug: "san-diego",     name: "San Diego, CA" },
+  { slug: "charlotte",     name: "Charlotte, NC" },
+  { slug: "seattle",       name: "Seattle, WA" },
+  { slug: "denver",        name: "Denver, CO" },
+  { slug: "nashville",     name: "Nashville, TN" },
+  { slug: "atlanta",       name: "Atlanta, GA" },
+  { slug: "las-vegas",     name: "Las Vegas, NV" },
+  { slug: "miami",         name: "Miami, FL" },
+  { slug: "philadelphia",  name: "Philadelphia, PA" },
+  { slug: "portland",      name: "Portland, OR" },
+];
+
 export default function CleaningBusinessSoftware() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -362,6 +407,52 @@ export default function CleaningBusinessSoftware() {
                 <div className="px-6 pb-5 text-muted-foreground leading-relaxed">{item.a}</div>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Location Hub */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
+              Cleaning Business Software Across the US
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              TidyWise works for cleaning businesses in every market. Find resources specific to your state or city.
+            </p>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">By State</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {locationStates.map(({ slug, name }) => (
+                <Link
+                  key={slug}
+                  to={`/cleaning-business-software/${slug}`}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-card rounded-lg border border-border hover:border-primary/50 hover:text-primary text-sm text-foreground transition-all"
+                >
+                  <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                  {name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">By City</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {locationCities.map(({ slug, name }) => (
+                <Link
+                  key={slug}
+                  to={`/cleaning-business-software/${slug}`}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-card rounded-lg border border-border hover:border-primary/50 hover:text-primary text-sm text-foreground transition-all"
+                >
+                  <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                  {name}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>
