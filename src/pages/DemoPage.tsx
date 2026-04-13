@@ -24,7 +24,7 @@ const testimonials = [
     location: "Houston, TX",
   },
   {
-    quote: "Emmanuel walked me through everything personally. Best 20 minutes I spent all year.",
+    quote: "Emmanuel walked me through everything personally. Best 30 minutes I spent all year.",
     author: "Carlos M.",
     role: "Cleaning Company",
     location: "Miami, FL",
@@ -32,7 +32,7 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "How long is the demo?", a: "20 minutes — we respect your time." },
+  { q: "How long is the demo?", a: "30 minutes — we respect your time." },
   { q: "Is there any obligation?", a: "Zero. It's completely free." },
   { q: "What will I see in the demo?", a: "Bookings, scheduling, payments, client management, automations, and how to set it all up for your specific business." },
   { q: "What if I'm not tech savvy?", a: "Perfect — TidyWise was built for cleaning business owners, not developers." },
@@ -47,7 +47,7 @@ export default function DemoPage() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Book a Free TidyWise Demo | Live Walkthrough"
-        description="Schedule a free 20-minute demo with Emmanuel. See the full TidyWise platform live and get your cleaning business automated same day."
+        description="Schedule a free 30-minute demo with Emmanuel. See the full TidyWise platform live and get your cleaning business automated same day."
         canonical="/demo"
         ogImage="/images/tidywise-og.png"
       />
@@ -88,14 +88,14 @@ export default function DemoPage() {
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
                 <Calendar className="h-4 w-4" />
-                Free 20-Minute Demo
+                Free 30-Minute Demo
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold text-foreground leading-tight mb-6">
                 Book Your Free<br />
                 <span className="text-primary">TidyWise Demo</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Book a free 20-minute call with Emmanuel. We'll walk through the entire platform live and answer every question you have.
+                Book a free 30-minute call with Emmanuel. We'll walk through the entire platform live and answer every question you have.
               </p>
 
               <div className="space-y-3 mb-10">
