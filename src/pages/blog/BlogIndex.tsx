@@ -87,6 +87,46 @@ const staticPosts = [
     date: "April 2026",
     featured: false,
     isStatic: true
+  },
+  {
+    slug: "scheduling-software-for-cleaning-business",
+    title: "Scheduling Software for Cleaning Businesses (2026 Guide)",
+    excerpt: "What makes scheduling different for cleaning businesses, which features actually matter, and how to choose the right platform for your maid service.",
+    category: "Software",
+    readTime: "8 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "invoicing-software-for-cleaning-business",
+    title: "Invoicing Software for Cleaning Businesses — Get Paid Faster",
+    excerpt: "Automatic invoices, recurring billing, card-on-file charging, and deposit collection — how the right invoicing software eliminates payment chasing.",
+    category: "Payments",
+    readTime: "7 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "maid-service-software",
+    title: "Best Maid Service Software in 2026 — Complete Buyer's Guide",
+    excerpt: "Compare the best maid service software for scheduling, invoicing, payroll, and client management. What to look for and how the top options stack up.",
+    category: "Software Reviews",
+    readTime: "10 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
+  },
+  {
+    slug: "cleaning-business-management-software",
+    title: "Cleaning Business Management Software — What You Actually Need",
+    excerpt: "A practical guide to what cleaning business management software does, which modules matter most, and how to evaluate your options without getting lost in feature lists.",
+    category: "Operations",
+    readTime: "9 min read",
+    date: "April 2026",
+    featured: false,
+    isStatic: true
   }
 ];
 

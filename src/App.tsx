@@ -98,9 +98,15 @@ const BestSoftwareForCleaners = lazy(() => import("./pages/blog/BestSoftwareForC
 const AutomateCleaningCompany = lazy(() => import("./pages/blog/AutomateCleaningCompany"));
 const PayrollSoftwareForCleaners = lazy(() => import("./pages/blog/PayrollSoftwareForCleaners"));
 const GPSTrackingForCleaners = lazy(() => import("./pages/blog/GPSTrackingForCleaners"));
+const SchedulingSoftwareForCleaners = lazy(() => import("./pages/blog/SchedulingSoftwareForCleaners"));
+const InvoicingSoftwareForCleaners = lazy(() => import("./pages/blog/InvoicingSoftwareForCleaners"));
+const MaidServiceSoftware = lazy(() => import("./pages/blog/MaidServiceSoftware"));
+const CleaningBusinessManagementSoftware = lazy(() => import("./pages/blog/CleaningBusinessManagementSoftware"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const CompareJobber = lazy(() => import("./pages/compare/CompareJobber"));
 const CompareBookingKoala = lazy(() => import("./pages/compare/CompareBookingKoala"));
+const CompareZenMaid = lazy(() => import("./pages/compare/CompareZenMaid"));
+const CompareServiceTitan = lazy(() => import("./pages/compare/CompareServiceTitan"));
 const AutomatedDispatching = lazy(() => import("./pages/features/AutomatedDispatching"));
 const QuoteSoftware = lazy(() => import("./pages/features/QuoteSoftware"));
 const SMSNotifications = lazy(() => import("./pages/features/SMSNotifications"));
@@ -286,11 +292,17 @@ const App = () => (
                     <Route path="/blog/how-to-automate-cleaning-company" element={<AutomateCleaningCompany />} />
                     <Route path="/blog/payroll-software-for-cleaning-businesses" element={<PayrollSoftwareForCleaners />} />
                     <Route path="/blog/gps-tracking-cleaning-business" element={<GPSTrackingForCleaners />} />
+                    <Route path="/blog/scheduling-software-for-cleaning-business" element={<SchedulingSoftwareForCleaners />} />
+                    <Route path="/blog/invoicing-software-for-cleaning-business" element={<InvoicingSoftwareForCleaners />} />
+                    <Route path="/blog/maid-service-software" element={<MaidServiceSoftware />} />
+                    <Route path="/blog/cleaning-business-management-software" element={<CleaningBusinessManagementSoftware />} />
 
                     {/* Comparison Pages */}
                     <Route path="/compare/jobber" element={<CompareJobber />} />
                     <Route path="/compare/booking-koala" element={<CompareBookingKoala />} />
                     <Route path="/compare/housecall-pro" element={<CompareHousecallPro />} />
+                    <Route path="/compare/zenmaid" element={<CompareZenMaid />} />
+                    <Route path="/compare/servicetitan" element={<CompareServiceTitan />} />
                     
                     {/* Feature Pages */}
                     <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />

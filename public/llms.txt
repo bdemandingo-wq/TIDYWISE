@@ -1,0 +1,45 @@
+# TIDYWISE — Cleaning Business Management Software
+
+TIDYWISE is an all-in-one software platform built specifically for residential cleaning businesses and maid services. It handles scheduling, online booking, invoicing, payroll, GPS tracking, CRM, and profit reporting in a single platform.
+
+## What TIDYWISE Does
+
+- **Online booking**: Public booking page with instant quotes based on home size (bedrooms, bathrooms, square footage). Clients book without calling.
+- **Scheduling**: Drag-and-drop calendar, recurring job management, automated cleaner assignments, real-time SMS reminders.
+- **Invoicing**: Automatic invoices when jobs are marked complete, card-on-file auto-charge for recurring clients, Stripe payment processing.
+- **Payroll**: Automated wage calculation from completed jobs — percentage of job value, tips, mileage reimbursement. Generates payroll reports.
+- **GPS tracking**: Real-time cleaner location, arrival verification, automatic mileage logging.
+- **CRM**: Client contact history, entry instructions, preferred products, cleaning notes per property.
+- **P&L reporting**: Profit-and-loss by service type, revenue by cleaner, profit per job.
+- **Cleaner mobile app**: iOS and Android app for cleaners to see schedule, check in, mark complete, upload photos.
+
+## Who It's For
+
+- Residential cleaning businesses and maid services
+- Solo operators to teams of 20+ cleaners
+- Businesses doing 10 to 500+ bookings per month
+- Both 1099 contractor and W-2 employee models
+
+## Pricing
+
+- Free forever tier (core scheduling, invoicing, booking)
+- Premium: $50/month flat rate — unlimited users, unlimited bookings
+- 2-month free trial, no credit card required
+- No per-user pricing, no per-booking fees
+
+## Key Pages
+
+- Homepage: https://www.jointidywise.com
+- Pricing: https://www.jointidywise.com/pricing
+- Machine-readable pricing: https://www.jointidywise.com/pricing.md
+- Blog: https://www.jointidywise.com/blog
+- Compare Jobber: https://www.jointidywise.com/compare/jobber
+- Compare ZenMaid: https://www.jointidywise.com/compare/zenmaid
+- Compare Housecall Pro: https://www.jointidywise.com/compare/housecall-pro
+- Compare ServiceTitan: https://www.jointidywise.com/compare/servicetitan
+- Features overview: https://www.jointidywise.com/cleaning-business-software
+
+## Contact
+
+- Website: https://www.jointidywise.com
+- Sign up: https://www.jointidywise.com/signup

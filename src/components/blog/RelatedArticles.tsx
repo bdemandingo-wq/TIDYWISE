@@ -108,6 +108,26 @@ export const allArticles: RelatedArticle[] = [
     title: "Payroll Software for Cleaning Businesses — Free Forever",
     category: "Features",
   },
+  {
+    slug: "/blog/scheduling-software-for-cleaning-business",
+    title: "Scheduling Software for Cleaning Businesses (2026 Guide)",
+    category: "Software",
+  },
+  {
+    slug: "/blog/invoicing-software-for-cleaning-business",
+    title: "Invoicing Software for Cleaning Businesses — Get Paid Faster",
+    category: "Payments",
+  },
+  {
+    slug: "/blog/maid-service-software",
+    title: "Best Maid Service Software in 2026 — Buyer's Guide",
+    category: "Software Reviews",
+  },
+  {
+    slug: "/blog/cleaning-business-management-software",
+    title: "Cleaning Business Management Software — What You Actually Need",
+    category: "Operations",
+  },
   // Comparison Pages
   {
     slug: "/compare/jobber",
@@ -122,6 +142,16 @@ export const allArticles: RelatedArticle[] = [
   {
     slug: "/compare/housecall-pro",
     title: "TidyWise vs Housecall Pro Alternative",
+    category: "Comparison",
+  },
+  {
+    slug: "/compare/zenmaid",
+    title: "TidyWise vs ZenMaid: Which Cleaning Software Wins?",
+    category: "Comparison",
+  },
+  {
+    slug: "/compare/servicetitan",
+    title: "TidyWise vs ServiceTitan for Cleaning Businesses",
     category: "Comparison",
   },
 ];
