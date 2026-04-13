@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, Clipboard
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 import { useMapsNavigation } from '@/hooks/useMapsNavigation';
+import { useCleanerTracking } from '@/hooks/useCleanerTracking';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -60,6 +61,22 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
 
+  const destAddress = [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ');
+
+  const { startTracking, stopTracking, isTracking } = useCleanerTracking({
+    bookingId: booking.id,
+    staffId: staffInfo.id || '',
+    organizationId: booking.organization_id || '',
+    destinationAddress: destAddress || undefined,
+  });
+
+  // Stop tracking when booking moves to in_progress or completed
+  useEffect(() => {
+    if (isTracking && (booking.status === 'in_progress' || booking.status === 'completed')) {
+      stopTracking();
+    }
+  }, [booking.status, isTracking, stopTracking]);
+
   const handleOnTheWayClick = async () => {
     if (!staffInfo.id || !booking.customer?.phone) {
       toast.error('Customer phone number is required');
@@ -68,17 +85,26 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
     setIsSendingOnTheWay(true);
     try {
+      // Start GPS tracking first
+      const trackingResult = await startTracking();
+
       const { data, error } = await supabase.functions.invoke('send-on-the-way-sms', {
         body: {
           bookingId: booking.id,
           staffId: staffInfo.id,
+          etaMinutes: trackingResult?.etaMinutes || undefined,
+          trackingToken: trackingResult?.trackingToken || undefined,
         }
       });
 
       if (error) throw error;
 
       if (data?.success) {
-        toast.success('Customer notified that you\'re on the way!');
+        toast.success(
+          trackingResult
+            ? 'Customer notified with live tracking link!'
+            : 'Customer notified that you\'re on the way!'
+        );
         setOnTheWaySent(true);
       } else {
         toast.error(data?.error || 'Failed to send notification');

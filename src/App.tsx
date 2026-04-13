@@ -117,6 +117,7 @@ const RedirectPage = lazy(() => import("./pages/RedirectPage"));
 const CardSavedPage = lazy(() => import("./pages/CardSavedPage"));
 const TipPage = lazy(() => import("./pages/TipPage"));
 const DepositPage = lazy(() => import("./pages/DepositPage"));
+const TrackCleanerPage = lazy(() => import("./pages/TrackCleanerPage"));
 
 // Optimized QueryClient with stale time and caching
 const queryClient = new QueryClient({
@@ -174,6 +175,7 @@ const App = () => (
                       <Route path="/card-saved" element={<CardSavedPage />} />
                       <Route path="/tip/:token" element={<TipPage />} />
                       <Route path="/deposit/:token" element={<DepositPage />} />
+                      <Route path="/track/:token" element={<TrackCleanerPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
                       {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
@@ -259,8 +261,9 @@ const App = () => (
                     <Route path="/c/:code" element={<RedirectPage />} />
                     <Route path="/card-saved" element={<CardSavedPage />} />
                     <Route path="/tip/:token" element={<TipPage />} />
-                    <Route path="/deposit/:token" element={<DepositPage />} />
-                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                     <Route path="/deposit/:token" element={<DepositPage />} />
+                     <Route path="/track/:token" element={<TrackCleanerPage />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<PricingPage />} />
                      <Route path="/demo" element={<DemoPage />} />

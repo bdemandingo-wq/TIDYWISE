@@ -1601,6 +1601,74 @@ export type Database = {
           },
         ]
       }
+      cleaner_location_tracking: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          latitude: number
+          longitude: number
+          organization_id: string
+          recorded_at: string
+          staff_id: string
+          tracking_token: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          latitude: number
+          longitude: number
+          organization_id: string
+          recorded_at?: string
+          staff_id: string
+          tracking_token?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          latitude?: number
+          longitude?: number
+          organization_id?: string
+          recorded_at?: string
+          staff_id?: string
+          tracking_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_location_tracking_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_location_tracking_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_location_tracking_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_location_tracking_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_notifications: {
         Row: {
           booking_id: string | null
