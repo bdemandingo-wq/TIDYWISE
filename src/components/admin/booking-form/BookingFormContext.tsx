@@ -578,12 +578,14 @@ export function BookingFormProvider({
         setCity(defaultLoc.city || '');
         setState(defaultLoc.state || '');
         setZipCode(defaultLoc.zip_code || '');
+        setSelectedLocationId(defaultLoc.id);
       } else {
         setAddress(selectedCustomer.address || '');
         setAptSuite((selectedCustomer as any).apt_suite || '');
         setCity(selectedCustomer.city || '');
         setState(selectedCustomer.state || '');
         setZipCode(selectedCustomer.zip_code || '');
+        setSelectedLocationId(null);
       }
     }
   }, [selectedCustomerId, selectedCustomer, customerTab, booking, customerLocations]);
