@@ -1,0 +1,1 @@
+ALTER TABLE public.locations ADD COLUMN price_override numeric DEFAULT NULL;

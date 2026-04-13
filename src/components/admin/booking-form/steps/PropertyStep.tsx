@@ -20,6 +20,7 @@ export function PropertyStep() {
     customerLocations,
     customerTab,
     selectedCustomerId,
+    setSelectedLocationId,
   } = useBookingForm();
 
   const handleLocationSelect = (locationId: string) => {
@@ -29,6 +30,7 @@ export function PropertyStep() {
       setCity('');
       setState('');
       setZipCode('');
+      setSelectedLocationId(null);
       return;
     }
     const loc = customerLocations.find(l => l.id === locationId);
@@ -38,6 +40,7 @@ export function PropertyStep() {
       setCity(loc.city || '');
       setState(loc.state || '');
       setZipCode(loc.zip_code || '');
+      setSelectedLocationId(loc.id);
     }
   };
 
@@ -75,6 +78,9 @@ export function PropertyStep() {
                     <SelectItem key={loc.id} value={loc.id}>
                       <span className="font-medium">{loc.name}</span>
                       {loc.is_primary && <span className="text-xs text-muted-foreground ml-1">(Default)</span>}
+                      {(loc as any).price_override != null && (loc as any).price_override > 0 && (
+                        <span className="text-xs text-emerald-600 ml-1">(${(loc as any).price_override})</span>
+                      )}
                       <span className="text-muted-foreground ml-2 text-xs">
                         {[loc.address, loc.city, loc.state].filter(Boolean).join(', ')}
                       </span>
