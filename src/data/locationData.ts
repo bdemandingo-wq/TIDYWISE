@@ -69,7 +69,7 @@ export const locationData: Record<string, LocationData> = {
     intro: "Florida's cleaning market is uniquely shaped by its snowbird population, booming short-term rental sector, and year-round demand. Markets like Miami, Orlando, Tampa, and Jacksonville each have distinct client profiles—from luxury waterfront condos to Airbnb vacation rentals that need fast turnovers between guests.",
     marketContext: "Vacation rental cleaning is a major revenue driver in Florida, with turnover cleans running $80–$200 per visit and high repeat frequency. Managing guest-driven scheduling with last-minute changes makes reliable software essential.",
     topCities: ["Miami", "Orlando", "Tampa", "Jacksonville", "Fort Lauderdale", "Boca Raton", "Naples", "Sarasota"],
-    topCitySlugs: ["miami"],
+    topCitySlugs: ["miami", "tampa"],
     faqs: [
       {
         question: "How do I start a cleaning business in Florida?",
@@ -253,7 +253,7 @@ export const locationData: Record<string, LocationData> = {
     intro: "North Carolina's cleaning market has grown dramatically alongside Charlotte's rise as a banking hub and the Research Triangle's tech and pharma expansion. Charlotte, Raleigh, Durham, and Chapel Hill are the primary markets, but Asheville's vacation rental market and the Outer Banks' short-term rental sector add significant seasonal demand.",
     marketContext: "North Carolina's population has grown faster than almost any other state, bringing tens of thousands of new households that need cleaning services. The influx of corporate relocations to Charlotte and the Triangle means a steady stream of move-in/move-out clients.",
     topCities: ["Charlotte", "Raleigh", "Durham", "Greensboro", "Winston-Salem", "Fayetteville", "Asheville", "Chapel Hill"],
-    topCitySlugs: ["charlotte"],
+    topCitySlugs: ["charlotte", "raleigh"],
     faqs: [
       {
         question: "How do I start a cleaning business in North Carolina?",
@@ -414,7 +414,7 @@ export const locationData: Record<string, LocationData> = {
     intro: "Maryland's cleaning market is heavily influenced by Washington DC—particularly Montgomery County (Bethesda, Chevy Chase, Rockville, Potomac) and Howard County (Columbia, Ellicott City), which are among the wealthiest counties in the United States. The DC suburb market features dual-income federal and private sector professional households who are reliable, high-value cleaning clients.",
     marketContext: "Maryland's proximity to DC means many clients are federal employees or contractors with stable, predictable incomes. The Annapolis, Eastern Shore, and Ocean City markets add a vacation rental dimension that creates seasonal peaks.",
     topCities: ["Baltimore", "Silver Spring", "Rockville", "Bethesda", "Gaithersburg", "Annapolis", "Columbia", "Frederick"],
-    topCitySlugs: [],
+    topCitySlugs: ["baltimore"],
     faqs: [
       {
         question: "How do I start a cleaning business in Maryland?",
@@ -437,7 +437,7 @@ export const locationData: Record<string, LocationData> = {
     intro: "Minnesota's cleaning market centers on the Minneapolis–Saint Paul metro and its affluent suburbs—Edina, Eden Prairie, Wayzata, Minnetonka, and Woodbury. The Twin Cities have a large Scandinavian cultural heritage that traditionally values clean, well-maintained homes, creating a clientele that views professional cleaning as a regular household expense rather than a luxury.",
     marketContext: "Minnesota's harsh winters (frequent sub-zero temperatures and heavy snowfall) significantly affect scheduling reliability. Building schedule flexibility into your calendar—and having a solid client communication system for weather-related delays—is essential for Minnesota cleaning businesses.",
     topCities: ["Minneapolis", "Saint Paul", "Rochester", "Bloomington", "Brooklyn Park", "Plymouth", "Edina", "Woodbury"],
-    topCitySlugs: [],
+    topCitySlugs: ["minneapolis"],
     faqs: [
       {
         question: "How do I start a cleaning business in Minnesota?",
