@@ -240,6 +240,7 @@ export function BookingDetailsDialog({
           <AdminLiveTracking
             bookingId={booking.id}
             address={[booking.address, booking.city, booking.state].filter(Boolean).join(', ')}
+            bookingStatus={booking.status}
           />
         </div>
 
