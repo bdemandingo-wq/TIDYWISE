@@ -3573,6 +3573,7 @@ export type Database = {
           name: string
           organization_id: string | null
           phone: string | null
+          price_override: number | null
           service_area_zip_codes: string[] | null
           state: string | null
           updated_at: string
@@ -3591,6 +3592,7 @@ export type Database = {
           name: string
           organization_id?: string | null
           phone?: string | null
+          price_override?: number | null
           service_area_zip_codes?: string[] | null
           state?: string | null
           updated_at?: string
@@ -3609,6 +3611,7 @@ export type Database = {
           name?: string
           organization_id?: string | null
           phone?: string | null
+          price_override?: number | null
           service_area_zip_codes?: string[] | null
           state?: string | null
           updated_at?: string
