@@ -46,6 +46,7 @@ interface HistoricalTracking {
 interface SmsSettings {
   notify_admin_on_the_way: boolean;
   notify_client_on_the_way: boolean;
+  notify_client_distance_eta: boolean;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
