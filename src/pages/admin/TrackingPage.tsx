@@ -46,6 +46,7 @@ interface HistoricalTracking {
 interface SmsSettings {
   notify_admin_on_the_way: boolean;
   notify_client_on_the_way: boolean;
+  notify_client_distance_eta: boolean;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
@@ -202,7 +203,7 @@ export default function TrackingPage() {
   const [historicalJobs, setHistoricalJobs] = useState<HistoricalTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true });
+  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true, notify_client_distance_eta: true });
   const [savingToggle, setSavingToggle] = useState(false);
 
   const fetchActive = useCallback(async () => {
@@ -249,13 +250,14 @@ export default function TrackingPage() {
     if (!orgId) return;
     const { data } = await supabase
       .from('organization_sms_settings')
-      .select('notify_admin_on_the_way, notify_client_on_the_way')
+      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta')
       .eq('organization_id', orgId)
       .maybeSingle();
     if (data) {
       setSmsSettings({
         notify_admin_on_the_way: data.notify_admin_on_the_way ?? true,
         notify_client_on_the_way: data.notify_client_on_the_way ?? true,
+        notify_client_distance_eta: (data as any).notify_client_distance_eta ?? true,
       });
     }
   }, [orgId]);
@@ -336,6 +338,17 @@ export default function TrackingPage() {
               />
               <Label htmlFor="notify-client" className="text-sm cursor-pointer">
                 Notify Client when cleaner goes On My Way
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client-eta"
+                checked={smsSettings.notify_client_distance_eta}
+                onCheckedChange={(v) => handleToggle('notify_client_distance_eta', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client-eta" className="text-sm cursor-pointer">
+                Include distance &amp; ETA in client SMS
               </Label>
             </div>
           </div>

@@ -126,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch SMS settings
     const { data: smsSettings, error: settingsError } = await supabase
       .from('organization_sms_settings')
-      .select('openphone_api_key, openphone_phone_number_id, sms_enabled, notify_admin_on_the_way, notify_client_on_the_way')
+      .select('openphone_api_key, openphone_phone_number_id, sms_enabled, notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta')
       .eq('organization_id', booking.organization_id)
       .maybeSingle();
 
@@ -171,10 +171,13 @@ const handler = async (req: Request): Promise<Response> => {
       appBaseUrl = 'jointidywise.lovable.app';
     }
 
+    // Check if distance/ETA should be included in client SMS
+    const includeClientEta = smsSettings.notify_client_distance_eta !== false;
+
     // Build customer SMS message
     let customerMessage = `🚗 ${staff.name} from ${companyName} is on the way to your appointment!`;
     
-    if (etaMinutes && etaMinutes > 0) {
+    if (includeClientEta && etaMinutes && etaMinutes > 0) {
       customerMessage += `\n\nEstimated arrival: ~${etaMinutes} minutes`;
     }
 
