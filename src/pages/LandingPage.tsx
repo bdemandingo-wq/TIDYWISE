@@ -542,14 +542,14 @@ export default function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
                 <Calendar className="h-4 w-4" />
-                Free 20-Minute Demo
+                Free 30-Minute Demo
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight mb-4">
                 See TidyWise{" "}
                 <span className="text-gradient-hero">in Action</span>
               </h2>
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Book a free 20-minute call with Emmanuel. We'll walk through the entire platform live and answer every question you have.
+                Book a free 30-minute call with Emmanuel. We'll walk through the entire platform live and answer every question you have.
               </p>
               <div className="space-y-3 mb-8">
                 {[

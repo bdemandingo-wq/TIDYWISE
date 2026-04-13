@@ -24,7 +24,7 @@ const testimonials = [
     location: "Houston, TX",
   },
   {
-    quote: "Emmanuel walked me through everything personally. Best 20 minutes I spent all year.",
+    quote: "Emmanuel walked me through everything personally. Best 30 minutes I spent all year.",
     author: "Carlos M.",
     role: "Cleaning Company",
     location: "Miami, FL",
@@ -32,7 +32,7 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "How long is the demo?", a: "20 minutes — we respect your time." },
+  { q: "How long is the demo?", a: "30 minutes — we respect your time." },
   { q: "Is there any obligation?", a: "Zero. It's completely free." },
   { q: "What will I see in the demo?", a: "Bookings, scheduling, payments, client management, automations, and how to set it all up for your specific business." },
   { q: "What if I'm not tech savvy?", a: "Perfect — TidyWise was built for cleaning business owners, not developers." },
