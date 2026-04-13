@@ -120,6 +120,7 @@ const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const CleaningBusinessSoftware = lazy(() => import("./pages/CleaningBusinessSoftware"));
+const LocationSoftwarePage = lazy(() => import("./pages/locations/LocationSoftwarePage"));
 const DemoPage = lazy(() => import("./pages/DemoPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
@@ -267,6 +268,7 @@ const App = () => (
                   {/* Public Routes - Critical Path */}
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/cleaning-business-software" element={<CleaningBusinessSoftware />} />
+                    <Route path="/cleaning-business-software/:locationSlug" element={<LocationSoftwarePage />} />
                     <Route path="/auth" element={<AuthPage />} />
 
                     {/* Public Routes - Lazy Loaded */}
