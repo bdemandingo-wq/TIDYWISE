@@ -1,16 +1,68 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { calculateDistanceMiles, estimateDriveMinutes } from '@/lib/distanceUtils';
 
-// Haversine distance in miles
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3959;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+/**
+ * Get current position using Capacitor native geolocation (preferred on mobile)
+ * or browser geolocation as fallback.
+ */
+async function getCurrentPosition(options?: { enableHighAccuracy?: boolean; timeout?: number }): Promise<{ latitude: number; longitude: number }> {
+  const opts = {
+    enableHighAccuracy: options?.enableHighAccuracy ?? true,
+    timeout: options?.timeout ?? 15000,
+  };
+
+  // Try Capacitor native geolocation first (better reliability on iOS/Android)
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    
+    // Request permissions first on native
+    const permStatus = await Geolocation.checkPermissions();
+    if (permStatus.location === 'denied') {
+      const requested = await Geolocation.requestPermissions();
+      if (requested.location === 'denied') {
+        throw new Error('Location permission denied');
+      }
+    }
+    
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: opts.enableHighAccuracy,
+      timeout: opts.timeout,
+    });
+    
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch (capacitorError: any) {
+    // If Capacitor plugin not available (web), fall through to browser API
+    if (capacitorError?.message?.includes('not implemented') || 
+        capacitorError?.code === 'UNIMPLEMENTED' ||
+        !('Capacitor' in window)) {
+      // Fall through to browser geolocation
+    } else {
+      // Re-throw actual Capacitor errors (permission denied, timeout, etc.)
+      throw capacitorError;
+    }
+  }
+
+  // Fallback: browser geolocation API
+  if (!navigator.geolocation) {
+    throw new Error('GPS is not available on this device');
+  }
+
+  const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: opts.enableHighAccuracy,
+      timeout: opts.timeout,
+    });
+  });
+
+  return {
+    latitude: pos.coords.latitude,
+    longitude: pos.coords.longitude,
+  };
 }
 
 interface UseCleanerTrackingOptions {
@@ -30,7 +82,6 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    // Mark tracking as inactive
     if (trackingIdRef.current) {
       await supabase
         .from('cleaner_location_tracking')
@@ -45,18 +96,13 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     if (!trackingIdRef.current) return;
 
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-        });
-      });
+      const { latitude, longitude } = await getCurrentPosition({ timeout: 10000 });
 
       await supabase
         .from('cleaner_location_tracking')
         .update({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
+          latitude,
+          longitude,
           recorded_at: new Date().toISOString(),
         } as any)
         .eq('id', trackingIdRef.current);
@@ -71,20 +117,8 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     latitude: number;
     longitude: number;
   } | null> => {
-    if (!navigator.geolocation) {
-      toast.error('GPS is not available on this device');
-      return null;
-    }
-
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-        });
-      });
-
-      const { latitude, longitude } = pos.coords;
+      const { latitude, longitude } = await getCurrentPosition({ timeout: 15000 });
 
       // Insert tracking record
       const { data, error } = await supabase
@@ -124,13 +158,12 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
                   body: { address: destinationAddress },
                 });
                 if (res.data?.lat && res.data?.lng) {
-                  const dist = haversineDistance(latitude, longitude, res.data.lat, res.data.lng);
-                  etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+                  const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
+                  etaMinutes = estimateDriveMinutes(dist);
                 }
               } catch { /* non-critical */ }
             }
 
-            // Start interval
             intervalRef.current = setInterval(updatePosition, 30000);
             setIsTracking(true);
 
@@ -156,13 +189,12 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
             body: { address: destinationAddress },
           });
           if (res.data?.lat && res.data?.lng) {
-            const dist = haversineDistance(latitude, longitude, res.data.lat, res.data.lng);
-            etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+            const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
+            etaMinutes = estimateDriveMinutes(dist);
           }
         } catch { /* non-critical */ }
       }
 
-      // Start periodic GPS updates
       intervalRef.current = setInterval(updatePosition, 30000);
       setIsTracking(true);
 
@@ -173,15 +205,17 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         longitude,
       };
     } catch (err: any) {
-      if (err?.code === 1) {
-        toast.error('Location access denied. Please enable GPS permissions.');
-      } else if (err?.code === 2) {
+      const message = err?.message || '';
+      if (err?.code === 1 || message.includes('denied')) {
+        toast.error('Location access denied. Please enable GPS permissions in your device settings.');
+      } else if (err?.code === 2 || message.includes('unavailable')) {
         toast.error('Unable to determine your location. Please try again.');
-      } else if (err?.code === 3) {
+      } else if (err?.code === 3 || message.includes('timeout')) {
         toast.error('Location request timed out. Please try again.');
       } else {
         toast.error('Failed to get your location');
       }
+      console.error('GPS tracking start failed:', err);
       return null;
     }
   }, [bookingId, staffId, organizationId, destinationAddress, updatePosition]);
