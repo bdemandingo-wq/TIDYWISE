@@ -4638,6 +4638,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          notify_admin_on_the_way: boolean
+          notify_client_on_the_way: boolean
           openphone_api_key: string | null
           openphone_phone_number_id: string | null
           organization_id: string
@@ -4650,6 +4652,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          notify_admin_on_the_way?: boolean
+          notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
           openphone_phone_number_id?: string | null
           organization_id: string
@@ -4662,6 +4666,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          notify_admin_on_the_way?: boolean
+          notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
           openphone_phone_number_id?: string | null
           organization_id?: string
