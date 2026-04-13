@@ -282,7 +282,7 @@ export function BookingFormProvider({
       if (!selectedCustomerId) return [];
       const { data, error } = await supabase
         .from('locations')
-        .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
+        .select('id, name, address, apt_suite, city, state, zip_code, is_primary, price_override')
         .eq('customer_id', selectedCustomerId)
         .order('is_primary', { ascending: false });
       if (error) return [];
