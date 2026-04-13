@@ -498,6 +498,7 @@ export function BookingFormProvider({
     setCity(booking.city || '');
     setState(booking.state || '');
     setZipCode(booking.zip_code || '');
+    setSelectedLocationId((booking as any).location_id || null);
     setFrequency(booking.frequency || 'one_time');
     setCustomFrequencyDays((booking as any).custom_frequency_days || null);
     setRecurringDaysOfWeek((booking as any).recurring_days_of_week || null);
