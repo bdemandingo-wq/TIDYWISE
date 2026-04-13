@@ -20,6 +20,7 @@ export function PropertyStep() {
     customerLocations,
     customerTab,
     selectedCustomerId,
+    setSelectedLocationId,
   } = useBookingForm();
 
   const handleLocationSelect = (locationId: string) => {
@@ -29,6 +30,7 @@ export function PropertyStep() {
       setCity('');
       setState('');
       setZipCode('');
+      setSelectedLocationId(null);
       return;
     }
     const loc = customerLocations.find(l => l.id === locationId);
@@ -38,6 +40,7 @@ export function PropertyStep() {
       setCity(loc.city || '');
       setState(loc.state || '');
       setZipCode(loc.zip_code || '');
+      setSelectedLocationId(loc.id);
     }
   };
 
