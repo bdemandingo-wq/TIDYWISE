@@ -85,9 +85,34 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
     setIsSendingOnTheWay(true);
     try {
-      // Start GPS tracking first
-      const trackingResult = await startTracking();
+      // Check GPS permission state before attempting tracking
+      let trackingResult: Awaited<ReturnType<typeof startTracking>> = null;
+      let gpsPermissionDenied = false;
 
+      try {
+        if (navigator.permissions) {
+          const permStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+          if (permStatus.state === 'denied') {
+            gpsPermissionDenied = true;
+            toast('Please enable location access in your phone settings to share your location with the client.', {
+              duration: 6000,
+            });
+          }
+        }
+      } catch {
+        // permissions API not supported, continue anyway
+      }
+
+      // Only attempt GPS if not denied
+      if (!gpsPermissionDenied) {
+        try {
+          trackingResult = await startTracking();
+        } catch (gpsError) {
+          console.warn('GPS tracking failed, proceeding with SMS only:', gpsError);
+        }
+      }
+
+      // Always send SMS regardless of GPS result
       const { data, error } = await supabase.functions.invoke('send-on-the-way-sms', {
         body: {
           bookingId: booking.id,
