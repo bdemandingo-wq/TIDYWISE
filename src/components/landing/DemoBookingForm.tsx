@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,7 @@ interface FormData {
   businessName: string;
   teamSize: string;
   biggestChallenge: string;
+  additionalDetails: string;
 }
 
 interface FormErrors {
@@ -123,6 +125,7 @@ export function DemoBookingForm() {
     businessName: "",
     teamSize: "",
     biggestChallenge: "",
+    additionalDetails: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -244,6 +247,7 @@ export function DemoBookingForm() {
         business_name: form.businessName.trim(),
         team_size: form.teamSize || null,
         biggest_challenge: form.biggestChallenge || null,
+        notes: form.additionalDetails.trim() || null,
         booked_date: bookedDate,
         booked_time: bookedTime,
         timezone: localTz,
@@ -261,6 +265,7 @@ export function DemoBookingForm() {
           business_name: form.businessName.trim(),
           team_size: form.teamSize || null,
           biggest_challenge: form.biggestChallenge || null,
+          notes: form.additionalDetails.trim() || null,
           preferred_days: [format(selectedDate, "EEEE")],
           preferred_time: formatTimeEST(selectedTime) + " EST",
           status: "booked",
@@ -448,6 +453,18 @@ export function DemoBookingForm() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Additional Details */}
+          <div>
+            <Label className="text-foreground mb-2 block">Anything specific you'd like to discuss? <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Textarea
+              placeholder="E.g. I need help setting up recurring bookings, I want to see the invoicing feature, etc."
+              value={form.additionalDetails}
+              onChange={(e) => setForm(prev => ({ ...prev, additionalDetails: e.target.value }))}
+              className="resize-none text-sm"
+              rows={3}
+            />
           </div>
 
           <Button
