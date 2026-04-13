@@ -1,24 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Clock, CheckCircle2, Navigation, Loader2 } from 'lucide-react';
+import { MapPin, Clock, CheckCircle2, Navigation, Loader2, Car } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-// Haversine distance in miles
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3959; // Earth radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function etaFromDistance(miles: number): number {
-  return Math.max(1, Math.round((miles / 25) * 60)); // 25 mph avg
-}
+import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime } from '@/lib/distanceUtils';
 
 interface TrackingData {
   latitude: number;
@@ -56,7 +42,6 @@ function TrackingMap({ cleanerLat, cleanerLng, destLat, destLng }: {
         attribution: '© OpenStreetMap contributors',
       }).addTo(map);
 
-      // Cleaner marker (blue)
       const cleanerIcon = L.divIcon({
         html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
         iconSize: [16, 16],
@@ -67,7 +52,6 @@ function TrackingMap({ cleanerLat, cleanerLng, destLat, destLng }: {
         .addTo(map)
         .bindPopup('Cleaner location');
 
-      // Destination marker (red)
       if (destLat && destLng) {
         const destIcon = L.divIcon({
           html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
@@ -77,7 +61,6 @@ function TrackingMap({ cleanerLat, cleanerLng, destLat, destLng }: {
         });
         L.marker([destLat, destLng], { icon: destIcon }).addTo(map).bindPopup('Destination');
 
-        // Fit bounds to show both markers
         const bounds = L.latLngBounds([
           [cleanerLat, cleanerLng],
           [destLat, destLng],
@@ -98,7 +81,6 @@ function TrackingMap({ cleanerLat, cleanerLng, destLat, destLng }: {
     };
   }, []);
 
-  // Update cleaner marker position on coordinate changes
   useEffect(() => {
     if (cleanerMarkerRef.current) {
       cleanerMarkerRef.current.setLatLng([cleanerLat, cleanerLng]);
@@ -114,6 +96,7 @@ export default function TrackCleanerPage() {
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noGpsYet, setNoGpsYet] = useState(false);
 
   const fetchTracking = async () => {
     if (!token) return;
@@ -135,12 +118,12 @@ export default function TrackCleanerPage() {
     }
 
     if (!data) {
-      setError('Tracking link not found or has expired.');
+      // No tracking record found — could be GPS not enabled yet
+      setNoGpsYet(true);
       setLoading(false);
       return;
     }
 
-    // Normalize joins (Supabase returns arrays for FK joins)
     const staff = Array.isArray(data.staff) ? data.staff[0] : data.staff;
     const booking = Array.isArray(data.booking) ? data.booking[0] : data.booking;
 
@@ -149,9 +132,9 @@ export default function TrackCleanerPage() {
       staff: staff as any,
       booking: booking as any,
     });
+    setNoGpsYet(false);
     setLoading(false);
 
-    // Geocode destination if we don't have coords yet
     if (booking && !destCoords) {
       const b = booking as any;
       const addr = [b.address, b.city, b.state, b.zip_code].filter(Boolean).join(', ');
@@ -182,19 +165,22 @@ export default function TrackCleanerPage() {
     const channel = supabase
       .channel(`tracking-${token}`)
       .on('postgres_changes', {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: 'cleaner_location_tracking',
         filter: `tracking_token=eq.${token}`,
       }, (payload) => {
         const newData = payload.new as any;
-        setTracking(prev => prev ? {
-          ...prev,
-          latitude: newData.latitude,
-          longitude: newData.longitude,
-          is_active: newData.is_active,
-          recorded_at: newData.recorded_at,
-        } : null);
+        if (newData && newData.latitude) {
+          setTracking(prev => prev ? {
+            ...prev,
+            latitude: newData.latitude,
+            longitude: newData.longitude,
+            is_active: newData.is_active,
+            recorded_at: newData.recorded_at,
+          } : null);
+          setNoGpsYet(false);
+        }
       })
       .subscribe();
 
@@ -203,7 +189,7 @@ export default function TrackCleanerPage() {
     };
   }, [token]);
 
-  // Also poll every 30s as fallback
+  // Poll every 30s as fallback
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(fetchTracking, 30000);
@@ -212,23 +198,49 @@ export default function TrackCleanerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-3" />
-          <p className="text-gray-600">Loading tracking...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+          <p className="text-muted-foreground">Loading tracking...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !tracking) {
+  // No GPS data yet — show friendly waiting message
+  if (noGpsYet || (error && !tracking)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="relative w-16 h-16 mx-auto">
+              <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping" />
+              <div className="relative w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Car className="h-8 w-8 text-primary animate-pulse" />
+              </div>
+            </div>
+            <h2 className="text-lg font-semibold">Your cleaner is on the way!</h2>
+            <p className="text-muted-foreground text-sm">
+              Live location will appear once they enable GPS sharing.
+            </p>
+            <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/60">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Checking for updates...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!tracking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
-            <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <h2 className="text-lg font-semibold mb-2">Tracking Unavailable</h2>
-            <p className="text-gray-600">{error || 'No tracking data found.'}</p>
+            <p className="text-muted-foreground">No tracking data found.</p>
           </CardContent>
         </Card>
       </div>
@@ -238,7 +250,7 @@ export default function TrackCleanerPage() {
   // Cleaner has arrived
   if (!tracking.is_active) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -246,10 +258,10 @@ export default function TrackCleanerPage() {
             </div>
             <h2 className="text-xl font-bold text-green-700 mb-2">Your Cleaner Has Arrived!</h2>
             {tracking.staff?.name && (
-              <p className="text-gray-600">{tracking.staff.name} is at the location.</p>
+              <p className="text-muted-foreground">{tracking.staff.name} is at the location.</p>
             )}
             {tracking.booking && (
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 Booking #{tracking.booking.booking_number}
               </p>
             )}
@@ -263,15 +275,15 @@ export default function TrackCleanerPage() {
   let etaMinutes: number | null = null;
   let distanceMiles: number | null = null;
   if (destCoords) {
-    distanceMiles = haversineDistance(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
-    etaMinutes = etaFromDistance(distanceMiles);
+    distanceMiles = calculateDistanceMiles(tracking.latitude, tracking.longitude, destCoords.lat, destCoords.lng);
+    etaMinutes = estimateDriveMinutes(distanceMiles);
   }
 
   const lastUpdate = new Date(tracking.recorded_at);
   const timeAgo = Math.round((Date.now() - lastUpdate.getTime()) / 60000);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Map */}
       <div className="h-[50vh] w-full relative">
         <TrackingMap
@@ -288,29 +300,29 @@ export default function TrackCleanerPage() {
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
                 <span className="font-semibold text-lg">
                   {tracking.staff?.name || 'Your cleaner'}
                 </span>
               </div>
-              <Badge variant="default" className="bg-blue-600">
+              <Badge variant="default">
                 <Navigation className="h-3 w-3 mr-1" />
                 En Route
               </Badge>
             </div>
 
             {etaMinutes !== null && (
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <p className="text-3xl font-bold text-blue-700">~{etaMinutes} min</p>
-                <p className="text-sm text-blue-600">Estimated arrival</p>
+              <div className="bg-primary/5 rounded-lg p-4 text-center">
+                <p className="text-3xl font-bold text-primary">~{etaMinutes} min</p>
+                <p className="text-sm text-primary/80">Estimated arrival</p>
                 {distanceMiles !== null && (
-                  <p className="text-xs text-blue-500 mt-1">{distanceMiles.toFixed(1)} miles away</p>
+                  <p className="text-xs text-primary/60 mt-1">{formatDistance(distanceMiles)} away</p>
                 )}
               </div>
             )}
 
             {tracking.booking?.address && (
-              <div className="flex items-start gap-2 text-sm text-gray-600">
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>
                   {tracking.booking.address}
@@ -320,7 +332,7 @@ export default function TrackCleanerPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}</span>
             </div>

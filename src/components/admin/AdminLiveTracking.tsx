@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Navigation, Clock, MapPin, Car } from 'lucide-react';
+import { Navigation, Clock, MapPin, Car, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime } from '@/lib/distanceUtils';
 
 interface TrackingInfo {
@@ -83,7 +84,7 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
         return;
       }
 
-      // Fallback: check if "on the way" SMS was sent (from booking_reminder_log)
+      // Fallback: check if "on the way" SMS was sent
       const { data: reminderData } = await supabase
         .from('booking_reminder_log')
         .select('sent_at')
@@ -120,11 +121,9 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
     return () => { supabase.removeChannel(channel); };
   }, [bookingId]);
 
-  // Geocode destination
+  // Geocode destination for map
   useEffect(() => {
-    if (!address || destCoords) return;
-    // Only geocode if we have GPS tracking (for map display)
-    if (!tracking) return;
+    if (!address || destCoords || !tracking) return;
     supabase.functions.invoke('geocode-address', { body: { address } })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
@@ -132,7 +131,7 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
       .catch(() => {});
   }, [address, tracking]);
 
-  // Show GPS-based live tracking with map
+  // GPS-based live tracking with map
   if (tracking) {
     const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
     const startedAt = new Date(tracking.created_at);
@@ -147,11 +146,11 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
       <div className="rounded-lg border bg-card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Navigation className="h-4 w-4 text-blue-500" />
+            <Navigation className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">Live Tracking</span>
           </div>
-          <Badge variant="default" className="bg-blue-600 text-xs">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1" />
+          <Badge variant="default" className="text-xs">
+            <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
             En Route
           </Badge>
         </div>
@@ -171,7 +170,7 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
           {distanceMiles !== null && (
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              <span className="font-medium text-blue-600">
+              <span className="font-medium text-primary">
                 {formatDistance(distanceMiles)} · ETA {formatDriveTime(etaMinutes!)}
               </span>
             </div>
@@ -185,37 +184,47 @@ export function AdminLiveTracking({ bookingId, address }: { bookingId: string; a
     );
   }
 
-  // Fallback: show "on the way" status from SMS log (no GPS)
+  // Fallback: "on the way" status from SMS log (no GPS)
   if (onTheWay) {
     const sentTime = new Date(onTheWay.sent_at);
     const minutesAgo = Math.round((Date.now() - sentTime.getTime()) / 60000);
-    
-    // Only show if sent within the last 2 hours (likely still relevant)
+
+    // Only show if sent within the last 2 hours
     if (minutesAgo > 120) return null;
 
     return (
       <div className="rounded-lg border bg-card p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Car className="h-4 w-4 text-blue-500" />
+            <Car className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">Cleaner En Route</span>
           </div>
-          <Badge variant="default" className="bg-blue-600 text-xs">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1" />
-            On The Way
-          </Badge>
+          <div className="flex items-center gap-1">
+            <Badge variant="default" className="text-xs">
+              <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
+              On The Way
+            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px] text-xs">
+                The cleaner needs to allow location access in their browser or app for live tracking to work.
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         <div className="text-xs text-muted-foreground space-y-1">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             <span>
-              "On My Way" sent at {sentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              On My Way sent at {sentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
               {minutesAgo > 0 && ` (${minutesAgo} min ago)`}
             </span>
           </div>
           <p className="text-muted-foreground/70 italic">
-            GPS location unavailable — cleaner may not have granted location permissions
+            GPS unavailable — cleaner hasn't granted location permission
           </p>
         </div>
       </div>
