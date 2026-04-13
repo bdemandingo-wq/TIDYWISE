@@ -4639,6 +4639,7 @@ export type Database = {
           created_at: string
           id: string
           notify_admin_on_the_way: boolean
+          notify_client_distance_eta: boolean
           notify_client_on_the_way: boolean
           openphone_api_key: string | null
           openphone_phone_number_id: string | null
@@ -4653,6 +4654,7 @@ export type Database = {
           created_at?: string
           id?: string
           notify_admin_on_the_way?: boolean
+          notify_client_distance_eta?: boolean
           notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
           openphone_phone_number_id?: string | null
@@ -4667,6 +4669,7 @@ export type Database = {
           created_at?: string
           id?: string
           notify_admin_on_the_way?: boolean
+          notify_client_distance_eta?: boolean
           notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
           openphone_phone_number_id?: string | null
