@@ -36,8 +36,11 @@ interface LifetimeSpots {
   available: boolean;
 }
 
+// Set VITE_PRICING_ENABLED=true in your .env to show the 3-plan pricing dialog.
+// Leave unset (default) to show the original simple trial flow.
+const PRICING_ENABLED = import.meta.env.VITE_PRICING_ENABLED === "true";
+
 const ENTERPRISE_CONTACT_EMAIL = "support@jointidywise.com";
-const ENTERPRISE_CALENDLY_URL = "https://calendly.com/jointidywise";
 
 const STANDARD_FEATURES = [
   "Unlimited bookings & customers",
@@ -194,6 +197,81 @@ export function SubscriptionDialog({
     );
   }
 
+  // ── Simple trial flow (default until App Store approval) ─────────────────
+  if (!PRICING_ENABLED) {
+    return (
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-lg"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center gap-2 text-2xl">
+              Welcome to TidyWise! 🎉
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <p className="text-center text-muted-foreground">
+              Choose how to get started:
+            </p>
+
+            <button
+              onClick={handleStandard}
+              disabled={!!checkingOut}
+              className="w-full p-5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                  <Rocket className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg text-foreground">Start Free Trial</h3>
+                    {checkingOut === "standard" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Full access to all features for 60 days — no card required
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {["Unlimited bookings", "Team management", "AI tools", "Analytics"].map((f) => (
+                      <span key={f} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                        <CheckCircle2 className="h-3 w-3" /> {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={handleContinueLimited}
+              className="w-full p-5 rounded-xl border-2 border-border hover:border-muted-foreground/30 hover:bg-accent/50 transition-all text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-xl bg-muted text-muted-foreground group-hover:bg-muted/80 transition-colors">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-foreground">Continue in Limited Mode</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Basic features, no card required — upgrade anytime
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              You can change your plan anytime from Settings.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ── Full 3-plan pricing (enabled after App Store approval) ────────────────
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
