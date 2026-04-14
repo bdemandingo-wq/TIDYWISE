@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 // Check if running in Capacitor native
 const isNativePlatform = () => {
@@ -171,6 +172,20 @@ export function usePushNotifications(staffId?: string) {
       console.log('Push registration success, token:', nativeToken);
       setToken(nativeToken);
       setIsRegistered(true);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const { error: saveError } = await supabase.functions.invoke('register-push-token', {
+            body: { token: nativeToken, platform: 'ios' },
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (saveError) console.error('[PUSH] Failed to save token', saveError);
+          else console.log('[PUSH] Token saved to Supabase');
+        }
+      } catch (err) {
+        console.error('[PUSH] Error saving token', err);
+      }
 
       if (staffId) {
         console.log('Would save push token for staff:', staffId, nativeToken);

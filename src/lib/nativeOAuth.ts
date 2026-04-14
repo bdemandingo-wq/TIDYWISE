@@ -33,7 +33,7 @@ export async function signInWithOAuthNative(
       const { Browser } = await import('@capacitor/browser');
       await Browser.open({
         url: data.url,
-        presentationStyle: 'popover',
+        presentationStyle: 'fullscreen',
       });
     }
 

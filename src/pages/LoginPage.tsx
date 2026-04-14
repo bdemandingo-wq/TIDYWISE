@@ -246,9 +246,12 @@ export default function LoginPage() {
                 disabled={loading}
                 onClick={async () => {
                   setLoading(true);
-                  const { error } = await signInWithApple();
-                  if (error) {
-                    toast.error(error.message || 'Apple sign in failed');
+                  try {
+                    const { error } = await signInWithApple();
+                    if (error) {
+                      toast.error(error.message || 'Apple sign in failed');
+                    }
+                  } finally {
                     setLoading(false);
                   }
                 }}

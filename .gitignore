@@ -33,3 +33,4 @@ preview/
 *.njsproj
 *.sln
 *.sw?
+supabase/.temp/

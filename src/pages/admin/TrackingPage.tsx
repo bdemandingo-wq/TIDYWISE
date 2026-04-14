@@ -317,7 +317,7 @@ export default function TrackingPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-[env(safe-area-inset-top)]">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
