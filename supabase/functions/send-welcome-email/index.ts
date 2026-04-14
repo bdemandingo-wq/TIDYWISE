@@ -138,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:30px 0;">
                 <tr>
                   <td style="text-align:center;">
-                    <a href="https://tidywise.lovable.app/dashboard" style="display:inline-block;background:linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(30,91,176,0.4);">Go to Dashboard</a>
+                    <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/dashboard" style="display:inline-block;background:linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(30,91,176,0.4);">Go to Dashboard</a>
                   </td>
                 </tr>
               </table>

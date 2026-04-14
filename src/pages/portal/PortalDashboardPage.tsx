@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, isPast, isFuture, isToday, isTomorrow } from "date-fns";
 import {
@@ -24,7 +24,8 @@ import {
   AlertTriangle,
   Package,
   BarChart2,
-  ImageIcon
+  ImageIcon,
+  Send,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -39,6 +40,8 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -100,29 +103,85 @@ const INSPECTION_CATEGORY_CONFIG = {
   general: { label: 'General Note', icon: ImageIcon, color: 'bg-blue-100 text-blue-700' },
 } as const;
 
+function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }: {
+  customerId: string; organizationId: string; points: number; onRedeemed: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [redeemed, setRedeemed] = useState(false);
+
+  const handleRedeem = async () => {
+    if (!customerId || !organizationId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('redeem-loyalty-points', {
+        body: { customerId, organizationId, pointsToRedeem: 100 },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast.success(`$${data.creditAmount.toFixed(2)} credit added to your account!`);
+      setRedeemed(true);
+      onRedeemed();
+    } catch (e: any) {
+      toast.error(e.message || 'Redemption failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (redeemed) return <p className="text-xs text-emerald-600 font-medium text-center">Credit applied to your account!</p>;
+
+  return (
+    <button
+      onClick={handleRedeem}
+      disabled={loading}
+      className="w-full text-xs bg-primary/10 hover:bg-primary/20 text-primary font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+    >
+      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5 fill-current" />}
+      Redeem 100 pts for $10 credit
+    </button>
+  );
+}
+
 function InspectionPhoto({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
+  const [error, setError] = useState(false);
+
+  const fetchUrl = () => {
+    setError(false);
     supabase.storage.from('booking-photos').createSignedUrl(path, 3600).then(({ data }) => {
       if (data?.signedUrl) setUrl(data.signedUrl);
     });
-  }, [path]);
+  };
+
+  useEffect(() => { fetchUrl(); }, [path]);
+
+  if (error) return (
+    <div className="w-full h-40 bg-muted rounded-lg flex flex-col items-center justify-center gap-2">
+      <ImageIcon className="w-6 h-6 text-muted-foreground" />
+      <button onClick={fetchUrl} className="text-xs text-primary underline">Reload</button>
+    </div>
+  );
   if (!url) return <div className="w-full h-40 bg-muted rounded-lg flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
-  return <img src={url} alt="Inspection" className="w-full h-40 object-cover rounded-lg" />;
+  return <img src={url} alt="Inspection" className="w-full h-40 object-cover rounded-lg" onError={fetchUrl} />;
 }
 
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
-  const { user, customer, loyalty, signOut, loading } = useClientPortal();
+  const { user, customer, loyalty, signOut, loading, refreshData } = useClientPortal();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [inspectionReports, setInspectionReports] = useState<InspectionReport[]>([]);
+  const [referrals, setReferrals] = useState<{id:string;referred_email:string;status:string;credit_amount:number;credit_awarded:boolean;created_at:string}[]>([]);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [sendingInvite, setSendingInvite] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const { isNative } = usePlatform();
+  const pastBookingsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -178,6 +237,30 @@ export default function PortalDashboardPage() {
         setInspectionReports((inspectionData || []) as InspectionReport[]);
       }
 
+      // Fetch referrals and the customer's personal referral code
+      if (user.customer_id) {
+        // Read the referral code directly from the customers table (set by migration 20260413150000).
+        // This means every customer has a code even before they've referred anyone.
+        const { data: customerCodeData } = await supabase
+          .from('customers')
+          .select('referral_code' as any)
+          .eq('id', user.customer_id)
+          .single();
+        if ((customerCodeData as any)?.referral_code) {
+          setReferralCode((customerCodeData as any).referral_code);
+        }
+
+        const { data: referralData } = await supabase
+          .from('referrals')
+          .select('id, referred_email, status, credit_amount, credit_awarded, created_at, referral_code')
+          .eq('referrer_customer_id', user.customer_id)
+          .order('created_at', { ascending: false });
+
+        if (referralData?.length) {
+          setReferrals(referralData);
+        }
+      }
+
       setLoadingData(false);
     };
 
@@ -203,6 +286,11 @@ export default function PortalDashboardPage() {
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
+    // Mark as read first so the unread count is correct regardless of DB delete outcome
+    await supabase.rpc("mark_client_notification_read", {
+      p_notification_id: id,
+      p_client_user_id: user.id,
+    });
     const { data } = await supabase.rpc("delete_client_portal_notification", {
       p_notification_id: id,
       p_client_user_id: user.id,
@@ -279,6 +367,48 @@ export default function PortalDashboardPage() {
     params.set("notes", `Reschedule of booking #${booking.booking_number}${booking.address ? ` at ${booking.address}` : ""}`);
     params.set("reschedule", "true");
     navigate(`/portal/request?${params.toString()}`);
+  };
+
+  const sendInvite = async () => {
+    if (!user || !inviteEmail.trim()) return;
+    setSendingInvite(true);
+    try {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        'create_client_portal_referral' as any,
+        {
+          p_portal_user_id: user.id,
+          p_referred_email: inviteEmail.trim(),
+          p_referred_name: inviteName.trim() || null,
+        }
+      );
+      if (rpcError) throw new Error(rpcError.message);
+      const result = rpcResult as { error?: string; referral_id?: string };
+      if (result?.error) throw new Error(result.error);
+
+      // Send the invite email via edge function
+      const { error: fnError } = await supabase.functions.invoke('send-referral-invite', {
+        body: { referralId: result.referral_id },
+      });
+      if (fnError) throw new Error(fnError.message);
+
+      toast.success(`Invite sent to ${inviteEmail}!`);
+      setInviteEmail('');
+      setInviteName('');
+
+      // Refresh the referrals list
+      if (user.customer_id) {
+        const { data: referralData } = await supabase
+          .from('referrals')
+          .select('id, referred_email, status, credit_amount, credit_awarded, created_at')
+          .eq('referrer_customer_id', user.customer_id)
+          .order('created_at', { ascending: false });
+        if (referralData) setReferrals(referralData);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send invite');
+    } finally {
+      setSendingInvite(false);
+    }
   };
 
   if (loading || !user || !customer) {
@@ -451,7 +581,7 @@ export default function PortalDashboardPage() {
             <Button
               variant="outline"
               className="rounded-xl h-11 text-sm font-semibold gap-2 border-border"
-              onClick={() => {/* scroll to past bookings below */}}
+              onClick={() => pastBookingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             >
               <CalendarDays className="h-4 w-4" />
               All Bookings
@@ -460,7 +590,7 @@ export default function PortalDashboardPage() {
 
           {/* Past bookings */}
           {pastBookings.length > 0 && (
-            <div className="space-y-3">
+            <div ref={pastBookingsRef} className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3">Past Bookings</h2>
               {pastBookings.map((booking) => (
                 <Card key={booking.id} className="rounded-2xl p-4 shadow-none border-border/40">
@@ -663,6 +793,16 @@ export default function PortalDashboardPage() {
                   {displayLoyalty.points} pts
                 </Badge>
               </div>
+              {displayLoyalty.points >= 100 && (
+                <div className="mt-3 pt-3 border-t">
+                  <LoyaltyRedeemButton
+                    customerId={user?.customer_id || ''}
+                    organizationId={user?.organization_id || ''}
+                    points={displayLoyalty.points}
+                    onRedeemed={refreshData}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -690,6 +830,7 @@ export default function PortalDashboardPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="referrals" className="text-xs sm:text-sm shrink-0 min-h-[44px]">Referrals</TabsTrigger>
             <TabsTrigger value="reports" className="relative text-xs sm:text-sm shrink-0 min-h-[44px]">
               Reports
               {inspectionReports.length > 0 && (
@@ -920,6 +1061,88 @@ export default function PortalDashboardPage() {
                   </div>
                 </Card>
               ))
+            )}
+          </TabsContent>
+
+          {/* Referrals Tab */}
+          <TabsContent value="referrals" className="space-y-4 mt-4">
+            <div>
+              <h2 className="font-semibold text-base mb-1">Refer a Friend</h2>
+              <p className="text-sm text-muted-foreground">Earn ${referrals[0]?.credit_amount ?? 25} credit for every friend who books a cleaning.</p>
+            </div>
+            {referralCode ? (
+              <Card className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Your referral code</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-muted px-3 py-2 rounded-lg text-sm font-mono font-bold tracking-wider">{referralCode}</code>
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(referralCode); toast.success('Copied!'); }}>Copy</Button>
+                </div>
+              </Card>
+            ) : (
+              <Card className="p-4 text-center text-sm text-muted-foreground">
+                Your referral code is being set up. Please check back shortly or contact us if it doesn't appear.
+              </Card>
+            )}
+
+            {/* Invite a friend form */}
+            <Card className="p-4">
+              <p className="text-sm font-medium mb-3">Send an email invite</p>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="invite-email" className="text-xs">Friend's email</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="friend@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="invite-name" className="text-xs">Friend's name (optional)</Label>
+                  <Input
+                    id="invite-name"
+                    type="text"
+                    placeholder="Jane"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <Button
+                  className="w-full gap-2"
+                  onClick={sendInvite}
+                  disabled={sendingInvite || !inviteEmail.trim()}
+                >
+                  {sendingInvite
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Send className="w-4 h-4" />}
+                  Send Invite
+                </Button>
+              </div>
+            </Card>
+
+            {referrals.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">Your referrals ({referrals.length})</p>
+                <div className="space-y-2">
+                  {referrals.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg text-sm">
+                      <div>
+                        <p className="font-medium">{r.referred_email}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={r.status === 'completed' ? 'default' : 'secondary'} className="text-xs mb-1">
+                          {r.status}
+                        </Badge>
+                        {r.credit_awarded && <p className="text-xs text-emerald-600 font-medium">${r.credit_amount} earned</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </TabsContent>
 

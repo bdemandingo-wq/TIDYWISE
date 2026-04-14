@@ -141,7 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build dynamic success/cancel URLs using the app's published URL
-    const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.com";
 
     // Create a Stripe Checkout session in setup mode to collect card details
     const session = await stripe.checkout.sessions.create({

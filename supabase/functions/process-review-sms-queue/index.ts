@@ -116,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Generate review token
         const token = crypto.randomUUID();
-        const projectUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
+        const projectUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || "https://jointidywise.com").replace(/\/+$/, '');
         const reviewPageUrl = `${projectUrl}/review/${token}`.replace(/^https?:\/\//, '');
 
         // Create review request record

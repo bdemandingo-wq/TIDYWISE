@@ -62,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('organization_id', tip.organization_id)
       .maybeSingle();
 
-    const appUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
+    const appUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.com").replace(/\/+$/, '');
 
     // Get org Stripe client
     const stripeResult = await getOrgStripeClient(tip.organization_id);

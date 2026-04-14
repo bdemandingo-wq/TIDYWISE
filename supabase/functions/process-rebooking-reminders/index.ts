@@ -173,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         const companyName = businessSettings?.company_name || "Your cleaning service";
-        const projectUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
+        const projectUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || "https://jointidywise.com").replace(/\/+$/, '');
         const bookingLink = `${projectUrl}/book/${org?.slug || ""}`.replace(/^https?:\/\//, '');
 
         const customerName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "there";

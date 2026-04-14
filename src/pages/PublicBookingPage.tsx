@@ -78,6 +78,11 @@ export default function PublicBookingPage() {
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>('America/New_York');
+  const [surgeSettings, setSurgeSettings] = useState<{
+    surge_weekend_enabled: boolean; surge_weekend_multiplier: number;
+    surge_lastminute_enabled: boolean; surge_lastminute_hours: number; surge_lastminute_multiplier: number;
+    surge_holiday_enabled: boolean; surge_holiday_multiplier: number;
+  } | null>(null);
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -150,6 +155,17 @@ export default function PublicBookingPage() {
     }
     return () => clearPublicBranding();
   }, [primaryColor, accentColor, formColors.accent]);
+
+  // Fetch surge pricing settings once org is known
+  useEffect(() => {
+    if (!organizationId) return;
+    supabase
+      .from('business_settings')
+      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setSurgeSettings(data as typeof surgeSettings); });
+  }, [organizationId]);
 
   // Track link_opened when ref param exists
   useEffect(() => {
@@ -262,7 +278,42 @@ export default function PublicBookingPage() {
       total = total * (1 - discount);
     }
 
+    // Apply surge multiplier
+    const surge = getSurgeMultiplier();
+    if (surge > 1) total = total * surge;
+
     return Math.round(total);
+  };
+
+  // Compute surge multiplier based on selected date/time and org settings
+  const getSurgeMultiplier = (): number => {
+    if (!selectedDate || !surgeSettings) return 1;
+    const { surge_weekend_enabled, surge_weekend_multiplier, surge_lastminute_enabled, surge_lastminute_hours, surge_lastminute_multiplier, surge_holiday_enabled, surge_holiday_multiplier } = surgeSettings;
+    let multiplier = 1;
+
+    // Weekend
+    const dow = selectedDate.getDay(); // 0=Sun, 6=Sat
+    if (surge_weekend_enabled && (dow === 0 || dow === 6)) {
+      multiplier = Math.max(multiplier, surge_weekend_multiplier);
+    }
+
+    // Last-minute (booking date within N hours from now)
+    if (surge_lastminute_enabled && selectedTime) {
+      const scheduledMs = new Date(`${selectedDate.toISOString().split('T')[0]}T${selectedTime}`).getTime();
+      const hoursUntil = (scheduledMs - Date.now()) / 3600000;
+      if (hoursUntil > 0 && hoursUntil <= surge_lastminute_hours) {
+        multiplier = Math.max(multiplier, surge_lastminute_multiplier);
+      }
+    }
+
+    // Holiday (US federal holidays by month/day)
+    if (surge_holiday_enabled) {
+      const holidays = ['1/1','7/4','11/11','12/25','12/24','11/28','12/31','1/15','2/19','5/27','9/2','10/14'];
+      const key = `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`;
+      if (holidays.includes(key)) multiplier = Math.max(multiplier, surge_holiday_multiplier);
+    }
+
+    return multiplier;
   };
 
   const buildScheduledAt = () => {

@@ -4,13 +4,25 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info } from 'lucide-react';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
+import { GpsCheckin } from './GpsCheckin';
+import { PropertyInspectionUpload } from './PropertyInspectionUpload';
 import { useMapsNavigation } from '@/hooks/useMapsNavigation';
 import { useCleanerTracking } from '@/hooks/useCleanerTracking';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+
+interface PropertyNote {
+  notes: string | null;
+  access_instructions: string | null;
+  gate_code: string | null;
+  alarm_code: string | null;
+  has_pets: boolean;
+  pet_notes: string | null;
+  parking_notes: string | null;
+}
 
 interface StaffInfo {
   hourly_rate: number | null;
@@ -60,8 +72,23 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
+  const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
 
   const destAddress = [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ');
+
+  // Fetch property notes for this customer
+  useEffect(() => {
+    if (!booking.organization_id) return;
+    const customerId = (booking as any).customer_id;
+    if (!customerId) return;
+    supabase
+      .from('property_notes')
+      .select('notes, access_instructions, gate_code, alarm_code, has_pets, pet_notes, parking_notes')
+      .eq('organization_id', booking.organization_id)
+      .eq('customer_id', customerId)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setPropertyNote(data as PropertyNote); });
+  }, [booking.id, booking.organization_id]);
 
   const { startTracking, stopTracking, isTracking } = useCleanerTracking({
     bookingId: booking.id,
@@ -344,6 +371,29 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           </div>
         )}
 
+        {/* Property Notes */}
+        {propertyNote && (propertyNote.access_instructions || propertyNote.gate_code || propertyNote.alarm_code || propertyNote.has_pets || propertyNote.parking_notes || propertyNote.notes) && (
+          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 space-y-1.5">
+            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Property Notes</p>
+            {propertyNote.notes && <p className="text-sm text-blue-800 dark:text-blue-200">{propertyNote.notes}</p>}
+            {propertyNote.access_instructions && (
+              <p className="text-xs text-blue-700 dark:text-blue-300"><span className="font-medium">Access:</span> {propertyNote.access_instructions}</p>
+            )}
+            {propertyNote.gate_code && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><KeyRound className="w-3 h-3" /><span className="font-medium">Gate:</span> {propertyNote.gate_code}</p>
+            )}
+            {propertyNote.alarm_code && (
+              <p className="text-xs text-blue-700 dark:text-blue-300"><span className="font-medium">Alarm:</span> {propertyNote.alarm_code}</p>
+            )}
+            {propertyNote.has_pets && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><PawPrint className="w-3 h-3" /><span className="font-medium">Pets:</span> {propertyNote.pet_notes || 'Pets on premises'}</p>
+            )}
+            {propertyNote.parking_notes && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><ParkingCircle className="w-3 h-3" /><span className="font-medium">Parking:</span> {propertyNote.parking_notes}</p>
+            )}
+          </div>
+        )}
+
         {/* Team Members */}
         {booking.team_members && booking.team_members.length > 0 && (
           <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
@@ -387,6 +437,34 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               <Navigation className="w-4 h-4" />
               Directions
             </Button>
+          )}
+          {/* GPS Check-In when starting job */}
+          {staffInfo.id && booking.status === 'confirmed' && booking.organization_id && (
+            <GpsCheckin
+              bookingId={booking.id}
+              staffId={staffInfo.id}
+              organizationId={booking.organization_id}
+              bookingAddress={destAddress || null}
+              type="check_in"
+            />
+          )}
+          {/* GPS Check-Out when completing job */}
+          {staffInfo.id && booking.status === 'in_progress' && booking.organization_id && (
+            <GpsCheckin
+              bookingId={booking.id}
+              staffId={staffInfo.id}
+              organizationId={booking.organization_id}
+              bookingAddress={destAddress || null}
+              type="check_out"
+            />
+          )}
+          {/* Airbnb Inspection Report */}
+          {staffInfo.id && booking.status === 'in_progress' && booking.organization_id && (
+            <PropertyInspectionUpload
+              bookingId={booking.id}
+              staffId={staffInfo.id}
+              organizationId={booking.organization_id}
+            />
           )}
           {staffInfo.id && (booking.status === 'in_progress' || booking.status === 'confirmed') && (
             <Dialog open={checklistOpen} onOpenChange={setChecklistOpen}>

@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
     ${errorsHtml}
 
     <p style="color:#9ca3af;font-size:12px;margin:24px 0 0;text-align:center;">
-      Sent by Tidywise · <a href="https://jointidywise.lovable.app" style="color:#6b7280;">Dashboard</a>
+      Sent by Tidywise · <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}" style="color:#6b7280;">Dashboard</a>
     </p>
   </div>
 </body>

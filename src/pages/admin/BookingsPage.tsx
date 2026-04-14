@@ -112,6 +112,7 @@ import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { SEOHead } from '@/components/SEOHead';
+import { usePlatform } from '@/hooks/usePlatform';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -210,6 +211,9 @@ export default function BookingsPage() {
   const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [deleteConfirmBooking, setDeleteConfirmBooking] = useState<BookingWithDetails | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -225,6 +229,7 @@ export default function BookingsPage() {
   const deleteBooking = useDeleteBooking();
   const { isTestMode, maskName, maskEmail, maskAmount, maskAddress } = useTestMode();
   const { organization } = useOrganization();
+  const { canShowPaymentFlows } = usePlatform();
 
   // Helper: is a booking fully done (completed + paid)?
   const isFullyDone = useCallback((b: BookingWithDetails) => {
@@ -334,6 +339,13 @@ export default function BookingsPage() {
       status: newStatus as BookingWithDetails['status'],
     });
 
+    // Trigger post-booking upsell when booking is confirmed
+    if (newStatus === 'confirmed' && booking && organization?.id) {
+      supabase.functions.invoke('post-booking-upsell', {
+        body: { bookingId, organizationId: organization.id },
+      }).catch(() => {}); // fire-and-forget
+    }
+
     // Send cancellation SMS notification if status changed to cancelled
     if (newStatus === 'cancelled' && booking && organization?.id) {
       // Format date/time on client-side for timezone accuracy
@@ -369,29 +381,37 @@ export default function BookingsPage() {
     }
   };
 
-  const handleDelete = async (booking: BookingWithDetails) => {
-    const ok = window.confirm(`Delete booking #${booking.booking_number}? This cannot be undone.`);
-    if (!ok) return;
-    await deleteBooking.mutateAsync(booking.id);
-    setSelectedBookings(prev => {
-      const next = new Set(prev);
-      next.delete(booking.id);
-      return next;
-    });
+  const handleDelete = (booking: BookingWithDetails) => {
+    setDeleteConfirmBooking(booking);
   };
 
-  const handleBulkDelete = async () => {
+  const confirmDelete = async () => {
+    if (!deleteConfirmBooking) return;
+    await deleteBooking.mutateAsync(deleteConfirmBooking.id);
+    setSelectedBookings(prev => {
+      const next = new Set(prev);
+      next.delete(deleteConfirmBooking.id);
+      return next;
+    });
+    setDeleteConfirmBooking(null);
+  };
+
+  const handleBulkDelete = () => {
     if (selectedBookings.size === 0) return;
-    const ok = window.confirm(`Delete ${selectedBookings.size} selected bookings? This cannot be undone.`);
-    if (!ok) return;
-    
+    setBulkDeleteCount(selectedBookings.size);
+    setBulkDeleteConfirmOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    const count = bulkDeleteCount;
     setBulkDeleting(true);
     try {
       for (const id of selectedBookings) {
         await deleteBooking.mutateAsync(id);
       }
       setSelectedBookings(new Set());
-      toast({ title: "Deleted", description: `${selectedBookings.size} bookings deleted successfully` });
+      setBulkDeleteConfirmOpen(false);
+      toast({ title: "Deleted", description: `${count} bookings deleted successfully` });
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete some bookings", variant: "destructive" });
     } finally {
@@ -2129,32 +2149,36 @@ export default function BookingsPage() {
                                     Mark Unpaid
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer text-teal-600"
-                                  onClick={() => {
-                                    setAdditionalChargesBooking(booking);
-                                    setAdditionalChargesOpen(true);
-                                  }}
-                                >
-                                  <PlusCircle className="w-4 h-4" /> Additional Charge
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer text-amber-600"
-                                  onClick={() => setChargeConfirmBooking(booking)}
-                                  disabled={
-                                    chargingCard === booking.id ||
-                                    booking.payment_status === 'paid' ||
-                                    !booking.customer?.email
-                                  }
-                                >
-                                  {chargingCard === booking.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <DollarSign className="w-4 h-4" />
-                                  )}
-                                  {booking.payment_status === 'paid' ? 'Already Paid' : 'Charge Card Now'}
-                                </DropdownMenuItem>
-                                {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+                                {canShowPaymentFlows && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-teal-600"
+                                    onClick={() => {
+                                      setAdditionalChargesBooking(booking);
+                                      setAdditionalChargesOpen(true);
+                                    }}
+                                  >
+                                    <PlusCircle className="w-4 h-4" /> Additional Charge
+                                  </DropdownMenuItem>
+                                )}
+                                {canShowPaymentFlows && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-amber-600"
+                                    onClick={() => setChargeConfirmBooking(booking)}
+                                    disabled={
+                                      chargingCard === booking.id ||
+                                      booking.payment_status === 'paid' ||
+                                      !booking.customer?.email
+                                    }
+                                  >
+                                    {chargingCard === booking.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <DollarSign className="w-4 h-4" />
+                                    )}
+                                    {booking.payment_status === 'paid' ? 'Already Paid' : 'Charge Card Now'}
+                                  </DropdownMenuItem>
+                                )}
+                                {canShowPaymentFlows && !(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
                                   <DropdownMenuItem
                                     className="gap-2 cursor-pointer"
                                     onClick={() => setPlaceHoldConfirmBooking(booking)}
@@ -2231,25 +2255,29 @@ export default function BookingsPage() {
                                   {sendingReviewRequest === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
                                   Send Review
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="gap-2 cursor-pointer text-emerald-600" 
-                                  onClick={() => handleSendTipRequest(booking)}
-                                  disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
-                                >
-                                  {sendingTipRequest === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
-                                  Send Tip Link
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="gap-2 cursor-pointer text-blue-600" 
-                                  onClick={() => {
-                                    setDepositDialogBooking(booking);
-                                    setDepositAmount('');
-                                  }}
-                                  disabled={!booking.customer?.phone}
-                                >
-                                  <Banknote className="w-4 h-4" />
-                                  Send Deposit Link
-                                </DropdownMenuItem>
+                                {canShowPaymentFlows && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-emerald-600"
+                                    onClick={() => handleSendTipRequest(booking)}
+                                    disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}
+                                  >
+                                    {sendingTipRequest === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
+                                    Send Tip Link
+                                  </DropdownMenuItem>
+                                )}
+                                {canShowPaymentFlows && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-blue-600"
+                                    onClick={() => {
+                                      setDepositDialogBooking(booking);
+                                      setDepositAmount('');
+                                    }}
+                                    disabled={!booking.customer?.phone}
+                                  >
+                                    <Banknote className="w-4 h-4" />
+                                    Send Deposit Link
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Staff</DropdownMenuLabel>
                                 <DropdownMenuItem 
@@ -2894,6 +2922,48 @@ export default function BookingsPage() {
         staffList={staffList}
         services={servicesList as any}
       />
+
+      {/* Single booking delete confirmation */}
+      <AlertDialog open={!!deleteConfirmBooking} onOpenChange={(open) => !open && setDeleteConfirmBooking(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking #{deleteConfirmBooking?.booking_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the booking for{' '}
+              <strong>{deleteConfirmBooking?.customer?.first_name} {deleteConfirmBooking?.customer?.last_name}</strong>.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirmBooking(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {bulkDeleteCount} bookings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {bulkDeleteCount} selected bookings. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Deleting...</> : 'Delete All'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </AdminLayout>
   );

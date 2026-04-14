@@ -36,6 +36,7 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SEOHead } from '@/components/SEOHead';
+import { ReferralDashboard } from '@/components/admin/ReferralDashboard';
 
 interface AITemplate {
   name: string;
@@ -361,40 +362,65 @@ export default function CampaignsPage() {
   const sendCampaignNow = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("Organization not found");
-      // First, save the campaign so we have a campaign_id for tracking
+
+      const channel = campaignForm.channel;
+      const isSMS   = channel === "sms" || channel === "both";
+      const isEmail = channel === "email" || channel === "both";
+
+      // Save the campaign record first (provides campaign_id for tracking)
       const { data: newCampaign, error: insertError } = await supabase.from("automated_campaigns").insert({
         organization_id: orgId,
         name: campaignForm.name || `Campaign ${format(new Date(), "MMM d, yyyy")}`,
         type: "custom",
         days_inactive: campaignForm.days_inactive,
-        subject: campaignForm.channel === "email" || campaignForm.channel === "both"
-          ? campaignForm.emailSubject : "SMS Campaign",
-        body: campaignForm.channel === "sms" ? campaignForm.smsBody : campaignForm.emailBody,
+        subject: isEmail ? campaignForm.emailSubject : "SMS Campaign",
+        body: isEmail ? campaignForm.emailBody : campaignForm.smsBody,
         is_active: true,
       }).select("id").single();
       if (insertError) throw insertError;
 
-      const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
-        body: {
-          organizationId: orgId,
-          campaignId: newCampaign.id,
-          daysInactive: campaignForm.days_inactive,
-          message: campaignForm.smsBody,
-          targetAudience: campaignForm.audience,
-          testMode: false,
-          excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
-          excludeRecentDays: campaignForm.excludeRecentDays,
-          onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
-        },
-      });
-      if (error) throw error;
-      return data;
+      let smsSentCount = 0;
+      let emailSentCount = 0;
+
+      // SMS leg — run-inactive-campaign handles SMS only
+      if (isSMS) {
+        const { data: smsData, error: smsError } = await supabase.functions.invoke("run-inactive-campaign", {
+          body: {
+            organizationId: orgId,
+            campaignId: newCampaign.id,
+            daysInactive: campaignForm.days_inactive,
+            message: campaignForm.smsBody,
+            targetAudience: campaignForm.audience,
+            testMode: false,
+            excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
+            excludeRecentDays: campaignForm.excludeRecentDays,
+            onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
+          },
+        });
+        if (smsError) throw smsError;
+        smsSentCount = smsData?.sentCount || 0;
+      }
+
+      // Email leg — send-followup-campaign handles email
+      if (isEmail) {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke("send-followup-campaign", {
+          body: {
+            campaignId: newCampaign.id,
+            targetAudience: campaignForm.audience,
+          },
+        });
+        if (emailError) throw emailError;
+        emailSentCount = emailData?.sentCount || 0;
+      }
+
+      return { smsSentCount, emailSentCount };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
-      toast({ title: "Sent!", description: `${data.sentCount || 0} messages delivered` });
+      const total = data.smsSentCount + data.emailSentCount;
+      toast({ title: "Sent!", description: `${total} messages delivered` });
       setCreateOpen(false);
       resetForm();
     },
@@ -638,6 +664,12 @@ export default function CampaignsPage() {
         </div>
       </SubscriptionGate>
 
+      {/* Referral Dashboard */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-4">Referral Program</h2>
+        <ReferralDashboard />
+      </div>
+
       {/* Create Campaign Dialog */}
       <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -875,7 +907,7 @@ export default function CampaignsPage() {
                     rows={4}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}, {"{booking_date}"}, {"{service_type}"}</span>
+                    <span>Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}</span>
                     <span className={cn(charCount > 160 ? "text-amber-600" : "")}>{charCount} chars · {segments} segment{segments > 1 ? "s" : ""}</span>
                   </div>
                 </div>
@@ -900,7 +932,7 @@ export default function CampaignsPage() {
                       rows={6}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}, {"{booking_date}"}, {"{service_type}"}
+                      Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}
                     </p>
                   </div>
                 </>

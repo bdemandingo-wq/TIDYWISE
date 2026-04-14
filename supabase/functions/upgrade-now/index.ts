@@ -96,7 +96,7 @@ serve(async (req) => {
 
     // No trialing sub found — user is on org-based free trial
     // Create a Stripe Checkout session to start their paid subscription
-    const origin = req.headers.get("origin") || "https://jointidywise.lovable.app";
+    const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

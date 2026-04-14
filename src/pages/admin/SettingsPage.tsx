@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle, Gift } from 'lucide-react';
+import { Save, Globe, Bell, Lock, Palette, Loader2, Star, Upload, Eye, EyeOff, AlertCircle, MessageSquare, DollarSign, LayoutGrid, PanelLeft, RotateCcw, Share2, Copy, Code, ExternalLink, Trash2, AlertTriangle, Gift, TrendingUp } from 'lucide-react';
+import { SurgePricingSettings } from '@/components/admin/SurgePricingSettings';
+import { EmbedCodeCard } from '@/components/admin/EmbedCodeCard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -450,7 +452,7 @@ export default function SettingsPage() {
   };
 
   const handlePasswordUpdate = async () => {
-    if (!newPassword || !confirmPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error('Please fill in all password fields');
       return;
     }
@@ -467,6 +469,17 @@ export default function SettingsPage() {
 
     setUpdatingPassword(true);
     try {
+      // Re-authenticate with current password before allowing change
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error('Current password is incorrect');
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -646,12 +659,14 @@ export default function SettingsPage() {
         {/* Booking Form Sharing */}
         <TabsContent value="booking-form" className="space-y-6">
           <BookingFormShareCard organizationSlug={organization?.slug} />
+          {organization?.slug && <EmbedCodeCard orgSlug={organization.slug} />}
           <FormDisplaySettings />
         </TabsContent>
 
         {/* Pricing Settings */}
         <TabsContent value="pricing" className="space-y-6">
           <PricingSettingsCard />
+          <SurgePricingSettings />
         </TabsContent>
 
         {/* Loyalty Settings */}

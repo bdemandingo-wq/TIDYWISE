@@ -59,9 +59,14 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setUser(parsed.user);
-        setCustomer(parsed.customer);
-        setLoyalty(parsed.loyalty);
+        // Enforce session expiry (30-day sessions)
+        if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+          localStorage.removeItem(STORAGE_KEY);
+        } else {
+          setUser(parsed.user);
+          setCustomer(parsed.customer);
+          setLoyalty(parsed.loyalty);
+        }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -70,10 +75,13 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveSession = (userData: ClientPortalUser, customerData: CustomerInfo, loyaltyData: LoyaltyInfo | null) => {
+    // Expire sessions after 30 days to limit PII sitting in localStorage indefinitely
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       user: userData,
       customer: customerData,
       loyalty: loyaltyData,
+      expiresAt,
     }));
   };
 

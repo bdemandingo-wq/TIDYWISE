@@ -17,6 +17,7 @@ import {
   Heart, Banknote, UserPlus, ChevronDown, CheckCircle,
 } from 'lucide-react';
 import { BookingWithDetails } from '@/hooks/useBookings';
+import { usePlatform } from '@/hooks/usePlatform';
 
 interface BookingActionSheetProps {
   booking: BookingWithDetails | null;
@@ -167,6 +168,8 @@ export function BookingActionSheet({
   sendingReminder, sendingCleanerNotification, notifyingOpenJob,
   sendingReviewRequest, sendingTipRequest,
 }: BookingActionSheetProps) {
+  const { canShowPaymentFlows } = usePlatform();
+
   if (!booking) return null;
 
   const statusStyle = statusCfg[booking.status] || statusCfg.pending;
@@ -284,33 +287,41 @@ export function BookingActionSheet({
                 <XCircle className="w-4 h-4" /> Mark Unpaid
               </ActionBtn>
             )}
-            <ActionBtn colorClass="text-emerald-500 hover:bg-emerald-500/10" onClick={() => onAdditionalCharge(booking)}>
-              <PlusCircle className="w-4 h-4" /> Additional Charge
-            </ActionBtn>
-            <ActionBtn
-              variant="pill"
-              colorClass="bg-orange-500 hover:bg-orange-600"
-              onClick={() => onChargeCard(booking)}
-              disabled={chargingCard === booking.id || booking.payment_status === 'paid' || !booking.customer?.email}
-            >
-              <DollarSign className="w-4 h-4" /> Charge Card Now
-            </ActionBtn>
-            {!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+            {canShowPaymentFlows && (
+              <ActionBtn colorClass="text-emerald-500 hover:bg-emerald-500/10" onClick={() => onAdditionalCharge(booking)}>
+                <PlusCircle className="w-4 h-4" /> Additional Charge
+              </ActionBtn>
+            )}
+            {canShowPaymentFlows && (
+              <ActionBtn
+                variant="pill"
+                colorClass="bg-orange-500 hover:bg-orange-600"
+                onClick={() => onChargeCard(booking)}
+                disabled={chargingCard === booking.id || booking.payment_status === 'paid' || !booking.customer?.email}
+              >
+                <DollarSign className="w-4 h-4" /> Charge Card Now
+              </ActionBtn>
+            )}
+            {canShowPaymentFlows && !(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
               <ActionBtn colorClass="text-yellow-500 hover:bg-yellow-500/10" onClick={() => onPlaceHold(booking)} disabled={placingHold === booking.id || !booking.customer?.email}>
                 <CreditCard className="w-4 h-4" /> Place Hold
               </ActionBtn>
             )}
-            {!!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
+            {canShowPaymentFlows && !!(booking as any).payment_intent_id && booking.payment_status !== 'paid' && (
               <ActionBtn colorClass="text-blue-500 hover:bg-blue-500/10" onClick={() => onCaptureHold(booking)} disabled={capturingPayment === booking.id}>
                 <CreditCard className="w-4 h-4" /> Capture Hold
               </ActionBtn>
             )}
-            <ActionBtn colorClass="text-muted-foreground" onClick={() => onReleaseHold(booking)} disabled={isDisabledHold}>
-              <XCircle className="w-4 h-4" /> Release Hold
-            </ActionBtn>
-            <ActionBtn colorClass="text-muted-foreground" onClick={() => onRefund(booking)} disabled={isDisabledRefund}>
-              <RotateCcw className="w-4 h-4" /> Refund
-            </ActionBtn>
+            {canShowPaymentFlows && (
+              <ActionBtn colorClass="text-muted-foreground" onClick={() => onReleaseHold(booking)} disabled={isDisabledHold}>
+                <XCircle className="w-4 h-4" /> Release Hold
+              </ActionBtn>
+            )}
+            {canShowPaymentFlows && (
+              <ActionBtn colorClass="text-muted-foreground" onClick={() => onRefund(booking)} disabled={isDisabledRefund}>
+                <RotateCcw className="w-4 h-4" /> Refund
+              </ActionBtn>
+            )}
             <ActionBtn colorClass="text-blue-500 hover:bg-blue-500/10" onClick={() => onPaymentHistory(booking)}>
               <Clock className="w-4 h-4" /> Payment History
             </ActionBtn>
@@ -342,17 +353,21 @@ export function BookingActionSheet({
             <ActionBtn colorClass="text-amber-400 hover:bg-amber-500/10" onClick={() => onSendReview(booking)} disabled={sendingReviewRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
               <Star className="w-4 h-4" /> Send Review
             </ActionBtn>
-            <ActionBtn colorClass="text-pink-500 hover:bg-pink-500/10" onClick={() => onSendTipLink(booking)} disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
-              <Heart className="w-4 h-4" /> Send Tip Link
-            </ActionBtn>
-            <ActionBtn
-              variant="pill"
-              colorClass="bg-purple-500 hover:bg-purple-600"
-              onClick={() => onSendDepositLink(booking)}
-              disabled={!booking.customer?.phone}
-            >
-              <Banknote className="w-4 h-4" /> Send Deposit Link
-            </ActionBtn>
+            {canShowPaymentFlows && (
+              <ActionBtn colorClass="text-pink-500 hover:bg-pink-500/10" onClick={() => onSendTipLink(booking)} disabled={sendingTipRequest === booking.id || !booking.customer?.phone || booking.status !== 'completed'}>
+                <Heart className="w-4 h-4" /> Send Tip Link
+              </ActionBtn>
+            )}
+            {canShowPaymentFlows && (
+              <ActionBtn
+                variant="pill"
+                colorClass="bg-purple-500 hover:bg-purple-600"
+                onClick={() => onSendDepositLink(booking)}
+                disabled={!booking.customer?.phone}
+              >
+                <Banknote className="w-4 h-4" /> Send Deposit Link
+              </ActionBtn>
+            )}
           </ActionSection>
 
           {/* Staff Section */}

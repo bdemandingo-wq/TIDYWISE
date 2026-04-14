@@ -200,15 +200,20 @@ export default function CustomersPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (customerToDelete) {
-      try {
-        await supabase.from('quotes').delete().eq('customer_id', customerToDelete.id);
-        await deleteCustomer.mutateAsync(customerToDelete.id);
-        setDeleteDialogOpen(false);
-        setCustomerToDelete(null);
-      } catch (error: any) {
-        console.error('Failed to delete customer:', error);
-      }
+    if (!customerToDelete) return;
+    try {
+      const id = customerToDelete.id;
+      // Clean up related records that may block deletion
+      await supabase.from('quotes').delete().eq('customer_id', id);
+      await supabase.from('property_notes').delete().eq('customer_id', id);
+      await supabase.from('referrals').delete().eq('referrer_customer_id', id);
+      await supabase.from('customer_loyalty').delete().eq('customer_id', id);
+      await deleteCustomer.mutateAsync(id);
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    } catch (error: any) {
+      console.error('Failed to delete customer:', error);
+      toast.error(error.message || 'Failed to delete customer');
     }
   };
 

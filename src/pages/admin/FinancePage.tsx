@@ -184,8 +184,9 @@ export default function FinancePage() {
   const transactions: Transaction[] = useMemo(() => {
     return bookings.map((b: any) => {
       const grossAmount = Number(b.total_amount) || 0;
-      // Stripe fee: 2.9% + $0.30
-      const processingFee = (grossAmount * 0.029) + 0.30;
+      // Only apply Stripe fee (2.9% + $0.30) to bookings actually charged through Stripe
+      const hasStripePayment = !!b.payment_intent_id;
+      const processingFee = hasStripePayment ? (grossAmount * 0.029) + 0.30 : 0;
       const netAmount = grossAmount - processingFee;
       
       // Calculate cleaner pay - use single source of truth: cleaner_pay_expected
@@ -587,6 +588,9 @@ export default function FinancePage() {
               <CardTitle>Sales Tax by Zip Code</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                <strong>Estimate only.</strong> The 7% rate is a placeholder. Actual rates vary by state and locality. Consult a tax professional for your obligations.
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -632,7 +636,7 @@ export default function FinancePage() {
                   <span className="text-lg font-bold text-green-600">{isTestMode ? '+$X,XXX.XX' : `+$${metrics.totalSales.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Less: Processing Fees</span>
+                  <span className="text-muted-foreground">Less: Processing Fees <span className="text-xs">(Stripe only)</span></span>
                   <span className="text-orange-600">{isTestMode ? '-$XXX.XX' : `-$${metrics.totalFees.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b bg-muted/50 px-3 rounded">

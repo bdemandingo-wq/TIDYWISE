@@ -22,7 +22,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { campaignId } = await req.json();
+    const { campaignId, targetAudience } = await req.json();
 
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabase
@@ -72,27 +72,26 @@ serve(async (req) => {
     
     console.log("[send-followup-campaign] Using sender:", senderFrom, "company:", companyName);
 
-    // Find inactive customers based on campaign type - filter by organization
-    let inactiveCustomers: any[] = [];
+    const audience: string = targetAudience || "inactive_clients";
 
-    if (campaign.type === "inactive_customer") {
+    // Find recipients based on campaign type and audience
+    let recipients: any[] = [];
+
+    if (campaign.type === "inactive_customer" || campaign.type === "custom") {
       const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - campaign.days_inactive);
+      cutoffDate.setDate(cutoffDate.getDate() - (campaign.days_inactive || 30));
 
-      // Get customers for THIS organization only
-      const { data: customers } = await supabase
+      // Get all customers for this org first
+      const { data: allCustomers } = await supabase
         .from("customers")
-        .select(`
-          id,
-          email,
-          first_name,
-          last_name
-        `)
-        .eq("organization_id", campaign.organization_id);
+        .select("id, email, first_name, last_name")
+        .eq("organization_id", campaign.organization_id)
+        .not("email", "is", null);
 
-      if (customers) {
-        for (const customer of customers) {
-          // Get the customer's last completed booking (within this organization)
+      if (allCustomers) {
+        for (const customer of allCustomers) {
+          if (!customer.email) continue;
+
           const { data: lastBooking } = await supabase
             .from("bookings")
             .select("scheduled_at")
@@ -103,43 +102,78 @@ serve(async (req) => {
             .limit(1)
             .maybeSingle();
 
-          // Check if they haven't booked recently
-          if (lastBooking) {
-            const lastBookingDate = new Date(lastBooking.scheduled_at);
-            if (lastBookingDate < cutoffDate) {
-              // Check if we've already emailed them for this campaign recently (within 30 days)
-              const { data: recentEmail } = await supabase
-                .from("campaign_emails")
-                .select("id")
-                .eq("campaign_id", campaignId)
-                .eq("customer_id", customer.id)
-                .gte("sent_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-                .maybeSingle();
+          const isInactive = lastBooking
+            ? new Date(lastBooking.scheduled_at) < cutoffDate
+            : true; // no completed booking → treat as inactive
 
-              if (!recentEmail) {
-                inactiveCustomers.push(customer);
-              }
-            }
+          const isActive = lastBooking
+            ? new Date(lastBooking.scheduled_at) >= cutoffDate
+            : false;
+
+          // Apply audience filter
+          let include = false;
+          if (audience === "all_customers") {
+            include = true;
+          } else if (audience === "inactive_clients" || audience === "inactive_customer") {
+            include = isInactive;
+          } else if (audience === "active_clients") {
+            include = isActive;
+          } else if (audience === "leads") {
+            // Leads: customers with no completed bookings at all
+            include = !lastBooking;
+          } else {
+            include = true;
+          }
+
+          if (!include) continue;
+
+          // De-duplicate: skip if already emailed for this campaign in last 30 days
+          const { data: recentEmail } = await supabase
+            .from("campaign_emails")
+            .select("id")
+            .eq("campaign_id", campaignId)
+            .eq("customer_id", customer.id)
+            .gte("sent_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+            .maybeSingle();
+
+          if (!recentEmail) {
+            recipients.push(customer);
           }
         }
       }
     }
 
-    console.log(`[send-followup-campaign] Found ${inactiveCustomers.length} inactive customers to email for org ${campaign.organization_id}`);
+    console.log(`[send-followup-campaign] Found ${recipients.length} recipients for org ${campaign.organization_id} audience=${audience}`);
 
     const emailsSent: string[] = [];
     const emailsFailed: string[] = [];
 
-    // Send emails to inactive customers
-    for (const customer of inactiveCustomers) {
-      // Replace placeholders in subject and body
-      const subject = campaign.subject
-        .replace(/\{\{customer_name\}\}/g, customer.first_name)
-        .replace(/\{\{company_name\}\}/g, companyName);
-      
-      const body = campaign.body
-        .replace(/\{\{customer_name\}\}/g, customer.first_name)
-        .replace(/\{\{company_name\}\}/g, companyName);
+    // Build the booking URL using APP_URL (same pattern as send-referral-invite)
+    const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.com";
+    const { data: orgData } = await supabase
+      .from("organizations")
+      .select("slug")
+      .eq("id", campaign.organization_id)
+      .single();
+    const orgSlug = orgData?.slug || "";
+    const bookingUrl = orgSlug ? `${appUrl}/book/${orgSlug}` : `${appUrl}/book`;
+
+    // Send emails to recipients
+    for (const customer of recipients) {
+      // Replace placeholders — support both {single} and {{double}} brace formats
+      const substitutions = (text: string) =>
+        text
+          // Double-brace format (legacy)
+          .replace(/\{\{customer_name\}\}/g, customer.first_name)
+          .replace(/\{\{company_name\}\}/g, companyName)
+          // Single-brace format (current UI)
+          .replace(/\{first_name\}/g, customer.first_name)
+          .replace(/\{last_name\}/g, customer.last_name || "")
+          .replace(/\{company_name\}/g, companyName)
+          .replace(/\{booking_link\}/g, bookingUrl);
+
+      const subject = substitutions(campaign.subject);
+      const body = substitutions(campaign.body);
 
       // Convert markdown-style bold to HTML
       const htmlBody = body
@@ -171,7 +205,7 @@ serve(async (req) => {
                 <div style="background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px;">
                   <p style="font-size: 16px;">${htmlBody}</p>
                   <div style="text-align: center; margin-top: 30px;">
-                    <a href="https://tidywise.lovable.app/book" 
+                    <a href="${bookingUrl}"
                        style="display: inline-block; background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">
                       Book Now
                     </a>
@@ -211,6 +245,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        sentCount: emailsSent.length,
         emailsSent: emailsSent.length,
         emailsFailed: emailsFailed.length,
         details: { sent: emailsSent, failed: emailsFailed },

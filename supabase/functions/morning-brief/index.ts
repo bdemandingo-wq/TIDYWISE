@@ -655,7 +655,7 @@ Deno.serve(async (req) => {
     if (items.length === 0) return `<p style="color:#9ca3af;margin:4px 0;">None</p>`;
     const shown = items.slice(0, max).join("");
     const remaining = items.length - max;
-    return shown + (remaining > 0 ? `<p style="color:#6b7280;font-size:13px;margin:8px 0;">+ ${remaining} more — <a href="https://jointidywise.lovable.app/dashboard" style="color:#2563eb;">see admin dashboard</a></p>` : "");
+    return shown + (remaining > 0 ? `<p style="color:#6b7280;font-size:13px;margin:8px 0;">+ ${remaining} more — <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/dashboard" style="color:#2563eb;">see admin dashboard</a></p>` : "");
   };
 
   const sectionStyle = `margin:0 0 28px;`;
@@ -829,7 +829,7 @@ Deno.serve(async (req) => {
     ${sec1Html}${sec2Html}${sec3Html}${sec4Html}${sec5Html}${sec6Html}${sec7Html}${sec8Html}${sec9Html}
     ${errorsHtml}
     <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
-      <a href="https://jointidywise.lovable.app/dashboard/notifications" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Open Dashboard</a>
+      <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/dashboard/notifications" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Open Dashboard</a>
       <p style="color:#9ca3af;font-size:11px;margin:12px 0 0;">Generated ${generatedAt}</p>
     </div>
   </div>

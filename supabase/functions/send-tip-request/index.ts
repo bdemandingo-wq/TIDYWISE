@@ -98,7 +98,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
-    const appUrl = (businessSettings?.app_url || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.lovable.app").replace(/\/+$/, '');
+    const appUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.com").replace(/\/+$/, '');
 
     // Shorten the tip link using short_urls table
     const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();

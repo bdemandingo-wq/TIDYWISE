@@ -97,7 +97,7 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
           </DialogHeader>
           <div className="space-y-6 py-4">
             <p className="text-muted-foreground text-center">
-              Manage your subscription at jointidywise.lovable.app to unlock all features.
+              Manage your subscription at jointidywise.com to unlock all features.
             </p>
             <div className="space-y-3">
               <Button 

@@ -38,17 +38,26 @@ import { SEOHead } from '@/components/SEOHead';
 
 // Helper to fetch data - uses any to break TS2589 type depth chain
 // Includes pagination limits for performance
-async function fetchOrgData(orgId: string): Promise<{ whData: any[]; custData: any[]; recData: any[] }> {
+async function fetchOrgData(orgId: string, staffIds: string[]): Promise<{ whData: any[]; custData: any[]; recData: any[] }> {
   const client: any = supabase;
-  // Working hours are limited per staff, so 500 is plenty
-  // NOTE: `working_hours` has no `organization_id` column; org isolation is enforced via RLS.
-  const whRes = await client.from('working_hours').select('*').limit(500);
+  // Filter working_hours directly by organization_id (column added in migration 20260413140000).
+  // Falls back to staff-ID filtering if staffIds is provided and org column isn't yet available.
+  let whData: any[] = [];
+  if (orgId) {
+    const whRes = await client.from('working_hours').select('*').eq('organization_id', orgId).limit(500);
+    whData = whRes.data || [];
+    // Fallback: if the column doesn't exist yet, filter by staff IDs
+    if (whRes.error && staffIds.length > 0) {
+      const fallback = await client.from('working_hours').select('*').in('staff_id', staffIds).limit(500);
+      whData = fallback.data || [];
+    }
+  }
   // Customers: fetch most recent 1000 for reports (order by created_at desc)
   const custRes = await client.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1000);
   // Recurring bookings: fetch all active + limit to 500
   const recRes = await client.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id').eq('organization_id', orgId).limit(500);
   return {
-    whData: whRes.data || [],
+    whData,
     custData: custRes.data || [],
     recData: recRes.data || [],
   };
@@ -81,8 +90,8 @@ export default function ReportsPage() {
   useEffect(() => {
     const loadData = async () => {
       if (!organizationId) return;
-      
-      const { whData, custData, recData } = await fetchOrgData(organizationId);
+      const staffIds = (staff as any[]).map(s => s.id);
+      const { whData, custData, recData } = await fetchOrgData(organizationId, staffIds);
       
       setWorkingHours(whData);
       setCustomers(custData);
@@ -96,7 +105,7 @@ export default function ReportsPage() {
       });
     };
     loadData();
-  }, [organizationId]);
+  }, [organizationId, staff]);
 
   const isLoading = bookingsLoading || servicesLoading || staffLoading;
 

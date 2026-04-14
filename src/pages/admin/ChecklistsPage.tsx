@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -46,6 +47,7 @@ import { SEOHead } from '@/components/SEOHead';
 
 interface ChecklistItem {
   id?: string;
+  _key: string; // stable DnD ID — uses item.id for saved items, randomUUID() for new ones
   title: string;
   description?: string;
   requires_photo: boolean;
@@ -82,7 +84,7 @@ function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: `item-${index}` });
+  } = useSortable({ id: item._key });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -137,6 +139,7 @@ export default function ChecklistsPage() {
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [formData, setFormData] = useState<TemplateFormData>(emptyFormData);
   const [newItem, setNewItem] = useState({ title: '', description: '', requires_photo: false });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // DnD sensors
   const sensors = useSensors(
@@ -150,16 +153,18 @@ export default function ChecklistsPage() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = parseInt(String(active.id).replace('item-', ''));
-      const newIndex = parseInt(String(over.id).replace('item-', ''));
-
-      setFormData(prev => ({
-        ...prev,
-        items: arrayMove(prev.items, oldIndex, newIndex).map((item, idx) => ({
-          ...item,
-          sort_order: idx
-        }))
-      }));
+      setFormData(prev => {
+        const oldIndex = prev.items.findIndex(item => item._key === active.id);
+        const newIndex = prev.items.findIndex(item => item._key === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return {
+          ...prev,
+          items: arrayMove(prev.items, oldIndex, newIndex).map((item, idx) => ({
+            ...item,
+            sort_order: idx
+          }))
+        };
+      });
     }
   };
 
@@ -345,6 +350,7 @@ export default function ChecklistsPage() {
       service_id: template.service_id || '',
       items: template.items.map((item: any) => ({
         id: item.id,
+        _key: item.id,
         title: item.title,
         description: item.description || '',
         requires_photo: item.requires_photo,
@@ -366,7 +372,7 @@ export default function ChecklistsPage() {
     if (!newItem.title.trim()) return;
     setFormData({
       ...formData,
-      items: [...formData.items, { ...newItem, sort_order: formData.items.length }]
+      items: [...formData.items, { ...newItem, _key: crypto.randomUUID(), sort_order: formData.items.length }]
     });
     setNewItem({ title: '', description: '', requires_photo: false });
   };
@@ -472,13 +478,13 @@ export default function ChecklistsPage() {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
-                    items={formData.items.map((_, index) => `item-${index}`)}
+                    items={formData.items.map(item => item._key)}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-2 mb-4">
                       {formData.items.map((item, index) => (
                         <SortableChecklistItem
-                          key={`item-${index}`}
+                          key={item._key}
                           item={item}
                           index={index}
                           onRemove={removeItemFromForm}
@@ -640,11 +646,7 @@ export default function ChecklistsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => {
-                          if (confirm('Delete this checklist template?')) {
-                            deleteTemplate.mutate(template.id);
-                          }
-                        }}
+                        onClick={() => setDeleteConfirmId(template.id)}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -690,6 +692,28 @@ export default function ChecklistsPage() {
           })
         )}
       </div>
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete checklist template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The template and all its items will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) deleteTemplate.mutate(deleteConfirmId);
+                setDeleteConfirmId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

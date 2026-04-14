@@ -65,7 +65,7 @@ serve(async (req) => {
       }
     }
 
-    const origin = req.headers.get("origin") || "https://jointidywise.lovable.app";
+    const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
 
     // Create checkout session for $50/month subscription
     const session = await stripe.checkout.sessions.create({

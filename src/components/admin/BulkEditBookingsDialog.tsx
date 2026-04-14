@@ -5,6 +5,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +58,7 @@ export function BulkEditBookingsDialog({
   // Filters
   const [filterCustomerId, setFilterCustomerId] = useState<string>('all');
   const [filterDays, setFilterDays] = useState<Set<number>>(new Set());
+  const [confirmApplyOpen, setConfirmApplyOpen] = useState(false);
   const [filterServiceId, setFilterServiceId] = useState<string>('all');
 
   // Fields to edit
@@ -117,7 +128,7 @@ export function BulkEditBookingsDialog({
   const hasIndividualPay = Object.values(editIndividualPay).some(v => v !== '');
   const hasChanges = editServiceId || editStaffIds.length > 0 || editTime || editPrice || editCleanerPay || editStatus || hasIndividualPay;
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!hasChanges) {
       toast({ title: 'No changes', description: 'Select at least one field to edit', variant: 'destructive' });
       return;
@@ -126,12 +137,11 @@ export function BulkEditBookingsDialog({
       toast({ title: 'No bookings matched', description: 'Adjust your filters', variant: 'destructive' });
       return;
     }
+    setConfirmApplyOpen(true);
+  };
 
-    const ok = window.confirm(
-      `Apply changes to ${filteredBookings.length} booking(s)?`
-    );
-    if (!ok) return;
-
+  const executeApply = async () => {
+    setConfirmApplyOpen(false);
     setSaving(true);
     let successCount = 0;
     let failCount = 0;
@@ -550,6 +560,21 @@ export function BulkEditBookingsDialog({
           </div>
         </div>
       </SheetContent>
+
+      <AlertDialog open={confirmApplyOpen} onOpenChange={setConfirmApplyOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will update {filteredBookings.length} booking(s). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeApply}>Apply</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

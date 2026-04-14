@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Loader2, DollarSign, CreditCard, Banknote } from 'lucide-react';
+import { usePlatform } from '@/hooks/usePlatform';
 
 interface AdditionalCharge {
   id: string;
@@ -52,12 +53,16 @@ export function AdditionalChargesDialog({
   onTotalUpdated 
 }: Props) {
   const queryClient = useQueryClient();
+  const { canShowPaymentFlows } = usePlatform();
   const [newCharge, setNewCharge] = useState({
     charge_name: '',
     charge_amount: '',
     description: ''
   });
-  const [paymentMethod, setPaymentMethod] = useState<'existing_card' | 'cash'>('existing_card');
+  // On native iOS, card charging is not allowed — default to cash
+  const [paymentMethod, setPaymentMethod] = useState<'existing_card' | 'cash'>(
+    canShowPaymentFlows ? 'existing_card' : 'cash'
+  );
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [excludeNotification, setExcludeNotification] = useState(false);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
@@ -78,10 +83,10 @@ export function AdditionalChargesDialog({
     enabled: open && !!bookingId
   });
 
-  // Fetch saved cards when dialog opens
+  // Fetch saved cards when dialog opens (web only — no card charging on native)
   useEffect(() => {
     const fetchCards = async () => {
-      if (!open || !customerEmail || !organizationId) return;
+      if (!open || !customerEmail || !organizationId || !canShowPaymentFlows) return;
       
       setLoadingCards(true);
       try {
@@ -321,20 +326,22 @@ export function AdditionalChargesDialog({
               />
             </div>
 
-            {/* Payment method selection */}
-            <RadioGroup 
-              value={paymentMethod} 
+            {/* Payment method selection — card option hidden on native iOS */}
+            <RadioGroup
+              value={paymentMethod}
               onValueChange={(val) => setPaymentMethod(val as 'existing_card' | 'cash')}
               className="flex flex-wrap gap-4"
               disabled={chargeAndAdd.isPending || loadingCards}
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="existing_card" id="existing_card" disabled={savedCards.length === 0} />
-                <Label htmlFor="existing_card" className="flex items-center gap-1.5 cursor-pointer">
-                  <CreditCard className="h-4 w-4" />
-                  Existing credit card
-                </Label>
-              </div>
+              {canShowPaymentFlows && (
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="existing_card" id="existing_card" disabled={savedCards.length === 0} />
+                  <Label htmlFor="existing_card" className="flex items-center gap-1.5 cursor-pointer">
+                    <CreditCard className="h-4 w-4" />
+                    Existing credit card
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="cash" id="cash" />
                 <Label htmlFor="cash" className="flex items-center gap-1.5 cursor-pointer">
@@ -344,8 +351,8 @@ export function AdditionalChargesDialog({
               </div>
             </RadioGroup>
 
-            {/* Card selection */}
-            {paymentMethod === 'existing_card' && (
+            {/* Card selection — web only */}
+            {canShowPaymentFlows && paymentMethod === 'existing_card' && (
               <div className="space-y-2">
                 <Label>Your saved card</Label>
                 {loadingCards ? (

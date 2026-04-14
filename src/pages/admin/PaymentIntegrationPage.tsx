@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CreditCard,
@@ -74,6 +84,7 @@ export default function PaymentIntegrationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
@@ -270,12 +281,13 @@ export default function PaymentIntegrationPage() {
     }
   };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     if (!organization?.id) return;
-    const confirmed = window.confirm(
-      "Are you sure you want to disconnect Stripe? This will disable all payment features for your organization."
-    );
-    if (!confirmed) return;
+    setDisconnectConfirmOpen(true);
+  };
+
+  const executeDisconnect = async () => {
+    setDisconnectConfirmOpen(false);
     setIsDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
@@ -848,6 +860,26 @@ export default function PaymentIntegrationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={disconnectConfirmOpen} onOpenChange={setDisconnectConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Stripe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disable all payment features for your organization. You can reconnect at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={executeDisconnect}
+            >
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

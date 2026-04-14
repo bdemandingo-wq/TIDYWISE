@@ -286,7 +286,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
     
     const orgSlug = orgData?.slug || organizationId;
-    const projectUrl = Deno.env.get("PROJECT_URL") || "https://jointidywise.lovable.app";
+    const projectUrl = Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || "https://jointidywise.com";
 
     // Send SMS to each customer
     let sentCount = 0;

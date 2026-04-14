@@ -165,10 +165,10 @@ const handler = async (req: Request): Promise<Response> => {
     const adminPhone = businessSettings?.company_phone;
 
     // Resolve the app URL for tracking link
-    let appBaseUrl = businessSettings?.app_url || Deno.env.get("PROJECT_URL") || '';
+    let appBaseUrl = businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || '';
     appBaseUrl = appBaseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
     if (!appBaseUrl) {
-      appBaseUrl = 'jointidywise.lovable.app';
+      appBaseUrl = 'jointidywise.com';
     }
 
     // Check if distance/ETA should be included in client SMS

@@ -20,6 +20,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { Capacitor } from '@capacitor/core';
 import { format } from 'date-fns';
+import { PropertyNotesEditor } from '@/components/admin/PropertyNotesEditor';
 
 interface Customer {
   id: string;
@@ -619,6 +620,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
               </div>
             </div>
           )}
+          {/* Property Notes */}
+          {customer?.id && organization?.id && (
+            <>
+              <Separator />
+              <PropertyNotesEditor customerId={customer.id} organizationId={organization.id} />
+            </>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"

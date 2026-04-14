@@ -22,6 +22,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -45,6 +55,7 @@ export function CustomServicesManager() {
   const queryClient = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deleteConfirmService, setDeleteConfirmService] = useState<Service | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -170,9 +181,7 @@ export function CustomServicesManager() {
   };
 
   const handleDelete = (service: Service) => {
-    if (window.confirm(`Delete "${service.name}"? This cannot be undone.`)) {
-      deleteMutation.mutate(service.id);
-    }
+    setDeleteConfirmService(service);
   };
 
   const handleCloseDialog = () => {
@@ -355,11 +364,31 @@ export function CustomServicesManager() {
 
         <div className="mt-4 p-4 bg-secondary/50 rounded-lg">
           <p className="text-sm text-muted-foreground">
-            <strong>Tip:</strong> After creating a service, go to the "Service Pricing" tab to set up detailed pricing 
+            <strong>Tip:</strong> After creating a service, go to the "Service Pricing" tab to set up detailed pricing
             including square footage rates, bedroom/bathroom combinations, extras, and more.
           </p>
         </div>
       </CardContent>
+
+      <AlertDialog open={!!deleteConfirmService} onOpenChange={(o) => { if (!o) setDeleteConfirmService(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete service?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &ldquo;{deleteConfirmService?.name}&rdquo;? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteConfirmService) { deleteMutation.mutate(deleteConfirmService.id); setDeleteConfirmService(null); } }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

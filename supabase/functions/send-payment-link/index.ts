@@ -173,8 +173,8 @@ const handler = async (req: Request): Promise<Response> => {
       customer: customerId,
       mode: "setup",  // SETUP mode = save card only, NO charge
       payment_method_types: ["card"],
-      success_url: "https://jointidywise.lovable.app/card-saved?success=true",
-      cancel_url: "https://jointidywise.lovable.app/card-saved?cancelled=true",
+      success_url: `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/card-saved?success=true`,
+      cancel_url: `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/card-saved?cancelled=true`,
       metadata: {
         bookingId: bookingId || "",
         customerName: customerName,

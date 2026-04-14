@@ -76,8 +76,19 @@ serve(async (req) => {
     const referrerName = `${referral.referrer.first_name} ${referral.referrer.last_name}`;
     const creditAmount = referral.credit_amount || 25;
 
-    // Create booking URL with referral code
-    const bookingUrl = `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/book?ref=${referral.referral_code}`;
+    // Resolve org slug for the booking URL
+    const { data: orgData } = await supabase
+      .from("organizations")
+      .select("slug")
+      .eq("id", referral.organization_id)
+      .single();
+    const orgSlug = orgData?.slug || "";
+
+    // Build booking URL using APP_URL env var (falls back to production domain)
+    const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.com";
+    const bookingUrl = orgSlug
+      ? `${appUrl}/book/${orgSlug}?ref=${referral.referral_code}`
+      : `${appUrl}/book?ref=${referral.referral_code}`;
 
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",

@@ -126,7 +126,7 @@ export default function BookingPhotosPage() {
         .from('bookings')
         .select('id')
         .eq('organization_id', organization.id)
-        .limit(1000);
+        .limit(5000);
 
       if (bookingError) throw bookingError;
 
@@ -175,9 +175,16 @@ export default function BookingPhotosPage() {
 
     setDeletingId(photo.id);
     try {
-      await supabase.storage.from('booking-photos').remove([photo.photo_url]);
-      const { error } = await supabase.from('booking_photos').delete().eq('id', photo.id);
-      if (error) throw error;
+      // Delete DB record first so the photo list updates immediately
+      const { error: dbError } = await supabase.from('booking_photos').delete().eq('id', photo.id);
+      if (dbError) throw dbError;
+
+      // Then remove from storage — failure here leaves an orphan file but doesn't affect UI
+      const { error: storageError } = await supabase.storage.from('booking-photos').remove([photo.photo_url]);
+      if (storageError) {
+        console.warn('Storage remove failed (orphaned file):', storageError.message);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['booking-photos'] });
       toast.success(`${isVideoMedia(photo) ? 'Video' : 'Photo'} deleted`);
       if (selectedPhoto?.id === photo.id) setSelectedPhoto(null);
