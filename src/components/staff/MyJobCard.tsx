@@ -81,13 +81,13 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     if (!booking.organization_id) return;
     const customerId = (booking as any).customer_id;
     if (!customerId) return;
-    supabase
-      .from('property_notes')
+    (supabase
+      .from('property_notes' as any) as any)
       .select('notes, access_instructions, gate_code, alarm_code, has_pets, pet_notes, parking_notes')
       .eq('organization_id', booking.organization_id)
       .eq('customer_id', customerId)
       .maybeSingle()
-      .then(({ data }) => { if (data) setPropertyNote(data as PropertyNote); });
+      .then(({ data }: any) => { if (data) setPropertyNote(data as PropertyNote); });
   }, [booking.id, booking.organization_id]);
 
   const { startTracking, stopTracking, isTracking } = useCleanerTracking({

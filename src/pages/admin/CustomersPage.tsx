@@ -205,7 +205,7 @@ export default function CustomersPage() {
       const id = customerToDelete.id;
       // Clean up related records that may block deletion
       await supabase.from('quotes').delete().eq('customer_id', id);
-      await supabase.from('property_notes').delete().eq('customer_id', id);
+      await (supabase.from('property_notes' as any) as any).delete().eq('customer_id', id);
       await supabase.from('referrals').delete().eq('referrer_customer_id', id);
       await supabase.from('customer_loyalty').delete().eq('customer_id', id);
       await deleteCustomer.mutateAsync(id);
