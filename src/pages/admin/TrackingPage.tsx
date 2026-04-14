@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { Navigation, Clock, MapPin, Car, User, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Navigation, Clock, MapPin, Car, User, Loader2, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -197,6 +199,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
 }
 
 export default function TrackingPage() {
+  const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgId = organization?.id;
   const [activeJobs, setActiveJobs] = useState<ActiveTracking[]>([]);
@@ -309,9 +312,19 @@ export default function TrackingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Live Tracking</h1>
-        <p className="text-muted-foreground text-sm">Cleaners currently en route</p>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="min-h-[44px] min-w-[44px] shrink-0"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Live Tracking</h1>
+          <p className="text-muted-foreground text-sm">Cleaners currently en route</p>
+        </div>
       </div>
 
       {/* Settings Bar */}
