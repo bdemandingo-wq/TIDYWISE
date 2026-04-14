@@ -191,15 +191,9 @@ export default function LandingPage() {
 
   // Prevent the page behind the mobile menu from scrolling
   useEffect(() => {
-    if (!mobileMenuOpen) {
-      document.body.style.overflow = '';
-      return;
-    }
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
     return () => {
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = '';
     };
   }, [mobileMenuOpen]);
 
