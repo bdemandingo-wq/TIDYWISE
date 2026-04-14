@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 // Check if running in Capacitor native
@@ -22,24 +22,96 @@ const getPushPlugin = async () => {
   }
 };
 
+type NotificationPayload = {
+  title: string;
+  body?: string;
+  tag?: string;
+  onClick?: () => void;
+};
+
+export const canUseBrowserNotifications = () => {
+  return typeof window !== 'undefined' && 'Notification' in window;
+};
+
+export const showBrowserNotification = ({ title, body, tag, onClick }: NotificationPayload) => {
+  if (!canUseBrowserNotifications() || Notification.permission !== 'granted') {
+    return;
+  }
+
+  try {
+    const notification = new Notification(title, {
+      body,
+      tag,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      onClick?.();
+      notification.close();
+    };
+  } catch (error) {
+    console.error('Error showing browser notification:', error);
+  }
+};
+
 export function usePushNotifications(staffId?: string) {
   const [token, setToken] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const nativeListenersAttachedRef = useRef(false);
+  const nativeListenerHandlesRef = useRef<Array<{ remove: () => Promise<void> }>>([]);
+
+  const cleanupNativeListeners = useCallback(async () => {
+    if (nativeListenerHandlesRef.current.length === 0) return;
+
+    await Promise.allSettled(nativeListenerHandlesRef.current.map((handle) => handle.remove()));
+    nativeListenerHandlesRef.current = [];
+    nativeListenersAttachedRef.current = false;
+  }, []);
+
+  const attachNativeListeners = useCallback(async () => {
+    if (!isNativePlatform() || nativeListenersAttachedRef.current) return;
+
+    const PushNotifications = await getPushPlugin();
+    if (!PushNotifications) return;
+
+    const handles = await Promise.all([
+      PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
+        toast.info(notification.title || 'New notification', {
+          description: notification.body,
+        });
+      }),
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
+        const data = notification.notification.data;
+        if (data?.bookingId) {
+          window.location.href = `/staff?booking=${data.bookingId}`;
+        }
+      }),
+    ]);
+
+    nativeListenerHandlesRef.current = handles;
+    nativeListenersAttachedRef.current = true;
+  }, []);
 
   useEffect(() => {
     // Check support for native or web
     if (isNativePlatform()) {
       setIsSupported(true);
-      checkNativePermission();
+      void checkNativePermission();
+      void attachNativeListeners();
     } else if ('Notification' in window) {
       setIsSupported(true);
       if (Notification.permission === 'granted') {
         setIsRegistered(true);
       }
     }
-  }, [staffId]);
+    return () => {
+      void cleanupNativeListeners();
+    };
+  }, [attachNativeListeners, cleanupNativeListeners, staffId]);
 
   const checkNativePermission = async () => {
     try {
@@ -56,7 +128,10 @@ export function usePushNotifications(staffId?: string) {
 
   const registerNative = async () => {
     const PushNotifications = await getPushPlugin();
-    if (!PushNotifications) return false;
+    if (!PushNotifications) {
+      toast.error('Push notifications are not available on this device');
+      return false;
+    }
 
     const permStatus = await PushNotifications.requestPermissions();
     if (permStatus.receive !== 'granted') {
@@ -64,36 +139,54 @@ export function usePushNotifications(staffId?: string) {
       return false;
     }
 
-    await PushNotifications.register();
+    await attachNativeListeners();
 
-    PushNotifications.addListener('registration', async (tokenData: { value: string }) => {
-      console.log('Push registration success, token:', tokenData.value);
-      setToken(tokenData.value);
-      setIsRegistered(true);
-      if (staffId) {
-        console.log('Would save push token for staff:', staffId, tokenData.value);
-      }
-    });
+    let registrationHandle: { remove: () => Promise<void> } | null = null;
+    let registrationErrorHandle: { remove: () => Promise<void> } | null = null;
 
-    PushNotifications.addListener('registrationError', (error: any) => {
-      console.error('Push registration error:', error);
-      toast.error('Failed to register for push notifications');
-    });
+    try {
+      const nativeToken = await new Promise<string>(async (resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          reject(new Error('Push registration timed out. Please try again.'));
+        }, 12000);
 
-    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
-      toast.info(notification.title || 'New notification', {
-        description: notification.body,
+        try {
+          registrationHandle = await PushNotifications.addListener('registration', (tokenData: { value: string }) => {
+            window.clearTimeout(timeoutId);
+            resolve(tokenData.value);
+          });
+
+          registrationErrorHandle = await PushNotifications.addListener('registrationError', (error: any) => {
+            window.clearTimeout(timeoutId);
+            reject(new Error(error?.error || 'Failed to register for push notifications'));
+          });
+
+          await PushNotifications.register();
+        } catch (error) {
+          window.clearTimeout(timeoutId);
+          reject(error);
+        }
       });
-    });
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification: any) => {
-      const data = notification.notification.data;
-      if (data?.bookingId) {
-        window.location.href = `/staff?booking=${data.bookingId}`;
+      console.log('Push registration success, token:', nativeToken);
+      setToken(nativeToken);
+      setIsRegistered(true);
+
+      if (staffId) {
+        console.log('Would save push token for staff:', staffId, nativeToken);
       }
-    });
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error('Push registration error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to register for push notifications');
+      return false;
+    } finally {
+      await Promise.allSettled([
+        registrationHandle?.remove() ?? Promise.resolve(),
+        registrationErrorHandle?.remove() ?? Promise.resolve(),
+      ]);
+    }
   };
 
   const registerWeb = async () => {
