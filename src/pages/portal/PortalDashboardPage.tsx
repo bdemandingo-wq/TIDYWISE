@@ -224,8 +224,8 @@ export default function PortalDashboardPage() {
       // Fetch inspection reports for this customer's bookings
       const bookingIds = (bookingsData || []).map((b: any) => b.id);
       if (bookingIds.length > 0) {
-        const { data: inspectionData } = await supabase
-          .from('booking_photos')
+        const { data: inspectionData } = await (supabase
+          .from('booking_photos' as any) as any)
           .select(`
             id, photo_url, inspection_note, issue_category, created_at,
             booking:bookings!booking_photos_booking_id_fkey(booking_number, scheduled_at)

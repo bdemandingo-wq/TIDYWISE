@@ -51,7 +51,7 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
         }
       }
 
-      await supabase.from('booking_checkins').insert({
+      await (supabase.from('booking_checkins' as any) as any).insert({
         booking_id: bookingId,
         staff_id: staffId,
         organization_id: organizationId,
@@ -75,7 +75,7 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
         toast.error('Location access denied. Enable location in your device settings.');
       } else {
         // Still log without coordinates
-        await supabase.from('booking_checkins').insert({
+        await (supabase.from('booking_checkins' as any) as any).insert({
           booking_id: bookingId,
           staff_id: staffId,
           organization_id: organizationId,

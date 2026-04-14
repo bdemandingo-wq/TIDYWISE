@@ -34,13 +34,13 @@ export function SurgePricingSettings() {
 
   useEffect(() => {
     if (!organization?.id) return;
-    supabase
-      .from('business_settings')
+    (supabase
+      .from('business_settings' as any) as any)
       .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
       .eq('organization_id', organization.id)
       .maybeSingle()
-      .then(({ data }) => {
-        if (data) setSettings(s => ({ ...s, ...data }));
+      .then(({ data }: any) => {
+        if (data) setSettings((s: any) => ({ ...s, ...data }));
         setLoading(false);
       });
   }, [organization?.id]);

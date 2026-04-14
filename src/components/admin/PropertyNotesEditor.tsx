@@ -27,8 +27,8 @@ export function PropertyNotesEditor({ customerId, organizationId }: PropertyNote
   const [existingId, setExistingId] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
-      .from('property_notes')
+    (supabase
+      .from('property_notes' as any) as any)
       .select('*')
       .eq('organization_id', organizationId)
       .eq('customer_id', customerId)
@@ -65,10 +65,10 @@ export function PropertyNotesEditor({ customerId, organizationId }: PropertyNote
       };
 
       if (existingId) {
-        const { error } = await supabase.from('property_notes').update(payload).eq('id', existingId);
+        const { error } = await (supabase.from('property_notes' as any) as any).update(payload).eq('id', existingId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('property_notes').insert(payload).select('id').single();
+        const { data, error } = await (supabase.from('property_notes' as any) as any).insert(payload).select('id').single();
         if (error) throw error;
         setExistingId(data.id);
       }

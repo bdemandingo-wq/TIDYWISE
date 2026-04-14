@@ -159,12 +159,12 @@ export default function PublicBookingPage() {
   // Fetch surge pricing settings once org is known
   useEffect(() => {
     if (!organizationId) return;
-    supabase
-      .from('business_settings')
+    (supabase
+      .from('business_settings' as any) as any)
       .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
       .eq('organization_id', organizationId)
       .maybeSingle()
-      .then(({ data }) => { if (data) setSurgeSettings(data as typeof surgeSettings); });
+      .then(({ data }: any) => { if (data) setSurgeSettings(data as typeof surgeSettings); });
   }, [organizationId]);
 
   // Track link_opened when ref param exists
