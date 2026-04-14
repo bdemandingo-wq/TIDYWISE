@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { useOrgId } from '@/hooks/useOrgId';
+import { showBrowserNotification } from '@/hooks/usePushNotifications';
 
 interface AdminNotification {
   id: string;
@@ -29,6 +30,14 @@ export function AdminNotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+
+  const deliverBrowserNotification = (notification: Pick<AdminNotification, 'id' | 'title' | 'message'>) => {
+    showBrowserNotification({
+      title: notification.title,
+      body: notification.message,
+      tag: notification.id,
+    });
+  };
 
   // Simulated notifications based on recent activity
   const fetchNotifications = async (force = false) => {
@@ -180,6 +189,11 @@ export function AdminNotificationBell() {
           () => {
             // Refresh notifications when a new booking request comes in
             fetchNotifications(true);
+            deliverBrowserNotification({
+              id: `request-${Date.now()}`,
+              title: 'New Booking Request',
+              message: 'A new booking request is waiting for review.',
+            });
           }
         )
         .on(
@@ -206,6 +220,7 @@ export function AdminNotificationBell() {
             };
             setNotifications((prev) => [newNotification, ...prev]);
             setUnreadCount((prev) => prev + 1);
+            deliverBrowserNotification(newNotification);
           }
         )
         .on(
@@ -248,6 +263,7 @@ export function AdminNotificationBell() {
               };
               setNotifications((prev) => [newNotification, ...prev]);
               setUnreadCount((prev) => prev + 1);
+              deliverBrowserNotification(newNotification);
             }
           }
         )
