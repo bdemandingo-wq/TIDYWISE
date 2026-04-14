@@ -471,7 +471,7 @@ export default function CampaignsPage() {
       <AdminLayout title="Campaigns" subtitle="Loading...">
       <SEOHead title="Campaigns | TidyWise" description="Create and manage marketing campaigns" noIndex />
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <Loader2 className="w-8 min-h-[44px] animate-spin text-primary" />
         </div>
       </AdminLayout>
     );
@@ -513,11 +513,11 @@ export default function CampaignsPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold">Campaign Library</h2>
               <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <TabsList className="h-8">
-                  <TabsTrigger value="all" className="text-xs px-3 h-7">All</TabsTrigger>
-                  <TabsTrigger value="draft" className="text-xs px-3 h-7">Draft</TabsTrigger>
-                  <TabsTrigger value="active" className="text-xs px-3 h-7">Active</TabsTrigger>
-                  <TabsTrigger value="sent" className="text-xs px-3 h-7">Sent</TabsTrigger>
+                <TabsList className="min-h-[44px]">
+                  <TabsTrigger value="all" className="text-xs px-3 min-h-[44px]">All</TabsTrigger>
+                  <TabsTrigger value="draft" className="text-xs px-3 min-h-[44px]">Draft</TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs px-3 min-h-[44px]">Active</TabsTrigger>
+                  <TabsTrigger value="sent" className="text-xs px-3 min-h-[44px]">Sent</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -526,7 +526,7 @@ export default function CampaignsPage() {
               <Card>
                 <CardContent className="py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Send className="w-8 h-8 text-primary" />
+                    <Send className="w-8 min-h-[44px] text-primary" />
                   </div>
                   <h3 className="font-semibold mb-1">No campaigns yet</h3>
                   <p className="text-sm text-muted-foreground mb-4">Create your first campaign to start engaging customers</p>
@@ -553,7 +553,7 @@ export default function CampaignsPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                          <Button variant="ghost" size="icon" className="min-h-[44px] w-8 shrink-0">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -571,7 +571,7 @@ export default function CampaignsPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="bg-card rounded-xl border border-border shadow-sm overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -642,13 +642,13 @@ export default function CampaignsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailCampaignId(campaign.id)} title="View tracking">
+                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => setDetailCampaignId(campaign.id)} title="View tracking">
                               <BarChart3 className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => runCampaign.mutate(campaign.id)} disabled={runCampaign.isPending}>
+                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => runCampaign.mutate(campaign.id)} disabled={runCampaign.isPending}>
                               <Play className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
+                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8 text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -870,7 +870,7 @@ export default function CampaignsPage() {
                     <div className="space-y-1.5">
                       <Label className="text-xs">Tone</Label>
                       <Select value={aiTone} onValueChange={setAiTone}>
-                        <SelectTrigger className="w-[140px] h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-[140px] min-h-[44px] text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {toneOptions.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                         </SelectContent>
@@ -887,7 +887,7 @@ export default function CampaignsPage() {
                         <div key={i} className="p-3 bg-background rounded-lg border text-xs">
                           <p className="font-medium text-primary mb-1">{t.name}</p>
                           <p className="text-muted-foreground line-clamp-3 mb-2">{t.message}</p>
-                          <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => handleUseTemplate(t)}>
+                          <Button size="sm" variant="outline" className="w-full min-h-[44px] text-xs" onClick={() => handleUseTemplate(t)}>
                             Use This
                           </Button>
                         </div>

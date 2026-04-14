@@ -71,10 +71,10 @@ export function ReferralDashboard() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Users className="w-8 h-8 text-blue-500 bg-blue-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{totalReferrals}</p><p className="text-xs text-muted-foreground">Total Referrals</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><TrendingUp className="w-8 h-8 text-emerald-500 bg-emerald-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{converted}</p><p className="text-xs text-muted-foreground">Converted</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><DollarSign className="w-8 h-8 text-amber-500 bg-amber-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">${totalCreditAwarded.toFixed(0)}</p><p className="text-xs text-muted-foreground">Credits Issued</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Gift className="w-8 h-8 text-purple-500 bg-purple-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{conversionRate}%</p><p className="text-xs text-muted-foreground">Conversion Rate</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Users className="w-8 min-h-[44px] text-blue-500 bg-blue-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{totalReferrals}</p><p className="text-xs text-muted-foreground">Total Referrals</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><TrendingUp className="w-8 min-h-[44px] text-emerald-500 bg-emerald-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{converted}</p><p className="text-xs text-muted-foreground">Converted</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><DollarSign className="w-8 min-h-[44px] text-amber-500 bg-amber-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">${totalCreditAwarded.toFixed(0)}</p><p className="text-xs text-muted-foreground">Credits Issued</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Gift className="w-8 min-h-[44px] text-purple-500 bg-purple-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{conversionRate}%</p><p className="text-xs text-muted-foreground">Conversion Rate</p></div></div></CardContent></Card>
       </div>
 
       {/* Table */}
@@ -139,7 +139,7 @@ export function ReferralDashboard() {
                       </TableCell>
                       <TableCell>
                         {!r.credit_awarded && r.status !== 'expired' && (
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => markCredited(r.id)}>
+                          <Button size="sm" variant="outline" className="text-xs min-h-[44px]" onClick={() => markCredited(r.id)}>
                             Mark Credited
                           </Button>
                         )}

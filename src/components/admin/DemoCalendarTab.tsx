@@ -612,7 +612,7 @@ export function DemoCalendarTab() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 p-0"
+                                    className="min-h-[44px] w-8 p-0"
                                     title="Reschedule"
                                     onClick={() => {
                                       setActiveBooking(demo);
@@ -626,7 +626,7 @@ export function DemoCalendarTab() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    className="min-h-[44px] w-8 p-0 text-destructive hover:text-destructive"
                                     title="Cancel"
                                     onClick={() => {
                                       setActiveBooking(demo);
@@ -640,7 +640,7 @@ export function DemoCalendarTab() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-8 w-8 p-0"
+                                    className="min-h-[44px] w-8 p-0"
                                     title="Complete"
                                     onClick={() => handleComplete(demo)}
                                   >
@@ -651,7 +651,7 @@ export function DemoCalendarTab() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 p-0"
+                                className="min-h-[44px] w-8 p-0"
                                 title="View Details"
                                 onClick={() => setDetailBooking(demo)}
                               >
@@ -735,7 +735,7 @@ export function DemoCalendarTab() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium">{format(selectedDate, 'EEEE, MMM d')}</p>
                     {blockedDateStrings.includes(format(selectedDate, 'yyyy-MM-dd')) && (
-                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => unblockMutation.mutate(format(selectedDate, 'yyyy-MM-dd'))}>
+                      <Button size="sm" variant="ghost" className="text-xs min-h-[44px]" onClick={() => unblockMutation.mutate(format(selectedDate, 'yyyy-MM-dd'))}>
                         Unblock
                       </Button>
                     )}
@@ -786,13 +786,13 @@ export function DemoCalendarTab() {
                           {formatDateDisplay(demo.booked_date)} · {formatTime12h(demo.booked_time.substring(0, 5))} EST
                         </p>
                         <div className="flex gap-2 pt-1">
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setActiveBooking(demo); setRescheduleDialogOpen(true); setRescheduleDate(''); setRescheduleTime(''); }}>
+                          <Button size="sm" variant="outline" className="min-h-[44px] text-xs" onClick={() => { setActiveBooking(demo); setRescheduleDialogOpen(true); setRescheduleDate(''); setRescheduleTime(''); }}>
                             📅 Reschedule
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => { setActiveBooking(demo); setCancelReason(''); setSendSmsOnCancel(true); setCancelDialogOpen(true); }}>
+                          <Button size="sm" variant="outline" className="min-h-[44px] text-xs text-destructive" onClick={() => { setActiveBooking(demo); setCancelReason(''); setSendSmsOnCancel(true); setCancelDialogOpen(true); }}>
                             ❌ Cancel
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleComplete(demo)}>
+                          <Button size="sm" variant="outline" className="min-h-[44px] text-xs" onClick={() => handleComplete(demo)}>
                             ✅ Complete
                           </Button>
                         </div>

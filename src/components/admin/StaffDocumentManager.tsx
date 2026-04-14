@@ -171,27 +171,27 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs" onClick={() => handlePreview(doc.file_path)}>
+            <Button variant="outline" size="sm" className="gap-1 min-h-[44px] text-xs" onClick={() => handlePreview(doc.file_path)}>
               <Eye className="h-3 w-3" /> Preview
             </Button>
-            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs" onClick={() => handleDownload(doc.file_path, doc.file_name)}>
+            <Button variant="outline" size="sm" className="gap-1 min-h-[44px] text-xs" onClick={() => handleDownload(doc.file_path, doc.file_name)}>
               <Download className="h-3 w-3" /> Download
             </Button>
-            
+
             {doc.status === 'pending' && reviewingDocId !== doc.id && (
               <>
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  className="gap-1 h-8 text-xs ml-auto"
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1 min-h-[44px] text-xs ml-auto"
                   onClick={() => updateStatusMutation.mutate({ docId: doc.id, status: 'approved', note: '' })}
                 >
                   <CheckCircle2 className="h-3 w-3" /> Approve
                 </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  className="gap-1 h-8 text-xs"
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1 min-h-[44px] text-xs"
                   onClick={() => setReviewingDocId(doc.id)}
                 >
                   <XCircle className="h-3 w-3" /> Reject
@@ -203,7 +203,7 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1 h-8 text-xs ml-auto"
+                className="gap-1 min-h-[44px] text-xs ml-auto"
                 onClick={() => updateStatusMutation.mutate({ docId: doc.id, status: 'pending', note: '' })}
               >
                 Reset to Pending

@@ -174,10 +174,10 @@ export function PendingDocumentsReview() {
               </div>
 
               <div className="flex items-center gap-1 flex-wrap">
-                <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => handlePreview(doc.file_path)}>
+                <Button variant="outline" size="sm" className="gap-1 min-h-[44px] text-xs" onClick={() => handlePreview(doc.file_path)}>
                   <Eye className="h-3 w-3" /> Preview
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => handleDownload(doc.file_path, doc.file_name)}>
+                <Button variant="outline" size="sm" className="gap-1 min-h-[44px] text-xs" onClick={() => handleDownload(doc.file_path, doc.file_name)}>
                   <Download className="h-3 w-3" /> Download
                 </Button>
 
@@ -186,7 +186,7 @@ export function PendingDocumentsReview() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="gap-1 h-7 text-xs ml-auto"
+                      className="gap-1 min-h-[44px] text-xs ml-auto"
                       onClick={() => updateStatusMutation.mutate({ docId: doc.id, status: 'approved', note: '' })}
                     >
                       <CheckCircle2 className="h-3 w-3" /> Approve
@@ -194,7 +194,7 @@ export function PendingDocumentsReview() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="gap-1 h-7 text-xs"
+                      className="gap-1 min-h-[44px] text-xs"
                       onClick={() => setReviewingDocId(doc.id)}
                     >
                       <XCircle className="h-3 w-3" /> Reject

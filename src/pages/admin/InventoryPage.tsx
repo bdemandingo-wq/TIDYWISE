@@ -382,7 +382,7 @@ export default function InventoryPage() {
         {/* Table */}
         <Card className="shadow-sm">
           <CardContent className="p-0">
-            <div className="overflow-auto">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">

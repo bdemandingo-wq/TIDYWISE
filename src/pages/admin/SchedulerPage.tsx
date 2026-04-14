@@ -117,7 +117,8 @@ export default function SchedulerPage() {
       } else if (type === 'print') {
         const printWin = window.open('', '_blank');
         if (!printWin) { toast.error('Popup blocked — please allow popups'); return; }
-        const tableRows = rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:13px">${c}</td>`).join('')}</tr>`).join('');
+        const escHtml = (s: unknown) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const tableRows = rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:13px">${escHtml(c)}</td>`).join('')}</tr>`).join('');
         printWin.document.write(`<!DOCTYPE html><html><head><title>Bookings</title><style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%}th{background:#2563eb;color:#fff;padding:8px 10px;font-size:13px;text-align:left}h1{font-size:20px;margin-bottom:4px}p{color:#888;font-size:13px;margin-bottom:16px}@media print{body{margin:0}}</style></head><body><h1>TidyWise — Bookings Report</h1><p>Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')} • ${bookings.length} bookings</p><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
         printWin.document.close();
         printWin.focus();

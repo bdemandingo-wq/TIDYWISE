@@ -286,6 +286,7 @@ export default function DiscountsPage() {
                 <p className="text-sm">Create your first coupon code to offer discounts</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -361,6 +362,7 @@ export default function DiscountsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

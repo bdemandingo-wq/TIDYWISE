@@ -299,6 +299,7 @@ export default function ExpensesPage() {
               No expenses yet. Add your first expense to track business costs.
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -356,6 +357,7 @@ export default function ExpensesPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

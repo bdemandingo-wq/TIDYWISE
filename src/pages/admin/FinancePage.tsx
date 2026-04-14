@@ -522,7 +522,7 @@ export default function FinancePage() {
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -587,7 +587,7 @@ export default function FinancePage() {
             <CardHeader>
               <CardTitle>Sales Tax by Zip Code</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
                 <strong>Estimate only.</strong> The 7% rate is a placeholder. Actual rates vary by state and locality. Consult a tax professional for your obligations.
               </div>

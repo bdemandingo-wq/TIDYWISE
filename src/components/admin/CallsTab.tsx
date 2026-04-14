@@ -358,7 +358,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
                   <FileText className="h-4 w-4" /> Full Transcript
                 </h4>
                 {selectedCall.transcript && (
-                  <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs"
+                  <Button variant="ghost" size="sm" className="gap-1.5 min-h-[44px] text-xs"
                     onClick={() => handleCopyTranscript(selectedCall.transcript)}>
                     {copiedTranscript ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {copiedTranscript ? 'Copied' : 'Copy'}
@@ -501,7 +501,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
             <Badge variant="destructive" className="text-xs">{stats.missed} missed</Badge>
           )}
         </div>
-        <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={syncCalls} disabled={syncing}>
+        <Button variant="ghost" size="sm" className="gap-2 min-h-[44px]" onClick={syncCalls} disabled={syncing}>
           {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Sync
         </Button>

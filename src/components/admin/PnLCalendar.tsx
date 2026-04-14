@@ -269,7 +269,7 @@ export function PnLCalendar() {
           <CardTitle className="text-lg font-bold">P&L Calendar</CardTitle>
           <div className="flex items-center gap-2">
             {/* Today button */}
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={goToToday}>
+            <Button variant="outline" size="sm" className="min-h-[44px] text-xs gap-1" onClick={goToToday}>
               <CalendarIcon className="h-3 w-3" />
               Today
             </Button>
@@ -281,10 +281,10 @@ export function PnLCalendar() {
               onValueChange={(v) => v && setMetricMode(v as MetricMode)}
               className="bg-muted rounded-lg p-0.5"
             >
-              <ToggleGroupItem value="revenue" className="text-xs px-3 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
+              <ToggleGroupItem value="revenue" className="text-xs px-3 min-h-[44px] data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
                 Revenue
               </ToggleGroupItem>
-              <ToggleGroupItem value="profit" className="text-xs px-3 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
+              <ToggleGroupItem value="profit" className="text-xs px-3 min-h-[44px] data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
                 Profit
               </ToggleGroupItem>
             </ToggleGroup>
@@ -296,10 +296,10 @@ export function PnLCalendar() {
               onValueChange={(v) => v && setViewMode(v as 'month' | 'year')}
               className="bg-muted rounded-lg p-0.5"
             >
-              <ToggleGroupItem value="month" className="text-xs px-3 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
+              <ToggleGroupItem value="month" className="text-xs px-3 min-h-[44px] data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
                 Month
               </ToggleGroupItem>
-              <ToggleGroupItem value="year" className="text-xs px-3 h-7 data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
+              <ToggleGroupItem value="year" className="text-xs px-3 min-h-[44px] data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
                 Year
               </ToggleGroupItem>
             </ToggleGroup>
@@ -308,7 +308,7 @@ export function PnLCalendar() {
               value={format(currentMonth, 'yyyy-MM')}
               onValueChange={(v) => setCurrentMonth(new Date(v + '-01'))}
             >
-              <SelectTrigger className="w-[120px] h-8 text-sm">
+              <SelectTrigger className="w-[120px] min-h-[44px] text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
