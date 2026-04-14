@@ -209,6 +209,94 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
+      // ── Lifetime access purchase ──────────────────────────────────────────
+      if (session.mode === "payment" && session.metadata?.plan === "lifetime") {
+        const email = (session.customer_email || session.metadata?.email || "").toLowerCase();
+        const userId = session.metadata?.user_id || null;
+
+        console.log("[stripe-invoice-webhook] Lifetime purchase confirmed:", { email, userId });
+
+        // Insert purchase record (idempotent via UNIQUE on stripe_session_id)
+        const { error: insertError } = await supabase
+          .from("lifetime_access_purchases")
+          .upsert(
+            {
+              email,
+              user_id: userId || null,
+              stripe_session_id: session.id,
+              stripe_payment_intent_id: session.payment_intent as string | null,
+              amount_cents: 20000,
+            },
+            { onConflict: "stripe_session_id", ignoreDuplicates: true }
+          );
+
+        if (insertError) {
+          console.error("[stripe-invoice-webhook] Failed to record lifetime purchase:", insertError);
+        } else {
+          console.log("[stripe-invoice-webhook] Lifetime purchase recorded");
+
+          // Update the organization's plan_type to 'lifetime'
+          if (userId) {
+            const { data: membership } = await supabase
+              .from("org_memberships")
+              .select("organization_id")
+              .eq("user_id", userId)
+              .limit(1)
+              .maybeSingle();
+
+            if (membership?.organization_id) {
+              await supabase
+                .from("organizations")
+                .update({ plan_type: "lifetime" })
+                .eq("id", membership.organization_id);
+
+              // Link purchase to org
+              await supabase
+                .from("lifetime_access_purchases")
+                .update({ organization_id: membership.organization_id })
+                .eq("stripe_session_id", session.id);
+
+              console.log("[stripe-invoice-webhook] Organization plan_type set to lifetime:", membership.organization_id);
+            }
+          }
+
+          // Notify platform admin
+          await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+            organizationName: "Lifetime Purchase",
+            ownerEmail: email,
+            subscriptionType: "Lifetime Access — $200",
+          });
+        }
+      }
+      // ── Standard subscription checkout ────────────────────────────────────
+      else if (session.mode === "subscription" && session.subscription) {
+        // Update plan_type to 'standard' on the org
+        const customerEmail = session.customer_email || session.metadata?.email || "";
+        if (customerEmail) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", customerEmail)
+            .maybeSingle();
+
+          if (profile?.id) {
+            const { data: membership } = await supabase
+              .from("org_memberships")
+              .select("organization_id")
+              .eq("user_id", profile.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (membership?.organization_id) {
+              await supabase
+                .from("organizations")
+                .update({ plan_type: "standard" })
+                .eq("id", membership.organization_id);
+            }
+          }
+        }
+      }
+
       if (invoiceId) {
         // Update invoice status to paid
         const { error: updateError } = await supabase

@@ -6,14 +6,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Loader2,
-  Sparkles,
   Rocket,
   Shield,
   CheckCircle2,
   ExternalLink,
-  X
+  X,
+  Infinity,
+  Flame,
+  Star,
+  Zap,
+  PhoneCall,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -25,10 +29,43 @@ interface SubscriptionDialogProps {
   onSubscriptionActive: () => void;
 }
 
-export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }: SubscriptionDialogProps) {
-  const [checkingOut, setCheckingOut] = useState(false);
+interface LifetimeSpots {
+  total: number;
+  used: number;
+  remaining: number;
+  available: boolean;
+}
+
+const ENTERPRISE_CONTACT_EMAIL = "support@jointidywise.com";
+const ENTERPRISE_CALENDLY_URL = "https://calendly.com/jointidywise";
+
+const STANDARD_FEATURES = [
+  "Unlimited bookings & customers",
+  "Team management & scheduling",
+  "Invoices, payments & Stripe",
+  "Email & SMS campaigns",
+  "AI tools & analytics",
+  "Client portal & referrals",
+];
+
+const ENTERPRISE_FEATURES = [
+  "Everything in Standard",
+  "Connect your ad accounts (Meta, Google)",
+  "Custom integrations built for you",
+  "White-glove onboarding & setup",
+  "Dedicated support line",
+  "Custom features on request",
+];
+
+export function SubscriptionDialog({
+  open,
+  onOpenChange,
+  onSubscriptionActive,
+}: SubscriptionDialogProps) {
+  const [checkingOut, setCheckingOut] = useState<"standard" | "lifetime" | null>(null);
   const [checking, setChecking] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [spots, setSpots] = useState<LifetimeSpots>({ total: 100, used: 0, remaining: 100, available: true });
   const { canShowPaymentFlows, billingUrl } = usePlatform();
 
   const checkSubscription = async () => {
@@ -46,27 +83,59 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
     }
   };
 
+  const fetchSpots = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("get-lifetime-spots");
+      if (!error && data) setSpots(data as LifetimeSpots);
+    } catch {
+      // non-critical, keep defaults
+    }
+  };
+
   useEffect(() => {
     if (open) {
       checkSubscription();
+      fetchSpots();
     }
   }, [open]);
 
-  const handleSubscribe = async () => {
-    setCheckingOut(true);
+  const handleStandard = async () => {
+    setCheckingOut("standard");
     try {
       const { data, error } = await supabase.functions.invoke("create-subscription");
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      if (data?.url) window.location.href = data.url;
     } catch (error: any) {
-      console.error("Error creating subscription:", error);
       toast.error(error.message || "Failed to start subscription");
     } finally {
-      setCheckingOut(false);
+      setCheckingOut(null);
     }
+  };
+
+  const handleLifetime = async () => {
+    if (!spots.available) {
+      toast.error("All lifetime spots have been claimed.");
+      return;
+    }
+    setCheckingOut("lifetime");
+    try {
+      const { data, error } = await supabase.functions.invoke("create-lifetime-checkout");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) window.location.href = data.url;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to start checkout");
+    } finally {
+      setCheckingOut(null);
+    }
+  };
+
+  const handleEnterprise = () => {
+    window.open(
+      `mailto:${ENTERPRISE_CONTACT_EMAIL}?subject=Enterprise%20Package%20Inquiry&body=Hi%2C%20I%27m%20interested%20in%20the%20enterprise%20package%20for%20TidyWise.`,
+      "_blank"
+    );
   };
 
   const handleContinueLimited = () => {
@@ -85,7 +154,7 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
     );
   }
 
-  // On native platforms, show a simple redirect message
+  // Native iOS — can't show payment flows per App Store rules
   if (!canShowPaymentFlows) {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
@@ -100,21 +169,18 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
               Manage your subscription at jointidywise.com to unlock all features.
             </p>
             <div className="space-y-3">
-              <Button 
-                onClick={() => {
-                  window.open(billingUrl, '_blank');
-                  onOpenChange(false);
-                }} 
-                size="lg" 
+              <Button
+                onClick={() => { window.open(billingUrl, "_blank"); onOpenChange(false); }}
+                size="lg"
                 variant="outline"
                 className="w-full gap-2"
               >
                 <ExternalLink className="h-4 w-4" />
                 Manage Subscription on Web
               </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="w-full text-muted-foreground"
                 onClick={handleContinueLimited}
               >
@@ -130,71 +196,168 @@ export function SubscriptionDialog({ open, onOpenChange, onSubscriptionActive }:
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent 
-        className="sm:max-w-lg" 
+      <DialogContent
+        className="sm:max-w-2xl max-h-[92dvh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center justify-center gap-2 text-2xl">
-            Welcome to TidyWise! 🎉
+            Choose Your Plan
           </DialogTitle>
+          <p className="text-center text-muted-foreground text-sm">
+            Get started today — cancel anytime on monthly, or lock in forever with lifetime.
+          </p>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <p className="text-center text-muted-foreground">
-            Choose how to get started:
-          </p>
+        <div className="grid gap-4 sm:grid-cols-3 py-2">
 
-          {/* Start Free Trial Option */}
-          <button
-            onClick={handleSubscribe}
-            disabled={checkingOut}
-            className="w-full p-5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left group"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                <Rocket className="h-6 w-6" />
+          {/* ── Standard $97/mo ──────────────────────────────── */}
+          <div className="relative flex flex-col rounded-xl border-2 border-primary/30 bg-primary/5 p-5 gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                <Rocket className="h-5 w-5" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-lg text-foreground">Start Free Trial</h3>
-                  {checkingOut && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Full access to all features for 60 days — no card required
+              <div>
+                <p className="font-semibold text-foreground">Standard</p>
+                <p className="text-2xl font-bold text-foreground mt-0.5">
+                  $97<span className="text-sm font-normal text-muted-foreground">/mo</span>
                 </p>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {["Unlimited bookings", "Team management", "AI tools", "Analytics"].map((f) => (
-                    <span key={f} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                      <CheckCircle2 className="h-3 w-3" /> {f}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
-          </button>
 
-          {/* Continue in Limited Mode Option */}
+            <ul className="space-y-1.5 flex-1">
+              {STANDARD_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              onClick={handleStandard}
+              disabled={!!checkingOut}
+              className="w-full"
+            >
+              {checkingOut === "standard" ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Rocket className="h-4 w-4 mr-2" />
+              )}
+              Start Monthly Plan
+            </Button>
+          </div>
+
+          {/* ── Lifetime $200 ──────────────────────────────────── */}
+          <div className="relative flex flex-col rounded-xl border-2 border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20 p-5 gap-4">
+            {/* Badge */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                <Flame className="h-3 w-3" /> BEST VALUE
+              </span>
+            </div>
+
+            <div className="flex items-start gap-3 pt-2">
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 shrink-0">
+                <Infinity className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Lifetime Access</p>
+                <p className="text-2xl font-bold text-foreground mt-0.5">
+                  $200<span className="text-sm font-normal text-muted-foreground"> once</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Spots counter */}
+            <div className="rounded-lg bg-amber-100/80 dark:bg-amber-900/30 border border-amber-300/50 px-3 py-2 text-center">
+              {spots.available ? (
+                <>
+                  <p className="text-amber-700 dark:text-amber-400 font-bold text-lg leading-tight">
+                    {spots.remaining} of {spots.total} spots left
+                  </p>
+                  <p className="text-amber-600 dark:text-amber-500 text-xs mt-0.5">
+                    Pay once, never pay again
+                  </p>
+                </>
+              ) : (
+                <p className="text-amber-700 dark:text-amber-400 font-bold text-sm">
+                  All spots claimed — check back later
+                </p>
+              )}
+            </div>
+
+            <ul className="space-y-1.5 flex-1">
+              {STANDARD_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  {f}
+                </li>
+              ))}
+              <li className="flex items-start gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+                <Star className="h-4 w-4 mt-0.5 shrink-0" />
+                All future updates included
+              </li>
+            </ul>
+
+            <Button
+              onClick={handleLifetime}
+              disabled={!!checkingOut || !spots.available}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0"
+            >
+              {checkingOut === "lifetime" ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Infinity className="h-4 w-4 mr-2" />
+              )}
+              {spots.available ? "Claim Lifetime Access" : "Sold Out"}
+            </Button>
+          </div>
+
+          {/* ── Enterprise / Custom ────────────────────────────── */}
+          <div className="flex flex-col rounded-xl border-2 border-border bg-muted/20 p-5 gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-muted text-foreground shrink-0">
+                <Zap className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Enterprise</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Custom pricing</p>
+              </div>
+            </div>
+
+            <ul className="space-y-1.5 flex-1">
+              {ENTERPRISE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-foreground/60 mt-0.5 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              onClick={handleEnterprise}
+              variant="outline"
+              className="w-full"
+            >
+              <PhoneCall className="h-4 w-4 mr-2" />
+              Contact Us
+            </Button>
+          </div>
+        </div>
+
+        {/* Continue limited */}
+        <div className="text-center pt-1 pb-2">
           <button
             onClick={handleContinueLimited}
-            className="w-full p-5 rounded-xl border-2 border-border hover:border-muted-foreground/30 hover:bg-accent/50 transition-all text-left group"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 mx-auto"
           >
-            <div className="flex items-start gap-4">
-              <div className="p-2.5 rounded-xl bg-muted text-muted-foreground group-hover:bg-muted/80 transition-colors">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg text-foreground">Continue in Limited Mode</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Basic features, no card required — upgrade anytime
-                </p>
-              </div>
-            </div>
+            <Shield className="h-3.5 w-3.5" />
+            Continue in Limited Mode
           </button>
-          
-          <p className="text-xs text-center text-muted-foreground">
-            You can change your plan anytime from Settings.
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Change or cancel your plan anytime from Settings.
           </p>
         </div>
       </DialogContent>

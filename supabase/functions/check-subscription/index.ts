@@ -98,6 +98,28 @@ serve(async (req) => {
       });
     }
 
+    // ── Step 0: Check for lifetime access ──────────────────────────────────
+    const { data: lifetimePurchase } = await supabaseClient
+      .from("lifetime_access_purchases")
+      .select("id, created_at")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    if (lifetimePurchase) {
+      logStep("Lifetime access found", { email: normalizedEmail });
+      return new Response(JSON.stringify({
+        subscribed: true,
+        trial_active: false,
+        product_id: "lifetime",
+        plan_type: "lifetime",
+        subscription_end: null,
+        trial_end: null,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     // ── Step 1: Check Stripe for an active/trialing subscription first ──
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -170,6 +192,7 @@ serve(async (req) => {
           subscribed: true,
           trial_active: isTrialing,
           product_id: productId,
+          plan_type: "standard",
           subscription_end: subscriptionEnd,
           trial_end: trialEnd
         }), {
