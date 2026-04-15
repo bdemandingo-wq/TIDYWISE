@@ -322,12 +322,11 @@ export default function FinancePage() {
   };
 
   const exportSalesTaxByZip = () => {
-    const headers = ['Zip Code', 'Transaction Count', 'Total Revenue', 'Estimated Sales Tax (7%)'];
+    const headers = ['Zip Code', 'Transaction Count', 'Total Revenue'];
     const rows = salesTaxByZip.map(z => [
       z.zip_code,
       z.count.toString(),
       z.total.toFixed(2),
-      z.estimated_tax.toFixed(2),
     ]);
     downloadCSV('sales-tax-by-zipcode', headers, rows);
   };
@@ -588,16 +587,12 @@ export default function FinancePage() {
               <CardTitle>Sales Tax by Zip Code</CardTitle>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
-                <strong>Estimate only.</strong> The 7% rate is a placeholder. Actual rates vary by state and locality. Consult a tax professional for your obligations.
-              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Zip Code</TableHead>
                     <TableHead className="text-right">Transactions</TableHead>
                     <TableHead className="text-right">Total Revenue</TableHead>
-                    <TableHead className="text-right">Estimated Tax (7%)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -606,14 +601,11 @@ export default function FinancePage() {
                       <TableCell className="font-medium">{row.zip_code}</TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X' : row.count}</TableCell>
                       <TableCell className="text-right">{isTestMode ? '$XXX.XX' : `$${row.total.toFixed(2)}`}</TableCell>
-                      <TableCell className="text-right font-medium text-primary">
-                        {isTestMode ? '$XX.XX' : `$${row.estimated_tax.toFixed(2)}`}
-                      </TableCell>
                     </TableRow>
                   ))}
                   {salesTaxByZip.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                         No data for the selected period
                       </TableCell>
                     </TableRow>
