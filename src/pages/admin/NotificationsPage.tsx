@@ -182,19 +182,28 @@ export default function NotificationsPage() {
               </div>
 
               {!isRegistered && isSupported && (
-                <Button
-                  onClick={requestPermission}
-                  disabled={isRegistering}
-                  className="w-full mt-4 gap-2"
-                  variant="outline"
-                >
-                  {isRegistering ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Bell className="w-4 h-4" />
-                  )}
-                  {isRegistering ? 'Enabling...' : 'Enable Notifications'}
-                </Button>
+                typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied' ? (
+                  <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-center space-y-1">
+                    <p className="text-sm font-medium text-destructive">Notifications Blocked</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your browser has blocked notifications. To enable them, click the lock icon in your browser's address bar → Site settings → Allow Notifications, then refresh this page.
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={requestPermission}
+                    disabled={isRegistering}
+                    className="w-full mt-4 gap-2"
+                    variant="outline"
+                  >
+                    {isRegistering ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Bell className="w-4 h-4" />
+                    )}
+                    {isRegistering ? 'Enabling...' : 'Enable Notifications'}
+                  </Button>
+                )
               )}
 
               {!isSupported && (
