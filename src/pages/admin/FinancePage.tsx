@@ -322,12 +322,11 @@ export default function FinancePage() {
   };
 
   const exportSalesTaxByZip = () => {
-    const headers = ['Zip Code', 'Transaction Count', 'Total Revenue', 'Estimated Sales Tax (7%)'];
+    const headers = ['Zip Code', 'Transaction Count', 'Total Revenue'];
     const rows = salesTaxByZip.map(z => [
       z.zip_code,
       z.count.toString(),
       z.total.toFixed(2),
-      z.estimated_tax.toFixed(2),
     ]);
     downloadCSV('sales-tax-by-zipcode', headers, rows);
   };
