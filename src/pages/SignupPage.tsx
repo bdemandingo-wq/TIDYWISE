@@ -417,7 +417,7 @@ export default function SignupPage() {
         <div className="mt-6 text-center text-xs text-muted-foreground">
           By continuing you agree to our{' '}
           <TermsOfServiceDialog>
-            <button className="underline underline-offset-4 hover:text-foreground transition-colors">
+            <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors">
               Terms
             </button>
           </TermsOfServiceDialog>

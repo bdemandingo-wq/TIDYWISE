@@ -258,7 +258,7 @@ export default function AuthPage() {
 
           <div className="mt-6 text-center text-xs text-muted-foreground">
             <TermsOfServiceDialog>
-              <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+              <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
             </TermsOfServiceDialog>
             {' '}•{' '}
             <Link

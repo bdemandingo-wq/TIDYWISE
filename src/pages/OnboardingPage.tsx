@@ -578,10 +578,10 @@ export default function OnboardingPage() {
               </p>
               
               <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1" 
-                  onClick={() => setStep(2)}
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setStep(1)}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
@@ -610,7 +610,7 @@ export default function OnboardingPage() {
       <div className="mt-6 text-center text-xs text-muted-foreground max-w-2xl">
         By creating an account you agree to our{' '}
         <TermsOfServiceDialog>
-          <button className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
+          <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
         </TermsOfServiceDialog>
         {' '}and acknowledge our{' '}
         <Link

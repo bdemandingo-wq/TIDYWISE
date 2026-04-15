@@ -493,6 +493,7 @@ export function DemoBookingForm() {
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">Step 2 of 2 — Pick a Time</p>
           <button
+            type="button"
             onClick={() => setStep("info")}
             className="text-xs text-primary hover:underline flex items-center gap-1"
           >
@@ -504,6 +505,7 @@ export function DemoBookingForm() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <button
+              type="button"
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
               className="p-2 hover:bg-muted rounded-lg transition-colors"
               disabled={isBefore(endOfMonth(subMonths(currentMonth, 1)), startOfDay(new Date()))}
@@ -514,6 +516,7 @@ export function DemoBookingForm() {
               {format(currentMonth, "MMMM yyyy")}
             </h3>
             <button
+              type="button"
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
               className="p-2 hover:bg-muted rounded-lg transition-colors"
             >
