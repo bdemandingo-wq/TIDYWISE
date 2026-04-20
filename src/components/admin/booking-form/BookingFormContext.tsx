@@ -211,6 +211,8 @@ export function BookingFormProvider({
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  const { settings: orgPricingSettings } = useOrganizationSettings();
+  const combinedPricingEnabled = !!orgPricingSettings?.combined_pricing_enabled;
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
@@ -362,17 +364,17 @@ export function BookingFormProvider({
     );
     
     if (hasCustomPricing) {
-      if (pricingMode === 'sqft' && squareFootage) {
-        const sqFtIndex = squareFootageRanges.findIndex(r => r.label === squareFootage);
-        if (sqFtIndex !== -1 && servicePricing!.sqft_prices[sqFtIndex]) {
-          basePrice = servicePricing!.sqft_prices[sqFtIndex];
-        }
-      } else if (pricingMode === 'bedroom') {
-        const combo = servicePricing!.bedroom_pricing.find(
-          (p) => String(p.bedrooms) === bedrooms && String(p.bathrooms) === bathrooms
-        );
-        basePrice = combo?.basePrice || 0;
-      }
+      const result = calculateBasePrice({
+        sqftPrices: servicePricing!.sqft_prices,
+        bedroomPricing: servicePricing!.bedroom_pricing,
+        minimumPrice: undefined, // applied below alongside the pre-existing path
+        squareFootageLabel: squareFootage || null,
+        bedrooms: bedrooms || null,
+        bathrooms: bathrooms || null,
+        combinedPricingEnabled,
+        pricingMode,
+      });
+      basePrice = result.base;
     }
     
     if (basePrice === 0 && selectedService.price && selectedService.price > 0) {
@@ -389,7 +391,7 @@ export function BookingFormProvider({
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride]);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, combinedPricingEnabled]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
