@@ -262,6 +262,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
     bedroomPricing,
     petOptions,
     homeConditionOptions,
+    combinedPricingEnabled,
     loading,
     error,
   };
