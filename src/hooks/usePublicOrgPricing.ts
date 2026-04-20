@@ -72,6 +72,7 @@ export interface PublicOrgData {
   bedroomPricing: BedroomPricing[];
   petOptions: PetOption[];
   homeConditionOptions: HomeConditionOption[];
+  combinedPricingEnabled: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -86,6 +87,7 @@ type PublicBookingDataResponse = {
   bookingFormTheme?: string;
   formColors?: FormColors;
   displaySettings?: PublicDisplaySettings;
+  combinedPricingEnabled?: boolean;
 };
 
 function getDefaultPayload() {
