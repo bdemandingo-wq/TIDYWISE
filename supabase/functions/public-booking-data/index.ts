@@ -103,7 +103,7 @@ serve(async (req: Request) => {
         .maybeSingle(),
       supabase
         .from("organization_pricing_settings")
-        .select("booking_form_theme, show_sqft_on_booking, show_bed_bath_on_booking, show_addons_on_booking, show_frequency_discount, show_pet_options, show_home_condition, form_bg_color, form_card_color, form_text_color, form_button_color, form_button_text_color, form_accent_color")
+        .select("booking_form_theme, show_sqft_on_booking, show_bed_bath_on_booking, show_addons_on_booking, show_frequency_discount, show_pet_options, show_home_condition, form_bg_color, form_card_color, form_text_color, form_button_color, form_button_text_color, form_accent_color, combined_pricing_enabled")
         .eq("organization_id", org.id)
         .maybeSingle(),
     ]);
@@ -157,6 +157,7 @@ serve(async (req: Request) => {
           show_pet_options: displaySettings.show_pet_options ?? true,
           show_home_condition: displaySettings.show_home_condition ?? true,
         },
+        combinedPricingEnabled: (displaySettings as any).combined_pricing_enabled ?? false,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
