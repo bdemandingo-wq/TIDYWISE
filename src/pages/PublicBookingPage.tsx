@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
+import { calculateBasePrice } from '@/lib/pricingEngine';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
@@ -110,6 +111,7 @@ export default function PublicBookingPage() {
     bedroomPricing,
     petOptions,
     homeConditionOptions,
+    combinedPricingEnabled,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
@@ -239,17 +241,22 @@ export default function PublicBookingPage() {
 
   const calculateTotal = () => {
     let total = 0;
-    
-    // Bedroom-based pricing takes priority if bed/bath selected
-    if (selectedBedrooms && selectedBathrooms && bedroomPricing.length > 0) {
-      const match = bedroomPricing.find(
-        bp => bp.bedrooms === Number(selectedBedrooms) && bp.bathrooms === Number(selectedBathrooms)
-      );
-      if (match) total = match.basePrice;
-    } else if (service && selectedSqFtIndex !== null) {
-      total = service.prices[selectedSqFtIndex] || service.minimumPrice;
-    } else if (service) {
-      total = service.minimumPrice;
+
+    if (service) {
+      const result = calculateBasePrice({
+        sqftPrices: service.prices,
+        bedroomPricing: bedroomPricing as any,
+        minimumPrice: service.minimumPrice,
+        squareFootageIndex: selectedSqFtIndex,
+        bedrooms: selectedBedrooms,
+        bathrooms: selectedBathrooms,
+        combinedPricingEnabled,
+        // Legacy fallback: if combined OFF, prefer bed/bath when both selected
+        // (matches previous behavior where bed/bath took priority).
+        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+        fallbackBasePrice: service.minimumPrice,
+      });
+      total = result.base;
     }
 
     // Add extras

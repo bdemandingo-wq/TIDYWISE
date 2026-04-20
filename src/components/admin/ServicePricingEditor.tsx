@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Table, 
@@ -23,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useServicePricing, ServicePricingData } from '@/hooks/useServicePricing';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { calculateBasePrice } from '@/lib/pricingEngine';
 import { 
   squareFootageRanges,
   bedroomPricing as defaultBedroomPricing,
@@ -30,7 +34,7 @@ import {
   petOptions as defaultPetOptions,
   homeConditionOptions as defaultHomeConditionOptions,
 } from '@/data/pricingData';
-import { Save, Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Save, Pencil, Plus, Trash2, Loader2, Info, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Service {
@@ -41,10 +45,13 @@ interface Service {
 export function ServicePricingEditor() {
   const { organization } = useOrganization();
   const { getServicePricing, saveServicePricing, loading: pricingLoading, refetch } = useServicePricing();
+  const { settings: orgSettings, saveSettings: saveOrgSettings, loading: settingsLoading } = useOrganizationSettings();
+  const combinedPricingEnabled = !!orgSettings?.combined_pricing_enabled;
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [currentPricing, setCurrentPricing] = useState<ServicePricingData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [togglingCombined, setTogglingCombined] = useState(false);
   const [editingCell, setEditingCell] = useState<{ type: string; index: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isAddExtraOpen, setIsAddExtraOpen] = useState(false);
@@ -55,6 +62,7 @@ export function ServicePricingEditor() {
   const [newCondition, setNewCondition] = useState({ label: '', price: '' });
   const [isAddBedroomOpen, setIsAddBedroomOpen] = useState(false);
   const [newBedroom, setNewBedroom] = useState({ bedrooms: '', bathrooms: '', price: '' });
+  const seededOnceRef = useRef(false);
 
   // Fetch services from database
   useEffect(() => {
@@ -236,8 +244,103 @@ export function ServicePricingEditor() {
     );
   }
 
+  // Live preview using engine — sample 1500 sqft / 3 bed / 2.5 bath
+  const previewEstimate = useMemo(() => {
+    if (!currentPricing) return 0;
+    const sampleLabel = squareFootageRanges.find(r => r.label.includes('1500') || r.label.includes('1,500'))?.label
+      ?? squareFootageRanges[Math.floor(squareFootageRanges.length / 2)]?.label;
+    const result = calculateBasePrice({
+      sqftPrices: currentPricing.sqft_prices,
+      bedroomPricing: currentPricing.bedroom_pricing,
+      minimumPrice: currentPricing.minimum_price,
+      squareFootageLabel: sampleLabel,
+      bedrooms: '3',
+      bathrooms: '2.5',
+      combinedPricingEnabled,
+      pricingMode: 'sqft',
+    });
+    return result.base;
+  }, [currentPricing, combinedPricingEnabled]);
+
+  const handleToggleCombined = async (next: boolean) => {
+    if (togglingCombined) return;
+    setTogglingCombined(true);
+    try {
+      const ok = await saveOrgSettings({ combined_pricing_enabled: next });
+      if (!ok) {
+        toast.error('Failed to update Combined Pricing Mode');
+        return;
+      }
+      // Auto-seed: when turning ON, populate empty bed/bath grids with defaults (one-time, non-destructive).
+      if (next && currentPricing && (!currentPricing.bedroom_pricing || currentPricing.bedroom_pricing.length === 0)) {
+        const seeded = { ...currentPricing, bedroom_pricing: defaultBedroomPricing };
+        setCurrentPricing(seeded);
+        await saveServicePricing(selectedServiceId, seeded);
+        toast.success('Bed/bath pricing seeded with default values — edit anytime');
+      } else {
+        toast.success(next ? 'Combined Pricing Mode enabled' : 'Combined Pricing Mode disabled');
+      }
+    } finally {
+      setTogglingCombined(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Combined Pricing Mode toggle */}
+      <Card className="border-primary/30">
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <p className="font-semibold">Combined Pricing Mode</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground">
+                        <Info className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      When OFF, estimates are calculated from Square Footage tiers only. When ON,
+                      estimates add Bedroom/Bath pricing on top of the Square Footage price for a
+                      more detailed quote. Bed/bath data is always captured either way.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-xl">
+                Toggle ON to add bed/bath pricing on top of square footage. Defaults to OFF — your
+                current pricing behavior won't change unless you turn this on.
+              </p>
+            </div>
+            <Switch
+              checked={combinedPricingEnabled}
+              onCheckedChange={handleToggleCombined}
+              disabled={togglingCombined || settingsLoading}
+            />
+          </div>
+
+          {/* Live preview card */}
+          {currentPricing && (
+            <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground mb-1">Example estimate (live)</p>
+              <p className="text-sm">
+                <span className="font-medium">1,500 sq ft, 3 bed / 2.5 bath, {selectedService?.name || 'Standard'}</span>
+                {' = '}
+                <span className="text-lg font-bold text-primary">${previewEstimate}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {combinedPricingEnabled
+                  ? 'Combined: square footage tier + bed/bath base'
+                  : 'Square footage tier only'}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Service Selector */}
       <Card>
         <CardHeader>

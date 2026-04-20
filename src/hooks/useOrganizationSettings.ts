@@ -14,6 +14,7 @@ export interface OrganizationPricingSettings {
   sales_tax_percent: number;
   demo_mode_enabled: boolean;
   loyalty_program_enabled: boolean;
+  combined_pricing_enabled: boolean;
   booking_form_theme: string;
   form_bg_color: string | null;
   form_card_color: string | null;
@@ -33,6 +34,7 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   sales_tax_percent: 0,
   demo_mode_enabled: false,
   loyalty_program_enabled: true,
+  combined_pricing_enabled: false,
   booking_form_theme: 'dark',
   form_bg_color: null,
   form_card_color: null,
@@ -72,6 +74,7 @@ export function useOrganizationSettings() {
           sales_tax_percent: Number(data.sales_tax_percent) || 0,
           demo_mode_enabled: data.demo_mode_enabled ?? false,
           loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
+          combined_pricing_enabled: (data as any).combined_pricing_enabled ?? false,
           booking_form_theme: (data as any).booking_form_theme ?? 'dark',
           form_bg_color: (data as any).form_bg_color ?? null,
           form_card_color: (data as any).form_card_color ?? null,
@@ -113,6 +116,7 @@ export function useOrganizationSettings() {
         sales_tax_percent: updates.sales_tax_percent ?? settings?.sales_tax_percent ?? 0,
         demo_mode_enabled: updates.demo_mode_enabled ?? settings?.demo_mode_enabled ?? false,
         loyalty_program_enabled: updates.loyalty_program_enabled ?? settings?.loyalty_program_enabled ?? true,
+        combined_pricing_enabled: updates.combined_pricing_enabled ?? settings?.combined_pricing_enabled ?? false,
         booking_form_theme: updates.booking_form_theme ?? settings?.booking_form_theme ?? 'dark',
         form_bg_color: updates.form_bg_color !== undefined ? updates.form_bg_color : (settings?.form_bg_color ?? null),
         form_card_color: updates.form_card_color !== undefined ? updates.form_card_color : (settings?.form_card_color ?? null),
@@ -124,7 +128,7 @@ export function useOrganizationSettings() {
 
       const { data, error } = await supabase
         .from('organization_pricing_settings')
-        .upsert(settingsData, { 
+        .upsert(settingsData as any, {
           onConflict: 'organization_id',
           ignoreDuplicates: false 
         })
@@ -145,6 +149,7 @@ export function useOrganizationSettings() {
         sales_tax_percent: Number(data.sales_tax_percent) || 0,
         demo_mode_enabled: data.demo_mode_enabled ?? false,
         loyalty_program_enabled: (data as any).loyalty_program_enabled ?? true,
+        combined_pricing_enabled: (data as any).combined_pricing_enabled ?? false,
         booking_form_theme: (data as any).booking_form_theme ?? 'dark',
         form_bg_color: (data as any).form_bg_color ?? null,
         form_card_color: (data as any).form_card_color ?? null,
