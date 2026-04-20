@@ -5855,6 +5855,27 @@ export type Database = {
           },
         ]
       }
+      site_content: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       sms_conversations: {
         Row: {
           conversation_type: string | null
