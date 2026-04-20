@@ -128,7 +128,7 @@ export function useOrganizationSettings() {
 
       const { data, error } = await supabase
         .from('organization_pricing_settings')
-        .upsert(settingsData, { 
+        .upsert(settingsData as any, {
           onConflict: 'organization_id',
           ignoreDuplicates: false 
         })
