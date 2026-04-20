@@ -45,10 +45,13 @@ interface Service {
 export function ServicePricingEditor() {
   const { organization } = useOrganization();
   const { getServicePricing, saveServicePricing, loading: pricingLoading, refetch } = useServicePricing();
+  const { settings: orgSettings, saveSettings: saveOrgSettings, loading: settingsLoading } = useOrganizationSettings();
+  const combinedPricingEnabled = !!orgSettings?.combined_pricing_enabled;
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [currentPricing, setCurrentPricing] = useState<ServicePricingData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [togglingCombined, setTogglingCombined] = useState(false);
   const [editingCell, setEditingCell] = useState<{ type: string; index: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isAddExtraOpen, setIsAddExtraOpen] = useState(false);
@@ -59,6 +62,7 @@ export function ServicePricingEditor() {
   const [newCondition, setNewCondition] = useState({ label: '', price: '' });
   const [isAddBedroomOpen, setIsAddBedroomOpen] = useState(false);
   const [newBedroom, setNewBedroom] = useState({ bedrooms: '', bathrooms: '', price: '' });
+  const seededOnceRef = useRef(false);
 
   // Fetch services from database
   useEffect(() => {
