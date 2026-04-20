@@ -121,6 +121,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
   const [bedroomPricing, setBedroomPricing] = useState<BedroomPricing[]>([]);
   const [petOptions, setPetOptions] = useState<PetOption[]>([]);
   const [homeConditionOptions, setHomeConditionOptions] = useState<HomeConditionOption[]>([]);
+  const [combinedPricingEnabled, setCombinedPricingEnabled] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,6 +167,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
         setBookingFormTheme((data.bookingFormTheme === 'light' ? 'light' : 'dark'));
         if (data.formColors) setFormColors(data.formColors);
         if (data.displaySettings) setDisplaySettings(data.displaySettings);
+        setCombinedPricingEnabled(!!data.combinedPricingEnabled);
 
         // Extract pricing details from first service pricing entry
         const firstPricingEntry = (data.servicePricing || [])[0];
