@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Table, 
@@ -23,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useServicePricing, ServicePricingData } from '@/hooks/useServicePricing';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { calculateBasePrice } from '@/lib/pricingEngine';
 import { 
   squareFootageRanges,
   bedroomPricing as defaultBedroomPricing,
@@ -30,7 +34,7 @@ import {
   petOptions as defaultPetOptions,
   homeConditionOptions as defaultHomeConditionOptions,
 } from '@/data/pricingData';
-import { Save, Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Save, Pencil, Plus, Trash2, Loader2, Info, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Service {
