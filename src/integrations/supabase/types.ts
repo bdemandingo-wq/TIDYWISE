@@ -4560,6 +4560,7 @@ export type Database = {
       organization_pricing_settings: {
         Row: {
           booking_form_theme: string
+          combined_pricing_enabled: boolean
           created_at: string
           demo_mode_enabled: boolean | null
           form_accent_color: string | null
@@ -4582,6 +4583,7 @@ export type Database = {
         }
         Insert: {
           booking_form_theme?: string
+          combined_pricing_enabled?: boolean
           created_at?: string
           demo_mode_enabled?: boolean | null
           form_accent_color?: string | null
@@ -4604,6 +4606,7 @@ export type Database = {
         }
         Update: {
           booking_form_theme?: string
+          combined_pricing_enabled?: boolean
           created_at?: string
           demo_mode_enabled?: boolean | null
           form_accent_color?: string | null
