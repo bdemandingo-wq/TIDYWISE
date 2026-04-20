@@ -14,6 +14,7 @@ export interface OrganizationPricingSettings {
   sales_tax_percent: number;
   demo_mode_enabled: boolean;
   loyalty_program_enabled: boolean;
+  combined_pricing_enabled: boolean;
   booking_form_theme: string;
   form_bg_color: string | null;
   form_card_color: string | null;
@@ -33,6 +34,7 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   sales_tax_percent: 0,
   demo_mode_enabled: false,
   loyalty_program_enabled: true,
+  combined_pricing_enabled: false,
   booking_form_theme: 'dark',
   form_bg_color: null,
   form_card_color: null,
