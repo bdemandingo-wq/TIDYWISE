@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { getLocalDateInTimezone, getTimeInTimezone } from '@/lib/timezoneUtils';
+import { calculateBasePrice } from '@/lib/pricingEngine';
 
 interface CardInfo {
   hasCard: boolean;
