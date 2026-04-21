@@ -6482,6 +6482,79 @@ export type Database = {
           },
         ]
       }
+      stripe_requirement_notifications: {
+        Row: {
+          account_link_url: string | null
+          created_at: string
+          email_sent_count: number
+          email_status: string
+          id: string
+          last_emailed_at: string | null
+          link_expires_at: string | null
+          needs_manual_followup: boolean
+          organization_id: string
+          requirement_type: string
+          resolved_at: string | null
+          staff_id: string
+          stripe_requirement_codes: string[]
+          updated_at: string
+        }
+        Insert: {
+          account_link_url?: string | null
+          created_at?: string
+          email_sent_count?: number
+          email_status?: string
+          id?: string
+          last_emailed_at?: string | null
+          link_expires_at?: string | null
+          needs_manual_followup?: boolean
+          organization_id: string
+          requirement_type: string
+          resolved_at?: string | null
+          staff_id: string
+          stripe_requirement_codes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          account_link_url?: string | null
+          created_at?: string
+          email_sent_count?: number
+          email_status?: string
+          id?: string
+          last_emailed_at?: string | null
+          link_expires_at?: string | null
+          needs_manual_followup?: boolean
+          organization_id?: string
+          requirement_type?: string
+          resolved_at?: string | null
+          staff_id?: string
+          stripe_requirement_codes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_requirement_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_requirement_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_requirement_notifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_logs: {
         Row: {
           created_at: string
