@@ -106,7 +106,13 @@ serve(async (req: Request) => {
       bankLast4 = bankAccount.last4 || null;
     }
 
-    // Update local record
+    // Extract requirements details
+    const requirementsCurrentlyDue = account.requirements?.currently_due || [];
+    const requirementsPendingVerification = account.requirements?.pending_verification || [];
+    const disabledReason = account.requirements?.disabled_reason || null;
+    const requirementsErrors = account.requirements?.errors || [];
+
+    // Update local record with full requirements data
     await supabase
       .from("staff_payout_accounts")
       .update({
@@ -115,6 +121,10 @@ serve(async (req: Request) => {
         charges_enabled: account.charges_enabled || false,
         details_submitted: account.details_submitted || false,
         bank_last4: bankLast4,
+        requirements_currently_due: requirementsCurrentlyDue,
+        requirements_pending_verification: requirementsPendingVerification,
+        disabled_reason: disabledReason,
+        stripe_requirements_errors: requirementsErrors,
         updated_at: new Date().toISOString(),
       })
       .eq("staff_id", staffId)
@@ -127,6 +137,10 @@ serve(async (req: Request) => {
       detailsSubmitted: account.details_submitted || false,
       bankLast4: bankLast4,
       accountHolderName: payoutAccount.account_holder_name,
+      requirementsCurrentlyDue,
+      requirementsPendingVerification,
+      disabledReason,
+      requirementsErrors,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

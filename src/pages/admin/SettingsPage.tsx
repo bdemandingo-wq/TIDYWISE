@@ -41,7 +41,7 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
-
+import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -535,6 +535,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             
+            <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
           </TabsList>
         </div>
@@ -1015,7 +1016,6 @@ export default function SettingsPage() {
         </TabsContent>
 
 
-
         <TabsContent value="sidebar" className="space-y-6">
           <SidebarVisibilitySettings />
         </TabsContent>
@@ -1110,6 +1110,11 @@ export default function SettingsPage() {
 
           {/* Account Deletion - Required for App Store compliance */}
           <AccountDeletionCard />
+        </TabsContent>
+
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-6">
+          <StripeConnectHealthPanel />
         </TabsContent>
 
       </Tabs>

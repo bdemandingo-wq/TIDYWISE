@@ -6247,12 +6247,17 @@ export type Database = {
           charges_enabled: boolean | null
           created_at: string
           details_submitted: boolean | null
+          disabled_reason: string | null
           id: string
+          last_webhook_at: string | null
           onboarding_url: string | null
           organization_id: string
           payouts_enabled: boolean | null
+          requirements_currently_due: Json | null
+          requirements_pending_verification: Json | null
           staff_id: string
           stripe_account_id: string | null
+          stripe_requirements_errors: Json | null
           updated_at: string
         }
         Insert: {
@@ -6262,12 +6267,17 @@ export type Database = {
           charges_enabled?: boolean | null
           created_at?: string
           details_submitted?: boolean | null
+          disabled_reason?: string | null
           id?: string
+          last_webhook_at?: string | null
           onboarding_url?: string | null
           organization_id: string
           payouts_enabled?: boolean | null
+          requirements_currently_due?: Json | null
+          requirements_pending_verification?: Json | null
           staff_id: string
           stripe_account_id?: string | null
+          stripe_requirements_errors?: Json | null
           updated_at?: string
         }
         Update: {
@@ -6277,12 +6287,17 @@ export type Database = {
           charges_enabled?: boolean | null
           created_at?: string
           details_submitted?: boolean | null
+          disabled_reason?: string | null
           id?: string
+          last_webhook_at?: string | null
           onboarding_url?: string | null
           organization_id?: string
           payouts_enabled?: boolean | null
+          requirements_currently_due?: Json | null
+          requirements_pending_verification?: Json | null
           staff_id?: string
           stripe_account_id?: string | null
+          stripe_requirements_errors?: Json | null
           updated_at?: string
         }
         Relationships: [
