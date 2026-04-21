@@ -11,6 +11,8 @@ import { CheckCircle2, Clock, AlertCircle, AlertTriangle, RefreshCw, Loader2, Ba
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { StripeRequirementsWidget } from './StripeRequirementsWidget';
+import { AdminPayoutResetButton } from './AdminPayoutResetSection';
+import { StripeResetHistoryPanel } from './StripeResetHistoryPanel';
 
 export function StripeConnectHealthPanel() {
   const { organization } = useOrganization();
@@ -319,6 +321,19 @@ export function StripeConnectHealthPanel() {
                                 </Tooltip>
                               </TooltipProvider>
                             )}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AdminPayoutResetButton
+                                    staffId={account.staff_id}
+                                    staffName={account.staff?.name || 'Unknown'}
+                                    organizationId={organization?.id || ''}
+                                    currentStatus={account.account_status}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>Reset payout setup</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -368,6 +383,9 @@ export function StripeConnectHealthPanel() {
 
       {/* Automated Requirements Widget */}
       <StripeRequirementsWidget />
+
+      {/* Reset History */}
+      <StripeResetHistoryPanel />
     </div>
   );
 }
