@@ -6570,6 +6570,64 @@ export type Database = {
           },
         ]
       }
+      stripe_reset_history: {
+        Row: {
+          created_at: string
+          id: string
+          initiated_by: string
+          initiated_by_user_id: string | null
+          new_stripe_account_id: string | null
+          organization_id: string
+          previous_stripe_account_id: string | null
+          reason: string | null
+          staff_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          initiated_by?: string
+          initiated_by_user_id?: string | null
+          new_stripe_account_id?: string | null
+          organization_id: string
+          previous_stripe_account_id?: string | null
+          reason?: string | null
+          staff_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          initiated_by?: string
+          initiated_by_user_id?: string | null
+          new_stripe_account_id?: string | null
+          organization_id?: string
+          previous_stripe_account_id?: string | null
+          reason?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_reset_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_reset_history_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_reset_history_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_logs: {
         Row: {
           created_at: string
