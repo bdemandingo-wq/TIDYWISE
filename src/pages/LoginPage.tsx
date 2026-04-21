@@ -65,6 +65,8 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    console.log('[LoginPage] Sign In button clicked — starting login flow');
     
     if (!validateForm()) return;
     
@@ -118,7 +120,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
       <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
@@ -207,7 +209,7 @@ export default function LoginPage() {
               </div>
 
               {/* Submit button */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading} style={{ touchAction: 'manipulation' }}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>

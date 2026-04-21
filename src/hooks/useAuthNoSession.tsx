@@ -201,11 +201,26 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     
-    // Clear any residual storage
+    // Clear any residual storage (web)
     const authKeys = Object.keys(localStorage).filter(key => 
       key.startsWith('sb-') || key.includes('supabase')
     );
     authKeys.forEach(key => localStorage.removeItem(key));
+
+    // Clear Capacitor Preferences storage (native)
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Preferences } = await import('@capacitor/preferences');
+        const { keys } = await Preferences.keys();
+        for (const key of keys) {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            await Preferences.remove({ key });
+          }
+        }
+      } catch {
+        // Preferences may not be available
+      }
+    }
   }, []);
 
   return (

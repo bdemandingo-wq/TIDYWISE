@@ -45,12 +45,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setShowSubscriptionDialog(false);
   };
 
+  /** Demo/review accounts skip subscription enforcement */
+  const isDemoAccount = (email?: string | null): boolean => {
+    if (!email) return false;
+    return email.endsWith('@tidywise1.com') || [
+      'support@tidywisecleaning.com',
+      'applereview@tidywise.com',
+      'info@openarmscleaning.com',
+    ].includes(email);
+  };
+
   const checkSubscription = async (accessToken?: string) => {
     try {
       const token =
         accessToken ?? noSessionAuth.session?.access_token;
 
       if (!token) return;
+
+      // Demo accounts bypass subscription checks entirely
+      if (isDemoAccount(noSessionAuth.user?.email)) {
+        setSubscription({ subscribed: true, trial_active: false, trial_end: null, subscription_end: null });
+        return;
+      }
 
       const { data, error } = await supabaseNoSession.functions.invoke("check-subscription", {
         headers: {
@@ -62,7 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setSubscription(data);
       // Only OPEN the dialog if not subscribed; never auto-close it
-      // (the user must explicitly dismiss via "Continue in Limited Mode" or subscribe)
       if (!data?.subscribed) {
         setShowSubscriptionDialog(true);
       }
@@ -80,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Log but don't block login — subscription check failure should not prevent access
       console.error("Error checking subscription:", error);
     }
   };

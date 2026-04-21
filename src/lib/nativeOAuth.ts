@@ -3,7 +3,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 const NATIVE_CALLBACK_URL = 'com.jointidywise.app://auth/callback';
 const WEB_CALLBACK_URL = 'https://www.jointidywise.com';
