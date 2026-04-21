@@ -321,6 +321,19 @@ export function StripeConnectHealthPanel() {
                                 </Tooltip>
                               </TooltipProvider>
                             )}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AdminPayoutResetButton
+                                    staffId={account.staff_id}
+                                    staffName={account.staff?.name || 'Unknown'}
+                                    organizationId={organization?.id || ''}
+                                    currentStatus={account.account_status}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>Reset payout setup</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -370,6 +383,9 @@ export function StripeConnectHealthPanel() {
 
       {/* Automated Requirements Widget */}
       <StripeRequirementsWidget />
+
+      {/* Reset History */}
+      <StripeResetHistoryPanel />
     </div>
   );
 }
