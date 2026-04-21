@@ -149,6 +149,82 @@ serve(async (req: Request) => {
 
     console.log("[stripe-connect-webhook] Updated staff", payoutAccount.staff_id, "to status:", newStatus);
 
+    // Auto-resolve outstanding requirement notifications when payouts are enabled
+    if (account.payouts_enabled) {
+      const { data: unresolvedNotifs } = await supabase
+        .from("stripe_requirement_notifications")
+        .select("id")
+        .eq("staff_id", payoutAccount.staff_id)
+        .is("resolved_at", null);
+
+      if (unresolvedNotifs && unresolvedNotifs.length > 0) {
+        await supabase
+          .from("stripe_requirement_notifications")
+          .update({ resolved_at: new Date().toISOString() })
+          .eq("staff_id", payoutAccount.staff_id)
+          .is("resolved_at", null);
+
+        console.log("[stripe-connect-webhook] Resolved", unresolvedNotifs.length, "notifications for staff", payoutAccount.staff_id);
+
+        // Send one-time "You're all set" email
+        try {
+          const { data: staff } = await supabase
+            .from("staff")
+            .select("name, email")
+            .eq("id", payoutAccount.staff_id)
+            .maybeSingle();
+
+          if (staff?.email) {
+            const globalResendApiKey = Deno.env.get("RESEND_API_KEY");
+            const { data: orgEmailSettings } = await supabase
+              .from("organization_email_settings")
+              .select("from_name, from_email, resend_api_key")
+              .eq("organization_id", payoutAccount.organization_id)
+              .maybeSingle();
+
+            const resendApiKey = orgEmailSettings?.resend_api_key || globalResendApiKey;
+            if (resendApiKey) {
+              const firstName = staff.name?.split(" ")[0] || "there";
+              const fromName = orgEmailSettings?.from_name || "TidyWise";
+              const fromEmail = orgEmailSettings?.from_email || "noreply@tidywisecleaning.com";
+
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${resendApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: `${fromName} <${fromEmail}>`,
+                  to: [staff.email],
+                  subject: "You're all set — payouts are now active on your TidyWise account",
+                  html: `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                      <h2 style="color:#1a1a2e;">Hi ${firstName},</h2>
+                      <p style="color:#333;font-size:15px;line-height:1.6;">
+                        Great news — your payout setup is now complete! 🎉
+                      </p>
+                      <p style="color:#333;font-size:15px;line-height:1.6;">
+                        Payouts are now active on your TidyWise account. Your earnings will be processed automatically on our net 30 schedule.
+                      </p>
+                      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+                      <p style="color:#888;font-size:13px;">
+                        Need help? Contact us at <a href="mailto:support@tidywisecleaning.com" style="color:#4f46e5;">support@tidywisecleaning.com</a> or call <a href="tel:+15615718725" style="color:#4f46e5;">(561) 571-8725</a>.
+                      </p>
+                      <p style="color:#888;font-size:13px;">— The TidyWise Team</p>
+                    </div>
+                  `,
+                }),
+              });
+              console.log("[stripe-connect-webhook] Sent 'all set' email to", staff.email);
+            }
+          }
+        } catch (emailErr: any) {
+          console.error("[stripe-connect-webhook] Failed to send resolved email:", emailErr.message);
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ received: true, matched: true, status: newStatus }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
