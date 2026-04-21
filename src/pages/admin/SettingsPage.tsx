@@ -41,7 +41,7 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
-
+import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
