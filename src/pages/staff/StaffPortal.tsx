@@ -589,11 +589,15 @@ export default function StaffPortal() {
           <div className="flex items-center gap-2 shrink-0">
             {staffInfo && (
               <>
-                <NotificationBell 
+              <NotificationBell 
                   staffId={staffInfo.id} 
-                  onViewJob={() => {
-                    const availableTab = document.querySelector('[value="available"]') as HTMLButtonElement;
-                    if (availableTab) availableTab.click();
+                  onViewJob={(bookingId) => {
+                    if (bookingId === '__payouts__') {
+                      setActiveTab('payouts');
+                    } else {
+                      const availableTab = document.querySelector('[value="available"]') as HTMLButtonElement;
+                      if (availableTab) availableTab.click();
+                    }
                   }}
                 />
                 <Badge variant="outline" className="hidden sm:flex">
@@ -618,6 +622,15 @@ export default function StaffPortal() {
             organizationId={staffInfo.organization_id}
             taxClassification={staffInfo.tax_classification}
             onNavigate={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {/* Payout Requirements Banner */}
+        {staffInfo?.id && staffInfo?.organization_id && (
+          <PayoutRequirementsBanner
+            staffId={staffInfo.id}
+            organizationId={staffInfo.organization_id}
+            onNavigateToPayouts={() => setActiveTab('payouts')}
           />
         )}
 
