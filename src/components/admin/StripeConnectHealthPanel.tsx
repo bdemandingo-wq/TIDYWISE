@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { CheckCircle2, Clock, AlertCircle, AlertTriangle, RefreshCw, Loader2, Banknote, ExternalLink, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { StripeRequirementsWidget } from './StripeRequirementsWidget';
 
 export function StripeConnectHealthPanel() {
   const { organization } = useOrganization();
@@ -364,6 +365,9 @@ export function StripeConnectHealthPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/* Automated Requirements Widget */}
+      <StripeRequirementsWidget />
     </div>
   );
 }
