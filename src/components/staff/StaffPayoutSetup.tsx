@@ -506,6 +506,14 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
           </CardContent>
         </Card>
       )}
+
+      {/* Reset Payout Setup — collapsible at the bottom */}
+      <PayoutResetSection
+        staffId={staffId}
+        organizationId={organizationId}
+        currentStatus={payoutStatus?.status || null}
+        chargesEnabled={payoutStatus?.chargesEnabled || false}
+      />
     </div>
   );
 }

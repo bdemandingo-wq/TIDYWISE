@@ -11,6 +11,8 @@ import { CheckCircle2, Clock, AlertCircle, AlertTriangle, RefreshCw, Loader2, Ba
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { StripeRequirementsWidget } from './StripeRequirementsWidget';
+import { AdminPayoutResetButton } from './AdminPayoutResetSection';
+import { StripeResetHistoryPanel } from './StripeResetHistoryPanel';
 
 export function StripeConnectHealthPanel() {
   const { organization } = useOrganization();
