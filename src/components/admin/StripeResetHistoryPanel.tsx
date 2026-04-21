@@ -103,7 +103,7 @@ export function StripeResetHistoryPanel() {
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-sm">{reset.staff?.name || 'Unknown'}</span>
                         {flaggedStaff.has(reset.staff_id) && (
-                          <AlertTriangle className="w-3.5 h-3.5 text-destructive" title="3+ resets in 30 days" />
+                          <span title="3+ resets in 30 days"><AlertTriangle className="w-3.5 h-3.5 text-destructive" /></span>
                         )}
                       </div>
                     </TableCell>

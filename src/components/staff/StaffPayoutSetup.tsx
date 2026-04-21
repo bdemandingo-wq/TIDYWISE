@@ -8,6 +8,7 @@ import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, Shie
 import { PayoutRequirementsChecklist } from './PayoutRequirementsChecklist';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { PayoutResetSection } from './PayoutResetSection';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSearchParams } from 'react-router-dom';
 
