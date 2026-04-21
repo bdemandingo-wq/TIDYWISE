@@ -18,7 +18,14 @@ const FREE_ACCOUNTS = [
   'support@tidywisecleaning.com',
   'applereview@tidywise.com',
   'info@openarmscleaning.com',
+  'applereview@tidywise1.com',
 ];
+
+/** Demo/review accounts that bypass subscription enforcement entirely */
+function isDemoAccount(email: string | undefined): boolean {
+  if (!email) return false;
+  return FREE_ACCOUNTS.includes(email) || email.endsWith('@tidywise1.com');
+}
 
 export interface SubscriptionAccess {
   /** True only if user has a confirmed active Stripe subscription */
@@ -52,7 +59,7 @@ export function useSubscription(): SubscriptionAccess {
   // Subscription billing is managed on the web — no IAP needed.
   const isNativeApp = Capacitor.isNativePlatform();
 
-  const isFreeAccount = FREE_ACCOUNTS.includes(user?.email ?? '');
+  const isFreeAccount = isDemoAccount(user?.email ?? '');
   const isSubscribed = subscription?.subscribed === true;
   const isTrialActive = subscription?.trial_active === true;
   const hasFullAccess = isNativeApp || isFreeAccount || isSubscribed || isTrialActive;
