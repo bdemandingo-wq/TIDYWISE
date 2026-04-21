@@ -1014,7 +1014,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
 
         <TabsContent value="sidebar" className="space-y-6">
