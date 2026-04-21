@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, ShieldCheck, RefreshCw, History } from 'lucide-react';
+import { PayoutRequirementsChecklist } from './PayoutRequirementsChecklist';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -249,6 +250,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
   return (
     <div className="space-y-4">
+      {/* Requirements checklist — shows status card and action items */}
+      <PayoutRequirementsChecklist staffId={staffId} organizationId={organizationId} />
+
       <div>
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Banknote className="w-5 h-5" />

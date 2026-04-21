@@ -100,7 +100,13 @@ export function NotificationBell({ staffId, onViewJob }: Props) {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    if (notification.booking_id && onViewJob) {
+    if (notification.type === 'payout_requirement') {
+      // Navigate to payouts tab
+      if (onViewJob) {
+        onViewJob('__payouts__');
+      }
+      setIsOpen(false);
+    } else if (notification.booking_id && onViewJob) {
       onViewJob(notification.booking_id);
       setIsOpen(false);
     }

@@ -6252,6 +6252,7 @@ export type Database = {
           last_webhook_at: string | null
           onboarding_url: string | null
           organization_id: string
+          payout_resolved_toast_shown: boolean
           payouts_enabled: boolean | null
           requirements_currently_due: Json | null
           requirements_pending_verification: Json | null
@@ -6272,6 +6273,7 @@ export type Database = {
           last_webhook_at?: string | null
           onboarding_url?: string | null
           organization_id: string
+          payout_resolved_toast_shown?: boolean
           payouts_enabled?: boolean | null
           requirements_currently_due?: Json | null
           requirements_pending_verification?: Json | null
@@ -6292,6 +6294,7 @@ export type Database = {
           last_webhook_at?: string | null
           onboarding_url?: string | null
           organization_id?: string
+          payout_resolved_toast_shown?: boolean
           payouts_enabled?: boolean | null
           requirements_currently_due?: Json | null
           requirements_pending_verification?: Json | null
@@ -6485,10 +6488,14 @@ export type Database = {
       stripe_requirement_notifications: {
         Row: {
           account_link_url: string | null
+          banner_shown: boolean
           created_at: string
+          detected_at: string
+          email_sent_at: string | null
           email_sent_count: number
           email_status: string
           id: string
+          in_app_notified: boolean
           last_emailed_at: string | null
           link_expires_at: string | null
           needs_manual_followup: boolean
@@ -6501,10 +6508,14 @@ export type Database = {
         }
         Insert: {
           account_link_url?: string | null
+          banner_shown?: boolean
           created_at?: string
+          detected_at?: string
+          email_sent_at?: string | null
           email_sent_count?: number
           email_status?: string
           id?: string
+          in_app_notified?: boolean
           last_emailed_at?: string | null
           link_expires_at?: string | null
           needs_manual_followup?: boolean
@@ -6517,10 +6528,14 @@ export type Database = {
         }
         Update: {
           account_link_url?: string | null
+          banner_shown?: boolean
           created_at?: string
+          detected_at?: string
+          email_sent_at?: string | null
           email_sent_count?: number
           email_status?: string
           id?: string
+          in_app_notified?: boolean
           last_emailed_at?: string | null
           link_expires_at?: string | null
           needs_manual_followup?: boolean

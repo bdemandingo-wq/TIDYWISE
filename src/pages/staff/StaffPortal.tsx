@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera, AlertCircle } from 'lucide-react';
+import { PayoutRequirementsBanner } from '@/components/staff/PayoutRequirementsBanner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
@@ -588,11 +589,15 @@ export default function StaffPortal() {
           <div className="flex items-center gap-2 shrink-0">
             {staffInfo && (
               <>
-                <NotificationBell 
+              <NotificationBell 
                   staffId={staffInfo.id} 
-                  onViewJob={() => {
-                    const availableTab = document.querySelector('[value="available"]') as HTMLButtonElement;
-                    if (availableTab) availableTab.click();
+                  onViewJob={(bookingId) => {
+                    if (bookingId === '__payouts__') {
+                      setActiveTab('payouts');
+                    } else {
+                      const availableTab = document.querySelector('[value="available"]') as HTMLButtonElement;
+                      if (availableTab) availableTab.click();
+                    }
                   }}
                 />
                 <Badge variant="outline" className="hidden sm:flex">
@@ -617,6 +622,15 @@ export default function StaffPortal() {
             organizationId={staffInfo.organization_id}
             taxClassification={staffInfo.tax_classification}
             onNavigate={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {/* Payout Requirements Banner */}
+        {staffInfo?.id && staffInfo?.organization_id && (
+          <PayoutRequirementsBanner
+            staffId={staffInfo.id}
+            organizationId={staffInfo.organization_id}
+            onNavigateToPayouts={() => setActiveTab('payouts')}
           />
         )}
 
