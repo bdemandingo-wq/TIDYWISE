@@ -535,6 +535,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             
+            <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
           </TabsList>
         </div>
@@ -1013,7 +1014,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
+import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
 
         <TabsContent value="sidebar" className="space-y-6">
@@ -1110,6 +1111,11 @@ export default function SettingsPage() {
 
           {/* Account Deletion - Required for App Store compliance */}
           <AccountDeletionCard />
+        </TabsContent>
+
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-6">
+          <StripeConnectHealthPanel />
         </TabsContent>
 
       </Tabs>
