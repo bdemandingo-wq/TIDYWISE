@@ -12,8 +12,8 @@ export default function GPSTrackingForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="GPS Tracking for Cleaning Businesses — Do You Need It? | TIDYWISE"
-        description="GPS tracking for cleaning teams: what it actually does, when it's worth it, and how to implement it without micromanaging your staff. Real-time location for cleaners."
+        title="GPS Tracking for Cleaning Businesses Guide"
+        description="How GPS tracking helps cleaning companies cut drive time, prove arrivals, and keep crews accountable."
         canonical="/blog/gps-tracking-cleaning-business"
         ogImage="/images/tidywise-og.png"
         schemaJson={{

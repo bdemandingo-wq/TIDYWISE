@@ -12,8 +12,8 @@ export default function CleaningBusinessManagementSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Cleaning Business Management Software — What You Actually Need | TIDYWISE"
-        description="A practical guide to cleaning business management software: what it does, what features matter, and how to choose the right platform for your maid service or cleaning company."
+        title="Cleaning Business Management Software (2026)"
+        description="Compare the best cleaning business management software in 2026. Features, pricing, and which fits your team size."
         canonical="/blog/cleaning-business-management-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={{

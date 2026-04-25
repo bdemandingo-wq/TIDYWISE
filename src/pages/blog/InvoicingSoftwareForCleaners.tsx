@@ -12,8 +12,8 @@ export default function InvoicingSoftwareForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Invoicing Software for Cleaning Businesses — Get Paid Faster | TIDYWISE"
-        description="The best invoicing software for cleaning businesses. Automatic invoices, recurring billing, card-on-file charging, and deposit collection — built for maid services."
+        title="Best Invoicing Software for Cleaning Businesses"
+        description="The best invoicing software for cleaning businesses — automated billing, online payments, and recurring invoices."
         canonical="/blog/invoicing-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
