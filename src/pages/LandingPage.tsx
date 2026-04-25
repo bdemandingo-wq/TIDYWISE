@@ -24,6 +24,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
+import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -821,6 +822,11 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* SEO long-form content with internal links + FAQ (moved from /login) */}
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-background">
+        <AuthSEOContent variant="login" headingLevel="h2" />
       </section>
 
       {/* Final CTA - Premium gradient */}
