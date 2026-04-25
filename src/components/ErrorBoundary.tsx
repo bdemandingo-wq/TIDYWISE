@@ -18,6 +18,25 @@ interface State {
 }
 
 /**
+ * Detects errors thrown when a code-split chunk referenced by a stale
+ * index.html no longer exists on the CDN (typical right after a deploy).
+ * Browsers report this with a few different messages — we match the common ones.
+ */
+function isChunkLoadError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = (error instanceof Error ? error.message : String(error)) || '';
+  const name = error instanceof Error ? error.name : '';
+  return (
+    name === 'ChunkLoadError' ||
+    /Importing a module script failed/i.test(msg) ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Loading chunk [\d]+ failed/i.test(msg) ||
+    /Loading CSS chunk/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  );
+}
+
+/**
  * Global Error Boundary - wraps features to catch render errors
  * Logs all caught errors to system_logs table for debugging
  */
@@ -33,9 +52,24 @@ export class ErrorBoundary extends Component<Props, State> {
 
   async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
-    
+
     // Log error to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+
+    // Auto-recover from stale chunk errors after a deploy.
+    // When index.html references new hashed chunks but the browser has an old
+    // index.html cached, dynamic imports throw "Importing a module script failed"
+    // / "Failed to fetch dynamically imported module". A one-time hard reload
+    // pulls the fresh index.html and resolves it. We guard with sessionStorage
+    // to avoid infinite reload loops if the issue is something else.
+    if (isChunkLoadError(error)) {
+      const RELOAD_KEY = '__tw_chunk_reload_attempted__';
+      if (typeof window !== 'undefined' && !sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+        return;
+      }
+    }
     
     // Log to system_logs table
     try {
@@ -74,6 +108,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
+    // For chunk-load errors, a state reset isn't enough — the broken module
+    // reference is still in the bundler graph. Force a hard reload instead.
+    if (this.state.error && isChunkLoadError(this.state.error)) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('__tw_chunk_reload_attempted__');
+        window.location.reload();
+        return;
+      }
+    }
     this.setState({ hasError: false, error: null, errorInfo: null });
     this.props.onRetry?.();
   };
