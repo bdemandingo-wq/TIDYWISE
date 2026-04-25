@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 
 const PRODUCTION_DOMAIN = "https://www.jointidywise.com";
@@ -25,6 +26,13 @@ export function SEOHead({
       ? canonical
       : `${PRODUCTION_DOMAIN}${canonical}`
     : undefined;
+
+  // Update the static canonical tag from index.html so there's exactly one in <head>.
+  useEffect(() => {
+    if (!canonicalUrl) return;
+    const tag = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (tag) tag.href = canonicalUrl;
+  }, [canonicalUrl]);
 
   const imageUrl = ogImage
     ? ogImage.startsWith("http")
@@ -60,8 +68,8 @@ export function SEOHead({
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={imageUrl} />
 
-      {/* Canonical */}
-      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+      {/* Canonical is managed via useEffect on the static tag in index.html
+          to avoid duplicate canonicals from Helmet on subpages. */}
 
       {/* JSON-LD */}
       {jsonLdPayload && (
