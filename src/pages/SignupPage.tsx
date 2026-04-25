@@ -434,5 +434,11 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+    <AuthSEOContent
+      heading="Create your TidyWise account"
+      intro="Start running your cleaning business from one dashboard — bookings, scheduling, invoicing, and payroll, free forever."
+      variant="owner"
+    />
+    </div>
   );
 }
