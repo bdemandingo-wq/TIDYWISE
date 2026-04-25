@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
+import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 
 
 export default function AuthPage() {
@@ -278,7 +279,8 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Back to home link */}
         <Link 
@@ -503,6 +505,12 @@ export default function AuthPage() {
           .
         </div>
       </div>
+    </div>
+    <AuthSEOContent
+      heading="Sign in to TidyWise"
+      intro="Manage your cleaning business — bookings, schedules, invoices, payroll, and clients — from one dashboard."
+      variant="owner"
+    />
     </div>
   );
 }
