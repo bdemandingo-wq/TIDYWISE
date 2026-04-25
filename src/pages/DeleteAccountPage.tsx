@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Trash2, Mail, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function DeleteAccountPage() {
   const [name, setName] = useState("");
@@ -92,10 +93,10 @@ export default function DeleteAccountPage() {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                 <Mail className="h-5 w-5 text-primary" />
                 How to Request Deletion
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
@@ -124,10 +125,10 @@ export default function DeleteAccountPage() {
           {/* Data Handling */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                 <Shield className="h-5 w-5 text-primary" />
                 What Data Will Be Deleted
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground font-medium">The following data will be permanently deleted:</p>
@@ -163,7 +164,7 @@ export default function DeleteAccountPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Submit a Deletion Request</CardTitle>
+                <h2 className="text-lg font-semibold leading-none tracking-tight">Submit a Deletion Request</h2>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -219,10 +220,21 @@ export default function DeleteAccountPage() {
             </Card>
           )}
 
+          {/* Internal links - keeps page reachable in site graph */}
+          <nav aria-label="Related pages" className="border-t border-border pt-6 mt-4">
+            <h2 className="text-base font-semibold text-foreground mb-3">Related</h2>
+            <ul className="grid grid-cols-2 gap-2 text-sm">
+              <li><Link to="/" className="text-primary hover:underline">Home</Link></li>
+              <li><Link to="/pricing" className="text-primary hover:underline">Pricing</Link></li>
+              <li><Link to="/auth" className="text-primary hover:underline">Sign in</Link></li>
+              <li><Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link></li>
+            </ul>
+          </nav>
+
           {/* Footer */}
           <p className="text-xs text-muted-foreground text-center pb-8">
             © {new Date().getFullYear()} TidyWise. All rights reserved. •{" "}
-            <a href="/privacy-policy" className="hover:underline text-primary">Privacy Policy</a>
+            <Link to="/privacy-policy" className="hover:underline text-primary">Privacy Policy</Link>
           </p>
         </main>
       </div>

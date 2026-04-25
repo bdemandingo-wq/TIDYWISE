@@ -36,6 +36,7 @@ export default function PricingPage() {
       <SEOHead
         title="Pricing | TidyWise – Free Cleaning Business Software"
         description="TidyWise is free forever — no credit card, no hidden fees. Full scheduling, CRM, invoicing & payroll for cleaning businesses. Beat Jobber's $69/mo."
+        canonical="/pricing"
       />
 
       <div className="min-h-screen bg-background">
@@ -66,6 +67,27 @@ export default function PricingPage() {
                 <span className="text-foreground">{f.label}</span>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Internal links to features and blog */}
+        <section className="max-w-5xl mx-auto px-4 pb-12">
+          <h2 className="text-xl font-semibold text-foreground mb-4 text-center">Explore TidyWise features</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <Link to="/features/scheduling-software" className="text-primary hover:underline">Scheduling</Link>
+            <Link to="/features/invoicing-software" className="text-primary hover:underline">Invoicing</Link>
+            <Link to="/features/crm" className="text-primary hover:underline">CRM</Link>
+            <Link to="/features/payroll-software" className="text-primary hover:underline">Payroll</Link>
+            <Link to="/features/route-optimization" className="text-primary hover:underline">Route optimization</Link>
+            <Link to="/features/booking-software" className="text-primary hover:underline">Online booking</Link>
+            <Link to="/features/automated-dispatching" className="text-primary hover:underline">Dispatching</Link>
+            <Link to="/features/sms-notifications" className="text-primary hover:underline">SMS notifications</Link>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mt-8 mb-4 text-center">From the blog</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-center">
+            <Link to="/blog/cleaning-business-management-software" className="text-primary hover:underline">Cleaning Business Management Software</Link>
+            <Link to="/blog/scheduling-software-for-cleaning-business" className="text-primary hover:underline">Scheduling Software Guide</Link>
+            <Link to="/blog/payroll-software-for-cleaning-businesses" className="text-primary hover:underline">Payroll Software Guide</Link>
           </div>
         </section>
 

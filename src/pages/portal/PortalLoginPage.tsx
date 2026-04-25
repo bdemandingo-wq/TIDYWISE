@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEOHead } from '@/components/SEOHead';
+import { AuthSEOContent } from "@/components/seo/AuthSEOContent";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 
 const loginSchema = z.object({
@@ -60,7 +61,8 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center relative">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <main className="min-h-screen p-4 flex items-center justify-center relative">
       <Button
         variant="ghost"
         size="icon"
@@ -72,9 +74,9 @@ export default function PortalLoginPage() {
       </Button>
       
       <SEOHead
-        title="Client Portal | Sign In"
-        description="Sign in to your client portal to view bookings, request appointments, and more."
-        canonical="/portal"
+        title="Client Portal Login | TidyWise"
+        description="Sign in to your client portal to view bookings, request appointments, and manage your cleaning service account."
+        canonical="/portal/login"
       />
 
       <section className="w-full max-w-md">
@@ -154,5 +156,11 @@ export default function PortalLoginPage() {
         </Card>
       </section>
     </main>
+    <AuthSEOContent
+      heading="Client portal login"
+      intro="Sign in to view your bookings, request new appointments, and stay in touch with your cleaning team."
+      variant="client"
+    />
+    </div>
   );
 }

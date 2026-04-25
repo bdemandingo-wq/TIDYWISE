@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
+import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
@@ -205,7 +206,8 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <SEOHead title="Start Free Trial | TidyWise – Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonical="/signup" />
       <div className="w-full max-w-md">
         {/* Back to home link */}
@@ -431,6 +433,12 @@ export default function SignupPage() {
           .
         </div>
       </div>
+    </div>
+    <AuthSEOContent
+      heading="Create your TidyWise account"
+      intro="Start running your cleaning business from one dashboard — bookings, scheduling, invoicing, and payroll, free forever."
+      variant="owner"
+    />
     </div>
   );
 }

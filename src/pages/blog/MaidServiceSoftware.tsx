@@ -12,7 +12,7 @@ export default function MaidServiceSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Best Maid Service Software in 2026 — Complete Buyer's Guide | TIDYWISE"
+        title="Maid Service Software: Top Picks for 2026"
         description="Compare the best maid service software for scheduling, invoicing, payroll, and client management. Built for residential cleaning companies. Free trial included."
         canonical="/blog/maid-service-software"
         ogImage="/images/tidywise-og.png"

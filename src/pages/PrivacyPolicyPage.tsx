@@ -131,7 +131,21 @@ export default function PrivacyPolicyPage() {
 
             <h2>Contact Us</h2>
             <p>
-              If you have questions about this Privacy Policy, please contact us at <strong>support@jointidywise.com</strong>.
+              If you have questions about this Privacy Policy, please contact us at <strong>support@jointidywise.com</strong>,
+              or visit the <Link to="/auth" className="text-primary underline">sign-in page</Link> to access your account.
+            </p>
+
+            <h2>Explore TidyWise</h2>
+            <p>
+              Learn more about how TidyWise helps cleaning businesses by exploring our{" "}
+              <Link to="/" className="text-primary underline">homepage</Link>,{" "}
+              <Link to="/pricing" className="text-primary underline">pricing</Link>,{" "}
+              <Link to="/features/scheduling-software" className="text-primary underline">scheduling software</Link>,{" "}
+              <Link to="/features/invoicing-software" className="text-primary underline">invoicing software</Link>,{" "}
+              <Link to="/features/crm" className="text-primary underline">CRM</Link>,{" "}
+              <Link to="/features/payroll-software" className="text-primary underline">payroll software</Link>,{" "}
+              <Link to="/features/route-optimization" className="text-primary underline">route optimization</Link>, and the{" "}
+              <Link to="/blog" className="text-primary underline">TidyWise blog</Link>.
             </p>
           </div>
         </article>

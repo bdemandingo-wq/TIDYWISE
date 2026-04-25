@@ -12,8 +12,8 @@ export default function SchedulingSoftwareForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Scheduling Software for Cleaning Businesses (2026 Guide) | TIDYWISE"
-        description="The best scheduling software for cleaning businesses. Automated booking, route planning, cleaner assignments, and SMS reminders — built specifically for maid services."
+        title="Scheduling Software for Cleaning Businesses"
+        description="Schedule cleaners, dispatch jobs, and avoid double-bookings with software built for cleaning companies."
         canonical="/blog/scheduling-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
