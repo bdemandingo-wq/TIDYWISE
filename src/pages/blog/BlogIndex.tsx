@@ -241,8 +241,8 @@ export default function BlogIndex() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="Cleaning Business Resources & Guides | TIDYWISE Blog"
-        description="Expert guides on starting and growing a cleaning business. Learn about automated payroll software for maid services, inventory management, scheduling tips, and more."
+        title="TidyWise Blog | Cleaning Business Guides"
+        description="Practical guides on running and growing a cleaning business — software reviews, automation tips, hiring, and pricing."
         canonical="/blog"
         ogImage="/images/tidywise-og.png"
       />
