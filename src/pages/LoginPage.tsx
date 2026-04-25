@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
+import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 
 // Validation schema
 const loginSchema = z.object({
@@ -121,7 +122,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
-      <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
+      <SEOHead title="Log In to TidyWise | Cleaning Business Software" description="Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard." canonical="/login" />
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
         {!isNative && (
@@ -293,6 +294,9 @@ export default function LoginPage() {
           </Link>
           .
         </div>
+
+        {/* SEO content: visible H1 + 300+ words + internal links (web only) */}
+        <AuthSEOContent variant="login" />
       </div>
     </div>
   );
