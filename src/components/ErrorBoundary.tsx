@@ -18,6 +18,25 @@ interface State {
 }
 
 /**
+ * Detects errors thrown when a code-split chunk referenced by a stale
+ * index.html no longer exists on the CDN (typical right after a deploy).
+ * Browsers report this with a few different messages — we match the common ones.
+ */
+function isChunkLoadError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = (error instanceof Error ? error.message : String(error)) || '';
+  const name = error instanceof Error ? error.name : '';
+  return (
+    name === 'ChunkLoadError' ||
+    /Importing a module script failed/i.test(msg) ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Loading chunk [\d]+ failed/i.test(msg) ||
+    /Loading CSS chunk/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  );
+}
+
+/**
  * Global Error Boundary - wraps features to catch render errors
  * Logs all caught errors to system_logs table for debugging
  */
