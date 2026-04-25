@@ -93,12 +93,10 @@ export default function DeleteAccountPage() {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle asChild>
-                <h2 className="flex items-center gap-2 text-lg">
-                  <Mail className="h-5 w-5 text-primary" />
-                  How to Request Deletion
-                </h2>
-              </CardTitle>
+              <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
+                <Mail className="h-5 w-5 text-primary" />
+                How to Request Deletion
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
@@ -127,12 +125,10 @@ export default function DeleteAccountPage() {
           {/* Data Handling */}
           <Card>
             <CardHeader>
-              <CardTitle asChild>
-                <h2 className="flex items-center gap-2 text-lg">
-                  <Shield className="h-5 w-5 text-primary" />
-                  What Data Will Be Deleted
-                </h2>
-              </CardTitle>
+              <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
+                <Shield className="h-5 w-5 text-primary" />
+                What Data Will Be Deleted
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground font-medium">The following data will be permanently deleted:</p>
