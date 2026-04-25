@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Trash2, Mail, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function DeleteAccountPage() {
   const [name, setName] = useState("");
@@ -92,9 +93,11 @@ export default function DeleteAccountPage() {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Mail className="h-5 w-5 text-primary" />
-                How to Request Deletion
+              <CardTitle asChild>
+                <h2 className="flex items-center gap-2 text-lg">
+                  <Mail className="h-5 w-5 text-primary" />
+                  How to Request Deletion
+                </h2>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -124,9 +127,11 @@ export default function DeleteAccountPage() {
           {/* Data Handling */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Shield className="h-5 w-5 text-primary" />
-                What Data Will Be Deleted
+              <CardTitle asChild>
+                <h2 className="flex items-center gap-2 text-lg">
+                  <Shield className="h-5 w-5 text-primary" />
+                  What Data Will Be Deleted
+                </h2>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
