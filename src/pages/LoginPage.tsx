@@ -121,7 +121,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
-      <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" noIndex />
+      <SEOHead title="Log In | TidyWise - Cleaning Business Software" description="Log in to your TidyWise account to manage bookings, staff, and grow your cleaning business." canonical="/login" />
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
         {!isNative && (
