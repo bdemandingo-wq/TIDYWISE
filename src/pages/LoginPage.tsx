@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
-import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 
 // Validation schema
 const loginSchema = z.object({
@@ -294,9 +293,6 @@ export default function LoginPage() {
           </Link>
           .
         </div>
-
-        {/* SEO content: visible H1 + 300+ words + internal links (web only) */}
-        <AuthSEOContent variant="login" />
       </div>
     </div>
   );

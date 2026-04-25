@@ -12,8 +12,10 @@ type Variant = 'login' | 'signup' | 'portal' | 'staff';
 
 interface AuthSEOContentProps {
   variant?: Variant;
-  /** Visible H1 heading rendered above the form. */
+  /** Visible heading rendered above the form. */
   heading?: string;
+  /** Use 'h2' on pages that already have an H1 (e.g., the landing page). Defaults to 'h1'. */
+  headingLevel?: 'h1' | 'h2';
 }
 
 const COPY: Record<Variant, { heading: string; intro: string; role: string }> = {
@@ -43,21 +45,22 @@ const COPY: Record<Variant, { heading: string; intro: string; role: string }> = 
   },
 };
 
-export function AuthSEOContent({ variant = 'login', heading }: AuthSEOContentProps) {
+export function AuthSEOContent({ variant = 'login', heading, headingLevel = 'h1' }: AuthSEOContentProps) {
   // Don't render extra SEO body content inside the iOS/Android app shell.
   if (Capacitor.isNativePlatform()) return null;
 
   const copy = COPY[variant];
   const h1 = heading ?? copy.heading;
+  const HeadingTag = headingLevel;
 
   return (
     <section
       aria-labelledby="auth-seo-heading"
       className="mt-10 mx-auto w-full max-w-3xl text-left text-sm text-muted-foreground space-y-6 px-2"
     >
-      <h1 id="auth-seo-heading" className="text-2xl font-bold text-foreground">
+      <HeadingTag id="auth-seo-heading" className="text-2xl font-bold text-foreground">
         {h1}
-      </h1>
+      </HeadingTag>
 
       <p>{copy.intro}</p>
 
