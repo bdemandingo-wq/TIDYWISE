@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/SEOHead';
+import { SiteFooter } from '@/components/SiteFooter';
 import {
   CheckCircle2,
   Calendar,
@@ -78,6 +79,8 @@ export default function PricingPage() {
             <Button size="lg">Sign Up Free</Button>
           </Link>
         </section>
+
+        <SiteFooter />
       </div>
     </>
   );

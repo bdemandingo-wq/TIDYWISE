@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Trash2, Mail, CheckCircle2 } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function DeleteAccountPage() {
   const [name, setName] = useState("");
@@ -92,10 +93,10 @@ export default function DeleteAccountPage() {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <h2 className="flex items-center gap-2 text-sm md:text-xl font-semibold leading-none tracking-tight">
                 <Mail className="h-5 w-5 text-primary" />
                 How to Request Deletion
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
@@ -124,10 +125,10 @@ export default function DeleteAccountPage() {
           {/* Data Handling */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <h2 className="flex items-center gap-2 text-sm md:text-xl font-semibold leading-none tracking-tight">
                 <Shield className="h-5 w-5 text-primary" />
                 What Data Will Be Deleted
-              </CardTitle>
+              </h2>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground font-medium">The following data will be permanently deleted:</p>
@@ -163,7 +164,7 @@ export default function DeleteAccountPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Submit a Deletion Request</CardTitle>
+                <h2 className="text-sm md:text-xl font-semibold leading-none tracking-tight">Submit a Deletion Request</h2>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -219,12 +220,9 @@ export default function DeleteAccountPage() {
             </Card>
           )}
 
-          {/* Footer */}
-          <p className="text-xs text-muted-foreground text-center pb-8">
-            © {new Date().getFullYear()} TidyWise. All rights reserved. •{" "}
-            <a href="/privacy-policy" className="hover:underline text-primary">Privacy Policy</a>
-          </p>
         </main>
+
+        <SiteFooter />
       </div>
     </>
   );

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -102,7 +103,7 @@ export default function PrivacyPolicyPage() {
 
             <h2>Account Deletion</h2>
             <p>
-              You may request deletion of your account and associated data at any time. To delete your account:
+              You may request deletion of your account and associated data at any time. Visit our <Link to="/delete-account" className="text-primary hover:underline">Account Deletion page</Link> to submit a request, or:
             </p>
             <ul>
               <li>Navigate to <strong>Settings → Security</strong> in the app and select <strong>"Delete My Account"</strong>.</li>
@@ -136,6 +137,8 @@ export default function PrivacyPolicyPage() {
           </div>
         </article>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

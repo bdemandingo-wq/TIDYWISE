@@ -80,7 +80,7 @@ export default function PayrollSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Payroll Software for Cleaning Businesses | Free Forever | TIDYWISE"
+        title="Payroll Software for Cleaning Businesses | TIDYWISE"
         description="Automate cleaner wages, tips, mileage & tax docs. Built for cleaning businesses — per-job pay, hourly, or % of service price. Free forever with TIDYWISE."
         canonical="/features/payroll-software"
         ogImage="/images/tidywise-og.png"

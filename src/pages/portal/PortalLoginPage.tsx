@@ -74,7 +74,8 @@ export default function PortalLoginPage() {
       <SEOHead
         title="Client Portal | Sign In"
         description="Sign in to your client portal to view bookings, request appointments, and more."
-        canonical="/portal"
+        canonical="/portal/login"
+        noIndex
       />
 
       <section className="w-full max-w-md">
