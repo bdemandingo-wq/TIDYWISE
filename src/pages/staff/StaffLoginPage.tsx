@@ -319,5 +319,11 @@ export default function StaffLoginPage() {
         </DialogContent>
       </Dialog>
     </main>
+    <AuthSEOContent
+      heading="Staff portal login"
+      intro="Sign in to view your route, check in to jobs, complete checklists, and track your earnings."
+      variant="staff"
+    />
+    </div>
   );
 }
