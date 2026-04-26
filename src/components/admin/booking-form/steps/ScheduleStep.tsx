@@ -332,6 +332,15 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     const availability = staffAvailability.get(staffId);
     if (!availability) return null;
 
+    if (availability.isOutsideWorkingHours) {
+      return (
+        <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 text-xs">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Off today
+        </Badge>
+      );
+    }
+
     if (availability.isAvailable) {
       return (
         <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
