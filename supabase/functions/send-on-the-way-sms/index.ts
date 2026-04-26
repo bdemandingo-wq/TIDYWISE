@@ -43,18 +43,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Deduplication: Check if an "on the way" SMS was already sent for this booking
+    // Deduplication: each staff member can send their own "on the way" once.
+    // Team jobs: both cleaners can press "On The Way" (each sends one SMS to the customer).
+    const staffReminderType = `on_the_way:${staffId}`;
     const { data: existingLog } = await supabase
       .from('booking_reminder_log')
       .select('id')
       .eq('booking_id', bookingId)
-      .eq('reminder_type', 'on_the_way')
+      .eq('reminder_type', staffReminderType)
       .limit(1);
 
     if (existingLog && existingLog.length > 0) {
-      console.log(`[send-on-the-way-sms] Already sent for booking ${bookingId}, skipping duplicate`);
+      console.log(`[send-on-the-way-sms] Already sent for booking ${bookingId} by staff ${staffId}, skipping duplicate`);
       return new Response(
-        JSON.stringify({ success: true, deduplicated: true, message: "On-the-way notification already sent for this booking" }),
+        JSON.stringify({ success: true, deduplicated: true, message: "You've already sent the on-the-way notification for this booking." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -295,12 +297,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`[send-on-the-way-sms] No admin phone configured, skipping admin notification`);
     }
 
-    // Log to prevent duplicates (e.g. second cleaner pressing "on the way")
+    // Log to prevent duplicates per cleaner. Team jobs allow each cleaner to send once.
     await supabase.from('booking_reminder_log').insert({
       booking_id: bookingId,
       organization_id: booking.organization_id,
       recipient_phone: formattedCustomerPhone,
-      reminder_type: 'on_the_way',
+      reminder_type: staffReminderType,
     });
 
     // Audit log

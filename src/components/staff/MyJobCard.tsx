@@ -104,6 +104,25 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     }
   }, [booking.status, isTracking, stopTracking]);
 
+  // Check if THIS staff member already sent the on-the-way SMS for this booking.
+  // Team jobs allow each cleaner to send their own once.
+  useEffect(() => {
+    if (!staffInfo.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('booking_reminder_log')
+        .select('id')
+        .eq('booking_id', booking.id)
+        .eq('reminder_type', `on_the_way:${staffInfo.id}`)
+        .limit(1);
+      if (!cancelled && data && data.length > 0) {
+        setOnTheWaySent(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [booking.id, staffInfo.id]);
+
   const handleOnTheWayClick = async () => {
     if (!staffInfo.id || !booking.customer?.phone) {
       toast.error('Customer phone number is required');
