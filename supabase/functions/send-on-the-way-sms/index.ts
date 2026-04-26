@@ -261,7 +261,7 @@ const handler = async (req: Request): Promise<Response> => {
     const notifyAdmin = smsSettings.notify_admin_on_the_way !== false;
 
     // Send customer SMS if enabled
-    let customerResult = { success: true, messageId: undefined as string | undefined };
+    let customerResult: { success: boolean; messageId?: string; error?: string } = { success: true, messageId: undefined };
     if (notifyClient) {
       customerResult = await sendSms(formattedCustomerPhone, customerMessage, 'customer');
 

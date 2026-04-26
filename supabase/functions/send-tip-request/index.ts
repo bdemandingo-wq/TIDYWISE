@@ -87,9 +87,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Build tip link
-    const fullTipLink = `${appUrl}/tip/${tip.token}`;
-
     // Get business settings for company name and org-specific app URL
     const { data: businessSettings } = await supabase
       .from('business_settings')
@@ -99,6 +96,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
     const appUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.com").replace(/\/+$/, '');
+
+    // Build tip link
+    const fullTipLink = `${appUrl}/tip/${tip.token}`;
 
     // Shorten the tip link using short_urls table
     const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();

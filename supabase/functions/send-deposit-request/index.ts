@@ -89,9 +89,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Build deposit link
-    const fullDepositLink = `${appUrl}/deposit/${deposit.token}`;
-
     // Get business settings for company name and org-specific app URL
     const { data: businessSettings } = await supabase
       .from('business_settings')
@@ -101,6 +98,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = businessSettings?.company_name || 'Your cleaning service';
     const appUrl = (businessSettings?.app_url || Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || req.headers.get("origin") || "https://jointidywise.com").replace(/\/+$/, '');
+
+    // Build deposit link
+    const fullDepositLink = `${appUrl}/deposit/${deposit.token}`;
 
     // Shorten the deposit link
     const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();

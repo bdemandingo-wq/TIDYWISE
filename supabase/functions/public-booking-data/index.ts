@@ -128,7 +128,7 @@ serve(async (req: Request) => {
       `[public-booking-data] Loaded org=${org.id}, services=${servicesRes.data?.length ?? 0}, pricingRows=${pricingRes.data?.length ?? 0}`,
     );
 
-    const displaySettings = pricingSettingsRes.data || {};
+    const displaySettings: any = pricingSettingsRes.data || {};
 
     return new Response(
       JSON.stringify({
