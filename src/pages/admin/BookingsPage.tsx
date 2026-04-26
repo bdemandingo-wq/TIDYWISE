@@ -208,6 +208,7 @@ export default function BookingsPage() {
   const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
   const [assignCleanerBooking, setAssignCleanerBooking] = useState<BookingWithDetails | null>(null);
   const [assigningCleaner, setAssigningCleaner] = useState(false);
+  const [assignTeamIds, setAssignTeamIds] = useState<Set<string>>(new Set());
   const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
