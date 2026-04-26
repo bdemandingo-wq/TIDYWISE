@@ -208,6 +208,7 @@ export default function BookingsPage() {
   const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
   const [assignCleanerBooking, setAssignCleanerBooking] = useState<BookingWithDetails | null>(null);
   const [assigningCleaner, setAssigningCleaner] = useState(false);
+  const [assignTeamIds, setAssignTeamIds] = useState<Set<string>>(new Set());
   const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -2801,46 +2802,97 @@ export default function BookingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Assign Cleaner Dialog */}
-      <AlertDialog open={!!assignCleanerBooking} onOpenChange={(open) => !open && setAssignCleanerBooking(null)}>
-        <AlertDialogContent>
+      {/* Assign Cleaner / Team Dialog */}
+      <AlertDialog open={!!assignCleanerBooking} onOpenChange={(open) => { if (!open) { setAssignCleanerBooking(null); setAssignTeamIds(new Set()); } }}>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Assign Cleaner</AlertDialogTitle>
+            <AlertDialogTitle>Assign Cleaner or Team</AlertDialogTitle>
             <AlertDialogDescription>
-              Select a cleaner to assign to Booking #{assignCleanerBooking?.booking_number} — {assignCleanerBooking?.customer?.first_name} {assignCleanerBooking?.customer?.last_name}
+              Select one or more cleaners for Booking #{assignCleanerBooking?.booking_number} — {assignCleanerBooking?.customer?.first_name} {assignCleanerBooking?.customer?.last_name}. Pick multiple to assign as a team.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a cleaner..." />
-              </SelectTrigger>
-              <SelectContent>
-                {staffList.map((staff) => (
-                  <SelectItem key={staff.id} value={staff.id}>
-                    {staff.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="py-2 max-h-[50vh] overflow-y-auto space-y-1">
+            {staffList.filter(s => s.is_active).map((staff) => {
+              const checked = assignTeamIds.has(staff.id);
+              return (
+                <label
+                  key={staff.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent cursor-pointer transition-colors"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      setAssignTeamIds(prev => {
+                        const next = new Set(prev);
+                        if (v) next.add(staff.id); else next.delete(staff.id);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span className="flex-1 text-sm font-medium">{staff.name}</span>
+                  {checked && assignTeamIds.size > 1 && Array.from(assignTeamIds)[0] === staff.id && (
+                    <Badge variant="secondary" className="text-xs">Primary</Badge>
+                  )}
+                </label>
+              );
+            })}
+            {staffList.filter(s => s.is_active).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No active cleaners available</p>
+            )}
           </div>
+          {assignTeamIds.size > 1 && (
+            <p className="text-xs text-muted-foreground">
+              {assignTeamIds.size} cleaners selected — assigned as a team. The first selection is the primary cleaner.
+            </p>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setAssignCleanerBooking(null); setSelectedStaffId(''); }}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setAssignCleanerBooking(null); setAssignTeamIds(new Set()); }}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={assigningCleaner || !selectedStaffId}
+              disabled={assigningCleaner || assignTeamIds.size === 0}
               onClick={async () => {
-                if (!assignCleanerBooking || !selectedStaffId) return;
+                if (!assignCleanerBooking || assignTeamIds.size === 0) return;
                 setAssigningCleaner(true);
                 try {
+                  const ids = Array.from(assignTeamIds);
+                  const primaryId = ids[0];
+                  const orgId = (assignCleanerBooking as any).organization_id;
+
+                  // Update primary staff on the booking
                   await updateBooking.mutateAsync({
                     id: assignCleanerBooking.id,
-                    staff_id: selectedStaffId,
+                    staff_id: primaryId,
                   });
-                  toast({ title: "Cleaner Assigned", description: `Cleaner assigned to booking #${assignCleanerBooking.booking_number}` });
+
+                  // Reset team assignments
+                  await supabase
+                    .from('booking_team_assignments')
+                    .delete()
+                    .eq('booking_id', assignCleanerBooking.id);
+
+                  // Insert each team member
+                  const payShare = 1 / ids.length;
+                  for (let i = 0; i < ids.length; i++) {
+                    await supabase.from('booking_team_assignments').insert({
+                      booking_id: assignCleanerBooking.id,
+                      staff_id: ids[i],
+                      is_primary: i === 0,
+                      pay_share: payShare,
+                      organization_id: orgId,
+                    });
+                  }
+
+                  queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                  queryClient.invalidateQueries({ queryKey: ['booking-team-assignments'] });
+                  queryClient.invalidateQueries({ queryKey: ['all-team-assignments'] });
+
+                  toast({
+                    title: ids.length > 1 ? "Team Assigned" : "Cleaner Assigned",
+                    description: `${ids.length} ${ids.length > 1 ? 'cleaners' : 'cleaner'} assigned to booking #${assignCleanerBooking.booking_number}`,
+                  });
                   setAssignCleanerBooking(null);
-                  setSelectedStaffId('');
+                  setAssignTeamIds(new Set());
                 } catch (error) {
-                  toast({ title: "Error", description: "Failed to assign cleaner", variant: "destructive" });
+                  toast({ title: "Error", description: "Failed to assign cleaner(s)", variant: "destructive" });
                 } finally {
                   setAssigningCleaner(false);
                 }
@@ -2853,7 +2905,7 @@ export default function BookingsPage() {
                   Assigning...
                 </>
               ) : (
-                'Assign Cleaner'
+                assignTeamIds.size > 1 ? `Assign Team (${assignTeamIds.size})` : 'Assign Cleaner'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
