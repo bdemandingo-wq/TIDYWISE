@@ -215,24 +215,11 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     return getStaffAvailability(activeStaff.map(s => s.id));
   }, [activeStaff, selectedDate, selectedTime, getStaffAvailability]);
 
-  // Filter staff to only show those outside working hours
-  // Staff with booking conflicts are still shown (admin can override)
-  // Only staff who are outside their configured working hours are hidden
-  const availableStaff = useMemo(() => {
-    if (!selectedDate || !selectedTime) {
-      // If no date/time selected yet, show all active staff
-      return activeStaff;
-    }
-    // Only hide staff who are outside their working hours
-    // Staff with booking conflicts (busy) are still shown so admin can select + override
-    return activeStaff.filter(s => {
-      const availability = staffAvailability.get(s.id);
-      // If no availability data, show the staff (default available)
-      if (!availability) return true;
-      // Hide only if outside configured working hours
-      return !availability.isOutsideWorkingHours;
-    });
-  }, [activeStaff, selectedDate, selectedTime, staffAvailability]);
+  // Show ALL active staff so admins can always override and assign anyone.
+  // Staff who are outside their working hours OR have conflicts are still shown
+  // — they get a badge ("Off today" / "Busy") so the admin sees the warning
+  // but can still assign them (e.g., last-minute coverage).
+  const availableStaff = activeStaff;
 
   // Get conflicts for currently selected staff (single mode)
   const currentConflicts = useMemo(() => {
@@ -344,6 +331,15 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     if (!selectedDate || !selectedTime) return null;
     const availability = staffAvailability.get(staffId);
     if (!availability) return null;
+
+    if (availability.isOutsideWorkingHours) {
+      return (
+        <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 text-xs">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Off today
+        </Badge>
+      );
+    }
 
     if (availability.isAvailable) {
       return (
