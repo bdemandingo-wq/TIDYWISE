@@ -377,7 +377,10 @@ const handler = async (req: Request): Promise<Response> => {
         const scheduledDate = new Date(booking.scheduled_at);
         const formattedDate = formatLocalDate(scheduledDate);
         const formattedTime = formatLocalTime(scheduledDate);
-        const address = [booking.address, booking.city].filter(Boolean).join(", ");
+        const streetWithUnit = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null]
+          .filter(Boolean)
+          .join(" ");
+        const address = [streetWithUnit, booking.city].filter(Boolean).join(", ");
         const serviceName = booking.service?.name || "cleaning";
 
         // --- CLIENT REMINDER ---
