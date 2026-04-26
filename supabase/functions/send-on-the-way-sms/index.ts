@@ -297,12 +297,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`[send-on-the-way-sms] No admin phone configured, skipping admin notification`);
     }
 
-    // Log to prevent duplicates (e.g. second cleaner pressing "on the way")
+    // Log to prevent duplicates per cleaner. Team jobs allow each cleaner to send once.
     await supabase.from('booking_reminder_log').insert({
       booking_id: bookingId,
       organization_id: booking.organization_id,
       recipient_phone: formattedCustomerPhone,
-      reminder_type: 'on_the_way',
+      reminder_type: staffReminderType,
     });
 
     // Audit log
