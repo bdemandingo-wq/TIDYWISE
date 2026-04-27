@@ -150,6 +150,7 @@ export default function DepositPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <TrackingPixels metaPixelId={depositDetails.metaPixelId} googleAnalyticsId={depositDetails.googleAnalyticsId} />
       <SEOHead title={`Pay Deposit - ${depositDetails.companyName}`} description="Pay your service deposit." />
       <Card className="w-full max-w-md shadow-xl border-blue-200/50">
         <CardHeader className="text-center pb-2">
