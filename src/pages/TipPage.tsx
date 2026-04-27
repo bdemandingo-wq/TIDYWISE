@@ -121,6 +121,7 @@ export default function TipPage() {
   if (paymentStatus === 'success' || tipDetails?.status === 'paid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+        <TrackingPixels metaPixelId={tipDetails?.metaPixelId} googleAnalyticsId={tipDetails?.googleAnalyticsId} />
         <SEOHead title="Thank You for Your Tip!" description="Your tip has been received." />
         <Card className="w-full max-w-md text-center shadow-xl border-emerald-200">
           <CardContent className="pt-8 pb-8 space-y-4">
