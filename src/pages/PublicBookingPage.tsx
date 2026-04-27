@@ -498,6 +498,7 @@ export default function PublicBookingPage() {
       className={cn("min-h-screen", isLight ? "bg-white text-gray-900" : "bg-background")}
       style={{ ...baseThemeStyles, ...customColorStyles }}
     >
+      <TrackingPixels metaPixelId={trackingIds.meta_pixel_id} googleAnalyticsId={trackingIds.google_analytics_id} />
       {/* Header */}
       <header className={cn(isLight ? "bg-secondary border-b border-border" : "bg-sidebar text-sidebar-foreground")}>
         <div className="container mx-auto px-4 py-4">
