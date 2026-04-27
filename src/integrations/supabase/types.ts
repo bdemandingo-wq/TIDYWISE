@@ -507,52 +507,85 @@ export type Database = {
       }
       blog_posts: {
         Row: {
+          ai_model_used: string | null
+          approved_at: string | null
+          approved_by: string | null
+          author: string
           category: string
           content: string
           created_at: string
           excerpt: string
+          featured_image_url: string | null
+          generation_prompt: string | null
           id: string
+          internal_links: Json | null
           is_featured: boolean
           is_published: boolean
           meta_description: string | null
           meta_title: string | null
           published_at: string
           read_time: string
+          secondary_keywords: string[] | null
           slug: string
+          status: string
+          target_keyword: string | null
           title: string
           updated_at: string
+          word_count: number | null
         }
         Insert: {
+          ai_model_used?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          author?: string
           category?: string
           content: string
           created_at?: string
           excerpt: string
+          featured_image_url?: string | null
+          generation_prompt?: string | null
           id?: string
+          internal_links?: Json | null
           is_featured?: boolean
           is_published?: boolean
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string
           read_time?: string
+          secondary_keywords?: string[] | null
           slug: string
+          status?: string
+          target_keyword?: string | null
           title: string
           updated_at?: string
+          word_count?: number | null
         }
         Update: {
+          ai_model_used?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          author?: string
           category?: string
           content?: string
           created_at?: string
           excerpt?: string
+          featured_image_url?: string | null
+          generation_prompt?: string | null
           id?: string
+          internal_links?: Json | null
           is_featured?: boolean
           is_published?: boolean
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string
           read_time?: string
+          secondary_keywords?: string[] | null
           slug?: string
+          status?: string
+          target_keyword?: string | null
           title?: string
           updated_at?: string
+          word_count?: number | null
         }
         Relationships: []
       }
@@ -7358,6 +7391,7 @@ export type Database = {
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
+      is_platform_blog_admin: { Args: never; Returns: boolean }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
         Returns: boolean
