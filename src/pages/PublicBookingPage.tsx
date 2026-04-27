@@ -40,6 +40,7 @@ import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingCol
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels } from '@/components/TrackingPixels';
 
 interface AvailabilitySlot {
   time: string; // "HH:mm" in org timezone
