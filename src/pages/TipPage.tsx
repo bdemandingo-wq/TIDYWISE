@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
 interface TipDetails {
   id: string;
@@ -18,6 +19,8 @@ interface TipDetails {
   companyName: string;
   logoUrl: string | null;
   primaryColor: string | null;
+  metaPixelId?: string | null;
+  googleAnalyticsId?: string | null;
 }
 
 const PRESET_AMOUNTS = [5, 10, 20];
