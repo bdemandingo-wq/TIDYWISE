@@ -55,7 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch business settings
     const { data: settings } = await supabase
       .from('business_settings')
-      .select('company_name, logo_url, primary_color')
+      .select('company_name, logo_url, primary_color, meta_pixel_id, google_analytics_id')
       .eq('organization_id', deposit.organization_id)
       .maybeSingle();
 
@@ -73,6 +73,8 @@ const handler = async (req: Request): Promise<Response> => {
           companyName: settings?.company_name || 'Your Cleaning Service',
           logoUrl: settings?.logo_url,
           primaryColor: settings?.primary_color,
+          metaPixelId: (settings as any)?.meta_pixel_id ?? null,
+          googleAnalyticsId: (settings as any)?.google_analytics_id ?? null,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
