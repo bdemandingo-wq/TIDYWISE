@@ -137,6 +137,7 @@ const BlogAdminListPage = lazy(() => import("./pages/admin/blog/BlogAdminListPag
 const BlogAdminEditPage = lazy(() => import("./pages/admin/blog/BlogAdminEditPage"));
 const BlogAdminGeneratePage = lazy(() => import("./pages/admin/blog/BlogAdminGeneratePage"));
 const BlogAdminPreviewPage = lazy(() => import("./pages/admin/blog/BlogAdminPreviewPage"));
+const BlogKeywordsPage = lazy(() => import("./pages/admin/blog/BlogKeywordsPage"));
 
 // Optimized QueryClient with stale time and caching
 const queryClient = new QueryClient({
@@ -377,6 +378,7 @@ const App = () => (
                     <Route path="/admin/blog/generate" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Generate"><BlogAdminGeneratePage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/:id/edit" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="edit" /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/:id/preview" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Preview"><BlogAdminPreviewPage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/keywords" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Keywords"><BlogKeywordsPage /></ErrorBoundary></PlatformAdminRoute>} />
 
                     {/* Legacy admin routes */}
                     <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
