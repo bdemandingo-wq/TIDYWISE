@@ -67,6 +67,25 @@ export default function TipPage() {
     fetchTip();
   }, [token, paymentStatus]);
 
+  // Fire Purchase event once when tip is confirmed paid
+  useEffect(() => {
+    if (!tipDetails) return;
+    const isPaid = paymentStatus === 'success' || tipDetails.status === 'paid';
+    if (!isPaid) return;
+    const flagKey = `tip-purchase-fired-${tipDetails.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    const t = setTimeout(() => {
+      trackConversion('Purchase', {
+        value: Number(tipDetails.amount || 0),
+        currency: 'USD',
+        content_name: `Tip - ${tipDetails.serviceName || 'Cleaning Service'}`,
+        transaction_id: `TIP-${tipDetails.id}`,
+      });
+      sessionStorage.setItem(flagKey, '1');
+    }, 800);
+    return () => clearTimeout(t);
+  }, [tipDetails, paymentStatus]);
+
   const finalAmount = selectedAmount || (customAmount ? parseFloat(customAmount) : 0);
 
   const handleSubmitTip = async () => {
