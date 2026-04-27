@@ -62,6 +62,26 @@ export default function DepositPage() {
     fetchDeposit();
   }, [token, paymentStatus]);
 
+  // Fire Purchase event once when deposit is confirmed paid
+  useEffect(() => {
+    if (!depositDetails) return;
+    const isPaid = paymentStatus === 'success' || depositDetails.status === 'paid';
+    if (!isPaid) return;
+    const flagKey = `deposit-purchase-fired-${depositDetails.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    // Wait a tick for pixel scripts to load
+    const t = setTimeout(() => {
+      trackConversion('Purchase', {
+        value: Number(depositDetails.amount),
+        currency: 'USD',
+        content_name: `Deposit - ${depositDetails.serviceName || 'Cleaning Service'}`,
+        transaction_id: `DEP-${depositDetails.id}`,
+      });
+      sessionStorage.setItem(flagKey, '1');
+    }, 800);
+    return () => clearTimeout(t);
+  }, [depositDetails, paymentStatus]);
+
   const handlePayDeposit = async () => {
     if (!token) return;
 
