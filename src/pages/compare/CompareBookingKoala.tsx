@@ -73,7 +73,7 @@ export default function CompareBookingKoala() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="TIDYWISE vs BookingKoala (2026)"
+        title="TidyWise vs BookingKoala 2026: Which Wins for Cleaners?"
         description="Compare TIDYWISE vs BookingKoala for cleaning businesses. Payroll, P&L reports, and AI tools for $50/mo vs BookingKoala's $79–$379/mo."
         canonical="/compare/booking-koala"
         ogImage="/images/tidywise-og.png"

@@ -73,7 +73,7 @@ export default function SMSNotifications() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="SMS Client Notifications for Cleaning Businesses | TIDYWISE"
+        title="SMS Notifications for Cleaning Businesses | TidyWise"
         description="Automated SMS notifications for cleaning companies. Booking confirmations, reminders, on-my-way alerts, and review requests. Reduce no-shows by 80%."
         canonical="/features/sms-notifications"
       />
