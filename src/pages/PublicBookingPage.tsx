@@ -408,6 +408,22 @@ export default function PublicBookingPage() {
         setIsSubmitting(false);
       }
     } else if (step < 5) {
+      // Lead event when customer completes contact info (step 3 → 4)
+      if (step === 3 && customerInfo.email && customerInfo.phone) {
+        trackConversion('Lead', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+        });
+      }
+      // InitiateCheckout event when moving to payment step (step 4)
+      if (step === 3) {
+        trackConversion('InitiateCheckout', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+        });
+      }
       setStep(step + 1);
     }
   };
