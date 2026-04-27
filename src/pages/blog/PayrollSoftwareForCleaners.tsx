@@ -12,7 +12,7 @@ export default function PayrollSoftwareForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Best Payroll Software for Cleaning Businesses | TIDYWISE"
+        title="Payroll Software for Cleaning Businesses (2026 Guide)"
         description="Compare the best payroll software for cleaning businesses. Automate cleaner wages, tips, mileage, and tax filings. Save hours every pay period."
         canonical="/blog/payroll-software-for-cleaning-businesses"
         ogImage="/images/tidywise-og.png"
