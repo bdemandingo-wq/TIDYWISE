@@ -318,6 +318,8 @@ export default function SettingsPage() {
           google_review_url: typedData.google_review_url || '',
           review_sms_template: typedData.review_sms_template || defaultSettings.review_sms_template,
           resend_api_key: typedData.resend_api_key || '',
+          meta_pixel_id: typedData.meta_pixel_id || '',
+          google_analytics_id: typedData.google_analytics_id || '',
         });
       }
     } catch (error) {
