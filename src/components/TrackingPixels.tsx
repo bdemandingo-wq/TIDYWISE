@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
 
+declare global {
+  interface Window {
+    fbq?: (...args: any[]) => void;
+    gtag?: (...args: any[]) => void;
+    dataLayer?: any[];
+  }
+}
+
 type Props = {
   metaPixelId?: string | null;
   googleAnalyticsId?: string | null;
@@ -10,9 +18,9 @@ type Props = {
  * scripts into the document head. Idempotent — safe to mount multiple
  * times; each ID is only injected once per page lifecycle.
  *
- * Used on public-facing pages (e.g. the public booking form) so each
- * organization's ads manager can track conversions without needing
- * admin access to the CRM.
+ * Used on public-facing pages (e.g. the public booking form, deposit,
+ * tip, and review pages) so each organization's ads manager can track
+ * conversions without needing admin access to the CRM.
  */
 export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props) {
   useEffect(() => {
@@ -65,4 +73,51 @@ export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props) {
   }, [googleAnalyticsId]);
 
   return null;
+}
+
+/**
+ * Fire a conversion event to both Meta Pixel and Google Analytics.
+ * Safely no-ops if neither pixel is loaded.
+ */
+export function trackConversion(
+  eventName: 'Purchase' | 'Lead' | 'InitiateCheckout' | 'AddToCart' | 'CompleteRegistration',
+  params?: { value?: number; currency?: string; content_name?: string; transaction_id?: string },
+) {
+  const value = params?.value ?? 0;
+  const currency = params?.currency ?? 'USD';
+
+  // Meta Pixel
+  try {
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', eventName, {
+        value,
+        currency,
+        ...(params?.content_name ? { content_name: params.content_name } : {}),
+      });
+    }
+  } catch (err) {
+    console.warn('Meta Pixel event failed:', err);
+  }
+
+  // Google Analytics 4 — map Meta event names to GA4 standard events
+  try {
+    if (typeof window !== 'undefined' && window.gtag) {
+      const gaEventMap: Record<string, string> = {
+        Purchase: 'purchase',
+        Lead: 'generate_lead',
+        InitiateCheckout: 'begin_checkout',
+        AddToCart: 'add_to_cart',
+        CompleteRegistration: 'sign_up',
+      };
+      const gaEvent = gaEventMap[eventName] || eventName.toLowerCase();
+      window.gtag('event', gaEvent, {
+        value,
+        currency,
+        ...(params?.transaction_id ? { transaction_id: params.transaction_id } : {}),
+        ...(params?.content_name ? { items: [{ item_name: params.content_name }] } : {}),
+      });
+    }
+  } catch (err) {
+    console.warn('GA event failed:', err);
+  }
 }
