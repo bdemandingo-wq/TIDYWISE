@@ -332,18 +332,29 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          organization_id: string | null
         }
         Insert: {
           conversation_id: string
           created_at?: string
           id?: string
+          organization_id?: string | null
         }
         Update: {
           conversation_id?: string
           created_at?: string
           id?: string
+          organization_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_reply_locks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_reply_log: {
         Row: {
@@ -7422,6 +7433,20 @@ export type Database = {
           tier_order: number
         }[]
       }
+      get_review_request_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          booking_id: string
+          customer_id: string
+          google_review_url: string
+          id: string
+          rating: number
+          responded_at: string
+          review_text: string
+          staff_id: string
+          status: string
+        }[]
+      }
       get_tip_by_token: {
         Args: { p_token: string }
         Returns: {
@@ -7486,6 +7511,10 @@ export type Database = {
           p_service_id?: string
         }
         Returns: string
+      }
+      submit_review_by_token: {
+        Args: { p_rating: number; p_review_text?: string; p_token: string }
+        Returns: boolean
       }
       update_client_portal_last_login: {
         Args: { p_user_id: string }
