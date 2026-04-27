@@ -1,60 +1,174 @@
+// generate-daily-blogs
+// Phase 2 of the blog system rewrite:
+// - Switched to openai/gpt-5 for stronger SEO content
+// - Drafts only (status='draft'); admin must approve
+// - Keyword-driven (not random topics)
+// - 1500-word minimum + FAQ + structured meta
+// - Duplicate slug + similar-title rejection
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-// Cleaning business blog topics for variety
-const blogTopics = [
-  { category: "Cleaning Tips", topics: [
-    "Deep cleaning secrets professionals use",
-    "How to clean stubborn stains from any surface", 
-    "The best cleaning products for eco-conscious businesses",
-    "Speed cleaning techniques that save hours",
-    "Kitchen cleaning hacks every pro should know"
-  ]},
-  { category: "Business Growth", topics: [
-    "How to price your cleaning services competitively",
-    "Marketing strategies that attract high-paying clients",
-    "Building a referral program that works",
-    "Scaling your cleaning business from solo to team",
-    "Customer retention strategies for cleaning companies"
-  ]},
-  { category: "Operations", topics: [
-    "Optimizing your cleaning route for maximum efficiency",
-    "Managing a remote cleaning team effectively",
-    "Inventory management for cleaning supplies",
-    "Creating SOPs that ensure consistent quality",
-    "Time tracking and productivity tips"
-  ]},
-  { category: "Industry Insights", topics: [
-    "Trends shaping the cleaning industry",
-    "How technology is changing cleaning businesses",
-    "Green cleaning: Meeting client demands",
-    "Commercial vs residential cleaning pros and cons",
-    "Insurance and liability for cleaning businesses"
-  ]}
-];
+const MIN_WORD_COUNT = 1500;
+const MODEL = "openai/gpt-5";
+const TITLE_SIMILARITY_THRESHOLD = 0.7; // 70%
 
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .substring(0, 60);
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .substring(0, 80);
 }
 
-function getRandomTopic(): { category: string; topic: string } {
-  const categoryIndex = Math.floor(Math.random() * blogTopics.length);
-  const category = blogTopics[categoryIndex];
-  const topicIndex = Math.floor(Math.random() * category.topics.length);
-  return { category: category.category, topic: category.topics[topicIndex] };
+function tokenize(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
+  );
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
+// Simple Jaccard similarity on word sets
+function titleSimilarity(a: string, b: string): number {
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  if (ta.size === 0 || tb.size === 0) return 0;
+  const intersection = new Set([...ta].filter((w) => tb.has(w)));
+  const union = new Set([...ta, ...tb]);
+  return intersection.size / union.size;
+}
+
+function countWords(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text ? text.split(" ").length : 0;
+}
+
+interface GenerateRequest {
+  // Either an array of target keywords (preferred) OR count (legacy fallback)
+  keywords?: string[];
+  count?: number;
+  category?: string;
+  // If true (default), insert as draft. If false, do not insert (dry-run).
+  insert?: boolean;
+}
+
+interface GeneratedBlog {
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  meta_title: string;
+  meta_description: string;
+  secondary_keywords: string[];
+  faq: Array<{ question: string; answer: string }>;
+}
+
+const SYSTEM_PROMPT = `You are a senior SEO content strategist writing for cleaning business owners on TidyWise (an all-in-one cleaning business platform).
+
+Your writing style:
+- Direct, practical, value-first (Alex Hormozi-inspired)
+- Short paragraphs, scannable subheadings, real examples
+- Naturally weaves in the target keyword (no stuffing)
+- Never fluffy, never AI-sounding, never repetitive
+
+Every post MUST:
+- Be at least ${MIN_WORD_COUNT} words of body content
+- Use proper HTML: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>
+- Include an FAQ section with exactly 5 questions/answers at the end
+- Have a meta_title under 60 characters and meta_description under 155 characters
+- Be unique — do not reuse phrasing from prior posts
+
+CRITICAL: Return strict JSON only. No markdown code fences. No commentary.`;
+
+function buildUserPrompt(targetKeyword: string, category: string): string {
+  return `Write a comprehensive SEO blog post targeting the keyword: "${targetKeyword}"
+Category: ${category}
+
+Return JSON with this exact shape:
+{
+  "title": "string (max 70 chars, include the target keyword naturally)",
+  "slug": "string (lowercase, hyphenated, max 80 chars, derived from title)",
+  "excerpt": "string (2 sentences, ~160 chars, hook the reader)",
+  "content": "string (HTML body, MINIMUM ${MIN_WORD_COUNT} words, include 4-6 <h2> sections, bullet lists, and a strong intro and conclusion. Do NOT include the FAQ inside content — the FAQ goes in the separate faq field.)",
+  "meta_title": "string (max 60 chars, include target keyword)",
+  "meta_description": "string (max 155 chars, compelling search snippet)",
+  "secondary_keywords": ["string", "..."] (5-8 related keywords),
+  "faq": [
+    { "question": "string", "answer": "string (1-3 sentences)" },
+    ... exactly 5 entries
+  ]
+}`;
+}
+
+async function callAI(targetKeyword: string, category: string, apiKey: string): Promise<GeneratedBlog> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildUserPrompt(targetKeyword, category) },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    if (resp.status === 429) throw new Error("AI rate limit exceeded. Try again in a moment.");
+    if (resp.status === 402) throw new Error("AI credits exhausted. Add funds to continue.");
+    throw new Error(`AI gateway error ${resp.status}: ${txt}`);
+  }
+
+  const data = await resp.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty AI response");
+
+  let parsed: GeneratedBlog;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    // Fallback: try to strip code fences
+    const stripped = content.replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1").trim();
+    parsed = JSON.parse(stripped);
+  }
+  return parsed;
+}
+
+async function buildFaqHtml(faq: GeneratedBlog["faq"]): Promise<string> {
+  const items = (faq || [])
+    .map(
+      (item) =>
+        `<div class="faq-item"><h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p></div>`
+    )
+    .join("\n");
+  return `<section class="faq-section"><h2>Frequently Asked Questions</h2>${items}</section>`;
+}
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -68,130 +182,180 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { count = 4 } = await req.json().catch(() => ({ count: 4 }));
-    const postsToGenerate = Math.min(count, 4);
+    const body: GenerateRequest = await req.json().catch(() => ({}));
+    const insert = body.insert !== false;
+    const category = body.category || "Cleaning Business";
 
-    console.log(`Generating ${postsToGenerate} blog posts...`);
-
-    const generatedPosts = [];
-
-    for (let i = 0; i < postsToGenerate; i++) {
-      const { category, topic } = getRandomTopic();
-      const uniqueId = Date.now() + i;
-
-      const systemPrompt = `You are an expert content writer for cleaning business blogs. Write in a casual, helpful Alex Hormozi-inspired style - direct, value-packed, no fluff. Your content should be:
-- Practical and actionable
-- Easy to read with short paragraphs
-- Include specific tips and examples
-- Written for cleaning business owners
-- SEO-optimized with natural keyword usage
-
-IMPORTANT: Return valid JSON only, no markdown code blocks.`;
-
-      const userPrompt = `Write a blog post about "${topic}" for a cleaning business audience.
-
-Return JSON format:
-{
-  "title": "Catchy, SEO-friendly title (max 60 chars)",
-  "excerpt": "Compelling 2-sentence summary that makes people want to read more",
-  "content": "Full blog post in HTML format with <h2>, <p>, <ul>, <li> tags. Aim for 800-1200 words. Include practical tips, examples, and a strong conclusion.",
-  "metaTitle": "SEO title under 60 chars",
-  "metaDescription": "Meta description under 160 chars"
-}
-
-Topic ID: ${uniqueId}`;
-
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
+    // Resolve list of target keywords
+    let keywords: string[] = [];
+    if (Array.isArray(body.keywords) && body.keywords.length > 0) {
+      keywords = body.keywords.filter((k) => typeof k === "string" && k.trim().length > 0);
+    } else {
+      // Legacy / cron fallback: do nothing (we no longer auto-pick random topics)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "No keywords provided. Pass { keywords: ['kw1', 'kw2', ...] }.",
         }),
-      });
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-      if (!response.ok) {
-        console.error(`AI request ${i + 1} failed:`, response.status);
-        continue;
-      }
+    // Pre-fetch existing slugs + titles for dedup
+    const { data: existing, error: existingErr } = await supabase
+      .from("blog_posts")
+      .select("slug, title");
+    if (existingErr) throw existingErr;
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
+    const existingSlugs = new Set((existing || []).map((p) => p.slug));
+    const existingTitles = (existing || []).map((p) => p.title as string);
 
-      if (!content) {
-        console.error(`No content in response ${i + 1}`);
-        continue;
-      }
+    const results: Array<{
+      keyword: string;
+      status: "created" | "skipped" | "error";
+      reason?: string;
+      post_id?: string;
+      title?: string;
+      slug?: string;
+      word_count?: number;
+    }> = [];
 
-      let blogData;
+    for (const keyword of keywords) {
       try {
-        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-        const jsonStr = jsonMatch ? jsonMatch[1] : content;
-        blogData = JSON.parse(jsonStr.trim());
-      } catch (parseError) {
-        console.error(`Failed to parse blog ${i + 1}:`, parseError);
-        continue;
-      }
+        const blog = await callAI(keyword, category, LOVABLE_API_KEY);
 
-      const slug = generateSlug(blogData.title) + '-' + uniqueId;
-      const wordCount = blogData.content.split(/\s+/).length;
-      const readTime = `${Math.ceil(wordCount / 200)} min read`;
+        // Validate the AI response shape
+        if (!blog.title || !blog.content || !blog.slug) {
+          results.push({ keyword, status: "error", reason: "AI returned incomplete fields" });
+          continue;
+        }
 
-      const { data: insertedPost, error } = await supabase
-        .from('blog_posts')
-        .insert({
+        // Word count check
+        const wordCount = countWords(blog.content);
+        if (wordCount < MIN_WORD_COUNT) {
+          results.push({
+            keyword,
+            status: "skipped",
+            reason: `Word count ${wordCount} below minimum ${MIN_WORD_COUNT}`,
+            word_count: wordCount,
+          });
+          continue;
+        }
+
+        // Slug uniqueness
+        let slug = generateSlug(blog.slug || blog.title);
+        if (!slug) {
+          results.push({ keyword, status: "error", reason: "Could not derive slug" });
+          continue;
+        }
+        if (existingSlugs.has(slug)) {
+          results.push({
+            keyword,
+            status: "skipped",
+            reason: `Duplicate slug: ${slug}`,
+          });
+          continue;
+        }
+
+        // Title similarity check
+        const tooSimilar = existingTitles.find(
+          (t) => titleSimilarity(t, blog.title) > TITLE_SIMILARITY_THRESHOLD
+        );
+        if (tooSimilar) {
+          results.push({
+            keyword,
+            status: "skipped",
+            reason: `Title too similar to existing post: "${tooSimilar}"`,
+          });
+          continue;
+        }
+
+        // Append FAQ HTML to content
+        const faqHtml = await buildFaqHtml(blog.faq || []);
+        const fullContent = `${blog.content}\n\n${faqHtml}`;
+        const finalWordCount = countWords(fullContent);
+        const readTime = `${Math.max(1, Math.ceil(finalWordCount / 220))} min read`;
+
+        const insertRow = {
           slug,
-          title: blogData.title,
-          excerpt: blogData.excerpt,
-          content: blogData.content,
+          title: String(blog.title).substring(0, 200),
+          excerpt: String(blog.excerpt || "").substring(0, 500),
+          content: fullContent,
           category,
           read_time: readTime,
-          meta_title: blogData.metaTitle,
-          meta_description: blogData.metaDescription,
-          is_published: true,
-          is_featured: i === 0
-        })
-        .select()
-        .single();
+          meta_title: String(blog.meta_title || blog.title).substring(0, 60),
+          meta_description: String(blog.meta_description || blog.excerpt || "").substring(0, 155),
+          status: "draft",
+          is_published: false, // legacy flag — keep in sync
+          is_featured: false,
+          target_keyword: keyword,
+          secondary_keywords: Array.isArray(blog.secondary_keywords)
+            ? blog.secondary_keywords.slice(0, 10)
+            : [],
+          word_count: finalWordCount,
+          ai_model_used: MODEL,
+          generation_prompt: buildUserPrompt(keyword, category),
+          author: "TidyWise Team",
+        };
 
-      if (error) {
-        console.error(`Failed to insert blog ${i + 1}:`, error);
-        continue;
-      }
+        if (!insert) {
+          results.push({
+            keyword,
+            status: "created",
+            title: insertRow.title,
+            slug,
+            word_count: finalWordCount,
+          });
+          continue;
+        }
 
-      generatedPosts.push(insertedPost);
-      console.log(`Generated blog: ${blogData.title}`);
+        const { data: inserted, error: insertErr } = await supabase
+          .from("blog_posts")
+          .insert(insertRow)
+          .select("id, title, slug")
+          .single();
 
-      // Small delay between requests
-      if (i < postsToGenerate - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (insertErr) {
+          results.push({ keyword, status: "error", reason: insertErr.message });
+          continue;
+        }
+
+        // Track locally so subsequent keywords in same batch don't collide
+        existingSlugs.add(slug);
+        existingTitles.push(insertRow.title);
+
+        results.push({
+          keyword,
+          status: "created",
+          post_id: inserted.id,
+          title: inserted.title,
+          slug: inserted.slug,
+          word_count: finalWordCount,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        console.error(`[generate-daily-blogs] Keyword "${keyword}" failed:`, msg);
+        results.push({ keyword, status: "error", reason: msg });
       }
     }
 
+    const createdCount = results.filter((r) => r.status === "created").length;
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        generated: generatedPosts.length,
-        posts: generatedPosts.map(p => ({ id: p.id, title: p.title, slug: p.slug }))
+      JSON.stringify({
+        success: true,
+        model: MODEL,
+        created: createdCount,
+        total: keywords.length,
+        results,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[generate-daily-blogs] Error:", errorMessage);
-
+    console.error("[generate-daily-blogs] Fatal:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-};
-
-serve(handler);
+});
