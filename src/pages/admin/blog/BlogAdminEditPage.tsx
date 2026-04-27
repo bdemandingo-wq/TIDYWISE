@@ -154,10 +154,25 @@ export default function BlogAdminEditPage({ mode }: { mode: "new" | "edit" }) {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="sticky top-0 z-30 -mx-6 px-6 py-3 mb-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border flex items-center gap-3 flex-wrap">
           <Button asChild variant="ghost" size="sm"><Link to="/admin/blog"><ArrowLeft className="h-4 w-4 mr-1" />Back</Link></Button>
-          <h1 className="text-2xl font-bold text-foreground">{mode === "new" ? "New Blog Post" : "Edit Post"}</h1>
+          <h1 className="text-xl font-bold text-foreground">{mode === "new" ? "New Blog Post" : "Edit Post"}</h1>
           <BlogStatusBadge status={form.status} />
+          {mode === "edit" && existing?.quality_score != null && (
+            <span
+              className={
+                "text-xs font-semibold px-2 py-1 rounded-md border " +
+                (existing.quality_score >= 80
+                  ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                  : existing.quality_score >= 60
+                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                  : "text-red-700 bg-red-50 border-red-200")
+              }
+              title={existing.quality_notes || ""}
+            >
+              Quality: {existing.quality_score}/100
+            </span>
+          )}
           <div className="ml-auto flex gap-2">
             {mode === "edit" && id && (
               <Button asChild variant="outline" size="sm"><Link to={`/admin/blog/${id}/preview`}><Eye className="h-4 w-4 mr-2" />Preview</Link></Button>
