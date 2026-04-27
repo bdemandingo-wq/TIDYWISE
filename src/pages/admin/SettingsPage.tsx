@@ -363,6 +363,8 @@ export default function SettingsPage() {
         google_review_url: settings.google_review_url,
         review_sms_template: settings.review_sms_template,
         resend_api_key: settings.resend_api_key,
+        meta_pixel_id: settings.meta_pixel_id,
+        google_analytics_id: settings.google_analytics_id,
       } as any;
 
       if (!organization?.id) {
