@@ -156,6 +156,7 @@ export default function TipPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+      <TrackingPixels metaPixelId={tipDetails?.metaPixelId} googleAnalyticsId={tipDetails?.googleAnalyticsId} />
       <SEOHead title={`Leave a Tip - ${tipDetails.companyName}`} description="Thank your cleaner with a tip." />
       <Card className="w-full max-w-md shadow-xl border-emerald-200/50">
         <CardHeader className="text-center pb-2">
