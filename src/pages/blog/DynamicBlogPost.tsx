@@ -63,22 +63,76 @@ export default function DynamicBlogPost() {
   }
 
   const canonicalUrl = `https://www.jointidywise.com/blog/post/${post.slug}`;
-  const jsonLd = {
+  const publisher = {
+    "@type": "Organization",
+    name: "TIDYWISE",
+    logo: {
+      "@type": "ImageObject",
+      url: "https://www.jointidywise.com/images/tidywise-logo.png",
+    },
+  };
+
+  // Article schema
+  const articleSchema = {
     "@context": "https://schema.org",
-    "@type": "BlogPosting",
+    "@type": "Article",
     headline: post.title,
     description: post.meta_description || post.excerpt,
     image: post.featured_image_url || "https://www.jointidywise.com/images/tidywise-og.png",
-    author: { "@type": "Organization", name: post.author || "TidyWise Team" },
-    publisher: {
+    author: {
       "@type": "Organization",
-      name: "TidyWise",
-      logo: { "@type": "ImageObject", url: "https://www.jointidywise.com/images/tidywise-logo.png" },
+      name: post.author || "TIDYWISE Team",
     },
+    publisher,
     datePublished: post.published_at,
     dateModified: post.updated_at || post.published_at,
     mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
   };
+
+  // Breadcrumb schema: Home > Blog > Post Title
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.jointidywise.com/" },
+      { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.jointidywise.com/blog" },
+      { "@type": "ListItem", position: 3, name: post.title, item: canonicalUrl },
+    ],
+  };
+
+  // FAQ schema — extract Q/A pairs from post content if present
+  const extractFaqs = (html: string): Array<{ question: string; answer: string }> => {
+    if (!html) return [];
+    const faqs: Array<{ question: string; answer: string }> = [];
+    // Find FAQ section: H2 containing "FAQ" or "Frequently Asked"
+    const faqSectionMatch = html.match(
+      /<h2[^>]*>[^<]*(?:faq|frequently asked)[^<]*<\/h2>([\s\S]*?)(?=<h2|$)/i
+    );
+    const scope = faqSectionMatch ? faqSectionMatch[1] : html;
+    // Pair each H3 (question) with following text up to next H3/H2
+    const qaRegex = /<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h[23]|$)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = qaRegex.exec(scope)) !== null) {
+      const question = m[1].replace(/<[^>]+>/g, "").trim();
+      const answer = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (question && answer && question.length < 300 && answer.length > 10) {
+        faqs.push({ question, answer });
+      }
+    }
+    return faqs.slice(0, 10);
+  };
+  const faqs = extractFaqs(post.content || "");
+  const faqSchema = faqs.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer },
+        })),
+      }
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
