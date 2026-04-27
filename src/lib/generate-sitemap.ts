@@ -40,10 +40,37 @@ const EXCLUDED_PREFIXES = ["/dashboard", "/staff", "/portal", "/admin"];
 function shouldExclude(path: string): boolean {
   if (EXCLUDED_PATHS.has(path)) return true;
   if (path.includes(":")) return true; // dynamic segments
+  if (path.includes("*")) return true; // wildcard / splat routes
   for (const prefix of EXCLUDED_PREFIXES) {
     if (path === prefix || path.startsWith(`${prefix}/`)) return true;
   }
   return false;
+}
+
+async function fetchPublishedBlogSlugs(): Promise<string[]> {
+  const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+  const ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/blog_posts?select=slug&status=eq.published&limit=5000`,
+      {
+        headers: {
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${ANON_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) {
+      console.warn(`[sitemap] blog fetch failed: ${res.status}`);
+      return [];
+    }
+    const rows = (await res.json()) as Array<{ slug: string }>;
+    return rows.map((r) => r.slug).filter(Boolean);
+  } catch (err) {
+    console.warn(`[sitemap] blog fetch error:`, err);
+    return [];
+  }
 }
 
 function extractRoutePaths(source: string): string[] {
@@ -108,7 +135,7 @@ ${urls}
 `;
 }
 
-export function generateSitemap(): { count: number; outputPath: string } {
+export async function generateSitemap(): Promise<{ count: number; outputPath: string }> {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   const projectRoot = resolve(__dirname, "..", "..");
@@ -121,12 +148,18 @@ export function generateSitemap(): { count: number; outputPath: string } {
   const includedPaths = rawPaths.filter((p) => !shouldExclude(p));
 
   // Dedupe (HashRouter + BrowserRouter branches in App.tsx share most routes).
-  const uniquePaths = [...new Set(includedPaths)];
+  const uniquePaths = new Set(includedPaths);
 
-  const xml = buildSitemap(uniquePaths);
+  // Add dynamic published blog post URLs from the database.
+  const blogSlugs = await fetchPublishedBlogSlugs();
+  for (const slug of blogSlugs) {
+    uniquePaths.add(`/blog/post/${slug}`);
+  }
+
+  const xml = buildSitemap([...uniquePaths]);
   writeFileSync(outputPath, xml, "utf8");
 
-  return { count: uniquePaths.length, outputPath };
+  return { count: uniquePaths.size, outputPath };
 }
 
 // Allow direct execution: `tsx src/lib/generate-sitemap.ts`
@@ -142,6 +175,12 @@ const isDirectRun = (() => {
 })();
 
 if (isDirectRun) {
-  const { count, outputPath } = generateSitemap();
-  console.log(`[sitemap] wrote ${count} urls to ${outputPath}`);
+  generateSitemap()
+    .then(({ count, outputPath }) => {
+      console.log(`[sitemap] wrote ${count} urls to ${outputPath}`);
+    })
+    .catch((err) => {
+      console.error(`[sitemap] failed:`, err);
+      process.exit(1);
+    });
 }
