@@ -121,6 +121,8 @@ const defaultSettings: BusinessSettings = {
   google_review_url: '',
   review_sms_template: 'Hi {customer_name}, thank you for choosing {company_name}! We\'d love to hear about your experience. Please take a moment to leave us a review: {review_link}',
   resend_api_key: '',
+  meta_pixel_id: '',
+  google_analytics_id: '',
 };
 
 // Account Deletion Card Component - Required for App Store compliance (Guideline 5.1.1(v))
