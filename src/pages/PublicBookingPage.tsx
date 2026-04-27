@@ -85,6 +85,7 @@ export default function PublicBookingPage() {
     surge_lastminute_enabled: boolean; surge_lastminute_hours: number; surge_lastminute_multiplier: number;
     surge_holiday_enabled: boolean; surge_holiday_multiplier: number;
   } | null>(null);
+  const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
