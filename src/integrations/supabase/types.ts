@@ -505,6 +505,62 @@ export type Database = {
           },
         ]
       }
+      blog_keyword_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          error_message: string | null
+          generated_post_id: string | null
+          id: string
+          intent: string | null
+          keyword: string
+          last_attempted_at: string | null
+          opportunity: string | null
+          priority: number
+          search_volume: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          generated_post_id?: string | null
+          id?: string
+          intent?: string | null
+          keyword: string
+          last_attempted_at?: string | null
+          opportunity?: string | null
+          priority?: number
+          search_volume?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error_message?: string | null
+          generated_post_id?: string | null
+          id?: string
+          intent?: string | null
+          keyword?: string
+          last_attempted_at?: string | null
+          opportunity?: string | null
+          priority?: number
+          search_volume?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_keyword_queue_generated_post_id_fkey"
+            columns: ["generated_post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           ai_model_used: string | null
@@ -524,6 +580,8 @@ export type Database = {
           meta_description: string | null
           meta_title: string | null
           published_at: string
+          quality_notes: string | null
+          quality_score: number | null
           read_time: string
           secondary_keywords: string[] | null
           slug: string
@@ -551,6 +609,8 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string
+          quality_notes?: string | null
+          quality_score?: number | null
           read_time?: string
           secondary_keywords?: string[] | null
           slug: string
@@ -578,6 +638,8 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           published_at?: string
+          quality_notes?: string | null
+          quality_score?: number | null
           read_time?: string
           secondary_keywords?: string[] | null
           slug?: string
