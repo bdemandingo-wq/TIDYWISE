@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
+import { TrackingPixels } from '@/components/TrackingPixels';
 
 export default function ReviewPage() {
   const { token } = useParams<{ token: string }>();
