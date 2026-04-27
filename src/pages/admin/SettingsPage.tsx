@@ -1124,6 +1124,44 @@ export default function SettingsPage() {
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-6">
           <StripeConnectHealthPanel />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tracking & Analytics</CardTitle>
+              <CardDescription>
+                Add your Meta Pixel and Google Analytics IDs. They'll auto-inject on your public booking page so your ads manager can track conversions — no admin login required.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="meta_pixel_id">Meta Pixel ID</Label>
+                <Input
+                  id="meta_pixel_id"
+                  placeholder="e.g. 1234567890123456"
+                  value={settings.meta_pixel_id}
+                  onChange={(e) => updateField('meta_pixel_id', e.target.value.trim())}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find this in Meta Events Manager → Data Sources. 15–16 digit number.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="google_analytics_id">Google Analytics Measurement ID</Label>
+                <Input
+                  id="google_analytics_id"
+                  placeholder="e.g. G-XXXXXXXXXX"
+                  value={settings.google_analytics_id}
+                  onChange={(e) => updateField('google_analytics_id', e.target.value.trim())}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find this in Google Analytics → Admin → Data Streams.
+                </p>
+              </div>
+              <Button onClick={saveSettings} disabled={saving}>
+                {saving ? 'Saving…' : 'Save Tracking IDs'}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
       </Tabs>
