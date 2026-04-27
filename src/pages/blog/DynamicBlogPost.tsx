@@ -87,8 +87,6 @@ export default function DynamicBlogPost() {
         description={post.meta_description || post.excerpt}
         canonical={`/blog/post/${post.slug}`}
         ogImage={post.featured_image_url || undefined}
-        ogType="article"
-        publishedTime={post.published_at}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
