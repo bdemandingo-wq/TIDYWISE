@@ -391,6 +391,14 @@ export default function PublicBookingPage() {
         const newConfirmationNumber = bookingNumber ? `BK-${bookingNumber}` : `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
         setConfirmationNumber(newConfirmationNumber);
 
+        // Fire conversion events to Meta Pixel + GA4 for the org's ad manager
+        trackConversion('Purchase', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+          transaction_id: newConfirmationNumber,
+        });
+
         toast.success(`Booking confirmed! Your confirmation number is ${newConfirmationNumber}. You'll receive an SMS confirmation shortly.`);
         setStep(5);
       } catch (err) {
