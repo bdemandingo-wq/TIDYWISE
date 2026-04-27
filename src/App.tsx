@@ -371,6 +371,13 @@ const App = () => (
                     <Route path="/dashboard/import" element={<AdminRoute><ErrorBoundary featureName="Data Import"><DataImportPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/booking-photos" element={<AdminRoute><ErrorBoundary featureName="Booking Photos"><BookingPhotosPage /></ErrorBoundary></AdminRoute>} />
 
+                    {/* Platform-admin Blog Editor (must come BEFORE the legacy /admin/* catch-all) */}
+                    <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/new" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="new" /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/generate" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Generate"><BlogAdminGeneratePage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/:id/edit" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="edit" /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/:id/preview" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Preview"><BlogAdminPreviewPage /></ErrorBoundary></PlatformAdminRoute>} />
+
                     {/* Legacy admin routes */}
                     <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
                     <Route path="/admin/*" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
