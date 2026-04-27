@@ -13,6 +13,7 @@ import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
 import { AdminRoute } from "@/components/AdminRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
+import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Capacitor } from "@capacitor/core";
@@ -130,6 +131,12 @@ const TipPage = lazy(() => import("./pages/TipPage"));
 const DepositPage = lazy(() => import("./pages/DepositPage"));
 const TrackCleanerPage = lazy(() => import("./pages/TrackCleanerPage"));
 const TrackingPage = lazy(() => import("./pages/admin/TrackingPage"));
+
+// Blog admin (platform-admin only)
+const BlogAdminListPage = lazy(() => import("./pages/admin/blog/BlogAdminListPage"));
+const BlogAdminEditPage = lazy(() => import("./pages/admin/blog/BlogAdminEditPage"));
+const BlogAdminGeneratePage = lazy(() => import("./pages/admin/blog/BlogAdminGeneratePage"));
+const BlogAdminPreviewPage = lazy(() => import("./pages/admin/blog/BlogAdminPreviewPage"));
 
 // Optimized QueryClient with stale time and caching
 const queryClient = new QueryClient({
@@ -363,6 +370,13 @@ const App = () => (
                     <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/import" element={<AdminRoute><ErrorBoundary featureName="Data Import"><DataImportPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/booking-photos" element={<AdminRoute><ErrorBoundary featureName="Booking Photos"><BookingPhotosPage /></ErrorBoundary></AdminRoute>} />
+
+                    {/* Platform-admin Blog Editor (must come BEFORE the legacy /admin/* catch-all) */}
+                    <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/new" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="new" /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/generate" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Generate"><BlogAdminGeneratePage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/:id/edit" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="edit" /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/admin/blog/:id/preview" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Preview"><BlogAdminPreviewPage /></ErrorBoundary></PlatformAdminRoute>} />
 
                     {/* Legacy admin routes */}
                     <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />

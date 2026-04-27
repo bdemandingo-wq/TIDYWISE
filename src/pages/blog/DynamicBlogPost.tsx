@@ -19,7 +19,7 @@ export default function DynamicBlogPost() {
         .from("blog_posts")
         .select("*")
         .eq("slug", slug)
-        .eq("is_published", true)
+        .eq("status", "published")
         .single();
       
       if (error) throw error;
@@ -62,13 +62,33 @@ export default function DynamicBlogPost() {
     );
   }
 
+  const canonicalUrl = `https://www.jointidywise.com/blog/post/${post.slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.meta_description || post.excerpt,
+    image: post.featured_image_url || "https://www.jointidywise.com/images/tidywise-og.png",
+    author: { "@type": "Organization", name: post.author || "TidyWise Team" },
+    publisher: {
+      "@type": "Organization",
+      name: "TidyWise",
+      logo: { "@type": "ImageObject", url: "https://www.jointidywise.com/images/tidywise-logo.png" },
+    },
+    datePublished: post.published_at,
+    dateModified: post.updated_at || post.published_at,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
         title={post.meta_title || `${post.title} | TIDYWISE Blog`}
         description={post.meta_description || post.excerpt}
         canonical={`/blog/post/${post.slug}`}
+        ogImage={post.featured_image_url || undefined}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
