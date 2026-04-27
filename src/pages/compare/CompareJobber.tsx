@@ -78,7 +78,7 @@ export default function CompareJobber() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="TIDYWISE vs Jobber (2026) | Comparison"
+        title="TidyWise vs Jobber 2026: Best Cleaning Business Software?"
         description="Compare TIDYWISE vs Jobber for cleaning businesses. Automated payroll, P&L reports, and $50/mo flat pricing vs Jobber's $69–$349/mo."
         canonical="/compare/jobber"
         ogImage="/images/tidywise-og.png"

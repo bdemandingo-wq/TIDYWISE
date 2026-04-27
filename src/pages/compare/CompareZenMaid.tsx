@@ -71,7 +71,7 @@ export default function CompareZenMaid() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="TIDYWISE vs ZenMaid (2026) — Which Cleaning Software Is Better?"
+        title="TidyWise vs ZenMaid 2026: Better Cleaning Software?"
         description="TIDYWISE vs ZenMaid: side-by-side comparison of pricing, features, payroll, and reporting for cleaning businesses. See why growing maid services choose TIDYWISE."
         canonical="/compare/zenmaid"
         ogImage="/images/tidywise-og.png"

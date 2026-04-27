@@ -211,7 +211,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
-        title="Cleaning Business Software | TIDYWISE"
+        title="Cleaning Business CRM & Scheduling Software | TidyWise"
         description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
