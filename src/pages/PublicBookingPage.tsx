@@ -165,10 +165,17 @@ export default function PublicBookingPage() {
     if (!organizationId) return;
     (supabase
       .from('business_settings' as any) as any)
-      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
+      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier,meta_pixel_id,google_analytics_id')
       .eq('organization_id', organizationId)
       .maybeSingle()
-      .then(({ data }: any) => { if (data) setSurgeSettings(data as typeof surgeSettings); });
+      .then(({ data }: any) => {
+        if (!data) return;
+        setSurgeSettings(data as typeof surgeSettings);
+        setTrackingIds({
+          meta_pixel_id: data.meta_pixel_id ?? null,
+          google_analytics_id: data.google_analytics_id ?? null,
+        });
+      });
   }, [organizationId]);
 
   // Track link_opened when ref param exists
