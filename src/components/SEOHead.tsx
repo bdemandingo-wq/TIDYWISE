@@ -21,15 +21,18 @@ export function SEOHead({
   noIndex = false,
   schemaJson,
 }: SEOHeadProps) {
-  const canonicalUrl = canonical
-    ? canonical.startsWith("http")
-      ? canonical
-      : `${PRODUCTION_DOMAIN}${canonical}`
-    : undefined;
+  // Derive canonical: explicit prop wins; otherwise use the current pathname
+  // so every page emits a self-referencing canonical on the preferred (www) domain.
+  const pathFromBrowser =
+    typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+  const canonicalSource = canonical ?? pathFromBrowser;
+  const canonicalUrl = canonicalSource.startsWith("http")
+    ? canonicalSource
+    : `${PRODUCTION_DOMAIN}${canonicalSource.startsWith("/") ? canonicalSource : `/${canonicalSource}`}`;
 
-  // Update the static canonical tag from index.html so there's exactly one in <head>.
+  // Keep the static canonical tag from index.html in sync so there's exactly one in <head>,
+  // even before Helmet hydrates / for non-JS crawlers.
   useEffect(() => {
-    if (!canonicalUrl) return;
     const tag = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (tag) tag.href = canonicalUrl;
   }, [canonicalUrl]);
