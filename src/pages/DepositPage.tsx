@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
 interface DepositDetails {
   id: string;
@@ -17,6 +18,8 @@ interface DepositDetails {
   companyName: string;
   logoUrl: string | null;
   primaryColor: string | null;
+  metaPixelId?: string | null;
+  googleAnalyticsId?: string | null;
 }
 
 export default function DepositPage() {
