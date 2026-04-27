@@ -196,7 +196,7 @@ export default function AuthPage() {
   if (authLoading) {
     return (
       <>
-      <SEOHead title="Sign In | TidyWise" description="Sign in or create your TidyWise account." noIndex />
+      <SEOHead title="Sign In | TidyWise" description="Sign in or create your TidyWise account." canonical="/login" noIndex />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
