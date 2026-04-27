@@ -40,7 +40,7 @@ import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingCol
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
 import { SEOHead } from '@/components/SEOHead';
-import { TrackingPixels } from '@/components/TrackingPixels';
+import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
 interface AvailabilitySlot {
   time: string; // "HH:mm" in org timezone
@@ -391,6 +391,14 @@ export default function PublicBookingPage() {
         const newConfirmationNumber = bookingNumber ? `BK-${bookingNumber}` : `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
         setConfirmationNumber(newConfirmationNumber);
 
+        // Fire conversion events to Meta Pixel + GA4 for the org's ad manager
+        trackConversion('Purchase', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+          transaction_id: newConfirmationNumber,
+        });
+
         toast.success(`Booking confirmed! Your confirmation number is ${newConfirmationNumber}. You'll receive an SMS confirmation shortly.`);
         setStep(5);
       } catch (err) {
@@ -400,6 +408,22 @@ export default function PublicBookingPage() {
         setIsSubmitting(false);
       }
     } else if (step < 5) {
+      // Lead event when customer completes contact info (step 3 → 4)
+      if (step === 3 && customerInfo.email && customerInfo.phone) {
+        trackConversion('Lead', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+        });
+      }
+      // InitiateCheckout event when moving to payment step (step 4)
+      if (step === 3) {
+        trackConversion('InitiateCheckout', {
+          value: calculateTotal(),
+          currency: 'USD',
+          content_name: service?.name || 'Cleaning Service',
+        });
+      }
       setStep(step + 1);
     }
   };

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
 interface TipDetails {
   id: string;
@@ -18,6 +19,8 @@ interface TipDetails {
   companyName: string;
   logoUrl: string | null;
   primaryColor: string | null;
+  metaPixelId?: string | null;
+  googleAnalyticsId?: string | null;
 }
 
 const PRESET_AMOUNTS = [5, 10, 20];
@@ -64,6 +67,25 @@ export default function TipPage() {
     fetchTip();
   }, [token, paymentStatus]);
 
+  // Fire Purchase event once when tip is confirmed paid
+  useEffect(() => {
+    if (!tipDetails) return;
+    const isPaid = paymentStatus === 'success' || tipDetails.status === 'paid';
+    if (!isPaid) return;
+    const flagKey = `tip-purchase-fired-${tipDetails.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    const t = setTimeout(() => {
+      trackConversion('Purchase', {
+        value: Number(tipDetails.amount || 0),
+        currency: 'USD',
+        content_name: `Tip - ${tipDetails.serviceName || 'Cleaning Service'}`,
+        transaction_id: `TIP-${tipDetails.id}`,
+      });
+      sessionStorage.setItem(flagKey, '1');
+    }, 800);
+    return () => clearTimeout(t);
+  }, [tipDetails, paymentStatus]);
+
   const finalAmount = selectedAmount || (customAmount ? parseFloat(customAmount) : 0);
 
   const handleSubmitTip = async () => {
@@ -99,6 +121,7 @@ export default function TipPage() {
   if (paymentStatus === 'success' || tipDetails?.status === 'paid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+        <TrackingPixels metaPixelId={tipDetails?.metaPixelId} googleAnalyticsId={tipDetails?.googleAnalyticsId} />
         <SEOHead title="Thank You for Your Tip!" description="Your tip has been received." />
         <Card className="w-full max-w-md text-center shadow-xl border-emerald-200">
           <CardContent className="pt-8 pb-8 space-y-4">

@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
+import { TrackingPixels } from '@/components/TrackingPixels';
 
 export default function ReviewPage() {
   const { token } = useParams<{ token: string }>();
@@ -22,6 +23,32 @@ export default function ReviewPage() {
   const [isValid, setIsValid] = useState(false);
   const [reviewData, setReviewData] = useState<any>(null);
   const [redirectedToGoogle, setRedirectedToGoogle] = useState(false);
+  const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
+
+  // Fetch org tracking IDs once we know which customer/org
+  useEffect(() => {
+    const customerId = reviewData?.customer_id;
+    if (!customerId) return;
+    (async () => {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('organization_id')
+        .eq('id', customerId)
+        .maybeSingle();
+      if (!customerData?.organization_id) return;
+      const { data: settings } = await (supabase
+        .from('business_settings' as any) as any)
+        .select('meta_pixel_id, google_analytics_id')
+        .eq('organization_id', customerData.organization_id)
+        .maybeSingle();
+      if (settings) {
+        setTrackingIds({
+          meta_pixel_id: (settings as any).meta_pixel_id ?? null,
+          google_analytics_id: (settings as any).google_analytics_id ?? null,
+        });
+      }
+    })();
+  }, [reviewData?.customer_id]);
 
   useEffect(() => {
     const validateToken = async () => {
@@ -174,6 +201,7 @@ export default function ReviewPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+      <TrackingPixels metaPixelId={trackingIds.meta_pixel_id} googleAnalyticsId={trackingIds.google_analytics_id} />
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">

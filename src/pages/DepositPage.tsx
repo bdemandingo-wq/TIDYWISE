@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
 interface DepositDetails {
   id: string;
@@ -17,6 +18,8 @@ interface DepositDetails {
   companyName: string;
   logoUrl: string | null;
   primaryColor: string | null;
+  metaPixelId?: string | null;
+  googleAnalyticsId?: string | null;
 }
 
 export default function DepositPage() {
@@ -59,6 +62,26 @@ export default function DepositPage() {
     fetchDeposit();
   }, [token, paymentStatus]);
 
+  // Fire Purchase event once when deposit is confirmed paid
+  useEffect(() => {
+    if (!depositDetails) return;
+    const isPaid = paymentStatus === 'success' || depositDetails.status === 'paid';
+    if (!isPaid) return;
+    const flagKey = `deposit-purchase-fired-${depositDetails.id}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    // Wait a tick for pixel scripts to load
+    const t = setTimeout(() => {
+      trackConversion('Purchase', {
+        value: Number(depositDetails.amount),
+        currency: 'USD',
+        content_name: `Deposit - ${depositDetails.serviceName || 'Cleaning Service'}`,
+        transaction_id: `DEP-${depositDetails.id}`,
+      });
+      sessionStorage.setItem(flagKey, '1');
+    }, 800);
+    return () => clearTimeout(t);
+  }, [depositDetails, paymentStatus]);
+
   const handlePayDeposit = async () => {
     if (!token) return;
 
@@ -92,6 +115,7 @@ export default function DepositPage() {
   if (paymentStatus === 'success' || depositDetails?.status === 'paid') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+        <TrackingPixels metaPixelId={depositDetails?.metaPixelId} googleAnalyticsId={depositDetails?.googleAnalyticsId} />
         <SEOHead title="Deposit Paid!" description="Your deposit has been received." />
         <Card className="w-full max-w-md text-center shadow-xl border-blue-200">
           <CardContent className="pt-8 pb-8 space-y-4">
@@ -126,6 +150,7 @@ export default function DepositPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <TrackingPixels metaPixelId={depositDetails.metaPixelId} googleAnalyticsId={depositDetails.googleAnalyticsId} />
       <SEOHead title={`Pay Deposit - ${depositDetails.companyName}`} description="Pay your service deposit." />
       <Card className="w-full max-w-md shadow-xl border-blue-200/50">
         <CardHeader className="text-center pb-2">
