@@ -23,6 +23,32 @@ export default function ReviewPage() {
   const [isValid, setIsValid] = useState(false);
   const [reviewData, setReviewData] = useState<any>(null);
   const [redirectedToGoogle, setRedirectedToGoogle] = useState(false);
+  const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
+
+  // Fetch org tracking IDs once we know which customer/org
+  useEffect(() => {
+    const customerId = reviewData?.customer_id;
+    if (!customerId) return;
+    (async () => {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('organization_id')
+        .eq('id', customerId)
+        .maybeSingle();
+      if (!customerData?.organization_id) return;
+      const { data: settings } = await (supabase
+        .from('business_settings' as any) as any)
+        .select('meta_pixel_id, google_analytics_id')
+        .eq('organization_id', customerData.organization_id)
+        .maybeSingle();
+      if (settings) {
+        setTrackingIds({
+          meta_pixel_id: (settings as any).meta_pixel_id ?? null,
+          google_analytics_id: (settings as any).google_analytics_id ?? null,
+        });
+      }
+    })();
+  }, [reviewData?.customer_id]);
 
   useEffect(() => {
     const validateToken = async () => {
