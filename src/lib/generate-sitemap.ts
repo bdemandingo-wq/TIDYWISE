@@ -40,10 +40,37 @@ const EXCLUDED_PREFIXES = ["/dashboard", "/staff", "/portal", "/admin"];
 function shouldExclude(path: string): boolean {
   if (EXCLUDED_PATHS.has(path)) return true;
   if (path.includes(":")) return true; // dynamic segments
+  if (path.includes("*")) return true; // wildcard / splat routes
   for (const prefix of EXCLUDED_PREFIXES) {
     if (path === prefix || path.startsWith(`${prefix}/`)) return true;
   }
   return false;
+}
+
+async function fetchPublishedBlogSlugs(): Promise<string[]> {
+  const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+  const ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/blog_posts?select=slug&status=eq.published&limit=5000`,
+      {
+        headers: {
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${ANON_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) {
+      console.warn(`[sitemap] blog fetch failed: ${res.status}`);
+      return [];
+    }
+    const rows = (await res.json()) as Array<{ slug: string }>;
+    return rows.map((r) => r.slug).filter(Boolean);
+  } catch (err) {
+    console.warn(`[sitemap] blog fetch error:`, err);
+    return [];
+  }
 }
 
 function extractRoutePaths(source: string): string[] {
