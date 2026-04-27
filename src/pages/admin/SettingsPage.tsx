@@ -86,6 +86,9 @@ interface BusinessSettings {
   review_sms_template: string;
   // Email integration
   resend_api_key: string;
+  // Marketing / analytics tracking
+  meta_pixel_id: string;
+  google_analytics_id: string;
 }
 
 const defaultSettings: BusinessSettings = {
