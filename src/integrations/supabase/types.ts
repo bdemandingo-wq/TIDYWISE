@@ -1342,10 +1342,12 @@ export type Database = {
           confirmation_email_subject: string | null
           created_at: string
           currency: string | null
+          google_analytics_id: string | null
           google_review_url: string | null
           id: string
           logo_url: string | null
           max_advance_booking_days: number | null
+          meta_pixel_id: string | null
           minimum_notice_hours: number | null
           notify_cancellations: boolean | null
           notify_new_booking: boolean | null
@@ -1382,10 +1384,12 @@ export type Database = {
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
+          google_analytics_id?: string | null
           google_review_url?: string | null
           id?: string
           logo_url?: string | null
           max_advance_booking_days?: number | null
+          meta_pixel_id?: string | null
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
           notify_new_booking?: boolean | null
@@ -1422,10 +1426,12 @@ export type Database = {
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
+          google_analytics_id?: string | null
           google_review_url?: string | null
           id?: string
           logo_url?: string | null
           max_advance_booking_days?: number | null
+          meta_pixel_id?: string | null
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
           notify_new_booking?: boolean | null

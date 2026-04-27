@@ -40,6 +40,7 @@ import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingCol
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
 import { SEOHead } from '@/components/SEOHead';
+import { TrackingPixels } from '@/components/TrackingPixels';
 
 interface AvailabilitySlot {
   time: string; // "HH:mm" in org timezone
@@ -84,6 +85,7 @@ export default function PublicBookingPage() {
     surge_lastminute_enabled: boolean; surge_lastminute_hours: number; surge_lastminute_multiplier: number;
     surge_holiday_enabled: boolean; surge_holiday_multiplier: number;
   } | null>(null);
+  const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -163,10 +165,17 @@ export default function PublicBookingPage() {
     if (!organizationId) return;
     (supabase
       .from('business_settings' as any) as any)
-      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
+      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier,meta_pixel_id,google_analytics_id')
       .eq('organization_id', organizationId)
       .maybeSingle()
-      .then(({ data }: any) => { if (data) setSurgeSettings(data as typeof surgeSettings); });
+      .then(({ data }: any) => {
+        if (!data) return;
+        setSurgeSettings(data as typeof surgeSettings);
+        setTrackingIds({
+          meta_pixel_id: data.meta_pixel_id ?? null,
+          google_analytics_id: data.google_analytics_id ?? null,
+        });
+      });
   }, [organizationId]);
 
   // Track link_opened when ref param exists
@@ -489,6 +498,7 @@ export default function PublicBookingPage() {
       className={cn("min-h-screen", isLight ? "bg-white text-gray-900" : "bg-background")}
       style={{ ...baseThemeStyles, ...customColorStyles }}
     >
+      <TrackingPixels metaPixelId={trackingIds.meta_pixel_id} googleAnalyticsId={trackingIds.google_analytics_id} />
       {/* Header */}
       <header className={cn(isLight ? "bg-secondary border-b border-border" : "bg-sidebar text-sidebar-foreground")}>
         <div className="container mx-auto px-4 py-4">
