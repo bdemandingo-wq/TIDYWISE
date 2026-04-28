@@ -20,7 +20,7 @@ import { Capacitor } from '@capacitor/core';
 // Validation schema
 const loginSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(1, 'Please enter your password'),
 });
 
 export default function LoginPage() {
@@ -66,31 +66,28 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('[LoginPage] Sign In button clicked — starting login flow');
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
 
     try {
       const { error } = await signIn(formData.email, formData.password);
-      
+
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast.error('Invalid email or password. Please try again.');
-        } else if (error.message.includes('Email not confirmed')) {
-          toast.error('Please verify your email before logging in.');
-        } else {
-          toast.error(error.message);
-        }
+        // Generic message — never leak whether the email exists
+        // or whether confirmation is pending. Both cases collapse here.
+        const msg = String(error.message || '');
+        const benign = msg.includes('Invalid login credentials') || msg.includes('Email not confirmed');
+        toast.error(benign ? 'Invalid email or password.' : 'Could not sign you in. Please try again.');
         setLoading(false);
         return;
       }
-      
+
       toast.success('Welcome back!');
       setShowSplash(true);
     } catch (error: any) {
-      toast.error(error.message || 'An error occurred. Please try again.');
+      toast.error('Could not sign you in. Please try again.');
       setLoading(false);
     }
   };
@@ -185,7 +182,6 @@ export default function LoginPage() {
                     }}
                     className={errors.password ? 'border-destructive' : ''}
                     required
-                    minLength={6}
                     autoComplete="current-password"
                   />
                   <Button
@@ -206,6 +202,14 @@ export default function LoginPage() {
                 {errors.password && (
                   <p className="text-xs text-destructive">{errors.password}</p>
                 )}
+                <div className="text-right">
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
               </div>
 
               {/* Submit button */}

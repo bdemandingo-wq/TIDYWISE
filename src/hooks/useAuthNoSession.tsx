@@ -1,8 +1,14 @@
 /**
- * AUTH HOOK WITH SESSION PERSISTENCE
- * 
- * Sessions are now persisted across browser restarts for mobile app support.
- * Google & Apple OAuth use Lovable Cloud managed auth (in-app, no external browser).
+ * AUTH HOOK (single source of truth for Supabase auth)
+ *
+ * Despite the legacy "NoSession" name, sessions ARE persisted across browser
+ * restarts so mobile apps and web users stay signed in. Renaming would require
+ * touching dozens of import sites; this header documents the actual behavior
+ * to remove confusion. See `useAuth.tsx` for the higher-level wrapper that
+ * also tracks subscription state.
+ *
+ * Google & Apple OAuth use Lovable Cloud managed auth (in-app, no external
+ * browser).
  */
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
@@ -197,15 +203,23 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabaseNoSession.auth.signOut();
+    try {
+      await supabaseNoSession.auth.signOut();
+    } catch {
+      // Always continue; we still want to wipe local state.
+    }
     setUser(null);
     setSession(null);
-    
+
     // Clear any residual storage (web)
-    const authKeys = Object.keys(localStorage).filter(key => 
-      key.startsWith('sb-') || key.includes('supabase')
-    );
-    authKeys.forEach(key => localStorage.removeItem(key));
+    try {
+      const authKeys = Object.keys(localStorage).filter(key =>
+        key.startsWith('sb-') || key.includes('supabase')
+      );
+      authKeys.forEach(key => localStorage.removeItem(key));
+    } catch {
+      // Ignore storage errors
+    }
 
     // Clear Capacitor Preferences storage (native)
     if (Capacitor.isNativePlatform()) {
@@ -220,6 +234,13 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
       } catch {
         // Preferences may not be available
       }
+    }
+
+    // Hard-redirect on web to wipe React Query cache + any in-memory state.
+    // On native we can't do a real redirect, so the SIGNED_OUT auth event
+    // plus state reset above is sufficient.
+    if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
+      window.location.href = '/login';
     }
   }, []);
 

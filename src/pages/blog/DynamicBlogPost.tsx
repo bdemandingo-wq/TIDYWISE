@@ -39,6 +39,12 @@ export default function DynamicBlogPost() {
   if (error || !post) {
     return (
       <div className="min-h-screen bg-background">
+        <SEOHead
+          title="Article not found | TidyWise Blog"
+          description="The article you're looking for doesn't exist or has been removed."
+          canonical={`/blog/post/${slug ?? ''}`}
+          noIndex
+        />
         <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -46,7 +52,7 @@ export default function DynamicBlogPost() {
                 <span className="font-bold text-xl text-foreground">TIDYWISE</span>
               </Link>
               <Button asChild>
-                <Link to="/auth">Start Free Trial</Link>
+                <Link to="/signup">Start Free Trial</Link>
               </Button>
             </div>
           </div>

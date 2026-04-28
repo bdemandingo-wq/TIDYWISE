@@ -9,20 +9,22 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { toast } from 'sonner';
-import { 
-  Loader2, 
-  Building2, 
-  ArrowRight, 
-  ArrowLeft, 
+import {
+  Loader2,
+  Building2,
+  ArrowRight,
+  ArrowLeft,
   Plus,
   X,
   Check,
   CheckCircle2,
-  LogOut
+  LogOut,
+  ExternalLink,
 } from 'lucide-react';
 import { getIndustryTemplate } from '@/data/industryTemplates';
 import { cn } from '@/lib/utils';
 import { SEOHead } from '@/components/SEOHead';
+import { Capacitor } from '@capacitor/core';
 
 function slugify(input: string) {
   return input
@@ -43,6 +45,7 @@ const cleaningTemplate = getIndustryTemplate("Home Cleaning")!;
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
+  const isNative = Capacitor.isNativePlatform();
   const { user, signOut } = useAuth();
   const { organization, loading: orgLoading, refetch } = useOrganization();
   const [step, setStep] = useState(1);
@@ -58,8 +61,48 @@ export default function OnboardingPage() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/auth', { replace: true });
+    if (!isNative) navigate('/login', { replace: true });
   };
+
+  // On native (iOS), business creation must happen on the web for App Store
+  // compliance. Block the onboarding flow with a clear "Finish setup on web"
+  // screen rather than redirecting to /login (which causes a loop).
+  if (isNative && !orgLoading && user && !organization) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <SEOHead
+          title="Finish setup on web | TidyWise"
+          description="Complete your TidyWise business setup on the web."
+          canonical="/onboarding"
+          noIndex
+        />
+        <Card className="w-full max-w-md border-border/50 shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Finish setup on the web</CardTitle>
+            <CardDescription>
+              For the best experience, create your business on jointidywise.com.
+              You can sign back in here once setup is complete.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Open <span className="font-medium text-foreground">jointidywise.com</span> in
+              your browser, sign in with this same account, and finish your business setup.
+              Then come back to the app to start working.
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Pre-select all cleaning services and check if user needs phone collection
   useEffect(() => {
@@ -92,10 +135,10 @@ export default function OnboardingPage() {
     }
   }, [orgLoading, organization, navigate]);
 
-  // If not logged in, send to auth.
+  // If not logged in, send to login.
   useEffect(() => {
     if (!orgLoading && !user) {
-      navigate('/auth', { replace: true });
+      navigate('/login', { replace: true });
     }
   }, [orgLoading, user, navigate]);
 

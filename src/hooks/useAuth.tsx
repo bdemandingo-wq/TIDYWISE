@@ -45,16 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setShowSubscriptionDialog(false);
   };
 
-  /** Demo/review accounts skip subscription enforcement */
-  const isDemoAccount = (email?: string | null): boolean => {
-    if (!email) return false;
-    return email.endsWith('@tidywise1.com') || [
-      'support@tidywisecleaning.com',
-      'applereview@tidywise.com',
-      'info@openarmscleaning.com',
-    ].includes(email);
-  };
-
   const checkSubscription = async (accessToken?: string) => {
     try {
       const token =
@@ -62,11 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!token) return;
 
-      // Demo accounts bypass subscription checks entirely
-      if (isDemoAccount(noSessionAuth.user?.email)) {
-        setSubscription({ subscribed: true, trial_active: false, trial_end: null, subscription_end: null });
-        return;
-      }
+      // NOTE: The free-account allowlist is enforced server-side in the
+      // `check-subscription` edge function (keyed by auth.users.id and email).
+      // Do NOT add a client-side bypass here — it would be trivially spoofable.
 
       const { data, error } = await supabaseNoSession.functions.invoke("check-subscription", {
         headers: {

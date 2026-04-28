@@ -21,7 +21,11 @@ import { z } from 'zod';
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().trim().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Za-z]/, 'Password must include a letter')
+    .regex(/[0-9]/, 'Password must include a number'),
   confirmPassword: z.string(),
   phone: z.string().optional(),
 }).refine(data => data.password === data.confirmPassword, {
@@ -310,7 +314,7 @@ export default function SignupPage() {
                     }}
                     className={errors.password ? 'border-destructive' : ''}
                     required
-                    minLength={6}
+                    minLength={8}
                     autoComplete="new-password"
                   />
                   <Button
@@ -331,6 +335,9 @@ export default function SignupPage() {
                 {errors.password && (
                   <p className="text-xs text-destructive">{errors.password}</p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Use at least 8 characters with a mix of letters and numbers.
+                </p>
               </div>
 
               {/* Confirm Password */}
@@ -351,7 +358,7 @@ export default function SignupPage() {
                     }}
                     className={errors.confirmPassword ? 'border-destructive' : ''}
                     required
-                    minLength={6}
+                    minLength={8}
                     autoComplete="new-password"
                   />
                   <Button
