@@ -18,7 +18,7 @@ export const MagicLinkEmail = ({ token }: Props) => (
         <Logo />
         <Heading style={styles.h1}>Reset your password</Heading>
         <Text style={styles.text}>
-          Enter this 6-digit code on the password reset page to set a new password.
+          Enter this reset code on the password reset page to set a new password.
         </Text>
         <Section style={styles.codeBox}>
           <Text style={styles.code}>{token}</Text>
