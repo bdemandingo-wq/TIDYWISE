@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
     setError(undefined);
     setLoading(true);
     try {
-      // Send a 6-digit OTP code (not a magic link). This avoids email-scanner
+      // Send an email OTP code (not a magic link). This avoids email-scanner
       // pre-fetch consuming a single-use recovery link.
       // shouldCreateUser:false ensures we never silently create accounts here.
       const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         console.error('OTP send failed:', otpError);
       }
 
-      toast.success('If an account exists for that email, a 6-digit code is on its way.');
+      toast.success('If an account exists for that email, a reset code is on its way.');
       navigate('/reset-password', {
         state: { email: parsed.data.email },
       });
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold">Reset your password</CardTitle>
             <CardDescription>
-              Enter your email and we'll send you a 6-digit code to reset your password.
+              Enter your email and we'll send you a reset code to change your password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send 6-digit code
+                Send reset code
               </Button>
             </form>
           </CardContent>
