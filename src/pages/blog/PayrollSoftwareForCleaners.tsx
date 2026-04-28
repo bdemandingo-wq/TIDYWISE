@@ -13,7 +13,7 @@ export default function PayrollSoftwareForCleaners() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Payroll Software for Cleaning Businesses Guide"
-        description="Compare the best payroll software for cleaning businesses. Automate cleaner wages, tips, mileage, and tax filings. Save hours every pay period."
+        description="Compare the best payroll software for cleaning businesses. Pay your team accurately, handle taxes, and simplify multi-cleaner splits with the right tool."
         canonical="/blog/payroll-software-for-cleaning-businesses"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
