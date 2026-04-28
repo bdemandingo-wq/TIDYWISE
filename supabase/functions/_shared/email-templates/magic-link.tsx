@@ -8,10 +8,13 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Preview,
   Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
+
+import { BRAND, styles } from './_brand.ts'
 
 interface MagicLinkEmailProps {
   siteName: string
@@ -19,61 +22,34 @@ interface MagicLinkEmailProps {
   confirmationUrl?: string
 }
 
-export const MagicLinkEmail = ({
-  siteName,
-  token,
-}: MagicLinkEmailProps) => (
+export const MagicLinkEmail = ({ siteName, token }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>Your {siteName} password reset code: {token}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={h1}>Your password reset code</Heading>
-        <Text style={text}>
-          Enter this 6-digit code in {siteName} to reset your password:
-        </Text>
-        <Section style={codeBox}>
-          <Text style={code}>{token}</Text>
+    <Body style={styles.main}>
+      <Container style={styles.container}>
+        <Section style={styles.logoWrap}>
+          <Img src={BRAND.logoUrl} alt={siteName} style={styles.logo} />
         </Section>
-        <Text style={text}>
-          This code expires in 1 hour. If you didn't request a password reset,
-          you can safely ignore this email.
-        </Text>
-        <Text style={footer}>— {siteName}</Text>
+        <Section style={styles.card}>
+          <Heading style={styles.h1}>Your password reset code</Heading>
+          <Text style={styles.text}>
+            Enter this 6-digit code in {siteName} to reset your password:
+          </Text>
+          <Section style={styles.codeBox}>
+            <Text style={styles.code}>{token}</Text>
+          </Section>
+          <Text style={styles.hint}>
+            This code expires in 1 hour. If you didn't request a password reset,
+            you can safely ignore this email.
+          </Text>
+        </Section>
+        <Section style={styles.footer}>
+          <Text style={styles.footerText}>— {siteName}</Text>
+        </Section>
       </Container>
     </Body>
   </Html>
 )
 
 export default MagicLinkEmail
-
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px', maxWidth: '500px' }
-const h1 = {
-  fontSize: '22px',
-  fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 20px',
-}
-const text = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 20px',
-}
-const codeBox = {
-  background: '#f5f5f5',
-  borderRadius: '8px',
-  padding: '16px 24px',
-  margin: '20px 0',
-  textAlign: 'center' as const,
-}
-const code = {
-  fontSize: '36px',
-  fontWeight: 700 as const,
-  letterSpacing: '10px',
-  color: '#000000',
-  margin: 0,
-  textAlign: 'center' as const,
-}
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
