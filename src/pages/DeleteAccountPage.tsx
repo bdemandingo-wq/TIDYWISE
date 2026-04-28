@@ -64,6 +64,7 @@ export default function DeleteAccountPage() {
         title="Delete Your TidyWise Account | Data Deletion Request"
         description="Request deletion of your TidyWise account and all associated data. Required for Google Play Store data safety compliance."
         canonical="/delete-account"
+        noIndex
       />
 
       <div className="min-h-screen bg-background">
