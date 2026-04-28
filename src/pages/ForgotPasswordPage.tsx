@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,13 @@ import { ArrowLeft, Loader2, Mail } from 'lucide-react';
 import { z } from 'zod';
 
 const schema = z.object({
-  email: z.string().trim().email('Please enter a valid email address'),
+  email: z.string().trim().email('Please enter a valid email address').max(255),
 });
 
 export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,31 +30,23 @@ export default function ForgotPasswordPage() {
     setError(undefined);
     setLoading(true);
     try {
-      // Determine the correct redirect URL based on environment.
-      // Production: always use jointidywise.com (regardless of which domain
-      // the user submitted from) so the email link is consistent.
-      // Preview (*.lovable.app): use the current preview origin.
-      // Local dev: use window.location.origin.
-      const origin = window.location.origin;
-      let redirectBase: string;
-      if (origin.includes('lovable.app') || origin.includes('lovable.dev')) {
-        redirectBase = origin;
-      } else if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-        redirectBase = origin;
-      } else {
-        // Production / custom domain — hardcode canonical production URL.
-        redirectBase = 'https://www.jointidywise.com';
-      }
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${redirectBase}/reset-password`,
+      // Send a 6-digit OTP code (not a magic link). This avoids email-scanner
+      // pre-fetch consuming a single-use recovery link.
+      // shouldCreateUser:false ensures we never silently create accounts here.
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: parsed.data.email,
+        options: { shouldCreateUser: false },
       });
-      // Always treat as success to avoid leaking account existence.
-      if (resetError) {
-        // Log but don't surface to the user.
-        console.error('Password reset request failed:', resetError);
+
+      // Always treat as success to avoid leaking whether an account exists.
+      if (otpError) {
+        console.error('OTP send failed:', otpError);
       }
-      setSent(true);
-      toast.success('If an account exists for that email, a reset link is on its way.');
+
+      toast.success('If an account exists for that email, a 6-digit code is on its way.');
+      navigate('/reset-password', {
+        state: { email: parsed.data.email },
+      });
     } finally {
       setLoading(false);
     }
@@ -81,50 +73,36 @@ export default function ForgotPasswordPage() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold">Reset your password</CardTitle>
             <CardDescription>
-              {sent
-                ? "Check your inbox for a reset link."
-                : "Enter your email and we'll send you a link to reset your password."}
+              Enter your email and we'll send you a 6-digit code to reset your password.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {sent ? (
-              <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  If an account exists for <span className="font-medium text-foreground">{email}</span>,
-                  you'll receive an email with a reset link shortly.
-                </p>
-                <Button asChild className="w-full">
-                  <Link to="/login">Return to login</Link>
-                </Button>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError(undefined);
+                  }}
+                  className={error ? 'border-destructive' : ''}
+                  required
+                  autoComplete="email"
+                />
+                {error && <p className="text-xs text-destructive">{error}</p>}
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (error) setError(undefined);
-                    }}
-                    className={error ? 'border-destructive' : ''}
-                    required
-                    autoComplete="email"
-                  />
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Send reset link
-                </Button>
-              </form>
-            )}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send 6-digit code
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
