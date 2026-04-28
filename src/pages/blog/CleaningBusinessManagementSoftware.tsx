@@ -13,7 +13,7 @@ export default function CleaningBusinessManagementSoftware() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Cleaning Business Management Software: Complete Guide"
-        description="Practical guide to cleaning business management software: what it does, which features matter, and how to choose the right platform for your maid service."
+        description="Discover the best cleaning business management software. Compare features, pricing, and tools to streamline scheduling, payroll, and client management."
         canonical="/blog/cleaning-business-management-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
