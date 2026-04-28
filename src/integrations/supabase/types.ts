@@ -7539,6 +7539,8 @@ export type Database = {
         Args: { p_email: string; p_password: string }
         Returns: Json
       }
+      vault_create_cron_secret: { Args: { p_value: string }; Returns: string }
+      vault_update_cron_secret: { Args: { p_value: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
