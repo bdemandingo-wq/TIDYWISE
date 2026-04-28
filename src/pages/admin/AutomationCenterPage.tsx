@@ -1,6 +1,6 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
-import { Seo } from '@/components/Seo';
+import { SEOHead } from '@/components/SEOHead';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, Activity, Lightbulb, Shield, BookOpen } from 'lucide-react';
 import { AutomationsTab } from '@/components/admin/automation/AutomationsTab';
@@ -37,7 +37,7 @@ function FeatureGuideTab() {
 export default function AutomationCenterPage() {
   return (
     <AdminLayout title="Automation Center">
-      <Seo title="Automation Center" description="Manage automated workflows, view logs, and get smart suggestions." />
+      <SEOHead title="Automation Center" description="Manage automated workflows, view logs, and get smart suggestions." noIndex />
       <SubscriptionGate feature="Automation Center">
         <Tabs defaultValue="automations" className="space-y-6">
           <TabsList className="w-full justify-start">
