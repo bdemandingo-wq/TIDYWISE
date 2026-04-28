@@ -12,7 +12,7 @@ export default function SchedulingSoftwareForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Cleaning Business Scheduling Software (2026 Guide)"
+        title="Scheduling Software for Cleaning Businesses"
         description="The best scheduling software for cleaning businesses: automated booking, route planning, cleaner assignments, and SMS reminders."
         canonical="/blog/scheduling-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
