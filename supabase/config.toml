@@ -203,3 +203,7 @@ verify_jwt = false
 
 [functions.ai-analysis-center]
 verify_jwt = false
+
+[functions.sitemap]
+verify_jwt = false
+
