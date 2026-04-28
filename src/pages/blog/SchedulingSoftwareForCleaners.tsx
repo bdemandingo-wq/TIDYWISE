@@ -13,7 +13,7 @@ export default function SchedulingSoftwareForCleaners() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Scheduling Software for Cleaning Businesses"
-        description="The best scheduling software for cleaning businesses: automated booking, route planning, cleaner assignments, and SMS reminders."
+        description="Discover top scheduling software for cleaning businesses. Streamline bookings, dispatch crews, and manage recurring jobs with the right scheduling tool."
         canonical="/blog/scheduling-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
