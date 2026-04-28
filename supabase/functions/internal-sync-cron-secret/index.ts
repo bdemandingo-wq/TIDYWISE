@@ -23,26 +23,11 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Update existing 'cron_secret' vault entry, or create it.
-  const { data: existing } = await supabase
-    .schema("vault" as any)
-    .from("secrets" as any)
-    .select("id")
-    .eq("name", "cron_secret")
-    .maybeSingle();
-
-  let result;
-  if (existing?.id) {
-    const { data, error } = await supabase.rpc("vault_update_cron_secret" as any, {
-      p_value: cronSecret,
-    });
-    result = { mode: "update", data, error };
-  } else {
-    const { data, error } = await supabase.rpc("vault_create_cron_secret" as any, {
-      p_value: cronSecret,
-    });
-    result = { mode: "create", data, error };
-  }
+  // Always upsert via the update RPC (handles both create + update).
+  const { data, error } = await supabase.rpc("vault_update_cron_secret" as any, {
+    p_value: cronSecret,
+  });
+  const result = { mode: "upsert", data, error };
 
   return new Response(JSON.stringify({ ok: true, ...result }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
