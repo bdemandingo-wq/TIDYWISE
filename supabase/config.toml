@@ -1,209 +1,143 @@
 project_id = "slwfkaqczvwvvvavkgpr"
 
-[functions.send-review-request]
-verify_jwt = false
-
-[functions.send-review-request-sms]
-verify_jwt = false
-
-[functions.send-booking-email]
-verify_jwt = false
-
-[functions.send-cleaner-notification]
-verify_jwt = false
-
-[functions.send-payment-link]
-verify_jwt = false
-
-[functions.save-customer-card]
-verify_jwt = false
-
-[functions.charge-customer-card]
-verify_jwt = false
-
-[functions.get-customer-card]
-verify_jwt = false
-
-[functions.create-setup-intent]
-verify_jwt = false
-
-[functions.get-payment-method-details]
-verify_jwt = false
-
-[functions.capture-payment]
-verify_jwt = false
-
-[functions.cancel-hold]
-verify_jwt = false
-
-[functions.send-card-collection-link]
-verify_jwt = false
-
-[functions.send-admin-booking-notification]
-verify_jwt = false
-
-[functions.send-booking-reminder]
-verify_jwt = false
-
-[functions.invite-staff]
-verify_jwt = false
-
-[functions.charge-card-directly]
-verify_jwt = false
-
-[functions.remove-customer-card]
-verify_jwt = false
-
-[functions.send-referral-invite]
-verify_jwt = false
-
-[functions.send-followup-campaign]
-verify_jwt = false
-
-[functions.generate-quote-pdf]
-verify_jwt = false
-
-[functions.send-help-center-email]
-verify_jwt = false
-
-[functions.send-openphone-sms]
-verify_jwt = false
-
-[functions.send-admin-sms-notification]
-verify_jwt = false
-
-[functions.send-cancellation-sms-notification]
-verify_jwt = false
-
-[functions.send-signup-welcome-sms]
-verify_jwt = false
-
-[functions.send-onboarding-complete-sms]
-verify_jwt = false
-
-[functions.public-booking-data]
-verify_jwt = false
-
-[functions.openphone-webhook]
-verify_jwt = false
-
-[functions.run-inactive-campaign]
-verify_jwt = false
-
-[functions.generate-campaign-templates]
-verify_jwt = false
-
-[functions.generate-daily-blogs]
-verify_jwt = false
-
-[functions.quote-expiry-reminder]
-verify_jwt = false
-
-[functions.post-booking-upsell]
-verify_jwt = false
-
-[functions.send-referral-request]
-verify_jwt = false
-
-[functions.weekly-payroll-summary]
-verify_jwt = false
-
-[functions.weekly-business-report]
-verify_jwt = false
-
-[functions.booking-chatbot]
-verify_jwt = false
-
-[functions.external-booking-webhook]
-verify_jwt = false
-
-[functions.create-stripe-invoice]
-verify_jwt = false
-
-[functions.stripe-invoice-webhook]
-verify_jwt = false
-
-[functions.send-invoice-reminder]
-verify_jwt = false
-
-[functions.lookup-openphone-contact]
-verify_jwt = false
-
-[functions.create-customer-portal-invite]
-verify_jwt = false
-
-[functions.redeem-customer-portal-invite]
-verify_jwt = false
-
-[functions.notify-platform-admin-subscription]
-verify_jwt = false
-
-[functions.calculate-ai-intelligence]
-verify_jwt = false
-
-[functions.send-on-the-way-sms]
-verify_jwt = false
-
-[functions.notify-booking-request]
-verify_jwt = false
-
-[functions.send-tip-request]
-verify_jwt = false
-
-[functions.process-tip]
-verify_jwt = false
-
-[functions.get-tip-details]
-verify_jwt = false
-
-[functions.confirm-tip-payment]
-verify_jwt = false
-
-[functions.send-deposit-request]
-verify_jwt = false
-
-[functions.get-deposit-details]
-verify_jwt = false
-
-[functions.process-deposit]
-verify_jwt = false
-
-[functions.confirm-deposit-payment]
-verify_jwt = false
-
-[functions.process-review-sms-queue]
-verify_jwt = false
-
-[functions.process-rebooking-reminders]
-verify_jwt = false
-
-[functions.process-recurring-offers]
-verify_jwt = false
-
-[functions.admin-help-chat]
-verify_jwt = false
-
-[functions.parse-migration-csv]
-verify_jwt = false
-
-[functions.process-migration-import]
-verify_jwt = false
-
-[functions.check-availability]
-verify_jwt = false
-
-[functions.facebook-lead-webhook]
-verify_jwt = false
-
-[functions.backfill-openphone-messages]
-verify_jwt = false
-
-[functions.lindy-crm-api]
-verify_jwt = false
-
-[functions.ai-analysis-center]
-verify_jwt = false
-
-[functions.sitemap]
-verify_jwt = false
-
+[functions]
+  [functions.admin-help-chat]
+    verify_jwt = false
+  [functions.ai-analysis-center]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.backfill-openphone-messages]
+    verify_jwt = false
+  [functions.booking-chatbot]
+    verify_jwt = false
+  [functions.calculate-ai-intelligence]
+    verify_jwt = false
+  [functions.cancel-hold]
+    verify_jwt = false
+  [functions.capture-payment]
+    verify_jwt = false
+  [functions.charge-card-directly]
+    verify_jwt = false
+  [functions.charge-customer-card]
+    verify_jwt = false
+  [functions.check-availability]
+    verify_jwt = false
+  [functions.confirm-deposit-payment]
+    verify_jwt = false
+  [functions.confirm-tip-payment]
+    verify_jwt = false
+  [functions.create-customer-portal-invite]
+    verify_jwt = false
+  [functions.create-setup-intent]
+    verify_jwt = false
+  [functions.create-stripe-invoice]
+    verify_jwt = false
+  [functions.external-booking-webhook]
+    verify_jwt = false
+  [functions.facebook-lead-webhook]
+    verify_jwt = false
+  [functions.generate-campaign-templates]
+    verify_jwt = false
+  [functions.generate-daily-blogs]
+    verify_jwt = false
+  [functions.generate-quote-pdf]
+    verify_jwt = false
+  [functions.get-customer-card]
+    verify_jwt = false
+  [functions.get-deposit-details]
+    verify_jwt = false
+  [functions.get-payment-method-details]
+    verify_jwt = false
+  [functions.get-tip-details]
+    verify_jwt = false
+  [functions.invite-staff]
+    verify_jwt = false
+  [functions.lindy-crm-api]
+    verify_jwt = false
+  [functions.lookup-openphone-contact]
+    verify_jwt = false
+  [functions.notify-booking-request]
+    verify_jwt = false
+  [functions.notify-platform-admin-subscription]
+    verify_jwt = false
+  [functions.openphone-webhook]
+    verify_jwt = false
+  [functions.parse-migration-csv]
+    verify_jwt = false
+  [functions.post-booking-upsell]
+    verify_jwt = false
+  [functions.process-deposit]
+    verify_jwt = false
+  [functions.process-migration-import]
+    verify_jwt = false
+  [functions.process-rebooking-reminders]
+    verify_jwt = false
+  [functions.process-recurring-offers]
+    verify_jwt = false
+  [functions.process-review-sms-queue]
+    verify_jwt = false
+  [functions.process-tip]
+    verify_jwt = false
+  [functions.public-booking-data]
+    verify_jwt = false
+  [functions.quote-expiry-reminder]
+    verify_jwt = false
+  [functions.redeem-customer-portal-invite]
+    verify_jwt = false
+  [functions.remove-customer-card]
+    verify_jwt = false
+  [functions.run-inactive-campaign]
+    verify_jwt = false
+  [functions.save-customer-card]
+    verify_jwt = false
+  [functions.send-admin-booking-notification]
+    verify_jwt = false
+  [functions.send-admin-sms-notification]
+    verify_jwt = false
+  [functions.send-booking-email]
+    verify_jwt = false
+  [functions.send-booking-reminder]
+    verify_jwt = false
+  [functions.send-cancellation-sms-notification]
+    verify_jwt = false
+  [functions.send-card-collection-link]
+    verify_jwt = false
+  [functions.send-cleaner-notification]
+    verify_jwt = false
+  [functions.send-deposit-request]
+    verify_jwt = false
+  [functions.send-followup-campaign]
+    verify_jwt = false
+  [functions.send-help-center-email]
+    verify_jwt = false
+  [functions.send-invoice-reminder]
+    verify_jwt = false
+  [functions.send-on-the-way-sms]
+    verify_jwt = false
+  [functions.send-onboarding-complete-sms]
+    verify_jwt = false
+  [functions.send-openphone-sms]
+    verify_jwt = false
+  [functions.send-payment-link]
+    verify_jwt = false
+  [functions.send-referral-invite]
+    verify_jwt = false
+  [functions.send-referral-request]
+    verify_jwt = false
+  [functions.send-review-request]
+    verify_jwt = false
+  [functions.send-review-request-sms]
+    verify_jwt = false
+  [functions.send-signup-welcome-sms]
+    verify_jwt = false
+  [functions.send-tip-request]
+    verify_jwt = false
+  [functions.sitemap]
+    verify_jwt = false
+  [functions.stripe-invoice-webhook]
+    verify_jwt = false
+  [functions.weekly-business-report]
+    verify_jwt = false
+  [functions.weekly-payroll-summary]
+    verify_jwt = false
