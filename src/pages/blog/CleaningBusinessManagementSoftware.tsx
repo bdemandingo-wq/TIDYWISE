@@ -12,7 +12,7 @@ export default function CleaningBusinessManagementSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Cleaning Business Management Software (2026 Guide)"
+        title="Cleaning Business Management Software: Complete Guide"
         description="Practical guide to cleaning business management software: what it does, which features matter, and how to choose the right platform for your maid service."
         canonical="/blog/cleaning-business-management-software"
         ogImage="/images/tidywise-og.png"
