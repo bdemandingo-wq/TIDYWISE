@@ -12,7 +12,7 @@ export default function InvoicingSoftwareForCleaners() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Invoicing Software for Cleaning Businesses (2026)"
+        title="Invoicing Software for Cleaning Businesses Guide"
         description="The best invoicing software for cleaning businesses: automatic invoices, recurring billing, card-on-file charging, and deposit collection."
         canonical="/blog/invoicing-software-for-cleaning-business"
         ogImage="/images/tidywise-og.png"
