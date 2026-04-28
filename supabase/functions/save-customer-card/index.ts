@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
+import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +44,10 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // CRITICAL SECURITY: Verify caller is an authenticated owner/admin of this organization
+    const auth = await requireOrgAdmin(req, organizationId);
+    if (auth instanceof Response) return auth;
 
     // Get org-specific Stripe client
     const stripeResult = await getOrgStripeClient(organizationId);

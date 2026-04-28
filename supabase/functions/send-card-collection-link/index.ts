@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
 
 // Platform-level Resend API key (shared email service) - instantiate inside handler
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -47,6 +48,10 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    // CRITICAL SECURITY: Verify caller is an authenticated owner/admin of this organization
+    const auth = await requireOrgAdmin(req, organizationId);
+    if (auth instanceof Response) return auth;
 
     // STRICT ISOLATION: Verify Resend API key is available
     if (!RESEND_API_KEY) {
