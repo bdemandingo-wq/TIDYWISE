@@ -29,7 +29,7 @@ export default function CRMSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="Cleaning Business CRM | Customer Management | TidyWise"
+        title="CRM Software for Cleaning Businesses"
         description="TidyWise CRM keeps all your cleaning clients, job history, and notes in one place. Stay organized and grow your cleaning business faster."
         canonical="/features/crm"
         ogImage="/images/tidywise-og.png"
