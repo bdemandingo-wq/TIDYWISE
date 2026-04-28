@@ -30,7 +30,9 @@ const NativeSignupRedirect = lazy(() => import("./pages/NativeSignupRedirect"));
 const LogoutPage = lazy(() => import("./pages/LogoutPage"));
 
 // Legacy auth page (kept for backwards compatibility)
-const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
 
 // Lazy-loaded page skeleton for loading states
 const PageLoader = () => (
@@ -281,7 +283,10 @@ const App = () => (
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/cleaning-business-software" element={<CleaningBusinessSoftware />} />
                     <Route path="/cleaning-business-software/:locationSlug" element={<LocationSoftwarePage />} />
-                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/auth" element={<Navigate to="/login" replace />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
 
                     {/* Public Routes - Lazy Loaded */}
                     <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
