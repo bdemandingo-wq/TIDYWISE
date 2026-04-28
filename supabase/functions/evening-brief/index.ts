@@ -10,6 +10,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  // Cron auth gate (allows manual invocation only with x-cron-secret)
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {

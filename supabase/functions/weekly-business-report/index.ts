@@ -12,6 +12,10 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+  // Cron auth gate (allows manual invocation only with x-cron-secret)
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
