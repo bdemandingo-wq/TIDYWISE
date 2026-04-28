@@ -136,6 +136,27 @@ export default function PrivacyPolicyPage() {
             </p>
           </div>
         </article>
+
+        <nav
+          aria-label="Related links"
+          className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8"
+        >
+          <h2 className="text-lg font-semibold text-foreground">Related Links</h2>
+          <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li>
+              <Link to="/" className="text-primary hover:underline">Home</Link>
+            </li>
+            <li>
+              <Link to="/pricing" className="text-primary hover:underline">Pricing</Link>
+            </li>
+            <li>
+              <Link to="/#features" className="text-primary hover:underline">Features</Link>
+            </li>
+            <li>
+              <a href="mailto:support@jointidywise.com" className="text-primary hover:underline">Contact Us</a>
+            </li>
+          </ul>
+        </nav>
       </main>
 
       <SiteFooter />
