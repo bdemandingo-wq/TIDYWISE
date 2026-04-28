@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from 'lucide-react';
 import { z } from 'zod';
 
-const schema = z
+const passwordSchema = z
   .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'Code must be 6 digits'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -24,64 +28,57 @@ const schema = z
     path: ['confirm'],
   });
 
+const RESEND_COOLDOWN_SECONDS = 30;
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Email comes from /forgot-password navigation state, or ?email= query param
+  // as a fallback (e.g. user pasted/refreshed). If neither is present, we send
+  // them back to /forgot-password.
+  const emailFromState = (location.state as { email?: string } | null)?.email;
+  const emailFromQuery = searchParams.get('email') ?? undefined;
+  const email = (emailFromState || emailFromQuery || '').trim();
+
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [validRecovery, setValidRecovery] = useState<boolean | null>(null);
-  const [linkErrorReason, setLinkErrorReason] = useState<'consumed' | 'expired' | 'generic' | null>(null);
-  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [resending, setResending] = useState(false);
+  const [errors, setErrors] = useState<{ code?: string; password?: string; confirm?: string }>({});
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Redirect to /forgot-password if we have no email at all.
   useEffect(() => {
-    // Supabase redirects with either:
-    //   - #access_token=...&type=recovery   (success)
-    //   - #error=access_denied&error_code=otp_expired&error_description=...   (token already
-    //     consumed, almost always by an email security scanner / link preview pre-fetching
-    //     the single-use link before the human clicks it)
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-    const hashError = params.get('error');
-    const hashErrorCode = params.get('error_code');
-    const isRecoveryHash = params.get('type') === 'recovery' || hash.includes('type=recovery');
-
-    if (hashError) {
-      // Distinguish "consumed by scanner / expired" from generic failure so we can
-      // show the user an accurate message.
-      if (hashErrorCode === 'otp_expired' || hashError === 'access_denied') {
-        setLinkErrorReason('consumed');
-      } else {
-        setLinkErrorReason('generic');
-      }
-      setValidRecovery(false);
-      return;
+    if (!email) {
+      navigate('/forgot-password', { replace: true });
     }
+  }, [email, navigate]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setValidRecovery(true);
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session || isRecoveryHash) {
-        setValidRecovery(true);
-      } else {
-        setValidRecovery(false);
-        setLinkErrorReason((prev) => prev ?? 'generic');
-      }
-    });
-
-    return () => subscription.unsubscribe();
+  // Autofocus the code input on mount.
+  useEffect(() => {
+    codeInputRef.current?.focus();
   }, []);
+
+  // Resend cooldown timer.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = schema.safeParse({ password, confirm });
+    const parsed = passwordSchema.safeParse({ code, password, confirm });
     if (!parsed.success) {
-      const fieldErrors: { password?: string; confirm?: string } = {};
+      const fieldErrors: { code?: string; password?: string; confirm?: string } = {};
       parsed.error.errors.forEach((err) => {
-        if (err.path[0] === 'password') fieldErrors.password = err.message;
-        if (err.path[0] === 'confirm') fieldErrors.confirm = err.message;
+        const key = err.path[0] as 'code' | 'password' | 'confirm';
+        if (!fieldErrors[key]) fieldErrors[key] = err.message;
       });
       setErrors(fieldErrors);
       return;
@@ -89,27 +86,81 @@ export default function ResetPasswordPage() {
     setErrors({});
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) {
-        toast.error(error.message || 'Could not update password');
+      // Step 1: verify the OTP. type:'email' covers the OTP sent by signInWithOtp
+      // (which is what /forgot-password calls). This creates a real session.
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: parsed.data.code,
+        type: 'email',
+      });
+
+      if (verifyError) {
+        const msg = verifyError.message?.toLowerCase() ?? '';
+        if (msg.includes('expired')) {
+          setErrors({ code: 'This code has expired. Request a new one.' });
+        } else if (msg.includes('invalid') || msg.includes('token')) {
+          setErrors({ code: 'Invalid code. Please check and try again.' });
+        } else {
+          setErrors({ code: verifyError.message || 'Could not verify code.' });
+        }
         setLoading(false);
         return;
       }
-      toast.success('Password updated. Please sign in.');
-      // Sign out and force a fresh login so we don't leave a stale session.
+
+      // Step 2: with the new session, update the password.
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: parsed.data.password,
+      });
+
+      if (updateError) {
+        const msg = updateError.message?.toLowerCase() ?? '';
+        if (msg.includes('weak') || msg.includes('pwned') || msg.includes('breach')) {
+          setErrors({ password: 'This password is too weak or has been seen in a data breach. Choose another.' });
+        } else {
+          setErrors({ password: updateError.message || 'Could not update password.' });
+        }
+        setLoading(false);
+        return;
+      }
+
+      toast.success('Password updated. Please sign in with your new password.');
+      // Force a clean session — don't leave the user logged in via the OTP session.
       await supabase.auth.signOut();
       navigate('/login', { replace: true });
     } catch (err) {
+      console.error('Reset password unexpected error:', err);
       toast.error('Unexpected error. Please try again.');
       setLoading(false);
     }
   };
 
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resending || !email) return;
+    setResending(true);
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (otpError) {
+        console.error('Resend OTP failed:', otpError);
+      }
+      toast.success('A new code has been sent if the account exists.');
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (!email) {
+    return null; // redirect effect will fire
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <SEOHead
         title="Set new password | TidyWise"
-        description="Set a new password for your TidyWise account."
+        description="Enter your code and set a new password for your TidyWise account."
         canonical="/reset-password"
         noIndex
       />
@@ -124,104 +175,128 @@ export default function ResetPasswordPage() {
 
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold">Set a new password</CardTitle>
-            <CardDescription>
-              Use at least 8 characters with a mix of letters and numbers.
+            <CardTitle className="text-2xl font-bold">Enter your code</CardTitle>
+            <CardDescription className="space-y-1">
+              <span className="block">
+                We sent a 6-digit code to{' '}
+                <span className="font-medium text-foreground inline-flex items-center gap-1">
+                  <Mail className="h-3.5 w-3.5" />
+                  {email}
+                </span>
+              </span>
+              <span className="block text-xs">
+                Enter it below along with your new password.
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {validRecovery === null ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="code" className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  6-digit code
+                </Label>
+                <Input
+                  id="code"
+                  ref={codeInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  value={code}
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setCode(next);
+                    if (errors.code) setErrors({ ...errors, code: undefined });
+                  }}
+                  className={`tracking-widest text-center text-lg font-medium ${errors.code ? 'border-destructive' : ''}`}
+                  maxLength={6}
+                  required
+                />
+                {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
               </div>
-            ) : validRecovery === false ? (
-              <div className="text-center space-y-4">
-                {linkErrorReason === 'consumed' ? (
-                  <>
-                    <p className="text-sm font-medium text-foreground">
-                      This reset link has already been used or expired.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      This often happens when an email security scanner (e.g. Outlook Safe Links,
-                      antivirus, or a link preview) opens the link before you do — which uses up
-                      the one-time code.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Request a new link below and click it within a couple of minutes from your
-                      email app — avoid previewing the message first.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    This reset link is invalid or has expired. Request a new one.
-                  </p>
-                )}
-                <Button asChild className="w-full">
-                  <Link to="/forgot-password">Request a new reset link</Link>
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                    New password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPwd ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (errors.password) setErrors({ ...errors, password: undefined });
-                      }}
-                      className={errors.password ? 'border-destructive' : ''}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowPwd((s) => !s)}
-                      tabIndex={-1}
-                    >
-                      {showPwd ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                    Confirm password
-                  </Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                  New password
+                </Label>
+                <div className="relative">
                   <Input
-                    id="confirm"
+                    id="password"
                     type={showPwd ? 'text' : 'password'}
                     placeholder="••••••••"
-                    value={confirm}
+                    value={password}
                     onChange={(e) => {
-                      setConfirm(e.target.value);
-                      if (errors.confirm) setErrors({ ...errors, confirm: undefined });
+                      setPassword(e.target.value);
+                      if (errors.password) setErrors({ ...errors, password: undefined });
                     }}
-                    className={errors.confirm ? 'border-destructive' : ''}
+                    className={errors.password ? 'border-destructive' : ''}
                     required
                     minLength={8}
                     autoComplete="new-password"
                   />
-                  {errors.confirm && <p className="text-xs text-destructive">{errors.confirm}</p>}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPwd((s) => !s)}
+                    tabIndex={-1}
+                  >
+                    {showPwd ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update password
-                </Button>
-              </form>
-            )}
+                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                  Confirm password
+                </Label>
+                <Input
+                  id="confirm"
+                  type={showPwd ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={confirm}
+                  onChange={(e) => {
+                    setConfirm(e.target.value);
+                    if (errors.confirm) setErrors({ ...errors, confirm: undefined });
+                  }}
+                  className={errors.confirm ? 'border-destructive' : ''}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+                {errors.confirm && <p className="text-xs text-destructive">{errors.confirm}</p>}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update password
+              </Button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || resending}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resending
+                    ? 'Sending…'
+                    : resendCooldown > 0
+                      ? `Resend code in ${resendCooldown}s`
+                      : "Didn't get a code? Resend"}
+                </button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>
