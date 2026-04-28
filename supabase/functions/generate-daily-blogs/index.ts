@@ -143,6 +143,10 @@ async function sendFailureAlert(errors: string[]) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  // Cron auth gate
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
