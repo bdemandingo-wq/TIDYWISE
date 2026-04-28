@@ -10,12 +10,14 @@ import { toast } from 'sonner';
 import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from 'lucide-react';
 import { z } from 'zod';
 
+const CODE_LENGTH = 8;
+
 const passwordSchema = z
   .object({
     code: z
       .string()
       .trim()
-      .regex(/^\d{6}$/, 'Code must be 6 digits'),
+      .regex(new RegExp(`^\\d{${CODE_LENGTH}}$`), `Code must be ${CODE_LENGTH} digits`),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -178,7 +180,7 @@ export default function ResetPasswordPage() {
             <CardTitle className="text-2xl font-bold">Enter your code</CardTitle>
             <CardDescription className="space-y-1">
               <span className="block">
-                We sent a 6-digit code to{' '}
+                 We sent a reset code to{' '}
                 <span className="font-medium text-foreground inline-flex items-center gap-1">
                   <Mail className="h-3.5 w-3.5" />
                   {email}
@@ -194,7 +196,7 @@ export default function ResetPasswordPage() {
               <div className="space-y-2">
                 <Label htmlFor="code" className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-muted-foreground" />
-                  6-digit code
+                  Reset code
                 </Label>
                 <Input
                   id="code"
@@ -203,15 +205,15 @@ export default function ResetPasswordPage() {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   autoComplete="one-time-code"
-                  placeholder="123456"
+                  placeholder="12345678"
                   value={code}
                   onChange={(e) => {
-                    const next = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    const next = e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH);
                     setCode(next);
                     if (errors.code) setErrors({ ...errors, code: undefined });
                   }}
                   className={`tracking-widest text-center text-lg font-medium ${errors.code ? 'border-destructive' : ''}`}
-                  maxLength={6}
+                  maxLength={CODE_LENGTH}
                   required
                 />
                 {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
