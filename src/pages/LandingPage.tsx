@@ -770,26 +770,6 @@ export default function LandingPage() {
               </Card>
             ))}
           </div>
-
-          <div className="mt-12 flex flex-col items-center gap-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Trusted by homeowners across South Florida ⭐ 5.0 on Google
-            </p>
-            <Button
-              variant="outline"
-              size="lg"
-              asChild
-            >
-              <a
-                href="https://search.google.com/local/reviews?placeid=ChIJ49KSUfgd2YgRH2RMjA6X9jM"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Star className="h-4 w-4 mr-2 fill-warning text-warning" />
-                See All Reviews on Google
-              </a>
-            </Button>
-          </div>
         </div>
       </section>
 
