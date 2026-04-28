@@ -1,65 +1,32 @@
 /// <reference types="npm:@types/react@18.3.1" />
-
 import * as React from 'npm:react@18.3.1'
-
 import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Link,
-  Preview,
-  Section,
-  Text,
+  Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
+import { styles } from './_brand.ts'
+import { Logo } from './_logo.tsx'
+import { Footer } from './_footer.tsx'
 
-import { BRAND, styles } from './_brand.ts'
+interface Props { siteName?: string; confirmationUrl?: string }
 
-interface InviteEmailProps {
-  siteName: string
-  siteUrl: string
-  confirmationUrl: string
-}
-
-export const InviteEmail = ({
-  siteName,
-  siteUrl,
-  confirmationUrl,
-}: InviteEmailProps) => (
+export const InviteEmail = ({ confirmationUrl }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>You've been invited to join {siteName}</Preview>
+    <Preview>You've been invited to TidyWise</Preview>
     <Body style={styles.main}>
       <Container style={styles.container}>
-        <Section style={styles.logoWrap}>
-          <Img src={BRAND.logoUrl} alt={siteName} style={styles.logo} />
+        <Logo />
+        <Heading style={styles.h1}>Join your team on TidyWise</Heading>
+        <Text style={styles.text}>
+          You've been invited to join an organization on TidyWise. Click below to accept and set up your account.
+        </Text>
+        <Section style={styles.buttonWrap}>
+          <Button href={confirmationUrl} style={styles.button}>Accept invitation</Button>
         </Section>
-        <Section style={styles.card}>
-          <Heading style={styles.h1}>You've been invited</Heading>
-          <Text style={styles.text}>
-            You've been invited to join{' '}
-            <Link href={siteUrl} style={styles.link}>
-              <strong>{siteName}</strong>
-            </Link>
-            . Click the button below to accept the invitation and create your
-            account.
-          </Text>
-          <Section style={styles.buttonWrap}>
-            <Button style={styles.button} href={confirmationUrl}>
-              Accept Invitation
-            </Button>
-          </Section>
-          <Text style={styles.hint}>
-            If you weren't expecting this invitation, you can safely ignore this
-            email.
-          </Text>
-        </Section>
-        <Section style={styles.footer}>
-          <Text style={styles.footerText}>— {siteName}</Text>
-        </Section>
+        <Text style={styles.hint}>
+          If you weren't expecting this invitation, you can safely ignore this email.
+        </Text>
+        <Footer />
       </Container>
     </Body>
   </Html>

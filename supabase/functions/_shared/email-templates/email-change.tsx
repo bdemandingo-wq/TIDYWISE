@@ -1,70 +1,32 @@
 /// <reference types="npm:@types/react@18.3.1" />
-
 import * as React from 'npm:react@18.3.1'
-
 import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Link,
-  Preview,
-  Section,
-  Text,
+  Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
+import { styles } from './_brand.ts'
+import { Logo } from './_logo.tsx'
+import { Footer } from './_footer.tsx'
 
-import { BRAND, styles } from './_brand.ts'
+interface Props { siteName?: string; confirmationUrl?: string; email?: string; newEmail?: string }
 
-interface EmailChangeEmailProps {
-  siteName: string
-  email: string
-  newEmail: string
-  confirmationUrl: string
-}
-
-export const EmailChangeEmail = ({
-  siteName,
-  email,
-  newEmail,
-  confirmationUrl,
-}: EmailChangeEmailProps) => (
+export const EmailChangeEmail = ({ confirmationUrl }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirm your email change for {siteName}</Preview>
+    <Preview>Confirm your new email address</Preview>
     <Body style={styles.main}>
       <Container style={styles.container}>
-        <Section style={styles.logoWrap}>
-          <Img src={BRAND.logoUrl} alt={siteName} style={styles.logo} />
+        <Logo />
+        <Heading style={styles.h1}>Confirm email change</Heading>
+        <Text style={styles.text}>
+          Click below to confirm your new email address for your TidyWise account.
+        </Text>
+        <Section style={styles.buttonWrap}>
+          <Button href={confirmationUrl} style={styles.button}>Confirm new email</Button>
         </Section>
-        <Section style={styles.card}>
-          <Heading style={styles.h1}>Confirm your email change</Heading>
-          <Text style={styles.text}>
-            You requested to change your email address for {siteName} from{' '}
-            <Link href={`mailto:${email}`} style={styles.link}>
-              {email}
-            </Link>{' '}
-            to{' '}
-            <Link href={`mailto:${newEmail}`} style={styles.link}>
-              {newEmail}
-            </Link>
-            . Click the button below to confirm this change:
-          </Text>
-          <Section style={styles.buttonWrap}>
-            <Button style={styles.button} href={confirmationUrl}>
-              Confirm Email Change
-            </Button>
-          </Section>
-          <Text style={styles.hint}>
-            If you didn't request this change, please secure your account
-            immediately.
-          </Text>
-        </Section>
-        <Section style={styles.footer}>
-          <Text style={styles.footerText}>— {siteName}</Text>
-        </Section>
+        <Text style={styles.hint}>
+          If you didn't request this change, please contact support immediately.
+        </Text>
+        <Footer />
       </Container>
     </Body>
   </Html>

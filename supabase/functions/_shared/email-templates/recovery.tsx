@@ -1,55 +1,30 @@
 /// <reference types="npm:@types/react@18.3.1" />
-
 import * as React from 'npm:react@18.3.1'
-
 import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Img,
-  Preview,
-  Section,
-  Text,
+  Body, Button, Container, Head, Heading, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
+import { styles } from './_brand.ts'
+import { Logo } from './_logo.tsx'
+import { Footer } from './_footer.tsx'
 
-import { BRAND, styles } from './_brand.ts'
+interface Props { siteName?: string; confirmationUrl?: string }
 
-interface RecoveryEmailProps {
-  siteName: string
-  confirmationUrl: string
-}
-
-export const RecoveryEmail = ({ siteName, confirmationUrl }: RecoveryEmailProps) => (
+export const RecoveryEmail = ({ confirmationUrl }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Reset your password for {siteName}</Preview>
+    <Preview>Reset your TidyWise password</Preview>
     <Body style={styles.main}>
       <Container style={styles.container}>
-        <Section style={styles.logoWrap}>
-          <Img src={BRAND.logoUrl} alt={siteName} style={styles.logo} />
+        <Logo />
+        <Heading style={styles.h1}>Reset your password</Heading>
+        <Text style={styles.text}>Click below to reset your password.</Text>
+        <Section style={styles.buttonWrap}>
+          <Button href={confirmationUrl} style={styles.button}>Reset password</Button>
         </Section>
-        <Section style={styles.card}>
-          <Heading style={styles.h1}>Reset your password</Heading>
-          <Text style={styles.text}>
-            We received a request to reset your password for {siteName}. Click
-            the button below to choose a new password.
-          </Text>
-          <Section style={styles.buttonWrap}>
-            <Button style={styles.button} href={confirmationUrl}>
-              Reset Password
-            </Button>
-          </Section>
-          <Text style={styles.hint}>
-            If you didn't request a password reset, you can safely ignore this
-            email. Your password will not be changed.
-          </Text>
-        </Section>
-        <Section style={styles.footer}>
-          <Text style={styles.footerText}>— {siteName}</Text>
-        </Section>
+        <Text style={styles.hint}>
+          If you didn't request a password reset, you can safely ignore this email.
+        </Text>
+        <Footer />
       </Container>
     </Body>
   </Html>
