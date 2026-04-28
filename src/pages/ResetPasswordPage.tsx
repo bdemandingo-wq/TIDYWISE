@@ -31,15 +31,32 @@ export default function ResetPasswordPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [validRecovery, setValidRecovery] = useState<boolean | null>(null);
+  const [linkErrorReason, setLinkErrorReason] = useState<'consumed' | 'expired' | 'generic' | null>(null);
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
 
   useEffect(() => {
-    // Supabase emits a PASSWORD_RECOVERY event when the user lands on this
-    // page from the recovery email. We accept either:
-    //   1) A live PASSWORD_RECOVERY event, or
-    //   2) An existing session containing recovery context (URL hash with type=recovery)
+    // Supabase redirects with either:
+    //   - #access_token=...&type=recovery   (success)
+    //   - #error=access_denied&error_code=otp_expired&error_description=...   (token already
+    //     consumed, almost always by an email security scanner / link preview pre-fetching
+    //     the single-use link before the human clicks it)
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    const isRecoveryHash = hash.includes('type=recovery');
+    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+    const hashError = params.get('error');
+    const hashErrorCode = params.get('error_code');
+    const isRecoveryHash = params.get('type') === 'recovery' || hash.includes('type=recovery');
+
+    if (hashError) {
+      // Distinguish "consumed by scanner / expired" from generic failure so we can
+      // show the user an accurate message.
+      if (hashErrorCode === 'otp_expired' || hashError === 'access_denied') {
+        setLinkErrorReason('consumed');
+      } else {
+        setLinkErrorReason('generic');
+      }
+      setValidRecovery(false);
+      return;
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setValidRecovery(true);
@@ -50,6 +67,7 @@ export default function ResetPasswordPage() {
         setValidRecovery(true);
       } else {
         setValidRecovery(false);
+        setLinkErrorReason((prev) => prev ?? 'generic');
       }
     });
 
@@ -118,9 +136,26 @@ export default function ResetPasswordPage() {
               </div>
             ) : validRecovery === false ? (
               <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  This reset link is invalid or has expired. Request a new one.
-                </p>
+                {linkErrorReason === 'consumed' ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">
+                      This reset link has already been used or expired.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      This often happens when an email security scanner (e.g. Outlook Safe Links,
+                      antivirus, or a link preview) opens the link before you do — which uses up
+                      the one-time code.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Request a new link below and click it within a couple of minutes from your
+                      email app — avoid previewing the message first.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This reset link is invalid or has expired. Request a new one.
+                  </p>
+                )}
                 <Button asChild className="w-full">
                   <Link to="/forgot-password">Request a new reset link</Link>
                 </Button>
