@@ -18,6 +18,10 @@ const STEPS = [
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  // Cron auth gate
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const now = new Date();

@@ -1,126 +1,95 @@
-// Dynamic sitemap.xml served from the database.
-// Combines static marketing routes + all published blog posts.
+// Dynamic sitemap.xml — queries blog posts, locations, feature pages.
+// Public endpoint; no auth gate.
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const DOMAIN = "https://www.jointidywise.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface UrlEntry {
-  loc: string;
-  lastmod: string; // YYYY-MM-DD
-  changefreq: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
-  priority: string;
-}
+const SITE_URL = "https://www.jointidywise.com";
 
-const STATIC_ROUTES: UrlEntry[] = [
-  { loc: "/", lastmod: "", changefreq: "weekly", priority: "1.0" },
-  { loc: "/pricing", lastmod: "", changefreq: "weekly", priority: "0.9" },
-  { loc: "/demo", lastmod: "", changefreq: "weekly", priority: "0.9" },
-  { loc: "/blog", lastmod: "", changefreq: "daily", priority: "0.8" },
-  { loc: "/cleaning-business-software", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/privacy-policy", lastmod: "", changefreq: "yearly", priority: "0.3" },
-  // Cornerstone blog posts (static React pages)
-  { loc: "/blog/crm-for-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/how-to-start-a-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/booking-koala-vs-jobber-vs-tidywise", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/how-to-grow-cleaning-business-2025", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/best-software-for-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/how-to-automate-cleaning-company", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/payroll-software-for-cleaning-businesses", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/gps-tracking-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/scheduling-software-for-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/invoicing-software-for-cleaning-business", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/maid-service-software", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog/cleaning-business-management-software", lastmod: "", changefreq: "monthly", priority: "0.8" },
-  // Comparison pages
-  { loc: "/compare/jobber", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/compare/booking-koala", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/compare/housecall-pro", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/compare/zenmaid", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/compare/servicetitan", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  // Feature pages
-  { loc: "/features/automated-dispatching", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/quote-software", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/sms-notifications", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/payment-processing", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/route-optimization", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/invoicing-software", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/scheduling-software", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/booking", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/crm", lastmod: "", changefreq: "monthly", priority: "0.7" },
-  { loc: "/features/payroll-software", lastmod: "", changefreq: "monthly", priority: "0.7" },
+const STATIC_PATHS: { path: string; priority: number; changefreq: string }[] = [
+  { path: "/", priority: 1.0, changefreq: "weekly" },
+  { path: "/pricing", priority: 0.9, changefreq: "weekly" },
+  { path: "/contact", priority: 0.7, changefreq: "monthly" },
+  { path: "/blog", priority: 0.8, changefreq: "daily" },
+  { path: "/login", priority: 0.4, changefreq: "yearly" },
+  { path: "/signup", priority: 0.6, changefreq: "yearly" },
+  { path: "/features/crm", priority: 0.8, changefreq: "monthly" },
+  { path: "/features/route-optimization", priority: 0.8, changefreq: "monthly" },
+  { path: "/features/payroll-software", priority: 0.8, changefreq: "monthly" },
+  { path: "/features/scheduling", priority: 0.8, changefreq: "monthly" },
+  { path: "/features/invoicing", priority: 0.8, changefreq: "monthly" },
 ];
 
 function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+  return s.replace(/[<>&'"]/g, (c) => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;",
+  }[c] as string));
 }
 
-function formatDate(d: Date): string {
-  return d.toISOString().split("T")[0];
+function urlNode(loc: string, lastmod?: string, changefreq?: string, priority?: number): string {
+  const parts = [`    <loc>${escapeXml(loc)}</loc>`];
+  if (lastmod) parts.push(`    <lastmod>${lastmod}</lastmod>`);
+  if (changefreq) parts.push(`    <changefreq>${changefreq}</changefreq>`);
+  if (priority !== undefined) parts.push(`    <priority>${priority.toFixed(1)}</priority>`);
+  return `  <url>\n${parts.join("\n")}\n  </url>`;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Supabase not configured");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+
+    const urls: string[] = [];
+
+    // Static pages
+    for (const s of STATIC_PATHS) {
+      urls.push(urlNode(`${SITE_URL}${s.path}`, undefined, s.changefreq, s.priority));
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const today = formatDate(new Date());
-
-    // Fetch published posts only
-    const { data: posts, error } = await supabase
+    // Blog posts (published only)
+    const { data: posts } = await supabase
       .from("blog_posts")
       .select("slug, updated_at, published_at")
       .eq("status", "published")
       .order("published_at", { ascending: false })
-      .limit(5000);
+      .limit(2000);
 
-    if (error) throw error;
+    for (const p of posts ?? []) {
+      if (!p.slug) continue;
+      const lastmod = (p.updated_at || p.published_at)?.split("T")[0];
+      urls.push(urlNode(`${SITE_URL}/blog/${p.slug}`, lastmod, "monthly", 0.7));
+    }
 
-    const dynamicEntries: UrlEntry[] = (posts || []).map((p) => ({
-      loc: `/blog/post/${p.slug}`,
-      lastmod: formatDate(new Date(p.updated_at || p.published_at || today)),
-      changefreq: "monthly",
-      priority: "0.6",
-    }));
-
-    const allEntries = [
-      ...STATIC_ROUTES.map((r) => ({ ...r, lastmod: r.lastmod || today })),
-      ...dynamicEntries,
-    ];
+    // City/location landing pages (if a `locations` table with slug exists)
+    try {
+      const { data: locs } = await supabase
+        .from("locations")
+        .select("slug, updated_at")
+        .not("slug", "is", null)
+        .limit(2000);
+      for (const l of (locs ?? []) as Array<{ slug: string; updated_at?: string }>) {
+        if (!l.slug) continue;
+        const lastmod = l.updated_at?.split("T")[0];
+        urls.push(urlNode(`${SITE_URL}/locations/${l.slug}`, lastmod, "monthly", 0.6));
+      }
+    } catch (_e) {
+      // locations table may not have slug column — skip silently
+    }
 
     const xml =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      allEntries
-        .map(
-          (e) =>
-            `  <url>\n` +
-            `    <loc>${escapeXml(DOMAIN + e.loc)}</loc>\n` +
-            `    <lastmod>${e.lastmod}</lastmod>\n` +
-            `    <changefreq>${e.changefreq}</changefreq>\n` +
-            `    <priority>${e.priority}</priority>\n` +
-            `  </url>`
-        )
-        .join("\n") +
+      urls.join("\n") +
       `\n</urlset>\n`;
 
     return new Response(xml, {
@@ -128,15 +97,14 @@ serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, max-age=600, s-maxage=3600",
+        "Cache-Control": "public, max-age=3600",
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error("[sitemap] error:", msg);
+    console.error("[sitemap] error:", err);
     return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<error>${escapeXml(msg)}</error>`,
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/xml" } }
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/xml; charset=utf-8" } },
     );
   }
 });
