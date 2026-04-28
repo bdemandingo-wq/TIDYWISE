@@ -71,6 +71,50 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* Explore Features */}
+        <section className="max-w-3xl mx-auto px-4 pb-20">
+          <h2 className="text-2xl font-semibold text-foreground text-center mb-8">
+            Explore Features
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              to="/features/crm"
+              className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <Users className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-foreground font-medium">CRM Software</span>
+            </Link>
+            <Link
+              to="/features/route-optimization"
+              className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <Target className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-foreground font-medium">Route Optimization</span>
+            </Link>
+            <Link
+              to="/features/payroll-software"
+              className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <CreditCard className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-foreground font-medium">Payroll Software</span>
+            </Link>
+            <Link
+              to="/blog"
+              className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <BarChart3 className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-foreground font-medium">Blog & Resources</span>
+            </Link>
+            <Link
+              to="/"
+              className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors sm:col-span-2"
+            >
+              <Zap className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="text-foreground font-medium">Back to Homepage</span>
+            </Link>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="py-16 px-4 text-center bg-muted/30">
           <h2 className="text-2xl font-semibold text-foreground mb-4">
