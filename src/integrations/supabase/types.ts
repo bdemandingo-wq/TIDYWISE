@@ -7416,6 +7416,13 @@ export type Database = {
           total_amount: number
         }[]
       }
+      get_demo_booked_slots: {
+        Args: never
+        Returns: {
+          booked_date: string
+          booked_time: string
+        }[]
+      }
       get_deposit_by_token: {
         Args: { p_token: string }
         Returns: {
@@ -7539,8 +7546,6 @@ export type Database = {
         Args: { p_email: string; p_password: string }
         Returns: Json
       }
-      vault_create_cron_secret: { Args: { p_value: string }; Returns: string }
-      vault_update_cron_secret: { Args: { p_value: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff" | "user"
