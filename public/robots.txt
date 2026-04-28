@@ -61,5 +61,5 @@ Allow: /features/*
 Allow: /privacy-policy
 Allow: /portal
 
-# Sitemap
-Sitemap: https://www.jointidywise.com/sitemap.xml
+# Sitemap (static — regenerated at build time from src/lib/generate-sitemap.ts)
+Sitemap: https://jointidywise.lovable.app/sitemap.xml
