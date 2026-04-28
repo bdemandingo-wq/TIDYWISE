@@ -13,7 +13,7 @@ export default function GPSTrackingForCleaners() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="GPS Tracking for Cleaning Business Teams"
-        description="GPS tracking for cleaning teams: what it does, when it's worth it, and how to implement it without micromanaging your staff."
+        description="Learn how GPS tracking helps cleaning businesses monitor crews, optimize routes, and improve accountability. See top features and benefits for owners."
         canonical="/blog/gps-tracking-cleaning-business"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
