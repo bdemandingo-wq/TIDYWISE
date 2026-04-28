@@ -30,8 +30,23 @@ export default function ForgotPasswordPage() {
     setError(undefined);
     setLoading(true);
     try {
+      // Determine the correct redirect URL based on environment.
+      // Production: always use jointidywise.com (regardless of which domain
+      // the user submitted from) so the email link is consistent.
+      // Preview (*.lovable.app): use the current preview origin.
+      // Local dev: use window.location.origin.
+      const origin = window.location.origin;
+      let redirectBase: string;
+      if (origin.includes('lovable.app') || origin.includes('lovable.dev')) {
+        redirectBase = origin;
+      } else if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        redirectBase = origin;
+      } else {
+        // Production / custom domain — hardcode canonical production URL.
+        redirectBase = 'https://www.jointidywise.com';
+      }
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${redirectBase}/reset-password`,
       });
       // Always treat as success to avoid leaking account existence.
       if (resetError) {
