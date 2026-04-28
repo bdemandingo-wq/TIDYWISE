@@ -7416,6 +7416,13 @@ export type Database = {
           total_amount: number
         }[]
       }
+      get_demo_booked_slots: {
+        Args: never
+        Returns: {
+          booked_date: string
+          booked_time: string
+        }[]
+      }
       get_deposit_by_token: {
         Args: { p_token: string }
         Returns: {

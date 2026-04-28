@@ -1,13 +1,19 @@
 /**
- * Auto-sitemap generator.
+ * Auto-sitemap generator (build-time, static).
  *
  * Parses `src/App.tsx` using @babel/parser, walks the AST with @babel/traverse,
  * extracts every static `<Route path="...">` value, applies exclusion rules,
- * deduplicates (App.tsx uses both HashRouter and BrowserRouter with overlapping
- * routes), and writes `public/sitemap.xml`.
+ * deduplicates, fetches all PUBLISHED blog post slugs from Supabase at build
+ * time, and writes `public/sitemap.xml`.
+ *
+ * Production source of truth: this static file is what robots.txt points at
+ * (https://jointidywise.lovable.app/sitemap.xml). The /functions/v1/sitemap
+ * edge function exposes the same data dynamically and is useful for ad-hoc
+ * verification, but production crawlers consume this static build output.
  *
  * Invoked from vite.config.ts via `sitemapPlugin()` on `buildEnd`.
  */
+
 import { parse } from "@babel/parser";
 import _traverse from "@babel/traverse";
 import * as t from "@babel/types";
