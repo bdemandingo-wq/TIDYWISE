@@ -136,9 +136,26 @@ export default function ResetPasswordPage() {
               </div>
             ) : validRecovery === false ? (
               <div className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  This reset link is invalid or has expired. Request a new one.
-                </p>
+                {linkErrorReason === 'consumed' ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">
+                      This reset link has already been used or expired.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      This often happens when an email security scanner (e.g. Outlook Safe Links,
+                      antivirus, or a link preview) opens the link before you do — which uses up
+                      the one-time code.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Request a new link below and click it within a couple of minutes from your
+                      email app — avoid previewing the message first.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This reset link is invalid or has expired. Request a new one.
+                  </p>
+                )}
                 <Button asChild className="w-full">
                   <Link to="/forgot-password">Request a new reset link</Link>
                 </Button>
