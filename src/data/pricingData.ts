@@ -14,6 +14,10 @@ export const squareFootageRanges = [
   { label: 'Up to 3600 sf', maxSqFt: 3600 },
   { label: 'Up to 4000 sf', maxSqFt: 4000 },
   { label: 'Up to 4400 sf', maxSqFt: 4400 },
+  { label: 'Up to 4800 sf', maxSqFt: 4800 },
+  { label: 'Up to 5200 sf', maxSqFt: 5200 },
+  { label: 'Up to 5600 sf', maxSqFt: 5600 },
+  { label: 'Up to 6000 sf', maxSqFt: 6000 },
 ];
 
 export type CleaningServiceType = 
