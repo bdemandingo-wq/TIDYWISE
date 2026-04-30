@@ -40,6 +40,7 @@ interface Subscriber {
   created: string;
   subscriptionStatus: string;
   subscriptionCreated: string;
+  subscriptionId?: string;
   source: string;
 }
 
