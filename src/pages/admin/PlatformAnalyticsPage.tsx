@@ -116,6 +116,39 @@ export default function PlatformAnalyticsPage() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'client_portal'>('all');
+  const [subscriberSearch, setSubscriberSearch] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
+  const [cancelImmediate, setCancelImmediate] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelSubscription = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-cancel-subscription', {
+        body: {
+          subscriptionId: cancelTarget.subscriptionId,
+          customerEmail: cancelTarget.email,
+          immediate: cancelImmediate,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(
+        cancelImmediate
+          ? `Subscription canceled immediately for ${cancelTarget.email}`
+          : `Subscription will cancel at period end for ${cancelTarget.email}`
+      );
+      setCancelTarget(null);
+      setCancelImmediate(false);
+      // Refetch analytics so the list reflects the new status
+      fetchAnalytics();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to cancel subscription');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Fetch session data - ALL TIME for total sessions, 30d for avg duration
   const { data: sessionStats, refetch: refetchSessions } = useQuery({
