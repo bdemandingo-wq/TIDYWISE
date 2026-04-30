@@ -413,56 +413,129 @@ export default function PlatformAnalyticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by email or name…"
+                    value={subscriberSearch}
+                    onChange={(e) => setSubscriberSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
                 <ScrollArea className="h-[500px] pr-4">
-                  {analytics?.subscribers?.recent && analytics.subscribers.recent.length > 0 ? (
-                    <div className="space-y-2">
-                      {analytics.subscribers.recent.map((subscriber) => (
-                        <div 
-                          key={subscriber.id} 
-                          className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="text-sm font-medium text-primary">
-                                {subscriber.email?.charAt(0).toUpperCase() || '?'}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{subscriber.email}</p>
-                              {subscriber.name && (
-                                <p className="text-xs text-muted-foreground">{subscriber.name}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                Subscribed {subscriber.subscriptionCreated !== 'Unknown' 
-                                  ? formatDistanceToNow(new Date(subscriber.subscriptionCreated), { addSuffix: true })
-                                  : 'Unknown date'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={subscriber.subscriptionStatus === 'active' ? 'default' : 
-                                       subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
-                              className="text-xs"
-                            >
-                              {subscriber.subscriptionStatus}
-                            </Badge>
-                          </div>
+                  {(() => {
+                    const list = analytics?.subscribers?.recent || [];
+                    const q = subscriberSearch.trim().toLowerCase();
+                    const filtered = q
+                      ? list.filter(
+                          (s) =>
+                            s.email?.toLowerCase().includes(q) ||
+                            s.name?.toLowerCase().includes(q)
+                        )
+                      : list;
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <p>{q ? 'No subscribers match your search' : 'No TidyWise subscribers found'}</p>
+                          {!q && (
+                            <p className="text-xs mt-1">Only users with active TidyWise subscriptions appear here</p>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p>No TidyWise subscribers found</p>
-                      <p className="text-xs mt-1">Only users with active TidyWise subscriptions appear here</p>
-                    </div>
-                  )}
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {filtered.map((subscriber) => {
+                          const canCancel = ['active', 'trialing', 'past_due'].includes(
+                            subscriber.subscriptionStatus
+                          );
+                          return (
+                            <div
+                              key={subscriber.id}
+                              className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-primary">
+                                    {subscriber.email?.charAt(0).toUpperCase() || '?'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{subscriber.email}</p>
+                                  {subscriber.name && (
+                                    <p className="text-xs text-muted-foreground">{subscriber.name}</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Subscribed {subscriber.subscriptionCreated !== 'Unknown'
+                                      ? formatDistanceToNow(new Date(subscriber.subscriptionCreated), { addSuffix: true })
+                                      : 'Unknown date'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={subscriber.subscriptionStatus === 'active' ? 'default' :
+                                           subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
+                                  className="text-xs"
+                                >
+                                  {subscriber.subscriptionStatus}
+                                </Badge>
+                                {canCancel && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => { setCancelImmediate(false); setCancelTarget(subscriber); }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Cancel subscription confirm dialog */}
+          <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will cancel the TidyWise subscription for{' '}
+                  <span className="font-medium text-foreground">{cancelTarget?.email}</span>.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <label className="flex items-start gap-2 text-sm py-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={cancelImmediate}
+                  onChange={(e) => setCancelImmediate(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  Cancel <span className="font-medium">immediately</span> (otherwise cancels at period end)
+                </span>
+              </label>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={cancelling}>Keep subscription</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+                  disabled={cancelling}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {cancelling ? 'Cancelling…' : 'Cancel subscription'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <TabsContent value="signups">
             <Card>
