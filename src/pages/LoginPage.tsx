@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +25,20 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const isNative = Capacitor.isNativePlatform();
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
-  
+
+  // /auth and /login both render this component. Emit unique SEO meta per URL while
+  // keeping the canonical pointed at /login so search engines consolidate ranking.
+  const isAuthPath = location.pathname === '/auth';
+  const seoTitle = isAuthPath
+    ? 'Sign In or Create Your TidyWise Account'
+    : 'Log In to TidyWise | Cleaning Business Software';
+  const seoDescription = isAuthPath
+    ? 'Access your TidyWise account to run your cleaning business — bookings, scheduling, invoicing, payroll, GPS, and team dispatch from one dashboard.'
+    : 'Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard.';
+
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
@@ -118,7 +129,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
-      <SEOHead title="Log In to TidyWise | Cleaning Business Software" description="Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard." canonical="/login" />
+      <SEOHead title={seoTitle} description={seoDescription} canonical="/login" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
