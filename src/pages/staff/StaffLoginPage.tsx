@@ -140,7 +140,7 @@ export default function StaffLoginPage() {
   if (authLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-background">
-        <SEOHead title="Staff Login | TidyWise" description="Staff portal login" canonical="/staff/login" noIndex />
+        <SEOHead title="Staff Portal Sign In | TidyWise" description="Sign in to the TidyWise staff portal to view your jobs, log start and finish times, capture before-and-after photos, and track your earnings." canonical="/staff/login" />
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
     );
@@ -149,10 +149,9 @@ export default function StaffLoginPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
       <SEOHead
-        title="Staff Login | TidyWise"
-        description="Sign in to the staff portal to manage jobs, availability, and earnings."
+        title="Staff Portal Sign In | TidyWise"
+        description="Sign in to the TidyWise staff portal to view your jobs, log start and finish times, capture before-and-after photos, and track your earnings."
         canonical="/staff/login"
-        noIndex
       />
 
       <div className="flex-1 flex items-center justify-center p-4 w-full">

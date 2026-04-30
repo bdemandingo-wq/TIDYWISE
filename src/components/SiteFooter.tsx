@@ -17,6 +17,7 @@ export function SiteFooter() {
               <li><Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Home</Link></li>
               <li><Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</Link></li>
+              <li><Link to="/cleaning-business-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">By Location</Link></li>
             </ul>
           </div>
           <div>

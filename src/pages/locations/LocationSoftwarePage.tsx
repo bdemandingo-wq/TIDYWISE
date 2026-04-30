@@ -122,7 +122,7 @@ export default function LocationSoftwarePage() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={`Cleaning Business Software for ${data.name} | TidyWise`}
-        description={`Free cleaning business software built for ${data.name}. Scheduling, invoicing, payroll, GPS tracking. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaning companies.`} Start free — no credit card.`}
+        description={data.seoDescription ?? `Free cleaning business software for ${data.name} — booking, scheduling, payroll, GPS, and CRM. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaners.`}`}
         canonical={canonicalPath}
         schemaJson={schemaJson}
       />

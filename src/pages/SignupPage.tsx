@@ -210,7 +210,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SEOHead title="Start Free Trial | TidyWise – Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonical="/signup" noIndex />
+      <SEOHead title="Start Free Trial | TidyWise – Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonical="/signup" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link */}

@@ -11,6 +11,8 @@ export interface LocationData {
   topCities?: string[];
   topCitySlugs?: string[];
   faqs: { question: string; answer: string }[];
+  /** 50-160 char unique meta description. Falls back to a templated one if absent. */
+  seoDescription?: string;
 }
 
 export const locationData: Record<string, LocationData> = {
@@ -112,6 +114,7 @@ export const locationData: Record<string, LocationData> = {
   "illinois": {
     type: "state",
     name: "Illinois",
+    seoDescription: "Free cleaning business software built for Illinois — booking, scheduling, payroll, and GPS routing tuned to Chicago's market and suburb sprawl.",
     intro: "Illinois's cleaning market is centered on Chicago and its affluent suburbs—Oak Park, Evanston, Naperville, and Schaumburg—but extends to mid-size markets like Rockford, Peoria, and Springfield. Harsh winters create strong demand for deep cleans in spring, while the city's dense condo and apartment market drives year-round residential cleaning.",
     marketContext: "Chicago's minimum wage ($15.80/hour) and Illinois's progressive payroll rules make automated wage calculation important for cleaning businesses with multiple employees. Route optimization is critical given the city's grid and suburb sprawl.",
     topCities: ["Chicago", "Aurora", "Naperville", "Rockford", "Evanston", "Joliet", "Schaumburg", "Peoria"],
@@ -1076,6 +1079,7 @@ export const locationData: Record<string, LocationData> = {
   "indiana": {
     type: "state",
     name: "Indiana",
+    seoDescription: "Cleaning business software for Indiana — from Indianapolis to Carmel and Fishers. Free booking, scheduling, payroll, and GPS, all in one dashboard.",
     intro: "Indiana's cleaning market is centered on the Indianapolis metro (the state's economic engine), with secondary markets in Fort Wayne, Evansville, and South Bend. Indianapolis has evolved from a purely manufacturing-based economy into a diverse market with significant healthcare (Eli Lilly, IU Health, Community Health Network), tech, and logistics sectors that drive residential cleaning demand.",
     marketContext: "Indiana's relatively low cost of living keeps cleaning rates competitive, but lower labor costs improve margins. Indianapolis's growing tech sector and pharmaceutical executive class in Zionsville, Carmel, and Fishers represent the premium residential market.",
     topCities: ["Indianapolis", "Fort Wayne", "Evansville", "South Bend", "Carmel", "Fishers", "Bloomington", "Hammond"],
@@ -1099,6 +1103,7 @@ export const locationData: Record<string, LocationData> = {
   "iowa": {
     type: "state",
     name: "Iowa",
+    seoDescription: "Free cleaning business software for Iowa — Des Moines, Cedar Rapids, Iowa City, Ames. Scheduling, payroll, invoicing built for Midwest cleaners.",
     intro: "Iowa's cleaning market is anchored by the Des Moines metro—a stronger economic hub than its size suggests, with a significant financial services and insurance sector (Principal Financial, Meredith, and others)—and the Iowa City/Cedar Rapids corridor driven by the University of Iowa's healthcare and academic economy. Ames (Iowa State University) and Sioux City round out the state's key markets.",
     marketContext: "Iowa's lower cost of living and competitive cleaning rates ($80–$130 range) are offset by lower operating costs and strong client loyalty in smaller markets where word-of-mouth dominates. The agricultural economy drives strong seasonal cleaning demand in rural areas.",
     topCities: ["Des Moines", "Cedar Rapids", "Davenport", "Sioux City", "Iowa City", "Waterloo", "Ames", "West Des Moines"],
@@ -1122,6 +1127,7 @@ export const locationData: Record<string, LocationData> = {
   "kansas": {
     type: "state",
     name: "Kansas",
+    seoDescription: "Cleaning business software for Kansas — built for the KC suburbs (Overland Park, Leawood, Olathe) and Wichita. Free booking, scheduling, and payroll.",
     intro: "Kansas's cleaning market is primarily driven by the Kansas City metro's Kansas-side suburbs (Overland Park, Leawood, Olathe, Shawnee)—which are among the wealthiest communities in the Midwest—and Wichita, the state's largest city and a major aerospace manufacturing hub (Spirit AeroSystems, Cessna, Learjet). The KC suburbs represent a premium market with some of the highest incomes in the region.",
     marketContext: "Overland Park and Leawood have household incomes that rival many coastal suburban markets, making the Kansas City metro's Kansas suburbs one of the best-kept secrets in Midwest residential cleaning. Wichita's aerospace sector brings a stable, well-paid workforce.",
     topCities: ["Wichita", "Overland Park", "Kansas City", "Olathe", "Topeka", "Shawnee", "Lawrence", "Leawood"],
@@ -1145,6 +1151,7 @@ export const locationData: Record<string, LocationData> = {
   "kentucky": {
     type: "state",
     name: "Kentucky",
+    seoDescription: "Cleaning business software for Kentucky — built for Louisville's healthcare market and Lexington's equine economy. Free booking, scheduling, payroll.",
     intro: "Kentucky's cleaning market is anchored by Louisville—the state's largest city and home to major corporations including Humana, Kindred Healthcare, and the bourbon industry—and Lexington, the horse capital of the world and home to the University of Kentucky. Both cities have growing professional class populations with strong residential cleaning demand.",
     marketContext: "Louisville's healthcare sector (one of the largest in the Southeast) and Lexington's equine industry create a stable, high-income client base. Kentucky's bourbon tourism boom has also driven short-term rental growth in Louisville's NuLu and Nulu neighborhoods.",
     topCities: ["Louisville", "Lexington", "Bowling Green", "Owensboro", "Covington", "Georgetown", "Frankfort", "Florence"],
@@ -1168,6 +1175,7 @@ export const locationData: Record<string, LocationData> = {
   "louisiana": {
     type: "state",
     name: "Louisiana",
+    seoDescription: "Cleaning business software for Louisiana — built for New Orleans Airbnb turnovers and Baton Rouge residential. Free booking, scheduling, and payroll.",
     intro: "Louisiana's cleaning market has two distinct personalities: New Orleans, one of the most active vacation rental markets in the South (driven by Mardi Gras, Jazz Fest, and year-round tourism), and the greater Baton Rouge area, driven by the oil and petrochemical industry and LSU's university economy. New Orleans' short-term rental cleaning demand makes it one of the most lucrative Airbnb markets in the Gulf Coast region.",
     marketContext: "New Orleans hosts millions of tourists annually, creating massive turnover cleaning demand for the city's Airbnb inventory. The Garden District, Uptown, and French Quarter areas have premium properties that command $150–$300+ per turnover. Hurricane season (June–November) periodically creates post-storm cleaning demand.",
     topCities: ["New Orleans", "Baton Rouge", "Shreveport", "Lafayette", "Lake Charles", "Kenner", "Metairie", "Mandeville"],
@@ -1191,6 +1199,7 @@ export const locationData: Record<string, LocationData> = {
   "maine": {
     type: "state",
     name: "Maine",
+    seoDescription: "Cleaning business software for Maine — built for Portland residential and the seasonal coastal vacation rental market. Free booking, scheduling, payroll.",
     intro: "Maine's cleaning market is split between year-round residential in the Portland metro and a highly seasonal vacation rental market along its stunning coastline (Kennebunkport, Ogunquit, Bar Harbor, Camden, Boothbay Harbor). Portland, ME has transformed into one of the most vibrant small cities in New England, with a restaurant and arts scene that drives professional class migration.",
     marketContext: "Maine's coastal vacation rental market is extremely seasonal—peak season runs June through October, with August and foliage season (late September/October) being the busiest periods. Building a revenue mix of year-round Portland residential clients and seasonal coastal turnover cleaning creates a more stable annual income.",
     topCities: ["Portland", "Lewiston", "Bangor", "South Portland", "Auburn", "Kennebunkport", "Bar Harbor", "Brunswick"],

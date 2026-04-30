@@ -837,7 +837,9 @@ export default function LandingPage() {
               <h3 className="font-semibold text-foreground mb-4">Product</h3>
               <ul className="space-y-3">
                 <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</a></li>
+                <li><Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
+                <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</Link></li>
+                <li><Link to="/cleaning-business-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">By Location</Link></li>
                 <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a></li>
               </ul>
             </div>
