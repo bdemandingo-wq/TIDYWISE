@@ -117,8 +117,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
       <SEOHead title="Log In to TidyWise | Cleaning Business Software" description="Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard." canonical="/login" noIndex />
+      <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
         {!isNative && (
@@ -298,6 +299,59 @@ export default function LoginPage() {
           .
         </div>
       </div>
+      </div>
+
+      <section aria-labelledby="login-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 id="login-info-heading" className="text-2xl font-bold text-foreground">
+            Welcome back to your TidyWise dashboard
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Sign in above to pick up right where you left off — review today's jobs,
+            dispatch your team, send invoices, and stay on top of every booking. The
+            TidyWise dashboard gives cleaning business owners a complete real-time view
+            of operations from any device.
+          </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              After you sign in, you'll be able to
+            </h3>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li>View your live job board with cleaner locations, ETAs, and status updates</li>
+              <li>Send branded quotes, invoices, and payment receipts in seconds</li>
+              <li>Manage clients, contracts, and recurring jobs with a built-in CRM</li>
+              <li>Track revenue, expenses, payroll, tips, and deposits at a glance</li>
+              <li>Trigger automated SMS and email reminders to reduce no-shows</li>
+              <li>Open the staff portal, client portal, and admin tools in one click</li>
+            </ul>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed">
+            TidyWise was built specifically for the cleaning industry — residential maid
+            services, commercial janitorial, post-construction cleanup, Airbnb turnover,
+            and multi-location franchises all run their day-to-day on the platform. Unlike
+            generic field-service tools, every workflow is tuned for the unique needs of
+            cleaning operators: square-footage pricing, walkthrough notes, supply tracking,
+            recurring contracts, before/after photos, and tip routing to the right cleaner.
+          </p>
+
+          <p className="text-muted-foreground leading-relaxed">
+            Forgot your password? Use the reset option above to receive a secure email
+            link. If you're a cleaner or office team member, sign in through the Staff
+            Portal instead. Clients booking a recurring service should use the Client
+            Portal. Need help? Our support team is one chat away inside the dashboard once
+            you sign in.
+          </p>
+
+          <p className="text-muted-foreground leading-relaxed">
+            New to TidyWise? Create a free account in under a minute — no credit card
+            required and you can cancel anytime. Import your existing client list,
+            configure services and pricing, set up online booking, and take your first
+            job the same day you sign up.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

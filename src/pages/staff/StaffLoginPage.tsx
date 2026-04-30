@@ -147,7 +147,7 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center">
+    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
       <SEOHead
         title="Staff Login | TidyWise"
         description="Sign in to the staff portal to manage jobs, availability, and earnings."
@@ -155,6 +155,7 @@ export default function StaffLoginPage() {
         noIndex
       />
 
+      <div className="flex-1 flex items-center justify-center p-4 w-full">
       <section className="w-full max-w-md">
         <Button
           variant="ghost"
@@ -279,6 +280,65 @@ export default function StaffLoginPage() {
             </p>
           </CardContent>
         </Card>
+      </section>
+      </div>
+
+      <section aria-labelledby="staff-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 id="staff-info-heading" className="text-2xl font-bold text-foreground">
+            Your shift, your schedule, your earnings
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            The TidyWise staff portal gives you everything you need to do great work and
+            get paid on time. Sign in above to see your assigned jobs, navigate to your
+            next stop, log start and finish times, capture before-and-after photos, and
+            keep your weekly earnings in clear view.
+          </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              What's inside the staff portal
+            </h3>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li>Today's job schedule with addresses, times, and client notes</li>
+              <li>One-tap navigation, check-in, and check-out for every visit</li>
+              <li>Photo and checklist capture so the office knows the work is done right</li>
+              <li>Real-time messaging with your manager and the client when needed</li>
+              <li>Tips, hours worked, and pay periods updated automatically</li>
+              <li>Availability and time-off requests submitted directly from your phone</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Built for cleaning crews, not generic field workers
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              TidyWise is designed around how cleaning teams actually operate. You'll see
+              the square footage, supplies needed, key codes, parking instructions, and
+              any special requests for each job before you arrive — no more phone tag
+              with the office or showing up unprepared. Mark a room complete, snap a
+              quick photo, and the client gets an automatic update without you having to
+              do anything extra.
+            </p>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed">
+            Need to reset your password? Use the "Forgot password" link above and we'll
+            email a secure reset link to the address your administrator invited you with.
+            If you don't see the email, check spam, then reach out to your supervisor or
+            office admin — they can resend the invite or update your contact info from
+            the admin dashboard.
+          </p>
+
+          <p className="text-muted-foreground leading-relaxed">
+            Don't have a staff account yet? Staff accounts are created by your employer.
+            Ask your office manager or business owner to send you an invitation through
+            their TidyWise dashboard, and you'll receive a secure setup link by email or
+            SMS. Setup takes under a minute, and biometric sign-in (Face ID, Touch ID, or
+            fingerprint) is supported on iOS and Android for fast, secure access.
+          </p>
+        </div>
       </section>
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>

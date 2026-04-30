@@ -60,17 +60,17 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 flex items-center justify-center relative">
+    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col relative">
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-4 left-4"
+        className="absolute top-4 left-4 z-10"
         onClick={() => navigate("/")}
         aria-label="Go back"
       >
         <ArrowLeft className="h-5 w-5" />
       </Button>
-      
+
       <SEOHead
         title="Client Portal | Sign In"
         description="Sign in to your client portal to view bookings, request appointments, and more."
@@ -78,6 +78,7 @@ export default function PortalLoginPage() {
         noIndex
       />
 
+      <div className="flex-1 flex items-center justify-center p-4 w-full">
       <section className="w-full max-w-md">
         <Card className="shadow-xl border-primary/10">
           <CardHeader className="text-center space-y-4">
@@ -153,6 +154,64 @@ export default function PortalLoginPage() {
             </p>
           </CardContent>
         </Card>
+      </section>
+      </div>
+
+      <section aria-labelledby="portal-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 id="portal-info-heading" className="text-2xl font-bold text-foreground">
+            Welcome to your client portal
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Sign in above to access your dedicated client portal. Your portal is the
+            easiest way to stay on top of your cleaning service — book new appointments,
+            view upcoming visits, message your cleaner, leave tips, update payment
+            methods, and see your full service history without ever needing to pick up
+            the phone.
+          </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              What you can do inside the portal
+            </h3>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li>Request and reschedule cleaning appointments around your calendar</li>
+              <li>View past invoices, receipts, and recurring service plans</li>
+              <li>Update your address, gate codes, parking notes, and pet info securely</li>
+              <li>Leave tips and reviews directly for the cleaner who served you</li>
+              <li>Save your preferred cleaning supplies, areas of focus, and skip-rooms</li>
+              <li>Receive SMS and email confirmations and arrival ETAs on cleaning day</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Your privacy and security come first
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Your address, payment details, and home access information are encrypted
+              and visible only to your cleaning provider — never to other clients,
+              third-party advertisers, or unrelated cleaners. Payment processing runs
+              through PCI-compliant infrastructure, and you can remove a saved card or
+              revoke portal access at any time from your account page.
+            </p>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed">
+            Don't have a portal account yet? Your cleaning business can invite you in a
+            few seconds. If you've recently booked a service, check your email and SMS
+            inbox for an invitation link from your provider. If you can't find it or your
+            link has expired, reach out directly to the business — they can resend an
+            invite or reset your password from their dashboard.
+          </p>
+
+          <p className="text-muted-foreground leading-relaxed">
+            The client portal is included free for clients of any TidyWise-powered
+            cleaning business. There's nothing to download — it works in any modern
+            browser on desktop, tablet, or mobile, and there are dedicated iOS and
+            Android apps if you prefer a native experience.
+          </p>
+        </div>
       </section>
     </main>
   );

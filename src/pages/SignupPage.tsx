@@ -209,8 +209,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background flex flex-col">
       <SEOHead title="Start Free Trial | TidyWise – Cleaning Business Software" description="Sign up for TidyWise free trial. Get online booking, scheduling, CRM, and automated invoicing for your cleaning business. No credit card required." canonical="/signup" noIndex />
+      <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link */}
         <Link 
@@ -438,6 +439,68 @@ export default function SignupPage() {
           .
         </div>
       </div>
+      </div>
+
+      <section aria-labelledby="signup-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 id="signup-info-heading" className="text-2xl font-bold text-foreground">
+            Everything you need to run your cleaning business — start free
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            TidyWise is the operating system for modern cleaning businesses. Create your
+            free trial above and you'll have access to the same software that thousands
+            of independent cleaners, maid services, commercial janitorial teams, and
+            franchise operators use to win more jobs and run leaner operations.
+          </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Your free trial includes
+            </h3>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li>A branded online booking page where clients can book and pay 24/7</li>
+              <li>Automated scheduling, dispatch, and route optimization for your team</li>
+              <li>Instant quotes, invoicing, and secure payments with low processing fees</li>
+              <li>A complete CRM with client history, notes, photos, and recurring contracts</li>
+              <li>Built-in payroll, tip distribution, and deposit handling</li>
+              <li>SMS and email automations for confirmations, reminders, and reviews</li>
+              <li>Native iOS and Android apps for owners, staff, and clients</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Why cleaning business owners choose TidyWise
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              We built TidyWise because every other tool on the market was either too
+              generic (built for plumbers and electricians) or too rigid (forces you into
+              a single business model). Whether you charge by the hour, by the room, by
+              square footage, by job, or with a recurring contract, TidyWise adapts to
+              how you already work. Our users typically cut their admin time in half,
+              fill more calendar slots, reduce no-shows by 60% or more, and grow recurring
+              revenue without hiring more office staff.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              What happens after you sign up?
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              You'll go through a short guided onboarding to set up your services,
+              pricing, service area, and team. You can import existing clients from a
+              spreadsheet, sync your calendar, configure online booking, and connect a
+              payment processor. Most owners are taking online bookings within the first
+              day. Your data is encrypted, backed up daily, and never shared with anyone.
+            </p>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed font-medium">
+            No credit card required. No long-term contracts. Cancel anytime.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
