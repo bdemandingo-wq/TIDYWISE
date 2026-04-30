@@ -30,18 +30,35 @@ export function SEOHead({
     ? canonicalSource
     : `${PRODUCTION_DOMAIN}${canonicalSource.startsWith("/") ? canonicalSource : `/${canonicalSource}`}`;
 
-  // Keep the static canonical tag from index.html in sync so there's exactly one in <head>,
-  // even before Helmet hydrates / for non-JS crawlers.
-  useEffect(() => {
-    const tag = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (tag) tag.href = canonicalUrl;
-  }, [canonicalUrl]);
-
   const imageUrl = ogImage
     ? ogImage.startsWith("http")
       ? ogImage
       : `${PRODUCTION_DOMAIN}${ogImage}`
     : DEFAULT_OG_IMAGE;
+
+  // Keep the static canonical and OG/Twitter tags from index.html in sync so there's
+  // exactly one of each in <head>, even before Helmet hydrates / for non-JS crawlers.
+  useEffect(() => {
+    const setLinkHref = (selector: string, href: string) => {
+      const tag = document.querySelector<HTMLLinkElement>(selector);
+      if (tag) tag.href = href;
+    };
+    const setMetaContent = (selector: string, content: string) => {
+      const tag = document.querySelector<HTMLMetaElement>(selector);
+      if (tag) tag.content = content;
+    };
+
+    setLinkHref('link[rel="canonical"]', canonicalUrl);
+
+    setMetaContent('meta[property="og:title"]', title);
+    setMetaContent('meta[property="og:description"]', description);
+    setMetaContent('meta[property="og:image"]', imageUrl);
+    setMetaContent('meta[property="og:url"]', canonicalUrl);
+
+    setMetaContent('meta[name="twitter:title"]', title);
+    setMetaContent('meta[name="twitter:description"]', description);
+    setMetaContent('meta[name="twitter:image"]', imageUrl);
+  }, [canonicalUrl, title, description, imageUrl]);
 
   const jsonLdPayload = schemaJson
     ? Array.isArray(schemaJson)
@@ -55,24 +72,8 @@ export function SEOHead({
       <meta name="description" content={description} />
       <meta name="robots" content={noIndex ? "noindex, nofollow" : "index, follow"} />
 
-      {/* Open Graph */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:type" content="website" />
-      <meta property="og:site_name" content="TidyWise" />
-      <meta property="og:image" content={imageUrl} />
-      <meta property="og:image:width" content="1920" />
-      <meta property="og:image:height" content="1080" />
-      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
-
-      {/* Twitter */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={imageUrl} />
-
-      {/* Canonical is managed via useEffect on the static tag in index.html
-          to avoid duplicate canonicals from Helmet on subpages. */}
+      {/* Canonical and OG/Twitter tags are managed via useEffect on the static tags
+          in index.html to keep them at the top of <head> and avoid duplicates. */}
 
       {/* JSON-LD */}
       {jsonLdPayload && (
