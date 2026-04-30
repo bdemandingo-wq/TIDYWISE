@@ -74,7 +74,7 @@ export default function PortalLoginPage() {
       <SEOHead
         title="Client Portal | Sign In"
         description="Sign in to your client portal to view bookings, request appointments, and more."
-        canonical="/portal/login"
+        canonical="https://www.jointidywise.com/portal/login"
         noIndex
       />
 
