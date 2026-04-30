@@ -10,7 +10,7 @@ import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -172,7 +172,7 @@ export default function StaffLoginPage() {
               <HardHat className="w-8 h-8 text-primary-foreground" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">Staff Portal</CardTitle>
+              <h1 className="text-2xl font-bold leading-none tracking-tight">TidyWise Staff Portal Login</h1>
               <CardDescription className="mt-2">
                 Sign in to access your jobs and schedule
               </CardDescription>

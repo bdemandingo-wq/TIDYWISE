@@ -9,7 +9,7 @@ import { ArrowLeft, Eye, EyeOff, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 
@@ -86,7 +86,7 @@ export default function PortalLoginPage() {
               <Users className="w-8 h-8 text-primary-foreground" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">Client Portal</CardTitle>
+              <h1 className="text-2xl font-bold leading-none tracking-tight">TidyWise Client Portal Login</h1>
               <CardDescription className="mt-2">
                 Sign in to view your bookings and schedule appointments
               </CardDescription>

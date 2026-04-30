@@ -9,7 +9,7 @@ import { useAuthNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
@@ -134,7 +134,7 @@ export default function LoginPage() {
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+            <h1 className="text-2xl font-bold leading-none tracking-tight">Sign in to your TidyWise account</h1>
             <CardDescription>
               Sign in to your account
             </CardDescription>
