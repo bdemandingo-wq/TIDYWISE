@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
@@ -33,8 +33,8 @@ export default function SchedulingSoftwareForCleaners() {
             <div className="hidden md:flex items-center gap-8">
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
-              <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={() => navigate("/signup")}>Start Free Trial</Button>
+              <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
+              <Button asChild><Link to="/signup">Start Free Trial</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -45,8 +45,8 @@ export default function SchedulingSoftwareForCleaners() {
               <a href="/blog" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
-                <Button variant="ghost" onClick={() => navigate("/login")} className="flex-1">Log In</Button>
-                <Button onClick={() => navigate("/signup")} className="flex-1">Start Free</Button>
+                <Button variant="ghost" asChild className="flex-1"><Link to="/login">Log In</Link></Button>
+                <Button asChild className="flex-1"><Link to="/signup">Start Free</Link></Button>
               </div>
             </div>
           )}
@@ -171,7 +171,10 @@ export default function SchedulingSoftwareForCleaners() {
               <p className="text-muted-foreground text-sm mb-4">
                 Online booking, drag-and-drop calendar, automated SMS reminders, cleaner app, route optimization, and payroll integration — all in one platform built specifically for cleaning businesses.
               </p>
-              <Button onClick={() => navigate("/signup")}>Start Free →</Button>
+              <Button asChild><Link to="/signup">Start Free →</Link></Button>
+              <p className="text-sm text-muted-foreground mt-3">
+                Already have a TidyWise account? <Link to="/login" className="text-primary hover:underline">Sign in to your dashboard</Link>.
+              </p>
             </div>
           </div>
 

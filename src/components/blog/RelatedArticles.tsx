@@ -57,6 +57,21 @@ export const allArticles: RelatedArticle[] = [
     title: "Booking Koala vs Jobber vs TidyWise: Complete Comparison",
     category: "Comparison",
   },
+  {
+    slug: "/blog/best-software-for-cleaning-business",
+    title: "Best Software for Cleaning Business Owners (2025)",
+    category: "Software Reviews",
+  },
+  {
+    slug: "/blog/how-to-automate-cleaning-company",
+    title: "How to Automate Your Cleaning Company",
+    category: "Automation",
+  },
+  {
+    slug: "/blog/how-to-grow-cleaning-business-2025",
+    title: "How to Grow Your Cleaning Business in 2025",
+    category: "Business Growth",
+  },
   // Feature Pages
   {
     slug: "/features/scheduling-software",
