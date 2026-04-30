@@ -22,6 +22,7 @@ export const locationData: Record<string, LocationData> = {
   "california": {
     type: "state",
     name: "California",
+    seoDescription: "Cleaning business software for California — built for LA, Bay Area, and San Diego cleaners with AB5 wage rules baked in. Free to start.",
     intro: "California's residential cleaning market is one of the largest in the country, spanning Los Angeles, the Bay Area, San Diego, and hundreds of fast-growing suburban markets. High labor costs, competitive pricing pressure, and complex wage laws—including AB5 independent-contractor rules—make running a cleaning business here harder than almost anywhere else in the US.",
     marketContext: "California cleaning companies pay some of the highest cleaner wages in the country, averaging $18–$25/hour. Software that automates payroll, tip tracking, and mileage reimbursements typically pays for itself within the first month.",
     topCities: ["Los Angeles", "San Diego", "San Jose", "San Francisco", "Sacramento", "Fresno", "Oakland", "Long Beach"],
@@ -68,6 +69,7 @@ export const locationData: Record<string, LocationData> = {
   "florida": {
     type: "state",
     name: "Florida",
+    seoDescription: "Cleaning business software for Florida — Miami, Orlando, Tampa, and Jacksonville. Built for Airbnb turnovers and snowbird residential. Free.",
     intro: "Florida's cleaning market is uniquely shaped by its snowbird population, booming short-term rental sector, and year-round demand. Markets like Miami, Orlando, Tampa, and Jacksonville each have distinct client profiles—from luxury waterfront condos to Airbnb vacation rentals that need fast turnovers between guests.",
     marketContext: "Vacation rental cleaning is a major revenue driver in Florida, with turnover cleans running $80–$200 per visit and high repeat frequency. Managing guest-driven scheduling with last-minute changes makes reliable software essential.",
     topCities: ["Miami", "Orlando", "Tampa", "Jacksonville", "Fort Lauderdale", "Boca Raton", "Naples", "Sarasota"],
@@ -161,6 +163,7 @@ export const locationData: Record<string, LocationData> = {
   "georgia": {
     type: "state",
     name: "Georgia",
+    seoDescription: "Cleaning business software for Georgia — booking, scheduling, payroll, and GPS for Atlanta, Alpharetta, Marietta, and Savannah cleaners.",
     intro: "Georgia's cleaning market has grown substantially alongside Atlanta's tech boom and the state's overall population growth. Metro Atlanta—including Alpharetta, Marietta, Smyrna, and Decatur—is the primary market, but Savannah, Augusta, and Columbus all have growing residential cleaning demand.",
     marketContext: "Atlanta's heat and humidity mean clients often want more frequent cleaning (every 1–2 weeks vs monthly), which increases recurring revenue per client. Traffic congestion across the metro is a major route optimization challenge.",
     topCities: ["Atlanta", "Savannah", "Columbus", "Augusta", "Macon", "Alpharetta", "Marietta", "Roswell"],
@@ -207,6 +210,7 @@ export const locationData: Record<string, LocationData> = {
   "colorado": {
     type: "state",
     name: "Colorado",
+    seoDescription: "Cleaning business software for Colorado — Denver, Boulder, and Vail/Aspen vacation rentals. Free booking, scheduling, payroll, and GPS routing.",
     intro: "Colorado's cleaning market is driven by Denver's rapid growth and a mountain resort sector that creates strong vacation rental cleaning demand in towns like Vail, Aspen, Breckenridge, and Steamboat Springs. The Front Range—Denver, Aurora, Lakewood, Boulder, Fort Collins—is the core residential market, with suburban expansion pushing demand further east.",
     marketContext: "Colorado's outdoor lifestyle means clients often track in more dirt and debris, increasing cleaning frequency. Mountain resort markets need cleaners who can handle quick turnovers between ski-season bookings, often with same-day scheduling changes.",
     topCities: ["Denver", "Colorado Springs", "Aurora", "Fort Collins", "Boulder", "Lakewood", "Thornton", "Pueblo"],
@@ -230,6 +234,7 @@ export const locationData: Record<string, LocationData> = {
   "arizona": {
     type: "state",
     name: "Arizona",
+    seoDescription: "Cleaning business software for Arizona — booking, scheduling, and Airbnb turnover tools for Phoenix, Scottsdale, Tucson, and Sedona.",
     intro: "Arizona's cleaning market is centered on the Greater Phoenix metro (Scottsdale, Tempe, Mesa, Chandler, Gilbert, Surprise) with a secondary market in Tucson. The state's large retiree population, rapid suburban growth, and booming short-term rental market (especially around Scottsdale and Sedona) create diverse, year-round cleaning demand.",
     marketContext: "Phoenix's extreme summer heat (110°F+) affects cleaner working conditions and scheduling—many cleaners work early mornings to avoid afternoon heat. Dusty desert conditions mean clients often need more frequent cleaning, especially for exterior spaces and HVAC filter areas.",
     topCities: ["Phoenix", "Tucson", "Scottsdale", "Mesa", "Chandler", "Tempe", "Gilbert", "Glendale"],
@@ -918,6 +923,7 @@ export const locationData: Record<string, LocationData> = {
   "alabama": {
     type: "state",
     name: "Alabama",
+    seoDescription: "Cleaning business software for Alabama — Birmingham, Huntsville, and Mobile. Free booking, scheduling, payroll, GPS, and CRM in one dashboard.",
     intro: "Alabama's cleaning market is anchored by Birmingham—the state's largest city and an emerging healthcare and tech hub—alongside Huntsville's rapidly growing aerospace and defense sector, and Mobile's port-driven economy. The state's lower cost of living means competitive cleaning rates, but strong demand from dual-income households in suburban markets keeps margins healthy.",
     marketContext: "Alabama cleaning businesses benefit from relatively low operating costs compared to coastal markets. Huntsville in particular has seen explosive growth from defense contractor and Amazon operations center expansions, bringing high-income professional households who routinely use cleaning services.",
     topCities: ["Birmingham", "Huntsville", "Montgomery", "Mobile", "Tuscaloosa", "Hoover", "Auburn", "Decatur"],
@@ -941,6 +947,7 @@ export const locationData: Record<string, LocationData> = {
   "alaska": {
     type: "state",
     name: "Alaska",
+    seoDescription: "Cleaning business software for Alaska — built for Anchorage's high-wage economy and the JBER military market. Free scheduling, payroll, GPS.",
     intro: "Alaska's cleaning market is small but uniquely lucrative in Anchorage, the state's main population center. High wages across all industries (the Alaska Permanent Fund dividend and oil sector wages elevate the entire economy), extreme weather that increases indoor cleaning frequency, and a large military presence at JBER (Joint Base Elmendorf-Richardson) create consistent residential cleaning demand.",
     marketContext: "Alaska's geographic isolation and high cost of living mean cleaning services command premium rates—50–80% above comparable Lower 48 markets. Supply of cleaning businesses is limited relative to demand, giving well-run operations strong pricing power.",
     topCities: ["Anchorage", "Fairbanks", "Juneau", "Wasilla", "Sitka", "Kenai", "Kodiak"],
@@ -964,6 +971,7 @@ export const locationData: Record<string, LocationData> = {
   "arkansas": {
     type: "state",
     name: "Arkansas",
+    seoDescription: "Cleaning business software for Arkansas — built for Bentonville's Walmart corridor, Little Rock, and Fayetteville. Free scheduling and payroll.",
     intro: "Arkansas's cleaning market is growing steadily, anchored by Bentonville (home to Walmart HQ and the growing Crystal Bridges arts scene), Little Rock's government and healthcare sector, and Fayetteville's university-driven market. Northwest Arkansas—Bentonville, Rogers, Springdale, Fayetteville—has transformed into one of the most economically dynamic regions in the South thanks to Walmart supplier relocations.",
     marketContext: "Walmart's global headquarters in Bentonville draws supplier and tech company offices from across the country, bringing high-income relocating families who are accustomed to using cleaning services. NW Arkansas is the premium market; Little Rock and Fort Smith are more price-sensitive mid-markets.",
     topCities: ["Little Rock", "Fort Smith", "Fayetteville", "Springdale", "Jonesboro", "Bentonville", "Rogers", "Conway"],
@@ -987,6 +995,7 @@ export const locationData: Record<string, LocationData> = {
   "connecticut": {
     type: "state",
     name: "Connecticut",
+    seoDescription: "Cleaning business software for Connecticut — built for Fairfield County's Greenwich/Westport market and Hartford. Free scheduling and payroll.",
     intro: "Connecticut has one of the highest median household incomes in the country, concentrated in Fairfield County's Gold Coast (Greenwich, Westport, Darien, New Canaan) where hedge fund executives, Wall Street commuters, and corporate leadership create an exceptionally premium residential cleaning market. Hartford's insurance industry and Stamford's corporate corridor add additional high-income client density.",
     marketContext: "Fairfield County cleaning businesses serve some of the wealthiest zip codes in the US—Greenwich estates routinely command $400–$800+ per clean. Connecticut's proximity to New York City makes it a strong satellite market for premium cleaning operators.",
     topCities: ["Bridgeport", "New Haven", "Stamford", "Hartford", "Waterbury", "Greenwich", "Westport", "Darien"],
@@ -1010,6 +1019,7 @@ export const locationData: Record<string, LocationData> = {
   "delaware": {
     type: "state",
     name: "Delaware",
+    seoDescription: "Cleaning business software for Delaware — built for Wilmington and Brandywine Valley cleaners. Free booking, scheduling, payroll, GPS, and CRM.",
     intro: "Delaware is a small state with an outsized economic presence—it's the corporate registration home for over 60% of Fortune 500 companies, bringing a dense concentration of legal and financial professionals to Wilmington. The Wilmington metro and the Brandywine Valley suburbs (Greenville, Hockessin, Pike Creek) are the primary residential cleaning markets.",
     marketContext: "Delaware has no sales tax, which simplifies client invoicing. Its small geography means a single cleaning team can cover the entire state in a day, making routing unusually efficient compared to larger markets.",
     topCities: ["Wilmington", "Dover", "Newark", "Middletown", "Bear", "Hockessin", "Greenville", "Rehoboth Beach"],
@@ -1033,6 +1043,7 @@ export const locationData: Record<string, LocationData> = {
   "hawaii": {
     type: "state",
     name: "Hawaii",
+    seoDescription: "Cleaning business software for Hawaii — built for Honolulu residential and Maui/Kauai/Big Island vacation rental turnovers. Free to start.",
     intro: "Hawaii's cleaning market is shaped by tourism, vacation rentals, and a high cost of living that drives premium rates across all services. Honolulu's residential market is the largest, but Maui, Kauai, and the Big Island all have significant vacation rental and luxury home cleaning demand from short-term rentals catering to visitors who pay some of the highest nightly rates in the US.",
     marketContext: "Hawaii's minimum wage ($16/hour statewide in 2025) and high cost of living mean both labor costs and client rates are above the US average. Vacation rental cleaning is a primary revenue driver—Maui and Kauai short-term rentals command $200–$400+ per turnover during peak tourist season.",
     topCities: ["Honolulu", "Pearl City", "Hilo", "Kailua", "Waipahu", "Kailua-Kona", "Lahaina", "Lihue"],
@@ -1056,6 +1067,7 @@ export const locationData: Record<string, LocationData> = {
   "idaho": {
     type: "state",
     name: "Idaho",
+    seoDescription: "Cleaning business software for Idaho — built for Boise's growing market plus Meridian, Nampa, and Eagle. Free scheduling, payroll, and GPS.",
     intro: "Idaho is one of the fastest-growing states in the US, with Boise leading one of the country's most remarkable tech and population booms. Californians relocating for affordability, a growing tech sector (Micron Technology, HP, Clearwater Paper), and outdoor lifestyle appeal have transformed Boise and its suburbs (Meridian, Nampa, Eagle, Star) into a high-demand residential cleaning market.",
     marketContext: "Idaho's outdoor lifestyle means clients track in more dirt and debris than in typical suburban markets, increasing cleaning frequency. The influx of California transplants brings clients who are accustomed to using cleaning services regularly and are willing to pay competitive rates.",
     topCities: ["Boise", "Meridian", "Nampa", "Idaho Falls", "Pocatello", "Caldwell", "Twin Falls", "Coeur d'Alene"],

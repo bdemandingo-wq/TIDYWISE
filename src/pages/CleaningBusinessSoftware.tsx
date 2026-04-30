@@ -233,7 +233,7 @@ export default function CleaningBusinessSoftware() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Cleaning Business Software — Free Forever | TIDYWISE"
-        description="The best cleaning business software: scheduling, CRM, payroll, GPS tracking & invoicing in one platform. Free forever. No credit card. Beats Jobber & Housecall Pro."
+        description="Free cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Built to beat Jobber and Housecall Pro."
         canonical="/cleaning-business-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
