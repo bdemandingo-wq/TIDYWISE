@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +148,16 @@ export default function DeleteAccountPage() {
               <ul className="list-disc list-inside text-muted-foreground text-sm space-y-1">
                 <li>Payment transaction records required by payment processors</li>
               </ul>
+              <p className="text-sm text-muted-foreground mt-4">
+                For details on how we handle your data while your account is active,
+                see our <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>.
+                If you'd rather pause your subscription instead of deleting,{" "}
+                <Link to="/login" className="text-primary hover:underline">sign in to your dashboard</Link> to manage your plan,
+                or visit the <Link to="/pricing" className="text-primary hover:underline">pricing page</Link> to compare options.
+                Not a customer yet but considering one? Browse our{" "}
+                <Link to="/blog" className="text-primary hover:underline">cleaning business resources</Link> or{" "}
+                <Link to="/cleaning-business-software" className="text-primary hover:underline">learn what TidyWise offers</Link>.
+              </p>
             </CardContent>
           </Card>
 

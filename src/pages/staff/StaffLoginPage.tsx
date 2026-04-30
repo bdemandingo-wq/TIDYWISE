@@ -338,6 +338,23 @@ export default function StaffLoginPage() {
             SMS. Setup takes under a minute, and biometric sign-in (Face ID, Touch ID, or
             fingerprint) is supported on iOS and Android for fast, secure access.
           </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Looking for a different sign-in?
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              If you're a business owner, sign in to your{" "}
+              <Link to="/login" className="text-primary hover:underline">owner dashboard</Link>{" "}
+              instead, or visit the <Link to="/portal/login" className="text-primary hover:underline">Client Portal</Link> if you're a client.
+              New to TidyWise? Learn about our{" "}
+              <Link to="/cleaning-business-software" className="text-primary hover:underline">cleaning business software</Link>,{" "}
+              <Link to="/features/scheduling-software" className="text-primary hover:underline">scheduling tools</Link>,{" "}
+              <Link to="/features/payroll-software" className="text-primary hover:underline">payroll software</Link>,
+              and <Link to="/pricing" className="text-primary hover:underline">pricing</Link>, or{" "}
+              <Link to="/signup" className="text-primary hover:underline">start a free trial</Link>.
+            </p>
+          </div>
         </div>
       </section>
 

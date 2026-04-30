@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
-import { AuthRedirect } from "@/components/AuthRedirect";
 import { AuthProviderNoSession } from "@/hooks/useAuthNoSession";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { TestModeProvider } from "@/contexts/TestModeContext";
@@ -186,7 +185,7 @@ const App = () => (
                          <Route path="/login" element={<LoginPage />} />
                          {/* App Store Guideline 3.1.1: No signup/registration on native */}
                          <Route path="/signup" element={<Navigate to="/login" replace />} />
-                         <Route path="/auth" element={<AuthRedirect />} />
+                         <Route path="/auth" element={<LoginPage />} />
                          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                          <Route path="/reset-password" element={<Navigate to="/login" replace />} />
                          <Route path="/contact" element={<Navigate to="/login" replace />} />
@@ -284,7 +283,7 @@ const App = () => (
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/cleaning-business-software" element={<CleaningBusinessSoftware />} />
                     <Route path="/cleaning-business-software/:locationSlug" element={<LocationSoftwarePage />} />
-                    <Route path="/auth" element={<AuthRedirect />} />
+                    <Route path="/auth" element={<LoginPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />

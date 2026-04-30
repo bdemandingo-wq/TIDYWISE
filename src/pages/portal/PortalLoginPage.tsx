@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -211,6 +211,24 @@ export default function PortalLoginPage() {
             browser on desktop, tablet, or mobile, and there are dedicated iOS and
             Android apps if you prefer a native experience.
           </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Are you a cleaning business owner?
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              The TidyWise client portal is part of a complete platform that powers
+              the cleaning service running this site. If you run a cleaning business
+              and want a portal like this for your own clients, learn more about our{" "}
+              <Link to="/cleaning-business-software" className="text-primary hover:underline">cleaning business software</Link>,{" "}
+              <Link to="/features/booking" className="text-primary hover:underline">online booking</Link>,{" "}
+              <Link to="/features/scheduling-software" className="text-primary hover:underline">scheduling</Link>, and{" "}
+              <Link to="/pricing" className="text-primary hover:underline">pricing plans</Link>. You can{" "}
+              <Link to="/signup" className="text-primary hover:underline">start a free trial</Link> or{" "}
+              <Link to="/login" className="text-primary hover:underline">sign in to your owner dashboard</Link>.
+              Already on the team? Use the <Link to="/staff/login" className="text-primary hover:underline">Staff Portal</Link> instead.
+            </p>
+          </div>
         </div>
       </section>
     </main>
