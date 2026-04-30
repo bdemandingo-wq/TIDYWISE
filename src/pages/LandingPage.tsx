@@ -316,14 +316,16 @@ export default function LandingPage() {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Features</a>
               <a href="#blog" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Blog</a>
               <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Testimonials</a>
-              <Button variant="ghost" onClick={() => navigate("/pricing")} className="text-sm">Pricing</Button>
-              <Button variant="ghost" onClick={() => navigate("/portal")} className="text-sm">Client Portal</Button>
-              <Button variant="ghost" onClick={() => navigate("/staff/login")} className="text-sm">Staff Portal</Button>
-              <Button variant="ghost" onClick={() => navigate("/demo")} className="text-sm font-medium text-primary">Schedule Demo</Button>
-              <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
-              <Button variant="premium" onClick={() => navigate("/signup")} className="text-sm">
-                Get Started Free
-                <ArrowRight className="ml-1 h-4 w-4" />
+              <Button variant="ghost" asChild className="text-sm"><Link to="/pricing">Pricing</Link></Button>
+              <Button variant="ghost" asChild className="text-sm"><Link to="/portal/login">Client Portal</Link></Button>
+              <Button variant="ghost" asChild className="text-sm"><Link to="/staff/login">Staff Portal</Link></Button>
+              <Button variant="ghost" asChild className="text-sm font-medium text-primary"><Link to="/demo">Schedule Demo</Link></Button>
+              <Button variant="ghost" asChild className="text-sm"><Link to="/login">Log In</Link></Button>
+              <Button variant="premium" asChild className="text-sm">
+                <Link to="/signup">
+                  Get Started Free
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
               </Button>
             </div>
 
@@ -379,67 +381,27 @@ export default function LandingPage() {
                       >
                         Testimonials
                        </a>
-                       <Button
-                         variant="ghost"
-                         className="justify-start text-primary font-medium"
-                         onClick={() => {
-                           closeMobileMenu();
-                           navigate("/demo");
-                         }}
-                       >
-                         Schedule Demo
+                       <Button variant="ghost" asChild className="justify-start text-primary font-medium" onClick={closeMobileMenu}>
+                         <Link to="/demo">Schedule Demo</Link>
                        </Button>
-                       <Button
-                        variant="ghost"
-                        className="justify-start"
-                        onClick={() => {
-                          closeMobileMenu();
-                          navigate("/pricing");
-                        }}
-                      >
-                        Pricing
-                      </Button>
-                       <Button
-                         variant="ghost"
-                         className="justify-start"
-                         onClick={() => {
-                           closeMobileMenu();
-                           navigate("/portal");
-                         }}
-                       >
-                         Client Portal
+                       <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
+                         <Link to="/pricing">Pricing</Link>
                        </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start"
-                        onClick={() => {
-                          closeMobileMenu();
-                          navigate("/staff/login");
-                        }}
-                      >
-                        Staff Portal
-                      </Button>
-                      <Button
-                       variant="ghost"
-                       className="justify-start"
-                       onClick={() => {
-                         closeMobileMenu();
-                         navigate("/login");
-                       }}
-                     >
-                       Log In
-                     </Button>
-                     <Button
-                       variant="premium"
-                       className="mt-1"
-                       onClick={() => {
-                         closeMobileMenu();
-                         navigate("/signup");
-                       }}
-                     >
-                        Get Started Free
-                        <ArrowRight className="ml-1 h-4 w-4" />
-                     </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
+                         <Link to="/portal/login">Client Portal</Link>
+                       </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
+                         <Link to="/staff/login">Staff Portal</Link>
+                       </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
+                         <Link to="/login">Log In</Link>
+                       </Button>
+                       <Button variant="premium" asChild className="mt-1" onClick={closeMobileMenu}>
+                         <Link to="/signup">
+                           Get Started Free
+                           <ArrowRight className="ml-1 h-4 w-4" />
+                         </Link>
+                       </Button>
                    </div>
                  </div>
                </div>
@@ -864,7 +826,7 @@ export default function LandingPage() {
       {/* Footer - Clean and minimal */}
       <footer className="py-10 px-4 sm:px-6 lg:px-8 border-t border-border bg-background">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
             <div className="md:col-span-1">
               <span className="font-bold text-xl text-foreground mb-4 block">TIDYWISE</span>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -909,6 +871,20 @@ export default function LandingPage() {
               <ul className="space-y-3">
                 <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
                 <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground mb-4">Resources</h4>
+              <ul className="space-y-3">
+                <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">All Guides</Link></li>
+                <li><Link to="/blog/best-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Best Cleaning Software</Link></li>
+                <li><Link to="/blog/maid-service-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Maid Service Software</Link></li>
+                <li><Link to="/blog/scheduling-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Scheduling Software</Link></li>
+                <li><Link to="/blog/invoicing-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Invoicing Software</Link></li>
+                <li><Link to="/blog/cleaning-business-management-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Management Software</Link></li>
+                <li><Link to="/blog/gps-tracking-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">GPS Tracking</Link></li>
+                <li><Link to="/blog/how-to-automate-cleaning-company" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Automation Guide</Link></li>
+                <li><Link to="/blog/how-to-grow-cleaning-business-2025" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Growth Playbook</Link></li>
               </ul>
             </div>
           </div>
