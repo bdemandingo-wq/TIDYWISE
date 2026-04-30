@@ -247,6 +247,7 @@ serve(async (req) => {
               created: safeFormatDate(customerCreated),
               subscriptionStatus: resolvedStatus,
               subscriptionCreated: safeFormatDate(sub.created),
+              subscriptionId: sub.id,
               source: 'tidywise_subscriber',
             });
           }
