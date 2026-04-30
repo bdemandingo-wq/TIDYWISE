@@ -12,7 +12,7 @@ export function SiteFooter() {
             </p>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Product</h4>
+            <h3 className="font-semibold text-foreground mb-4">Product</h3>
             <ul className="space-y-3">
               <li><Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Home</Link></li>
               <li><Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
@@ -20,7 +20,7 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Features</h4>
+            <h3 className="font-semibold text-foreground mb-4">Features</h3>
             <ul className="space-y-3">
               <li><Link to="/features/scheduling-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Scheduling</Link></li>
               <li><Link to="/features/crm" className="text-sm text-muted-foreground hover:text-foreground transition-colors">CRM</Link></li>
@@ -30,7 +30,7 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Compare</h4>
+            <h3 className="font-semibold text-foreground mb-4">Compare</h3>
             <ul className="space-y-3">
               <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
               <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>

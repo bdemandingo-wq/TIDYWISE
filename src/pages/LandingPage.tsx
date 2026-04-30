@@ -834,7 +834,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Product</h4>
+              <h3 className="font-semibold text-foreground mb-4">Product</h3>
               <ul className="space-y-3">
                 <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
                 <li><a href="#blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</a></li>
@@ -842,7 +842,7 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Company</h4>
+              <h3 className="font-semibold text-foreground mb-4">Company</h3>
               <ul className="space-y-3">
                 <li>
                   <a href="mailto:support@tidywisecleaning.com" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -867,14 +867,14 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Compare</h4>
+              <h3 className="font-semibold text-foreground mb-4">Compare</h3>
               <ul className="space-y-3">
                 <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
                 <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Resources</h4>
+              <h3 className="font-semibold text-foreground mb-4">Resources</h3>
               <ul className="space-y-3">
                 <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">All Guides</Link></li>
                 <li><Link to="/blog/best-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Best Cleaning Software</Link></li>
