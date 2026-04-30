@@ -13,8 +13,8 @@ export function AuthRedirect() {
   return (
     <>
       <SEOHead
-        title="Log In to TidyWise | Cleaning Business Software"
-        description="Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard."
+        title="Sign In to TidyWise – Cleaning Business Software"
+        description="Sign in to TidyWise to run your cleaning business from one dashboard — online bookings, scheduling, invoicing, payments, payroll, and team dispatch."
         canonical={CANONICAL_TARGET}
         noIndex
       />
