@@ -159,7 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
             error: "No payment method on file for this customer. Please add a card first.",
             errorCode: "no_payment_method"
           }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
       paymentMethodId = paymentMethods.data[0].id;
