@@ -185,7 +185,7 @@ const App = () => (
                          <Route path="/login" element={<LoginPage />} />
                          {/* App Store Guideline 3.1.1: No signup/registration on native */}
                          <Route path="/signup" element={<Navigate to="/login" replace />} />
-                         <Route path="/auth" element={<LoginPage />} />
+                          <Route path="/auth" element={<Navigate to="/login" replace />} />
                          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                          <Route path="/reset-password" element={<Navigate to="/login" replace />} />
                          <Route path="/contact" element={<Navigate to="/login" replace />} />
