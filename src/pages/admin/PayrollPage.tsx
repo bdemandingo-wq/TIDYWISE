@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
