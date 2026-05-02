@@ -1150,10 +1150,16 @@ export default function PayrollPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Booking Payroll Details</CardTitle>
-              <Button variant="outline" size="sm" onClick={exportDetailedCSV} className="gap-2">
-                <Download className="w-4 h-4" />
-                Export Details
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportCleanerCSV} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export for Cleaner
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportDetailedCSV} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export Details
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-2 pb-3">
