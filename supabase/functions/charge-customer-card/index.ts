@@ -138,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: "Customer has been deleted",
           errorCode: "customer_deleted"
         }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
