@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: "Customer not found for this organization. Please save a card first.",
           errorCode: "customer_not_found"
         }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
