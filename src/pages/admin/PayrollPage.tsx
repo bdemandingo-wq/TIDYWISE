@@ -472,7 +472,10 @@ export default function PayrollPage() {
   // Booking payroll details with financial columns
   const bookingPayrollDetails: BookingPayrollDetail[] = useMemo(() => {
     const details: BookingPayrollDetail[] = [];
-    const assignedBookings = bookings.filter((b: any) => b.status !== 'cancelled' && b.staff_id);
+    // Include bookings with a primary staff_id OR any team assignment
+    // (team-only bookings have null staff_id but still need to appear for assigned team members)
+    const bookingIdsWithTeam = new Set(teamAssignments.map((a: any) => a.booking_id));
+    const assignedBookings = bookings.filter((b: any) => b.status !== 'cancelled' && (b.staff_id || bookingIdsWithTeam.has(b.id)));
 
     for (const b of assignedBookings) {
       // Re-cleans (no service, $0 total) should show $0 across all financial columns
