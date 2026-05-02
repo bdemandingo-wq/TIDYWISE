@@ -283,7 +283,7 @@ const App = () => (
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/cleaning-business-software" element={<CleaningBusinessSoftware />} />
                     <Route path="/cleaning-business-software/:locationSlug" element={<LocationSoftwarePage />} />
-                    <Route path="/auth" element={<LoginPage />} />
+                    <Route path="/auth" element={<Navigate to="/login" replace />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />
