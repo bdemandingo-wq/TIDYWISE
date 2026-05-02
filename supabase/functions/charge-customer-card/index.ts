@@ -101,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: stripeResult.error || "Stripe not configured for this organization",
           errorCode: "stripe_not_configured"
         }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
     const stripe = stripeResult.stripe;
@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: "Customer not found for this organization. Please save a card first.",
           errorCode: "customer_not_found"
         }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -138,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: "Customer has been deleted",
           errorCode: "customer_deleted"
         }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -159,7 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
             error: "No payment method on file for this customer. Please add a card first.",
             errorCode: "no_payment_method"
           }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
       paymentMethodId = paymentMethods.data[0].id;
