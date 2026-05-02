@@ -101,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: stripeResult.error || "Stripe not configured for this organization",
           errorCode: "stripe_not_configured"
         }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
     const stripe = stripeResult.stripe;
