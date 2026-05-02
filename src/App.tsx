@@ -159,7 +159,7 @@ const AppStateHandler = () => {
 };
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
     <QueryClientProvider client={queryClient}>
       {/* AuthProviderNoSession MUST wrap AuthProvider since AuthProvider uses useAuthNoSession */}
       <AuthProviderNoSession>
