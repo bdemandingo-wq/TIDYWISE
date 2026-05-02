@@ -114,11 +114,9 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
-    const { data: orgStripeSettings, error: stripeSettingsError } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", data.organizationId)
-      .maybeSingle();
+    const { data: secretRows, error: stripeSettingsError } = await supabase.rpc("get_org_stripe_secret", {
+      p_org_id: data.organizationId,
+    });
 
     if (stripeSettingsError) {
       return new Response(JSON.stringify({ error: "Failed to fetch Stripe configuration" }), {
@@ -127,14 +125,17 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    if (!orgStripeSettings?.stripe_secret_key) {
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeApiKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+
+    if (!stripeApiKey) {
       return new Response(JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    const stripe = new Stripe(orgStripeSettings.stripe_secret_key, {
+    const stripe = new Stripe(stripeApiKey, {
       apiVersion: "2025-08-27.basil",
     });
 

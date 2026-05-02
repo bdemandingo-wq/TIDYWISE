@@ -70,15 +70,19 @@ const handler = async (req: Request): Promise<Response> => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data: orgStripeSettings } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key, stripe_publishable_key")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    const [{ data: secretRows }, { data: orgSettings }] = await Promise.all([
+      supabase.rpc("get_org_stripe_secret", { p_org_id: organizationId }),
+      supabase
+        .from("org_stripe_settings")
+        .select("stripe_publishable_key")
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+    ]);
 
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
-    const stripePublishableKey = orgStripeSettings?.stripe_publishable_key;
-    
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeSecretKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+    const stripePublishableKey = orgSettings?.stripe_publishable_key ?? null;
+
     if (!stripeSecretKey) {
       return new Response(
         JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),

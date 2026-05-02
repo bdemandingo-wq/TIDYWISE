@@ -43,15 +43,14 @@ const handler = async (req: Request): Promise<Response> => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data: orgStripeSettings } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    const { data: secretRows } = await supabase.rpc("get_org_stripe_secret", {
+      p_org_id: organizationId,
+    });
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
 
     // STRICT ISOLATION: Only use organization-specific key, never fallback to global keys
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
-    
+    const stripeSecretKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+
     if (!stripeSecretKey) {
       return new Response(
         JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),

@@ -47,14 +47,12 @@ serve(async (req) => {
       });
     }
 
-    // Get org Stripe key
-    const { data: stripeSettings } = await supabaseAdmin
-      .from("org_stripe_settings")
-      .select("stripe_secret_key, stripe_access_token")
-      .eq("organization_id", organization_id)
-      .maybeSingle();
-
-    const stripeKey = stripeSettings?.stripe_access_token || stripeSettings?.stripe_secret_key;
+    // Get org Stripe key (secrets live in org_stripe_secrets via SECURITY DEFINER RPC).
+    const { data: secretRows } = await supabaseAdmin.rpc("get_org_stripe_secret", {
+      p_org_id: organization_id,
+    });
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
     if (!stripeKey) {
       return new Response(JSON.stringify({ error: "Stripe not connected for this organization" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }

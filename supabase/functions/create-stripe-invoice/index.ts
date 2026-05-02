@@ -65,11 +65,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // STRICT ISOLATION: Get organization-specific Stripe credentials - NO FALLBACK ALLOWED
-    const { data: orgStripeSettings, error: stripeSettingsError } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", data.organizationId)
-      .maybeSingle();
+    const { data: secretRows, error: stripeSettingsError } = await supabase.rpc("get_org_stripe_secret", {
+      p_org_id: data.organizationId,
+    });
 
     if (stripeSettingsError) {
       console.error("[create-stripe-invoice] Error fetching Stripe settings for org:", data.organizationId, stripeSettingsError);
@@ -79,8 +77,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeApiKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+
     // CRITICAL: NO FALLBACK - Organization must have its own Stripe key configured
-    if (!orgStripeSettings?.stripe_secret_key) {
+    if (!stripeApiKey) {
       console.error("[create-stripe-invoice] No Stripe key configured for organization:", data.organizationId);
       return new Response(
         JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),
@@ -89,12 +90,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("[create-stripe-invoice] Using organization-specific Stripe key for org:", data.organizationId);
-    
+
     // Determine send channels (default: both if not specified, for backward compat)
     const wantsEmail = data.sendEmail !== false;
     const wantsSms = data.sendSms !== false;
-    
-    const stripe = new Stripe(orgStripeSettings.stripe_secret_key, { apiVersion: "2025-08-27.basil" });
+
+    const stripe = new Stripe(stripeApiKey, { apiVersion: "2025-08-27.basil" });
 
     // Need a valid email for Stripe customer - use provided or generate placeholder
     const emailForStripe = data.customerEmail || `noemail+${data.invoiceId.substring(0, 8)}@placeholder.local`;

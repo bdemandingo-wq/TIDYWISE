@@ -122,15 +122,13 @@ serve(async (req) => {
         (oauthDisplayName.toLowerCase().includes("tidywise") ||
          oauthDisplayName.toLowerCase() === "tidy wise");
 
-      const { error: upsertError } = await supabase
+      // Non-sensitive metadata in org_stripe_settings; secrets in org_stripe_secrets.
+      const { error: settingsUpsertError } = await supabase
         .from("org_stripe_settings")
         .upsert({
           organization_id,
           stripe_account_id: response.stripe_user_id,
-          stripe_access_token: response.access_token,
-          stripe_refresh_token: response.refresh_token,
           stripe_publishable_key: response.stripe_publishable_key || null,
-          stripe_secret_key: response.access_token || "",
           stripe_user_email: account.email || null,
           stripe_display_name: oauthDisplayName,
           stripe_payouts_enabled: account.payouts_enabled || false,
@@ -141,9 +139,25 @@ serve(async (req) => {
           onConflict: "organization_id",
         });
 
-      if (upsertError) {
-        console.error("[stripe-connect-oauth] Upsert error:", upsertError);
+      if (settingsUpsertError) {
+        console.error("[stripe-connect-oauth] Settings upsert error:", settingsUpsertError);
         return jsonResponse({ error: "Failed to save connection" }, 500);
+      }
+
+      const { error: secretsUpsertError } = await supabase
+        .from("org_stripe_secrets")
+        .upsert({
+          organization_id,
+          stripe_access_token: response.access_token,
+          stripe_refresh_token: response.refresh_token,
+          stripe_secret_key: response.access_token || null,
+        }, {
+          onConflict: "organization_id",
+        });
+
+      if (secretsUpsertError) {
+        console.error("[stripe-connect-oauth] Secrets upsert error:", secretsUpsertError);
+        return jsonResponse({ error: "Failed to save credentials" }, 500);
       }
 
       return jsonResponse({
@@ -157,18 +171,24 @@ serve(async (req) => {
     }
 
     if (action === "get_status") {
-      const { data, error } = await supabase
-        .from("org_stripe_settings")
-        .select("is_connected, connected_at, stripe_account_id, stripe_user_email, stripe_display_name, stripe_payouts_enabled, stripe_default_currency, stripe_publishable_key, stripe_secret_key, stripe_access_token")
-        .eq("organization_id", organization_id)
-        .maybeSingle();
+      const [{ data, error }, { data: secretRows }] = await Promise.all([
+        supabase
+          .from("org_stripe_settings")
+          .select("is_connected, connected_at, stripe_account_id, stripe_user_email, stripe_display_name, stripe_payouts_enabled, stripe_default_currency, stripe_publishable_key")
+          .eq("organization_id", organization_id)
+          .maybeSingle(),
+        supabase.rpc("get_org_stripe_secret", { p_org_id: organization_id }),
+      ]);
 
       if (error) {
         return jsonResponse({ error: "Failed to fetch status" }, 500);
       }
 
+      const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+      const hasSecretKey = !!orgSecret?.stripe_secret_key;
+
       const isConnectedViaOAuth = !!(data?.is_connected && data?.stripe_account_id);
-      const isConnectedViaManualKeys = !!(data?.stripe_secret_key && !data?.stripe_account_id);
+      const isConnectedViaManualKeys = !!(hasSecretKey && !data?.stripe_account_id);
 
       // Helper to detect suspicious name
       const checkSuspiciousName = (name: string | null | undefined) =>
@@ -190,7 +210,7 @@ serve(async (req) => {
 
       if (isConnectedViaOAuth && data?.stripe_account_id) {
         try {
-          const apiKey = data.stripe_access_token || data.stripe_secret_key;
+          const apiKey = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
           if (apiKey) {
             const stripe = new Stripe(apiKey, { apiVersion: STRIPE_API_VERSION });
             const account = await stripe.accounts.retrieve(data.stripe_account_id);
@@ -258,12 +278,14 @@ serve(async (req) => {
         }
       }
 
-      const { error } = await supabase
-        .from("org_stripe_settings")
-        .delete()
-        .eq("organization_id", organization_id);
+      // Wipe both the metadata row and the secret row.
+      const [{ error: settingsDelErr }, { error: secretsDelErr }] = await Promise.all([
+        supabase.from("org_stripe_settings").delete().eq("organization_id", organization_id),
+        supabase.from("org_stripe_secrets").delete().eq("organization_id", organization_id),
+      ]);
 
-      if (error) {
+      if (settingsDelErr || secretsDelErr) {
+        console.error("[stripe-connect-oauth] Disconnect delete error:", settingsDelErr || secretsDelErr);
         return jsonResponse({ error: "Failed to disconnect" }, 500);
       }
 
@@ -282,15 +304,13 @@ serve(async (req) => {
         }, 400);
       }
 
-      // Guard 2 — Block cross-tenant key reuse
-      const { data: existingOrgWithKey } = await supabase
-        .from("org_stripe_settings")
-        .select("organization_id")
-        .eq("stripe_secret_key", secret_key)
-        .neq("organization_id", organization_id)
-        .maybeSingle();
+      // Guard 2 — Block cross-tenant key reuse. Uses SECURITY DEFINER RPC so we
+      // never grant any role direct SELECT on org_stripe_secrets.
+      const { data: existingOrgId } = await supabase.rpc("find_org_by_stripe_secret", {
+        p_secret_key: secret_key,
+      });
 
-      if (existingOrgWithKey) {
+      if (existingOrgId && existingOrgId !== organization_id) {
         return jsonResponse({
           error: "This Stripe key is already connected to another TidyWise account. Each business must use its own separate Stripe account.",
         }, 400);
@@ -357,11 +377,10 @@ serve(async (req) => {
           (displayName.toLowerCase().includes("tidywise") ||
            displayName.toLowerCase() === "tidy wise");
 
-        const { error: upsertError } = await supabase
+        const { error: settingsUpsertError } = await supabase
           .from("org_stripe_settings")
           .upsert({
             organization_id,
-            stripe_secret_key: secret_key,
             stripe_publishable_key: publishable_key || null,
             stripe_user_email: accountEmail,
             stripe_display_name: displayName,
@@ -370,12 +389,25 @@ serve(async (req) => {
             is_connected: true,
             connected_at: new Date().toISOString(),
             stripe_account_id: null,
-            stripe_access_token: null,
           }, { onConflict: "organization_id" });
 
-        if (upsertError) {
-          console.error("[stripe-connect-oauth] Manual keys upsert error:", upsertError);
+        if (settingsUpsertError) {
+          console.error("[stripe-connect-oauth] Manual keys settings upsert error:", settingsUpsertError);
           return jsonResponse({ error: "Failed to save keys" }, 500);
+        }
+
+        const { error: secretsUpsertError } = await supabase
+          .from("org_stripe_secrets")
+          .upsert({
+            organization_id,
+            stripe_secret_key: secret_key,
+            stripe_access_token: null,
+            stripe_refresh_token: null,
+          }, { onConflict: "organization_id" });
+
+        if (secretsUpsertError) {
+          console.error("[stripe-connect-oauth] Manual keys secrets upsert error:", secretsUpsertError);
+          return jsonResponse({ error: "Failed to save credentials" }, 500);
         }
 
         return jsonResponse({

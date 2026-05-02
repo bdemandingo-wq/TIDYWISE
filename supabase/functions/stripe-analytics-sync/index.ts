@@ -25,14 +25,20 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get org's Stripe key
-    const { data: orgStripe, error: orgErr } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key, is_connected")
-      .eq("organization_id", organization_id)
-      .maybeSingle();
+    // Get org's Stripe key. Secrets via audited RPC; connection flag from settings.
+    const [{ data: secretRows, error: orgErr }, { data: orgConn }] = await Promise.all([
+      supabase.rpc("get_org_stripe_secret", { p_org_id: organization_id }),
+      supabase
+        .from("org_stripe_settings")
+        .select("is_connected")
+        .eq("organization_id", organization_id)
+        .maybeSingle(),
+    ]);
 
-    if (orgErr || !orgStripe?.stripe_secret_key || !orgStripe.is_connected) {
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeApiKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+
+    if (orgErr || !stripeApiKey || !orgConn?.is_connected) {
       return new Response(JSON.stringify({
         error: "stripe_not_connected",
         message: "Stripe is not connected for this organization",
@@ -42,7 +48,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const stripe = new Stripe(orgStripe.stripe_secret_key, {
+    const stripe = new Stripe(stripeApiKey, {
       apiVersion: "2023-10-16",
     });
 

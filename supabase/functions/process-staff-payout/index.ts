@@ -68,15 +68,21 @@ serve(async (req) => {
     let stripeTransferId: string | null = null;
 
     if (payment_method === 'stripe_transfer') {
-      // Get the org's Stripe credentials
-      const { data: orgStripe } = await supabaseAdmin
-        .from('org_stripe_settings')
-        .select('stripe_secret_key, stripe_account_id')
-        .eq('organization_id', organization_id)
-        .eq('is_connected', true)
-        .maybeSingle();
+      // Get the org's Stripe credentials. Secrets live in org_stripe_secrets
+      // (no client RLS access); non-sensitive flags stay on org_stripe_settings.
+      const [{ data: secretRows }, { data: orgConn }] = await Promise.all([
+        supabaseAdmin.rpc('get_org_stripe_secret', { p_org_id: organization_id }),
+        supabaseAdmin
+          .from('org_stripe_settings')
+          .select('stripe_account_id, is_connected')
+          .eq('organization_id', organization_id)
+          .maybeSingle(),
+      ]);
 
-      if (!orgStripe?.stripe_secret_key) {
+      const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+      const orgStripeApiKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
+
+      if (!orgStripeApiKey || !orgConn?.is_connected) {
         throw new Error("Organization does not have Stripe connected. Please connect Stripe in Payment Integration settings.");
       }
       logStep("Org Stripe verified");
@@ -99,7 +105,7 @@ serve(async (req) => {
       logStep("Cleaner payout account verified", { stripeAccountId: payoutAccount.stripe_account_id });
 
       // Create Stripe Transfer using the org's Stripe key
-      const orgStripeClient = new Stripe(orgStripe.stripe_secret_key, { apiVersion: "2025-08-27.basil" });
+      const orgStripeClient = new Stripe(orgStripeApiKey, { apiVersion: "2025-08-27.basil" });
 
       const amountCents = Math.round(amount * 100);
       logStep("Creating Stripe Transfer", { amountCents, destination: payoutAccount.stripe_account_id });

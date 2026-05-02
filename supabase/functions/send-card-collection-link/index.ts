@@ -101,16 +101,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // STRICT ISOLATION: Get organization-specific Stripe credentials
+    // STRICT ISOLATION: Get organization-specific Stripe credentials via audited RPC.
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: orgStripeSettings } = await supabase
-      .from("org_stripe_settings")
-      .select("stripe_secret_key")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    const { data: secretRows } = await supabase.rpc("get_org_stripe_secret", {
+      p_org_id: organizationId,
+    });
+    const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+    const stripeSecretKey: string | null = orgSecret?.stripe_access_token || orgSecret?.stripe_secret_key || null;
 
-    const stripeSecretKey = orgStripeSettings?.stripe_secret_key;
-    
     if (!stripeSecretKey) {
       return new Response(
         JSON.stringify({ error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." }),

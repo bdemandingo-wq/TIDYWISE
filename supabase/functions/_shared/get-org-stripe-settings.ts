@@ -2,7 +2,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
 interface OrgStripeSettings {
-  stripe_secret_key: string;
   stripe_publishable_key: string | null;
   stripe_account_id: string | null;
   is_connected: boolean;
@@ -16,11 +15,14 @@ interface GetOrgStripeResult {
 }
 
 /**
- * Retrieves the organization's Stripe secret key and initializes a Stripe client.
- * STRICT ISOLATION: Only uses organization-specific credentials - NO fallback to global keys.
- * 
- * @param organizationId - The organization's UUID
- * @returns An object with the initialized Stripe client or an error
+ * Retrieves the organization's Stripe credentials and initializes a Stripe client.
+ *
+ * Secrets live in `org_stripe_secrets`, which has no RLS policies for any
+ * non-service role. Reads go through the SECURITY DEFINER RPC
+ * `get_org_stripe_secret`, which records every access in `security_audit_log`.
+ *
+ * Non-sensitive metadata (account id, publishable key, connection state)
+ * still lives on `org_stripe_settings` and is fetched separately.
  */
 export async function getOrgStripeClient(organizationId: string): Promise<GetOrgStripeResult> {
   if (!organizationId) {
@@ -29,7 +31,7 @@ export async function getOrgStripeClient(organizationId: string): Promise<GetOrg
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  
+
   if (!supabaseUrl || !supabaseServiceKey) {
     return { success: false, error: "Supabase configuration missing" };
   }
@@ -38,10 +40,29 @@ export async function getOrgStripeClient(organizationId: string): Promise<GetOrg
     auth: { persistSession: false },
   });
 
-  // Get org-specific Stripe settings - STRICT ISOLATION: No fallback
-  const { data: orgSettings, error: settingsError } = await supabase
+  const { data: secretRows, error: secretError } = await supabase.rpc("get_org_stripe_secret", {
+    p_org_id: organizationId,
+  });
+
+  if (secretError) {
+    console.error("[get-org-stripe-settings] Error fetching secret:", secretError);
+    return { success: false, error: "Failed to fetch Stripe credentials" };
+  }
+
+  const secretRow = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+  const stripeApiKey: string | null = secretRow?.stripe_access_token || secretRow?.stripe_secret_key || null;
+
+  if (!stripeApiKey) {
+    console.log("[get-org-stripe-settings] No Stripe credentials configured for organization:", organizationId);
+    return {
+      success: false,
+      error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments.",
+    };
+  }
+
+  const { data: settings, error: settingsError } = await supabase
     .from("org_stripe_settings")
-    .select("stripe_secret_key, stripe_publishable_key, stripe_account_id, is_connected")
+    .select("stripe_publishable_key, stripe_account_id, is_connected")
     .eq("organization_id", organizationId)
     .maybeSingle();
 
@@ -50,33 +71,27 @@ export async function getOrgStripeClient(organizationId: string): Promise<GetOrg
     return { success: false, error: "Failed to fetch Stripe settings" };
   }
 
-  // STRICT ISOLATION: Only use organization-specific key, never fallback to global keys
-  if (!orgSettings?.stripe_secret_key) {
-    console.log("[get-org-stripe-settings] No Stripe key configured for organization:", organizationId);
-    return { 
-      success: false, 
-      error: "Stripe not configured for this organization. Please connect your Stripe account in Settings → Payments." 
-    };
-  }
-
-  const stripeSecretKey = orgSettings.stripe_secret_key;
-  console.log("[get-org-stripe-settings] Using organization-specific Stripe key for org:", organizationId);
-
   try {
-    const stripe = new Stripe(stripeSecretKey, {
+    const stripe = new Stripe(stripeApiKey, {
       apiVersion: "2025-08-27.basil",
     });
 
     return {
       success: true,
       stripe,
-      settings: orgSettings || undefined,
+      settings: settings
+        ? {
+            stripe_publishable_key: settings.stripe_publishable_key ?? null,
+            stripe_account_id: settings.stripe_account_id ?? null,
+            is_connected: settings.is_connected ?? false,
+          }
+        : undefined,
     };
   } catch (error) {
     console.error("[get-org-stripe-settings] Error initializing Stripe:", error);
-    return { 
-      success: false, 
-      error: "Failed to initialize Stripe client. Please check your API key." 
+    return {
+      success: false,
+      error: "Failed to initialize Stripe client. Please check your API key.",
     };
   }
 }
