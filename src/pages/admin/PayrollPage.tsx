@@ -734,6 +734,28 @@ export default function PayrollPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportCleanerCSV = () => {
+    const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Pay'];
+    const rows = filteredBookingPayrollDetails.map((b) => [
+      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
+      `#${b.booking_number}`, b.staff_name, b.customer_name,
+      b.hours_worked.toFixed(2),
+      `$${b.calculated_pay.toFixed(2)}`,
+    ]);
+    const totalHours = filteredBookingPayrollDetails.reduce((s, b) => s + b.hours_worked, 0);
+    const totalPay = filteredBookingPayrollDetails.reduce((s, b) => s + b.calculated_pay, 0);
+    rows.push(['', '', '', `Totals (${filteredBookingPayrollDetails.length} bookings)`, totalHours.toFixed(2), `$${totalPay.toFixed(2)}`]);
+    const csv = [headers, ...rows].map((row) => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const staffSuffix = staffFilterId !== 'all' ? `-${(staff.find((s: any) => s.id === staffFilterId)?.name || 'cleaner').replace(/\s+/g, '_')}` : '';
+    a.download = `cleaner-payroll${staffSuffix}-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getRowHighlight = (detail: BookingPayrollDetail) => {
     if (detail.profit < 0) return 'bg-red-50 dark:bg-red-950/20';
     if (detail.labor_percent > settings.labor_percent_warning_threshold) return 'bg-amber-50 dark:bg-amber-950/20';
