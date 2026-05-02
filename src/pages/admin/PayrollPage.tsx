@@ -350,6 +350,26 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
+  // Refetch payroll data when bookings change (deletions, updates, etc.)
+  useEffect(() => {
+    if (!organizationId) return;
+    const channel = supabase
+      .channel(`payroll-bookings-${organizationId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings', filter: `organization_id=eq.${organizationId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['bookings-payroll'] });
+          queryClient.invalidateQueries({ queryKey: ['team-assignments-payroll'] });
+          queryClient.invalidateQueries({ queryKey: ['staff-payroll'] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organizationId, queryClient]);
+
   // Payroll period config
   const { config: periodConfig } = usePayrollPeriodConfig();
   const currentPeriod = useMemo(() => getCurrentPeriod(periodConfig), [periodConfig]);
