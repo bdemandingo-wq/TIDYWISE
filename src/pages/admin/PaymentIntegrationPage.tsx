@@ -318,7 +318,17 @@ export default function PaymentIntegrationPage() {
         },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        showChargeFailureToastSonner({
+          failureReason: extractFailureReason(data),
+          declineCode: data?.decline_code || data?.declineCode,
+          declined: !!data?.declined,
+          customer: { name: chargeName.trim() },
+          organizationId: organization.id,
+          amount: parseFloat(chargeAmount),
+        });
+        return;
+      }
 
       toast.success(`Payment intent created for $${parseFloat(chargeAmount).toFixed(2)}`);
       setChargeOpen(false);
@@ -327,7 +337,12 @@ export default function PaymentIntegrationPage() {
       setChargeDesc("");
       fetchRecentPayments();
     } catch (err: any) {
-      toast.error(err.message || "Failed to create charge");
+      showChargeFailureToastSonner({
+        failureReason: err?.message || "Failed to create charge",
+        customer: { name: chargeName.trim() },
+        organizationId: organization?.id ?? null,
+        amount: parseFloat(chargeAmount) || 0,
+      });
     } finally {
       setCharging(false);
     }
