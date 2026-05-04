@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +11,10 @@ const corsHeaders = {
 /**
  * Admin-only function to release a held payment.
  * This is a direct action tool for emergencies.
+ *
+ * AUTH: Requires owner/admin of the supplied organizationId (enforced via
+ * requireOrgAdmin). Returns 401 if no auth, 403 if user is not admin/owner of
+ * the organization.
  */
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -36,14 +40,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get organization-specific Stripe credentials
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // SECURITY: Require caller to be an owner/admin of organizationId.
+    const auth = await requireOrgAdmin(req, organizationId);
+    if (auth instanceof Response) return auth;
+    const { user, supabaseAdmin } = auth;
 
-    const { data: secretRows } = await supabase.rpc("get_org_stripe_secret", {
+    // Get organization-specific Stripe credentials via audited RPC
+    const { data: secretRows } = await supabaseAdmin.rpc("get_org_stripe_secret", {
       p_org_id: organizationId,
     });
     const orgSecret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
@@ -62,12 +65,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     // First retrieve the payment intent to check its status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    
+
     console.log("Payment intent current status:", paymentIntent.status);
 
     if (paymentIntent.status === "canceled") {
-      return new Response(JSON.stringify({ 
-        success: true, 
+      // Idempotent: log and return success
+      await supabaseAdmin.from("admin_action_audit_log").insert({
+        organization_id: organizationId,
+        admin_user_id: user.id,
+        action: "hold_released_admin",
+        payment_intent_id: paymentIntentId,
+        details: { result: "already_canceled" },
+      });
+      return new Response(JSON.stringify({
+        success: true,
         message: "Hold was already released",
         status: "already_canceled"
       }), {
@@ -78,9 +89,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (paymentIntent.status !== "requires_capture") {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: `Cannot release hold. Current status: ${paymentIntent.status}`,
-          status: paymentIntent.status 
+          status: paymentIntent.status
         }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -95,8 +106,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Hold released successfully:", canceledPayment.id, "Amount:", heldAmount);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    // Audit log
+    await supabaseAdmin.from("admin_action_audit_log").insert({
+      organization_id: organizationId,
+      admin_user_id: user.id,
+      action: "hold_released_admin",
+      payment_intent_id: paymentIntentId,
+      details: { amount_released: heldAmount, stripe_status: canceledPayment.status },
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
       paymentIntentId: canceledPayment.id,
       status: canceledPayment.status,
       amountReleased: heldAmount,
@@ -107,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in admin-release-hold function:", error);
-    
+
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

@@ -167,6 +167,36 @@ export type Database = {
           },
         ]
       }
+      admin_action_audit_log: {
+        Row: {
+          action: string
+          admin_user_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          organization_id: string
+          payment_intent_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id: string
+          payment_intent_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id?: string
+          payment_intent_id?: string | null
+        }
+        Relationships: []
+      }
       admin_booking_request_notifications: {
         Row: {
           booking_request_id: string
@@ -6191,6 +6221,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sms_send_log: {
+        Row: {
+          admin_user_id: string | null
+          created_at: string
+          customer_email_hash: string | null
+          customer_phone: string | null
+          details: Json | null
+          id: string
+          organization_id: string
+          sms_type: string
+          status: string
+        }
+        Insert: {
+          admin_user_id?: string | null
+          created_at?: string
+          customer_email_hash?: string | null
+          customer_phone?: string | null
+          details?: Json | null
+          id?: string
+          organization_id: string
+          sms_type: string
+          status?: string
+        }
+        Update: {
+          admin_user_id?: string | null
+          created_at?: string
+          customer_email_hash?: string | null
+          customer_phone?: string | null
+          details?: Json | null
+          id?: string
+          organization_id?: string
+          sms_type?: string
+          status?: string
+        }
+        Relationships: []
       }
       sms_templates: {
         Row: {

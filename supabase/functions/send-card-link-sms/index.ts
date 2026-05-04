@@ -1,6 +1,17 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
+
+// Hash an email for audit logs (don't store plaintext PII in logs)
+async function hashEmail(email: string | null | undefined): Promise<string | null> {
+  if (!email) return null;
+  const data = new TextEncoder().encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -50,13 +61,39 @@ const handler = async (req: Request): Promise<Response> => {
     // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
     if (!organizationId) {
       console.error("Missing organizationId - cannot send card link without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required" 
+      return new Response(JSON.stringify({
+        error: "Missing organizationId - organization context is required"
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    // SECURITY: Require caller to be an owner/admin of organizationId.
+    const auth = await requireOrgAdmin(req, organizationId);
+    if (auth instanceof Response) return auth;
+    const { user, supabaseAdmin: authSupabase } = auth;
+
+    // RATE LIMIT: max 5 SMS per organization per minute. Uses sms_send_log
+    // (which we also write on success below). Counts only card_link sends.
+    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const { count: recentCount } = await authSupabase
+      .from("sms_send_log")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("sms_type", "card_link")
+      .gte("created_at", oneMinuteAgo);
+    if ((recentCount ?? 0) >= 5) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Rate limit exceeded: max 5 card-link SMS per minute. Please wait and try again.",
+        errorCode: "rate_limited",
+      }), {
+        status: 429,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ error: "Database connection not configured" }), {
@@ -300,8 +337,23 @@ const handler = async (req: Request): Promise<Response> => {
     const smsResult = await openPhoneResponse.json();
     console.log("Card collection link SMS sent successfully:", smsResult);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    // Audit log: record the successful card-link SMS (also feeds rate limiter).
+    try {
+      await authSupabase.from("sms_send_log").insert({
+        organization_id: organizationId,
+        admin_user_id: user.id,
+        sms_type: "card_link",
+        customer_phone: phone,
+        customer_email_hash: await hashEmail(email),
+        status: "sent",
+        details: { amount, openphone_message_id: smsResult?.data?.id ?? null },
+      });
+    } catch (logErr) {
+      console.error("Failed to write sms_send_log:", logErr);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
       sessionUrl: session.url,
       message: "Card collection link sent via SMS successfully (card will NOT be charged automatically)"
     }), {
