@@ -102,6 +102,7 @@ import { supabase } from '@/lib/supabase';
 import { QuotesTabContent } from '@/components/admin/QuotesTabContent';
 import { AdditionalChargesDialog } from '@/components/admin/AdditionalChargesDialog';
 import { toast } from '@/hooks/use-toast';
+import { showChargeFailureToastLegacy, extractFailureReason } from '@/lib/chargeErrorToast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
