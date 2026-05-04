@@ -40,6 +40,7 @@ import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSetti
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
 import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
@@ -780,6 +781,19 @@ export default function SettingsPage() {
         <TabsContent value="emails" className="space-y-6">
           <EmailSettingsCard />
           <DomainVerificationCard />
+          <EmailTemplatesSettings
+            confirmationEmailSubject={settings.confirmation_email_subject}
+            confirmationEmailBody={settings.confirmation_email_body}
+            reminderEmailSubject={settings.reminder_email_subject}
+            reminderEmailBody={settings.reminder_email_body}
+            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value }))}
+            onSave={saveSettings}
+            saving={saving}
+            companyName={settings.company_name}
+            logoUrl={settings.logo_url}
+            primaryColor={settings.primary_color}
+            accentColor={settings.accent_color}
+          />
         </TabsContent>
 
         {/* Reviews Settings */}

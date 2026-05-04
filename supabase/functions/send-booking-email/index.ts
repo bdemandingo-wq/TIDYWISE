@@ -160,24 +160,28 @@ const handler = async (req: Request): Promise<Response> => {
     // Use org-specific Resend API key if configured, otherwise fall back to global
     const resendApiKey = emailSettings.resend_api_key || RESEND_API_KEY;
 
-    // Fetch branding from business_settings (colors, logo) for email templates
+    // Fetch branding + custom confirmation copy from business_settings
     let logoUrl = "";
     let primaryColor = "#1e5bb0";
     let accentColor = "#14b8a6";
-    
+    let customConfirmationBody = "";
+    let customConfirmationSubject = "";
+
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
+
       const { data: settings } = await supabase
         .from('business_settings')
-        .select('logo_url, primary_color, accent_color')
+        .select('logo_url, primary_color, accent_color, confirmation_email_subject, confirmation_email_body')
         .eq('organization_id', booking.organizationId)
         .maybeSingle();
-      
+
       if (settings) {
         logoUrl = settings.logo_url || "";
         primaryColor = settings.primary_color || "#1e5bb0";
         accentColor = settings.accent_color || "#14b8a6";
+        customConfirmationBody = settings.confirmation_email_body || "";
+        customConfirmationSubject = settings.confirmation_email_subject || "";
       }
     }
 
@@ -194,6 +198,44 @@ const handler = async (req: Request): Promise<Response> => {
 
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
+
+    // Render template variables for custom subject/body set by the admin
+    const renderVars = (input: string): string => {
+      const map: Record<string, string> = {
+        customer_name: customerName || "there",
+        customer_email: customerEmail,
+        customer_phone: booking.customerPhone || "",
+        company_name: companyName,
+        service_name: booking.serviceName || "",
+        scheduled_date: booking.appointmentDate || "",
+        scheduled_time: booking.appointmentTime || "",
+        appointment_date: booking.appointmentDate || "",
+        appointment_time: booking.appointmentTime || "",
+        address: fullAddress || booking.address || "",
+        home_size: booking.homeSize || "",
+        extras: extrasText,
+        total_amount: String(booking.totalPrice ?? ""),
+        booking_number: booking.confirmationNumber || "",
+      };
+      return input.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (_m, key) => map[key] ?? "");
+    };
+
+    const escapeHtml = (s: string) => s
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    // Build the custom intro block (admin-edited copy) styled in the brand color.
+    // Falls back to the original default intro if no custom body is set.
+    const customIntroHtml = customConfirmationBody
+      ? `<div style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};line-height:1.6;white-space:pre-wrap;">${escapeHtml(renderVars(customConfirmationBody))}</div>`
+      : `
+              <p style="font-size:18px;margin:0 0 20px 0;color:${primaryColor};font-weight:600;">Hi ${customerName || "there"},</p>
+              <p style="margin:0 0 15px 0;font-size:15px;color:${primaryColor};">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
+              <p style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};">Please review the details below to ensure everything is correct.</p>
+            `;
+
+    const emailSubject = customConfirmationSubject
+      ? renderVars(customConfirmationSubject)
+      : `Booking Confirmed - ${booking.appointmentDate || ""}`;
 
     // Build logo HTML if available
     const logoHtml = logoUrl 
@@ -232,11 +274,8 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Main Content -->
           <tr>
             <td style="padding:40px 30px;">
-              <p style="font-size:18px;margin:0 0 20px 0;color:#1f2937;">Hi ${customerName || "there"},</p>
+              ${customIntroHtml}
               
-              <p style="margin:0 0 15px 0;font-size:15px;color:#4b5563;">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
-              
-              <p style="margin:0 0 25px 0;font-size:15px;color:#4b5563;">Please review the details below to ensure everything is correct.</p>
               
               <!-- Appointment Details Card -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;margin-bottom:25px;border:1px solid #e5e7eb;">
@@ -362,7 +401,7 @@ const handler = async (req: Request): Promise<Response> => {
         from: formatEmailFrom(emailSettings),
         to: [customerEmail],
         reply_to: getReplyTo(emailSettings),
-        subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
+        subject: emailSubject,
         html: emailHtml,
       }),
     });
