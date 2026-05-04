@@ -4481,11 +4481,14 @@ export type Database = {
           id: string
           is_connected: boolean | null
           organization_id: string
+          stripe_access_token: string | null
           stripe_account_id: string | null
           stripe_default_currency: string | null
           stripe_display_name: string | null
           stripe_payouts_enabled: boolean | null
           stripe_publishable_key: string | null
+          stripe_refresh_token: string | null
+          stripe_secret_key: string | null
           stripe_user_email: string | null
           updated_at: string
         }
@@ -4495,11 +4498,14 @@ export type Database = {
           id?: string
           is_connected?: boolean | null
           organization_id: string
+          stripe_access_token?: string | null
           stripe_account_id?: string | null
           stripe_default_currency?: string | null
           stripe_display_name?: string | null
           stripe_payouts_enabled?: boolean | null
           stripe_publishable_key?: string | null
+          stripe_refresh_token?: string | null
+          stripe_secret_key?: string | null
           stripe_user_email?: string | null
           updated_at?: string
         }
@@ -4509,11 +4515,14 @@ export type Database = {
           id?: string
           is_connected?: boolean | null
           organization_id?: string
+          stripe_access_token?: string | null
           stripe_account_id?: string | null
           stripe_default_currency?: string | null
           stripe_display_name?: string | null
           stripe_payouts_enabled?: boolean | null
           stripe_publishable_key?: string | null
+          stripe_refresh_token?: string | null
+          stripe_secret_key?: string | null
           stripe_user_email?: string | null
           updated_at?: string
         }
