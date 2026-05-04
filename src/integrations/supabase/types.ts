@@ -7565,6 +7565,14 @@ export type Database = {
           tier_order: number
         }[]
       }
+      get_org_stripe_secret: {
+        Args: { p_org_id: string }
+        Returns: {
+          stripe_access_token: string
+          stripe_account_id: string
+          stripe_secret_key: string
+        }[]
+      }
       get_review_request_by_token: {
         Args: { p_token: string }
         Returns: {
