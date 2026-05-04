@@ -6827,6 +6827,27 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          processed_at: string
+          source: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          processed_at?: string
+          source: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          processed_at?: string
+          source?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string

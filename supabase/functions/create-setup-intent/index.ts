@@ -51,7 +51,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       authUserId = authResult.userId!;
-      authUserId = authResult.userId!;
     }
 
     console.log("Creating SetupIntent for:", { email, customerName, organizationId });

@@ -61,7 +61,7 @@ serve(async (req: Request) => {
       event = JSON.parse(body) as Stripe.Event;
     }
 
-    console.log("[stripe-connect-webhook] Received event:", event.type, "for account:", (event.data.object as any)?.id || "unknown");
+    console.log("[stripe-connect-webhook] Received event:", event.type, event.id, "for account:", (event.data.object as any)?.id || "unknown");
 
     // Only handle account.updated events
     if (event.type !== "account.updated") {
@@ -70,6 +70,29 @@ serve(async (req: Request) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── IDEMPOTENCY CHECK ───────────────────────────────────────────────────
+    // Stripe may retry events; ensure we only process each account.updated once.
+    if (event.id) {
+      const { error: idempotencyError } = await supabase
+        .from("stripe_webhook_events")
+        .insert({
+          event_id: event.id,
+          event_type: event.type,
+          source: "stripe-connect-webhook",
+        });
+
+      if (idempotencyError) {
+        if (idempotencyError.code === "23505") {
+          console.log("[stripe-connect-webhook] Event already processed, skipping:", event.id);
+          return new Response(JSON.stringify({ received: true, duplicate: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.error("[stripe-connect-webhook] Idempotency insert error (non-fatal):", idempotencyError);
+      }
     }
 
     const account = event.data.object as Stripe.Account;

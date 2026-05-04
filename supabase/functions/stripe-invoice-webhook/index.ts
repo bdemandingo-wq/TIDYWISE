@@ -53,7 +53,32 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("[stripe-invoice-webhook] Warning: Webhook signature not verified");
     }
 
-    console.log("[stripe-invoice-webhook] Received Stripe event:", event.type);
+    console.log("[stripe-invoice-webhook] Received Stripe event:", event.type, event.id);
+
+    // ── IDEMPOTENCY CHECK ───────────────────────────────────────────────────
+    // Stripe may retry events; ensure we only process each event once.
+    if (event.id) {
+      const { error: idempotencyError } = await supabase
+        .from("stripe_webhook_events")
+        .insert({
+          event_id: event.id,
+          event_type: event.type,
+          source: "stripe-invoice-webhook",
+        });
+
+      if (idempotencyError) {
+        // Duplicate key violation = already processed
+        if (idempotencyError.code === "23505") {
+          console.log("[stripe-invoice-webhook] Event already processed, skipping:", event.id);
+          return new Response(
+            JSON.stringify({ received: true, duplicate: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // Other DB errors: log but continue (don't block legitimate events)
+        console.error("[stripe-invoice-webhook] Idempotency insert error (non-fatal):", idempotencyError);
+      }
+    }
 
     // Extract organization_id from event metadata if available
     let organizationId: string | null = null;
