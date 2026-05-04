@@ -61,13 +61,39 @@ const handler = async (req: Request): Promise<Response> => {
     // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
     if (!organizationId) {
       console.error("Missing organizationId - cannot send card link without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required" 
+      return new Response(JSON.stringify({
+        error: "Missing organizationId - organization context is required"
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    // SECURITY: Require caller to be an owner/admin of organizationId.
+    const auth = await requireOrgAdmin(req, organizationId);
+    if (auth instanceof Response) return auth;
+    const { user, supabaseAdmin: authSupabase } = auth;
+
+    // RATE LIMIT: max 5 SMS per organization per minute. Uses sms_send_log
+    // (which we also write on success below). Counts only card_link sends.
+    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const { count: recentCount } = await authSupabase
+      .from("sms_send_log")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("sms_type", "card_link")
+      .gte("created_at", oneMinuteAgo);
+    if ((recentCount ?? 0) >= 5) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Rate limit exceeded: max 5 card-link SMS per minute. Please wait and try again.",
+        errorCode: "rate_limited",
+      }), {
+        status: 429,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ error: "Database connection not configured" }), {
