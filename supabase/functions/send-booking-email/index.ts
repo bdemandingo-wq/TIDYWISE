@@ -274,11 +274,8 @@ const handler = async (req: Request): Promise<Response> => {
           <!-- Main Content -->
           <tr>
             <td style="padding:40px 30px;">
-              <p style="font-size:18px;margin:0 0 20px 0;color:#1f2937;">Hi ${customerName || "there"},</p>
-              
-              <p style="margin:0 0 15px 0;font-size:15px;color:#4b5563;">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
-              
-              <p style="margin:0 0 25px 0;font-size:15px;color:#4b5563;">Please review the details below to ensure everything is correct.</p>
+              ${customIntroHtml}
+              </tr>
               
               <!-- Appointment Details Card -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;margin-bottom:25px;border:1px solid #e5e7eb;">
