@@ -2303,7 +2303,13 @@ export default function BookingsPage() {
                                   disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}
                                 >
                                   {cancelingHold === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                                  Release Hold
+                                  {cancelingHold === booking.id
+                                    ? 'Releasing…'
+                                    : booking.payment_status === 'refunded'
+                                      ? 'Hold Released'
+                                      : !(booking as any).payment_intent_id
+                                        ? 'No Hold'
+                                        : 'Release Hold'}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="gap-2 cursor-pointer"
