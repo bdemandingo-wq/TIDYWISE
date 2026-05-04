@@ -75,6 +75,22 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Payment intent status:", paymentIntent.status);
 
+    // Idempotent: if already canceled, return success so UI can sync booking state
+    if (paymentIntent.status === "canceled") {
+      console.log("Payment intent already canceled, returning success for UI sync");
+      return new Response(JSON.stringify({
+        success: true,
+        alreadyCanceled: true,
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        amountReleased: paymentIntent.amount / 100,
+        message: "Hold was already released.",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     if (paymentIntent.status !== "requires_capture" && paymentIntent.status !== "requires_payment_method") {
       return new Response(
         JSON.stringify({ 
