@@ -337,8 +337,23 @@ const handler = async (req: Request): Promise<Response> => {
     const smsResult = await openPhoneResponse.json();
     console.log("Card collection link SMS sent successfully:", smsResult);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    // Audit log: record the successful card-link SMS (also feeds rate limiter).
+    try {
+      await authSupabase.from("sms_send_log").insert({
+        organization_id: organizationId,
+        admin_user_id: user.id,
+        sms_type: "card_link",
+        customer_phone: phone,
+        customer_email_hash: await hashEmail(email),
+        status: "sent",
+        details: { amount, openphone_message_id: smsResult?.data?.id ?? null },
+      });
+    } catch (logErr) {
+      console.error("Failed to write sms_send_log:", logErr);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
       sessionUrl: session.url,
       message: "Card collection link sent via SMS successfully (card will NOT be charged automatically)"
     }), {
