@@ -160,24 +160,28 @@ const handler = async (req: Request): Promise<Response> => {
     // Use org-specific Resend API key if configured, otherwise fall back to global
     const resendApiKey = emailSettings.resend_api_key || RESEND_API_KEY;
 
-    // Fetch branding from business_settings (colors, logo) for email templates
+    // Fetch branding + custom confirmation copy from business_settings
     let logoUrl = "";
     let primaryColor = "#1e5bb0";
     let accentColor = "#14b8a6";
-    
+    let customConfirmationBody = "";
+    let customConfirmationSubject = "";
+
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
+
       const { data: settings } = await supabase
         .from('business_settings')
-        .select('logo_url, primary_color, accent_color')
+        .select('logo_url, primary_color, accent_color, confirmation_email_subject, confirmation_email_body')
         .eq('organization_id', booking.organizationId)
         .maybeSingle();
-      
+
       if (settings) {
         logoUrl = settings.logo_url || "";
         primaryColor = settings.primary_color || "#1e5bb0";
         accentColor = settings.accent_color || "#14b8a6";
+        customConfirmationBody = settings.confirmation_email_body || "";
+        customConfirmationSubject = settings.confirmation_email_subject || "";
       }
     }
 
