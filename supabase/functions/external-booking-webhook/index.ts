@@ -310,7 +310,7 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       const { data: smsSettings } = await supabase
         .from('organization_sms_settings')
-        .select('openphone_api_key, openphone_phone_number_id')
+        .select('openphone_api_key, openphone_phone_number_id, sms_enabled')
         .eq('organization_id', organizationId)
         .maybeSingle();
 
@@ -320,7 +320,11 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('organization_id', organizationId)
         .maybeSingle();
 
-      if (smsSettings?.openphone_api_key && smsSettings?.openphone_phone_number_id && bizSettings?.company_phone) {
+      const apiKeyRaw = (smsSettings?.openphone_api_key || '').trim().replace(/^Bearer\s+/i, '');
+      const phoneNumberId = (smsSettings?.openphone_phone_number_id || '').trim();
+      const smsEnabled = smsSettings?.sms_enabled !== false;
+
+      if (apiKeyRaw && phoneNumberId && bizSettings?.company_phone && smsEnabled) {
         let adminPhone = bizSettings.company_phone.replace(/\D/g, '');
         if (adminPhone.length === 10) adminPhone = '1' + adminPhone;
         if (!adminPhone.startsWith('+')) adminPhone = '+' + adminPhone;
@@ -337,21 +341,41 @@ const handler = async (req: Request): Promise<Response> => {
           `Address: ${payload.address || 'N/A'}\n` +
           `Total: $${payload.total_amount?.toFixed(2) || '0.00'}`;
 
-        await fetch('https://api.openphone.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Authorization': smsSettings.openphone_api_key,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            content: smsBody,
-            to: [adminPhone],
-            from: smsSettings.openphone_phone_number_id,
-          }),
-        });
-        console.log("[external-booking-webhook] SMS notification sent to admin:", adminPhone);
+        const sendOpenPhone = (authHeader: string) =>
+          fetch('https://api.openphone.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: smsBody,
+              to: [adminPhone],
+              from: phoneNumberId,
+            }),
+          });
+
+        let opResp = await sendOpenPhone(apiKeyRaw);
+        // Some OpenPhone tokens require Bearer; retry once on 401
+        if (opResp.status === 401) {
+          await opResp.text();
+          opResp = await sendOpenPhone(`Bearer ${apiKeyRaw}`);
+        }
+
+        const respBody = await opResp.text();
+        if (opResp.ok) {
+          console.log(
+            `[external-booking-webhook] Admin SMS sent ok org=${organizationId} to=${adminPhone} status=${opResp.status}`,
+          );
+        } else {
+          console.error(
+            `[external-booking-webhook] Admin SMS FAILED org=${organizationId} to=${adminPhone} status=${opResp.status} body=${respBody.slice(0, 300)}`,
+          );
+        }
       } else {
-        console.log("[external-booking-webhook] SMS settings not configured, skipping SMS notification");
+        console.log(
+          `[external-booking-webhook] Admin SMS skipped org=${organizationId} hasKey=${!!apiKeyRaw} hasPhoneId=${!!phoneNumberId} hasCompanyPhone=${!!bizSettings?.company_phone} smsEnabled=${smsEnabled}`,
+        );
       }
     } catch (smsErr) {
       console.error("[external-booking-webhook] Failed to send SMS notification:", smsErr);
