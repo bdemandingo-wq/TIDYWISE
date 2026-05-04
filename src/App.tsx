@@ -188,7 +188,7 @@ const App = () => (
                           <Route path="/auth" element={<Navigate to="/login" replace />} />
                          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                          <Route path="/reset-password" element={<Navigate to="/login" replace />} />
-                         <Route path="/contact" element={<Navigate to="/login" replace />} />
+                         <Route path="/contact" element={<ContactPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}

@@ -317,6 +317,7 @@ export default function LandingPage() {
               <a href="#blog" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Blog</a>
               <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Testimonials</a>
               <Button variant="ghost" asChild className="text-sm"><Link to="/pricing">Pricing</Link></Button>
+              <Button variant="ghost" asChild className="text-sm"><Link to="/contact">Contact</Link></Button>
               <Button variant="ghost" asChild className="text-sm"><Link to="/portal/login">Client Portal</Link></Button>
               <Button variant="ghost" asChild className="text-sm"><Link to="/staff/login">Staff Portal</Link></Button>
               <Button variant="ghost" asChild className="text-sm font-medium text-primary"><Link to="/demo">Schedule Demo</Link></Button>
@@ -386,6 +387,9 @@ export default function LandingPage() {
                        </Button>
                        <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
                          <Link to="/pricing">Pricing</Link>
+                       </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
+                         <Link to="/contact">Contact</Link>
                        </Button>
                        <Button variant="ghost" asChild className="justify-start" onClick={closeMobileMenu}>
                          <Link to="/portal/login">Client Portal</Link>
@@ -847,9 +851,9 @@ export default function LandingPage() {
               <h3 className="font-semibold text-foreground mb-4">Company</h3>
               <ul className="space-y-3">
                 <li>
-                  <a href="mailto:support@tidywisecleaning.com" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Contact
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
