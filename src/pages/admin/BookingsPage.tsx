@@ -502,10 +502,13 @@ export default function BookingsPage() {
           payment_status: 'pending' as any,
         });
       } else {
-        toast({
-          title: data.declined ? "Card Declined" : "Hold Failed",
-          description: data.error,
-          variant: data.declined ? "default" : "destructive"
+        showChargeFailureToastLegacy({
+          failureReason: extractFailureReason(data),
+          declineCode: data?.decline_code || data?.declineCode,
+          declined: !!data?.declined,
+          customer: booking.customer,
+          organizationId: organization.id,
+          amount: booking.total_amount,
         });
       }
     } catch (error: any) {
