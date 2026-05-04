@@ -401,7 +401,7 @@ const handler = async (req: Request): Promise<Response> => {
         from: formatEmailFrom(emailSettings),
         to: [customerEmail],
         reply_to: getReplyTo(emailSettings),
-        subject: `Booking Confirmed - ${booking.appointmentDate || ""}`,
+        subject: emailSubject,
         html: emailHtml,
       }),
     });
