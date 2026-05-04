@@ -275,7 +275,7 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="padding:40px 30px;">
               ${customIntroHtml}
-              </tr>
+              
               
               <!-- Appointment Details Card -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;margin-bottom:25px;border:1px solid #e5e7eb;">
