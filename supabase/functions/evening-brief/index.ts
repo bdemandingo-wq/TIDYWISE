@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
