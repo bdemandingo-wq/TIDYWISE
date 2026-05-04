@@ -819,17 +819,20 @@ export default function BookingsPage() {
           payment_intent_id: data.paymentIntentId || null,
         });
       } else {
-        toast({ 
-          title: "Charge Failed", 
-          description: data.error, 
-          variant: "destructive" 
+        showChargeFailureToastLegacy({
+          failureReason: extractFailureReason(data),
+          declineCode: data?.decline_code || data?.declineCode,
+          declined: !!data?.declined,
+          customer: booking.customer,
+          organizationId: organization?.id ?? null,
+          amount: booking.total_amount,
         });
       }
     } catch (error: any) {
       console.error('Failed to charge card:', error);
-      
+
       // Extract error message from edge function response body if available
-      let errorMessage = "Failed to charge card";
+      let errorMessage: string | null = null;
       try {
         const body = error?.context?.body;
         if (typeof body === "string" && body.trim()) {
@@ -839,16 +842,15 @@ export default function BookingsPage() {
           }
         }
       } catch {
-        // Fallback to generic error message
-        if (error?.message) {
-          errorMessage = error.message;
-        }
+        // ignore parse failure
       }
-      
-      toast({ 
-        title: "Charge Failed", 
-        description: errorMessage, 
-        variant: "destructive" 
+      if (!errorMessage && error?.message) errorMessage = error.message;
+
+      showChargeFailureToastLegacy({
+        failureReason: errorMessage || "Failed to charge card",
+        customer: booking.customer,
+        organizationId: organization?.id ?? null,
+        amount: booking.total_amount,
       });
     } finally {
       setChargingCard(null);
