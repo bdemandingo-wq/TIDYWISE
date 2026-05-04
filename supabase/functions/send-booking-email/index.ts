@@ -199,6 +199,44 @@ const handler = async (req: Request): Promise<Response> => {
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
 
+    // Render template variables for custom subject/body set by the admin
+    const renderVars = (input: string): string => {
+      const map: Record<string, string> = {
+        customer_name: customerName || "there",
+        customer_email: customerEmail,
+        customer_phone: booking.customerPhone || "",
+        company_name: companyName,
+        service_name: booking.serviceName || "",
+        scheduled_date: booking.appointmentDate || "",
+        scheduled_time: booking.appointmentTime || "",
+        appointment_date: booking.appointmentDate || "",
+        appointment_time: booking.appointmentTime || "",
+        address: fullAddress || booking.address || "",
+        home_size: booking.homeSize || "",
+        extras: extrasText,
+        total_amount: String(booking.totalPrice ?? ""),
+        booking_number: booking.confirmationNumber || "",
+      };
+      return input.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (_m, key) => map[key] ?? "");
+    };
+
+    const escapeHtml = (s: string) => s
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    // Build the custom intro block (admin-edited copy) styled in the brand color.
+    // Falls back to the original default intro if no custom body is set.
+    const customIntroHtml = customConfirmationBody
+      ? `<div style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};line-height:1.6;white-space:pre-wrap;">${escapeHtml(renderVars(customConfirmationBody))}</div>`
+      : `
+              <p style="font-size:18px;margin:0 0 20px 0;color:${primaryColor};font-weight:600;">Hi ${customerName || "there"},</p>
+              <p style="margin:0 0 15px 0;font-size:15px;color:${primaryColor};">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
+              <p style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};">Please review the details below to ensure everything is correct.</p>
+            `;
+
+    const emailSubject = customConfirmationSubject
+      ? renderVars(customConfirmationSubject)
+      : `Booking Confirmed - ${booking.appointmentDate || ""}`;
+
     // Build logo HTML if available
     const logoHtml = logoUrl 
       ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:200px;margin-bottom:10px;" />`
