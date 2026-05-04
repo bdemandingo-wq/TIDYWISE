@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { showChargeFailureToastSonner, extractFailureReason } from '@/lib/chargeErrorToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,7 +158,19 @@ export function AdditionalChargesDialog({
 
         if (chargeError) throw new Error(chargeError.message);
         if (!chargeResult?.success) {
-          throw new Error(chargeResult?.error || 'Payment failed');
+          // Render rich, actionable failure toast and throw a marker error so the
+          // mutation onError handler does NOT show a duplicate generic toast.
+          showChargeFailureToastSonner({
+            failureReason: extractFailureReason(chargeResult, 'Payment failed'),
+            declineCode: chargeResult?.decline_code || chargeResult?.declineCode,
+            declined: !!chargeResult?.declined,
+            customer: { email: customerEmail },
+            organizationId,
+            amount,
+          });
+          const e = new Error(chargeResult?.error || 'Payment failed');
+          (e as any).__handled = true;
+          throw e;
         }
       }
 
@@ -201,6 +214,7 @@ export function AdditionalChargesDialog({
       onTotalUpdated?.();
     },
     onError: (error: Error) => {
+      if ((error as any).__handled) return; // rich toast already shown
       toast.error(error.message || 'Failed to process charge');
     }
   });
