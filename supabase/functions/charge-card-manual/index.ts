@@ -26,8 +26,38 @@ serve(async (req) => {
     if (userError || !user) throw new Error("Unauthorized");
 
     const { organization_id, customer_name, amount, description } = await req.json();
-    if (!organization_id || !customer_name || !amount) {
+    if (!organization_id || !customer_name || amount === undefined || amount === null) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Validate organization_id is a UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof organization_id !== "string" || !uuidRegex.test(organization_id)) {
+      return new Response(JSON.stringify({ error: "Invalid organization_id" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Validate customer_name length
+    if (typeof customer_name !== "string" || customer_name.trim().length === 0 || customer_name.length > 200) {
+      return new Response(JSON.stringify({ error: "Invalid customer_name (must be 1-200 chars)" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Validate amount: must be a positive number, max $100,000
+    const amountNum = typeof amount === "number" ? amount : parseFloat(String(amount));
+    if (!isFinite(amountNum) || isNaN(amountNum) || amountNum <= 0 || amountNum > 100000) {
+      return new Response(JSON.stringify({ error: "Invalid amount: must be between $0.01 and $100,000" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Validate description length if provided
+    if (description !== undefined && description !== null && (typeof description !== "string" || description.length > 1000)) {
+      return new Response(JSON.stringify({ error: "Invalid description (max 1000 chars)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
@@ -62,17 +92,17 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Create a payment intent (requires a payment method - use for direct charges)
-    const amountCents = Math.round(parseFloat(amount) * 100);
+    const amountCents = Math.round(amountNum * 100);
 
     // Create a payment link for manual charge
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "usd",
-      description: `Manual charge: ${customer_name} - ${description || "No description"}`,
+      description: `Manual charge: ${customer_name.trim()} - ${description?.trim() || "No description"}`,
       automatic_payment_methods: { enabled: true, allow_redirects: "never" },
       metadata: {
         manual_charge: "true",
-        customer_name,
+        customer_name: customer_name.trim().slice(0, 200),
         charged_by: user.id,
         organization_id,
       },
@@ -82,7 +112,7 @@ serve(async (req) => {
     await supabaseAdmin.from("manual_payments").insert({
       organization_id,
       customer_name: customer_name.trim(),
-      amount: parseFloat(amount),
+      amount: amountNum,
       description: description?.trim() || null,
       stripe_charge_id: paymentIntent.id,
       created_by: user.id,

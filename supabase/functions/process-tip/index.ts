@@ -33,9 +33,19 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { token, amount } = await req.json() as ProcessTipRequest;
 
-    if (!token || !amount || amount <= 0) {
+    // Validate token format (must be a non-trivial string)
+    if (!token || typeof token !== "string" || token.length < 16 || token.length > 200) {
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid token or amount" }),
+        JSON.stringify({ success: false, error: "Invalid token" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate amount: positive number, $1 minimum, $1,000 max for a single tip
+    const amountNum = typeof amount === "number" ? amount : parseFloat(String(amount));
+    if (!isFinite(amountNum) || isNaN(amountNum) || amountNum < 1 || amountNum > 1000) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Tip amount must be between $1 and $1,000" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -89,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
             name: `Tip for Booking #${bookingData?.booking_number || 'N/A'}`,
             description: 'Thank you for your generosity!',
           },
-          unit_amount: Math.round(amount * 100),
+          unit_amount: Math.round(amountNum * 100),
         },
         quantity: 1,
       }],
@@ -106,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
     await supabase
       .from('tips')
       .update({
-        amount,
+        amount: amountNum,
         payment_intent_id: session.id,
       })
       .eq('id', tip.id);
@@ -117,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
       resourceType: 'tip',
       resourceId: tip.id,
       success: true,
-      details: { amount, bookingId: tip.booking_id },
+      details: { amount: amountNum, bookingId: tip.booking_id },
     });
 
     return new Response(
