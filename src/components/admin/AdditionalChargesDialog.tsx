@@ -158,7 +158,19 @@ export function AdditionalChargesDialog({
 
         if (chargeError) throw new Error(chargeError.message);
         if (!chargeResult?.success) {
-          throw new Error(chargeResult?.error || 'Payment failed');
+          // Render rich, actionable failure toast and throw a marker error so the
+          // mutation onError handler does NOT show a duplicate generic toast.
+          showChargeFailureToastSonner({
+            failureReason: extractFailureReason(chargeResult, 'Payment failed'),
+            declineCode: chargeResult?.decline_code || chargeResult?.declineCode,
+            declined: !!chargeResult?.declined,
+            customer: { email: customerEmail },
+            organizationId,
+            amount,
+          });
+          const e = new Error(chargeResult?.error || 'Payment failed');
+          (e as any).__handled = true;
+          throw e;
         }
       }
 
