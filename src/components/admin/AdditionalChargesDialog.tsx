@@ -214,6 +214,7 @@ export function AdditionalChargesDialog({
       onTotalUpdated?.();
     },
     onError: (error: Error) => {
+      if ((error as any).__handled) return; // rich toast already shown
       toast.error(error.message || 'Failed to process charge');
     }
   });
