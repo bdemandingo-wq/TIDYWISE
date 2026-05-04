@@ -102,6 +102,7 @@ import { supabase } from '@/lib/supabase';
 import { QuotesTabContent } from '@/components/admin/QuotesTabContent';
 import { AdditionalChargesDialog } from '@/components/admin/AdditionalChargesDialog';
 import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { showChargeFailureToastLegacy, extractFailureReason } from '@/lib/chargeErrorToast';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
@@ -671,21 +672,36 @@ export default function BookingsPage() {
     }
   };
 
-  const handleCancelHold = async (booking: BookingWithDetails) => {
+  const handleCancelHold = async (booking: BookingWithDetails, attempt: number = 1) => {
     const paymentIntentId = (booking as any).payment_intent_id;
-    
+    const MAX_ATTEMPTS = 3;
+
     if (!paymentIntentId) {
-      toast({ title: "Error", description: "No payment hold found for this booking", variant: "destructive" });
+      toast({
+        title: "No hold to release",
+        description: "This booking has no payment hold on file.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!organization?.id) {
-      toast({ title: "Error", description: "Organization context required", variant: "destructive" });
+      toast({
+        title: "Organization context missing",
+        description: "Please refresh the page and try again.",
+        variant: "destructive",
+      });
       return;
     }
 
     setCancelingHold(booking.id);
-    
+
+    // Show in-progress toast for clarity on slow networks
+    toast({
+      title: attempt > 1 ? `Retrying release (attempt ${attempt})…` : "Releasing hold…",
+      description: "Contacting Stripe to release the authorized funds.",
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke('cancel-hold', {
         body: {
@@ -694,83 +710,158 @@ export default function BookingsPage() {
         }
       });
 
-      // Handle error responses
+      // Network/transport-level failures (function not deployed, CORS, offline, 5xx without body)
       if (error) {
-        const errorMessage = typeof error === 'object' ? JSON.stringify(error) : String(error.message || error);
-        
-        // Already canceled
-        if (errorMessage.includes('canceled') || errorMessage.includes('status: canceled')) {
-          toast({ 
-            title: "Already Released", 
-            description: "This hold was already released previously." 
-          });
-          await updateBooking.mutateAsync({ 
-            id: booking.id, 
-            payment_status: 'refunded' as any
-          });
-          return;
-        }
-        
-        // Payment was already captured (succeeded) — not a hold anymore
-        if (errorMessage.includes('succeeded')) {
-          toast({ 
-            title: "Payment Already Captured", 
-            description: "This payment was already charged. Use the Refund option instead of Release Hold.",
-            variant: "destructive"
+        const rawMsg = (error as any)?.message || String(error);
+        const isFetchFailure =
+          rawMsg.includes('Failed to fetch') ||
+          rawMsg.includes('Failed to send a request') ||
+          rawMsg.includes('NetworkError');
+
+        // Edge function not deployed / unreachable
+        if (isFetchFailure) {
+          toast({
+            title: "Edge function unreachable",
+            description: "The cancel-hold function isn't responding. It may not be deployed or the network dropped.",
+            variant: "destructive",
+            action: attempt < MAX_ATTEMPTS ? (
+              <ToastAction altText="Retry" onClick={() => handleCancelHold(booking, attempt + 1)}>
+                Retry
+              </ToastAction>
+            ) : undefined,
           });
           return;
         }
-        
-        throw error;
+
+        // Try to extract structured error from non-2xx responses
+        const ctx = (error as any)?.context;
+        let bodyMsg = '';
+        let bodyStatus = '';
+        try {
+          if (ctx?.body) {
+            const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            bodyMsg = parsed.error || '';
+            bodyStatus = parsed.status || '';
+          }
+        } catch { /* ignore parse errors */ }
+        const combined = `${rawMsg} ${bodyMsg} ${bodyStatus}`.toLowerCase();
+
+        if (combined.includes('canceled')) {
+          toast({
+            title: "Already released",
+            description: "This hold was previously released. Syncing booking status…",
+          });
+          await updateBooking.mutateAsync({
+            id: booking.id,
+            payment_status: 'refunded' as any,
+          });
+          return;
+        }
+
+        if (combined.includes('succeeded')) {
+          toast({
+            title: "Payment already captured",
+            description: "This charge already went through. Use Refund instead of Release Hold.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (combined.includes('unauthorized') || combined.includes('forbidden')) {
+          toast({
+            title: "Permission denied",
+            description: bodyMsg || "You don't have permission to release this hold.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Generic non-2xx — show details and offer retry
+        toast({
+          title: "Release failed",
+          description: bodyMsg || rawMsg || "An unknown error occurred while releasing the hold.",
+          variant: "destructive",
+          action: attempt < MAX_ATTEMPTS ? (
+            <ToastAction altText="Retry" onClick={() => handleCancelHold(booking, attempt + 1)}>
+              Retry
+            </ToastAction>
+          ) : undefined,
+        });
+        return;
       }
 
-      // Check data-level errors (non-throw 400 responses)
+      // Data-level error (200 response with error field — defensive)
       if (data?.error) {
-        if (data.error.includes('succeeded')) {
-          toast({ 
-            title: "Payment Already Captured", 
-            description: "This payment was already charged. Use the Refund option instead of Release Hold.",
-            variant: "destructive"
+        const lower = String(data.error).toLowerCase();
+        if (lower.includes('succeeded')) {
+          toast({
+            title: "Payment already captured",
+            description: "This charge already went through. Use Refund instead of Release Hold.",
+            variant: "destructive",
           });
           return;
         }
-        if (data.error.includes('canceled') || data.status === 'canceled') {
-          toast({ 
-            title: "Already Released", 
-            description: "This hold was already released previously." 
+        if (lower.includes('canceled') || data.status === 'canceled') {
+          toast({
+            title: "Already released",
+            description: "This hold was previously released. Syncing booking status…",
           });
-          await updateBooking.mutateAsync({ 
-            id: booking.id, 
-            payment_status: 'refunded' as any
+          await updateBooking.mutateAsync({
+            id: booking.id,
+            payment_status: 'refunded' as any,
           });
           return;
         }
-        throw new Error(data.error);
+        toast({
+          title: "Release failed",
+          description: data.error,
+          variant: "destructive",
+          action: attempt < MAX_ATTEMPTS ? (
+            <ToastAction altText="Retry" onClick={() => handleCancelHold(booking, attempt + 1)}>
+              Retry
+            </ToastAction>
+          ) : undefined,
+        });
+        return;
       }
 
-      if (data.success) {
-        toast({ 
-          title: "Hold Released", 
-          description: data.message 
+      if (data?.success) {
+        await updateBooking.mutateAsync({
+          id: booking.id,
+          payment_status: 'refunded' as any,
         });
-        
-        await updateBooking.mutateAsync({ 
-          id: booking.id, 
-          payment_status: 'refunded' as any
-        });
-      } else {
-        toast({ 
-          title: "Release Failed", 
-          description: data.error, 
-          variant: "destructive" 
-        });
+
+        if (data.alreadyCanceled) {
+          toast({
+            title: "Already released",
+            description: data.message || "This hold was previously released. Booking status synced.",
+          });
+        } else {
+          toast({
+            title: "✓ Hold released",
+            description: data.message || `$${(data.amountReleased ?? 0).toFixed(2)} returned to the customer.`,
+          });
+        }
+        return;
       }
-    } catch (error: any) {
-      console.error('Failed to cancel hold:', error);
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to release hold", 
-        variant: "destructive" 
+
+      // Fallback — unexpected shape
+      toast({
+        title: "Unexpected response",
+        description: "The release request completed but returned an unexpected response. Please verify in Stripe.",
+        variant: "destructive",
+      });
+    } catch (err: any) {
+      console.error('Failed to cancel hold:', err);
+      toast({
+        title: "Release failed",
+        description: err?.message || "An unexpected error occurred.",
+        variant: "destructive",
+        action: attempt < MAX_ATTEMPTS ? (
+          <ToastAction altText="Retry" onClick={() => handleCancelHold(booking, attempt + 1)}>
+            Retry
+          </ToastAction>
+        ) : undefined,
       });
     } finally {
       setCancelingHold(null);
@@ -2212,7 +2303,13 @@ export default function BookingsPage() {
                                   disabled={cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id}
                                 >
                                   {cancelingHold === booking.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                                  Release Hold
+                                  {cancelingHold === booking.id
+                                    ? 'Releasing…'
+                                    : booking.payment_status === 'refunded'
+                                      ? 'Hold Released'
+                                      : !(booking as any).payment_intent_id
+                                        ? 'No Hold'
+                                        : 'Release Hold'}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="gap-2 cursor-pointer"
