@@ -782,7 +782,6 @@ export default function SettingsPage() {
         <TabsContent value="emails" className="space-y-6">
           <GmailConnectionCard />
           <EmailSettingsCard />
-          <DomainVerificationCard />
           <EmailTemplatesSettings
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
