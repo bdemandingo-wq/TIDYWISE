@@ -272,14 +272,27 @@ export function GmailConnectionCard() {
                   Last email sent: {formatDate(connection.last_send_at)}
                 </div>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirm(true)}
-                disabled={!isAdmin || disconnecting}
-              >
-                <Unplug className="h-4 w-4 mr-2" />
-                Disconnect
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleSendTest}
+                  disabled={sendingTest}
+                  className="bg-[#4f46e5] hover:bg-[#4338ca] text-white"
+                >
+                  {sendingTest ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending…</>
+                  ) : (
+                    <><Send className="h-4 w-4 mr-2" />Send test email</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConfirm(true)}
+                  disabled={!isAdmin || disconnecting}
+                >
+                  <Unplug className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
