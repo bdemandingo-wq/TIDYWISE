@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (profile) {
-        ownerName = profile.full_name || profile.email || "Unknown";
+        ownerName = profile.full_name?.trim() || "—";
         ownerEmail = profile.email || "N/A";
         ownerPhone = profile.phone || "N/A";
       }
