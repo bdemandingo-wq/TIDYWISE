@@ -244,10 +244,13 @@ export async function processOrg(
   result.periodLabel = formatPeriodLabel(periodStart, periodEnd);
 
   // --- 3. Pre-send dedupe check --------------------------------------------
+  // The cron path must be idempotent — a second daily run for the same period
+  // should be a safe no-op. Admin-triggered (force=true) sends are explicit
+  // user actions, so they bypass dedupe and produce a fresh send + log row.
   // org_id + period_end live inside metadata (the email_send_log table only
   // has id/message_id/template_name/recipient_email/status/error_message/
   // metadata/created_at), so we filter via jsonb operators.
-  if (!opts.dryRun) {
+  if (!opts.dryRun && !opts.force) {
     const { data: existing } = await supabase
       .from("email_send_log")
       .select("id")

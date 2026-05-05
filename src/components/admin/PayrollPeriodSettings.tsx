@@ -195,13 +195,42 @@ export function PayrollPeriodSettings() {
     },
     onSuccess: (data) => {
       if (data?.skipped) {
-        toast.info(`Report skipped: ${data.skipped.replace(/_/g, ' ')}`);
+        const reason = data.skipped.replace(/_/g, ' ');
+        const explanations: Record<string, string> = {
+          email_disabled: 'Toggle "Email reports" on to send.',
+          not_period_end_day:
+            'Today isn\'t the closing day of the period — wait for period end or use force send.',
+          no_owner_email:
+            'No valid owner email found. Check the org owner\'s profile.',
+          no_email_settings:
+            'Configure your sender in Settings → Emails (Resend API key required).',
+          already_sent:
+            data.period_label
+              ? `A report was already sent for ${data.period_label}.`
+              : 'A report was already sent for this period.',
+          no_completed_bookings:
+            'There are no non-cancelled bookings in this period.',
+        };
+        toast.warning(`Report skipped: ${reason}`, {
+          description: explanations[data.skipped] ?? undefined,
+          duration: 12000,
+        });
         return;
       }
       const recipients = data?.recipients?.join(', ') ?? 'recipients';
-      toast.success(`Report sent to ${recipients}${data?.period_label ? ` for ${data.period_label}` : ''}`);
+      toast.success(
+        `Report sent${data?.period_label ? ` for ${data.period_label}` : ''}`,
+        {
+          description: `Delivered to ${recipients}.`,
+          duration: 8000,
+        }
+      );
     },
-    onError: (err: Error) => toast.error(err.message || 'Failed to send report'),
+    onError: (err: Error) =>
+      toast.error('Failed to send report', {
+        description: err.message,
+        duration: 12000,
+      }),
   });
 
   const toggleCustomDay = (day: number) => {
