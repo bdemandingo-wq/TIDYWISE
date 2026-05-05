@@ -133,11 +133,11 @@ export function EmailTemplatesSettings({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
-          SMS Templates
+          <Mail className="w-5 h-5" />
+          Email Templates
         </CardTitle>
         <CardDescription>
-          Customize the SMS messages sent to customers for booking confirmations and reminders
+          Customize the emails sent to customers for booking confirmations and reminders
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
