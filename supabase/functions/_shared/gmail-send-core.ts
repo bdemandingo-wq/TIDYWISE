@@ -76,7 +76,12 @@ export async function sendViaGmail(req: GmailSendInput): Promise<
   if (!res.ok) {
     const errBody = await res.text();
     await logFailure(supabase, req, `${res.status} ${errBody.slice(0, 500)}`);
-    return { success: false, error: `gmail_send_failed_${res.status}`, code: "SEND_FAILED" };
+    let detail = errBody.slice(0, 300);
+    try {
+      const parsed = JSON.parse(errBody);
+      detail = parsed?.error?.message || detail;
+    } catch { /* ignore */ }
+    return { success: false, error: `Gmail ${res.status}: ${detail}`, code: "SEND_FAILED" };
   }
 
   const data = await res.json();
