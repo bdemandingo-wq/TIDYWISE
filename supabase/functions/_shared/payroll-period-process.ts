@@ -567,16 +567,16 @@ export async function processOrg(
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
     message_id: messageId,
-    organization_id: org.id,
     template_name: TEMPLATE_NAME,
     recipient_email: recipients[0],
     status: "pending",
-    period_start: result.periodStart,
-    period_end: result.periodEnd,
     metadata: {
       recipients,
       period_label: result.periodLabel,
       totals,
+      organization_id: org.id,
+      period_start: result.periodStart,
+      period_end: result.periodEnd,
     },
   });
 
