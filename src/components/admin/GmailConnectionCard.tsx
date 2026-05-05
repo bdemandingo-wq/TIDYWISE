@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug } from 'lucide-react';
+import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -38,6 +38,7 @@ export function GmailConnectionCard() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [recentFailures, setRecentFailures] = useState(0);
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -144,6 +145,31 @@ export function GmailConnectionCard() {
     }
   };
 
+  const handleSendTest = async () => {
+    if (!organization?.id || !connection?.google_email) return;
+    setSendingTest(true);
+    try {
+      const timestamp = new Date().toLocaleString();
+      const { data, error } = await supabase.functions.invoke('gmail-send', {
+        body: {
+          organization_id: organization.id,
+          to: connection.google_email,
+          subject: 'TidyWise Gmail Test',
+          html: `<p>Hello from TidyWise! If you can read this, your Gmail integration is working correctly.</p><p>Sent at: ${timestamp}</p>`,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Test email sent — check your inbox');
+      fetchConnection();
+    } catch (e: any) {
+      console.error('[GmailConnectionCard] test email failed', e);
+      toast.error(`Test email failed: ${e?.message || e}`);
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   const formatDate = (iso: string | null) => {
     if (!iso) return 'Never';
     return new Date(iso).toLocaleString();
@@ -246,14 +272,27 @@ export function GmailConnectionCard() {
                   Last email sent: {formatDate(connection.last_send_at)}
                 </div>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirm(true)}
-                disabled={!isAdmin || disconnecting}
-              >
-                <Unplug className="h-4 w-4 mr-2" />
-                Disconnect
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleSendTest}
+                  disabled={sendingTest}
+                  className="bg-[#4f46e5] hover:bg-[#4338ca] text-white"
+                >
+                  {sendingTest ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending…</>
+                  ) : (
+                    <><Send className="h-4 w-4 mr-2" />Send test email</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConfirm(true)}
+                  disabled={!isAdmin || disconnecting}
+                >
+                  <Unplug className="h-4 w-4 mr-2" />
+                  Disconnect
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
