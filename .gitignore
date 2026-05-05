@@ -17,6 +17,12 @@ dist
 dist-ssr
 *.local
 
+# Deno (used by scripts/render-payroll-preview.ts)
+deno.lock
+
+# Local email preview output
+preview/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

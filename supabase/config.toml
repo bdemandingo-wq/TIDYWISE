@@ -3,6 +3,8 @@ project_id = "slwfkaqczvwvvvavkgpr"
 [functions]
   [functions.admin-help-chat]
     verify_jwt = false
+  [functions.admin-trigger-payroll-report]
+    verify_jwt = false
   [functions.ai-analysis-center]
     verify_jwt = false
   [functions.auth-email-hook]
@@ -64,6 +66,8 @@ project_id = "slwfkaqczvwvvvavkgpr"
   [functions.openphone-webhook]
     verify_jwt = false
   [functions.parse-migration-csv]
+    verify_jwt = false
+  [functions.payroll-period-report]
     verify_jwt = false
   [functions.post-booking-upsell]
     verify_jwt = false
