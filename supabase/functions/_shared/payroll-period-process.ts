@@ -187,12 +187,11 @@ export async function processOrg(
     periodStart = getPeriodStart(today, config);
     periodEnd = getPeriodEnd(periodStart, config);
   } else if (opts.force) {
-    // Admin trigger on a non-end-day: report on the most recently completed
-    // period (the one that ended before today).
-    const containsToday = getPeriodStart(today, config);
-    const prev = getPreviousPeriod(containsToday, config);
-    periodStart = prev.start;
-    periodEnd = prev.end;
+    // Admin trigger on a non-end-day: report on the CURRENT in-progress
+    // pay period (the one that contains today). This matches what the
+    // Payroll dashboard shows as "Current Pay Period".
+    periodStart = getPeriodStart(today, config);
+    periodEnd = getPeriodEnd(periodStart, config);
   } else {
     return { ...result, skipped: "not_period_end_day", success: true };
   }
