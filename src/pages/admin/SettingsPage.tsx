@@ -42,6 +42,7 @@ import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { GmailConnectionCard } from '@/components/admin/GmailConnectionCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
+import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
 
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
@@ -782,6 +783,7 @@ export default function SettingsPage() {
         <TabsContent value="emails" className="space-y-6">
           <GmailConnectionCard />
           <EmailSettingsCard />
+          <DomainVerificationCard />
           <EmailTemplatesSettings
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}

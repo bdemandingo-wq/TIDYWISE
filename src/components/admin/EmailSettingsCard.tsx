@@ -9,7 +9,7 @@ import { MessageSquare, Save, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useHasActiveGmail } from './GmailConnectionCard';
+
 
 interface EmailSettings {
   id?: string;
@@ -30,7 +30,6 @@ const defaultEmailSettings: EmailSettings = {
 
 export function EmailSettingsCard() {
   const { organization, isAdmin } = useOrganization();
-  const hasGmail = useHasActiveGmail();
   const [settings, setSettings] = useState<EmailSettings>(defaultEmailSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -175,21 +174,19 @@ export function EmailSettingsCard() {
             </p>
           </div>
 
-          {!hasGmail && (
-            <div className="space-y-2">
-              <Label htmlFor="fromEmail">From Email *</Label>
-              <Input
-                id="fromEmail"
-                type="email"
-                placeholder="bookings@yourdomain.com"
-                value={settings.from_email}
-                onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Must be from a verified domain in Resend
-              </p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="fromEmail">From Email *</Label>
+            <Input
+              id="fromEmail"
+              type="email"
+              placeholder="bookings@yourdomain.com"
+              value={settings.from_email}
+              onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Must be from a verified domain in Resend
+            </p>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -220,25 +217,23 @@ export function EmailSettingsCard() {
           </p>
         </div>
 
-        {!hasGmail && (
-          <div className="space-y-2">
-            <Label htmlFor="resendApiKey">Resend API Key (optional)</Label>
-            <Input
-              id="resendApiKey"
-              type="password"
-              placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              value={settings.resend_api_key}
-              onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              Your organization's own Resend API key. Get one at{' '}
-              <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
-                resend.com/api-keys
-              </a>
-              . The domain in your "From Email" must be verified in this Resend account.
-            </p>
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="resendApiKey">Resend API Key (optional)</Label>
+          <Input
+            id="resendApiKey"
+            type="password"
+            placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            value={settings.resend_api_key}
+            onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Your organization's own Resend API key. Get one at{' '}
+            <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
+              resend.com/api-keys
+            </a>
+            . The domain in your "From Email" must be verified in this Resend account.
+          </p>
+        </div>
 
         <Button onClick={saveEmailSettings} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
