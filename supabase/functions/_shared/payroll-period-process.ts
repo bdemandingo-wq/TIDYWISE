@@ -88,49 +88,92 @@ export interface ProcessOrgResult {
 }
 
 // ---------------------------------------------------------------------------
-// Per-booking pay calc — mirrors weekly-payroll-summary so wages stay
-// computed the same way everywhere.
+// Per-booking calc — MIRRORS the dashboard exactly so the email matches the
+// Payroll page's "Current Pay Period" widget. See:
+//   - src/lib/wageCalculation.ts (calculateBookingWage, getActualHours)
+//   - src/pages/admin/PayrollPage.tsx (calcWeekForecast, getStaffPayEntries)
+// Any drift here = email and dashboard disagree. Don't drift.
 // ---------------------------------------------------------------------------
 
-interface BookingForPay {
+interface WageBooking {
+  id: string;
+  status: string;
+  staff_id: string | null;
+  scheduled_at: string;
   duration: number | null;
   total_amount: number | null;
+  subtotal: number | null;
+  discount_amount: number | null;
+  cleaner_checkin_at: string | null;
+  cleaner_checkout_at: string | null;
   cleaner_override_hours: number | null;
   cleaner_pay_expected: number | null;
   cleaner_actual_payment: number | null;
   cleaner_wage_type: string | null;
   cleaner_wage: number | null;
-  staff_id: string | null;
 }
 
-interface StaffForPay {
+interface WageStaff {
+  id: string;
+  name: string;
   base_wage: number | null;
   hourly_rate: number | null;
+  default_hours: number | null;
   percentage_rate: number | null;
 }
 
-function bookingHours(b: BookingForPay): number {
-  if (b.cleaner_override_hours != null) return Number(b.cleaner_override_hours);
-  if (b.duration != null) return Number(b.duration) / 60;
-  return 0;
+interface TeamAssignment {
+  booking_id: string;
+  staff_id: string;
+  pay_share: number | null;
+  is_primary: boolean | null;
 }
 
-function bookingPay(b: BookingForPay, staff: StaffForPay | null): number {
-  // SINGLE SOURCE OF TRUTH: cleaner_pay_expected
-  if (b.cleaner_pay_expected != null) return Number(b.cleaner_pay_expected);
-  if (b.cleaner_actual_payment != null) return Number(b.cleaner_actual_payment);
+/** Mirrors src/lib/wageCalculation.ts:getActualHours. */
+function getActualHours(b: WageBooking, staff: WageStaff | null): number {
+  if (b.cleaner_checkin_at && b.cleaner_checkout_at) {
+    const ms = new Date(b.cleaner_checkout_at).getTime() -
+      new Date(b.cleaner_checkin_at).getTime();
+    return ms / 3_600_000;
+  }
+  if (b.cleaner_override_hours != null) return Number(b.cleaner_override_hours);
+  if (staff?.default_hours != null) return Number(staff.default_hours);
+  return Number(b.duration ?? 0) / 60;
+}
 
-  // Fallback: compute from the rate/type stored on the booking, then staff.
+/** Net revenue for a booking, mirrors the dashboard's calcWeekForecast. */
+function bookingNetRevenue(b: WageBooking): number {
+  return Number(b.subtotal ?? b.total_amount ?? 0) -
+    Number(b.discount_amount ?? 0);
+}
+
+/** Mirrors src/lib/wageCalculation.ts:calculateBookingWage. */
+function calculateBookingWage(b: WageBooking, staff: WageStaff | null): number {
+  // 1. cleaner_pay_expected is the single source of truth.
+  if (b.cleaner_pay_expected != null) return Number(b.cleaner_pay_expected);
+  // 2. Legacy: cleaner_actual_payment (admin override).
+  if (b.cleaner_actual_payment != null) return Number(b.cleaner_actual_payment);
+  // 3. Fallback: compute from rate/type. Note percentage uses NET revenue.
   const wageType = (b.cleaner_wage_type || "hourly").toLowerCase();
   const wageRate = Number(
     b.cleaner_wage ?? staff?.base_wage ?? staff?.hourly_rate ?? 0,
   );
-  const hours = bookingHours(b);
-  const total = Number(b.total_amount ?? 0);
-
   if (wageType === "flat") return wageRate;
-  if (wageType === "percentage") return (total * wageRate) / 100;
-  return wageRate * hours;
+  if (wageType === "percentage") {
+    return (wageRate / 100) * bookingNetRevenue(b);
+  }
+  // hourly
+  return wageRate * getActualHours(b, staff);
+}
+
+/** Mirrors PayrollPage.tsx:calcWage — pay_share takes priority for team assignments. */
+function calcWage(
+  b: WageBooking,
+  staff: WageStaff | null,
+  payShareOverride: number | null,
+): number {
+  if (payShareOverride != null && payShareOverride > 0) return payShareOverride;
+  return calculateBookingWage(b, staff);
 }
 
 // ---------------------------------------------------------------------------
@@ -243,38 +286,55 @@ export async function processOrg(
     periodStart.getTime() - 3 * span * 86_400_000,
   );
 
+  // Mirror the dashboard's calcWeekForecast exactly:
+  //   - status != 'cancelled' (booked / confirmed / in_progress / completed all count)
+  //   - revenue uses subtotal || total_amount minus discount_amount
+  //   - hours sourced from check-in/out timestamps when present
+  // Custom-work-week filter is intentionally NOT applied here — the dashboard
+  // doesn't apply it to its "Current Pay Period" widget either.
   const { data: rawBookings } = await supabase
     .from("bookings")
     .select(
-      "id, staff_id, status, scheduled_at, duration, total_amount, " +
+      "id, staff_id, status, scheduled_at, duration, total_amount, subtotal, " +
+        "discount_amount, cleaner_checkin_at, cleaner_checkout_at, " +
         "cleaner_override_hours, cleaner_pay_expected, cleaner_actual_payment, " +
         "cleaner_wage_type, cleaner_wage",
     )
     .eq("organization_id", org.id)
-    .eq("status", "completed")
+    .neq("status", "cancelled")
     .gte("scheduled_at", lookbackStart.toISOString())
     .lte("scheduled_at", new Date(periodEnd.getTime() + 86_400_000).toISOString());
 
-  const bookings = (rawBookings ?? []) as Array<BookingForPay & {
-    id: string;
-    status: string;
-    scheduled_at: string;
-  }>;
+  const bookings = (rawBookings ?? []) as unknown as WageBooking[];
+  const bookingIds = bookings.map((b) => b.id);
 
-  // --- 6. Pull staff + payout accounts -------------------------------------
+  // --- 6. Pull staff + team assignments + payout accounts ------------------
   const { data: staffData } = await supabase
     .from("staff")
-    .select("id, name, base_wage, hourly_rate, percentage_rate")
+    .select("id, name, base_wage, hourly_rate, default_hours, percentage_rate")
     .eq("organization_id", org.id);
 
-  const staffMap = new Map<
-    string,
-    { name: string } & StaffForPay
-  >();
-  for (const s of (staffData ?? []) as Array<
-    { id: string; name: string } & StaffForPay
-  >) {
+  const staffMap = new Map<string, WageStaff>();
+  for (const s of (staffData ?? []) as WageStaff[]) {
     staffMap.set(s.id, s);
+  }
+
+  // Multi-cleaner bookings: payouts go through booking_team_assignments.
+  // Without this lookup, every team-only booking is invisible to the email.
+  let teamAssignments: TeamAssignment[] = [];
+  if (bookingIds.length > 0) {
+    const { data: rawAssignments } = await supabase
+      .from("booking_team_assignments")
+      .select("booking_id, staff_id, pay_share, is_primary")
+      .eq("organization_id", org.id)
+      .in("booking_id", bookingIds);
+    teamAssignments = (rawAssignments ?? []) as TeamAssignment[];
+  }
+  const assignmentsByBookingId = new Map<string, TeamAssignment[]>();
+  for (const a of teamAssignments) {
+    const list = assignmentsByBookingId.get(a.booking_id) ?? [];
+    list.push(a);
+    assignmentsByBookingId.set(a.booking_id, list);
   }
 
   const { data: payoutAccts } = await supabase
@@ -294,89 +354,98 @@ export async function processOrg(
       t < end.getTime() + 86_400_000;
   };
 
-  // Custom-days narrowing applies to the current period stats only — we still
-  // measure prior periods unfiltered so the change-vs-prev numbers are
-  // comparable.
-  const passesCustomDays = (b: { scheduled_at: string }) => {
-    if (!config.payroll_custom_days || config.payroll_custom_days.length === 0) {
-      return true;
-    }
-    // Use the org's tz to decide the booking's weekday.
-    const dow = calendarDateInTz(new Date(b.scheduled_at), tz).getUTCDay();
-    return config.payroll_custom_days.includes(dow);
-  };
-
   const prev1 = getPreviousPeriod(periodStart, config);
   const prev2 = getPreviousPeriod(prev1.start, config);
-  const prev3 = getPreviousPeriod(prev2.start, config);
 
-  const currentBookings = bookings.filter(
-    (b) => inPeriod(b, periodStart, periodEnd) && passesCustomDays(b),
+  const currentBookings = bookings.filter((b) =>
+    inPeriod(b, periodStart, periodEnd)
   );
   const prev1Bookings = bookings.filter((b) => inPeriod(b, prev1.start, prev1.end));
   const prev2Bookings = bookings.filter((b) => inPeriod(b, prev2.start, prev2.end));
-  const prev3Bookings = bookings.filter((b) => inPeriod(b, prev3.start, prev3.end));
 
-  // --- 8. Per-cleaner aggregation for the current period --------------------
-  interface CleanerAgg {
-    name: string;
-    jobs: number;
+  // --- 8. Period-level totals — mirrors PayrollPage:calcWeekForecast --------
+  // For each booking: revenue counts once. Payroll = sum of team-assignment
+  // payouts if any exist, else the primary staff_id's calcWage. Bookings with
+  // neither contribute revenue but no payroll (and don't count toward "jobs").
+  interface PeriodTotals {
     revenue: number;
-    payout: number;
-    hours: number;
+    payroll: number;
+    profit: number;
+    laborPct: number;
+    jobs: number;
+    cleanersWorked: number;
+    zeroPayBookings: number;
+    negativeMarginBookings: number;
+    cleanerIdsWithJobs: Set<string>;
   }
-  const aggCurrent = new Map<string, CleanerAgg>();
-  const aggPrev1 = new Map<string, CleanerAgg>();
 
-  const aggregate = (
-    list: typeof bookings,
-    target: Map<string, CleanerAgg>,
-  ) => {
+  const computeTotals = (list: WageBooking[]): PeriodTotals => {
+    let revenue = 0;
+    let payroll = 0;
+    let jobs = 0;
+    let zeroPay = 0;
+    let negMargin = 0;
+    const cleanerIds = new Set<string>();
+
     for (const b of list) {
-      if (!b.staff_id) continue;
-      const staff = staffMap.get(b.staff_id);
-      if (!staff) continue;
-      let row = target.get(b.staff_id);
-      if (!row) {
-        row = { name: staff.name, jobs: 0, revenue: 0, payout: 0, hours: 0 };
-        target.set(b.staff_id, row);
+      const rev = bookingNetRevenue(b);
+      revenue += rev;
+
+      const assignments = assignmentsByBookingId.get(b.id) ?? [];
+      let bookingPayrollSum = 0;
+      let hasAssignment = false;
+
+      if (assignments.length > 0) {
+        hasAssignment = true;
+        for (const a of assignments) {
+          const member = staffMap.get(a.staff_id) ?? null;
+          const ps = a.pay_share != null ? Number(a.pay_share) : null;
+          bookingPayrollSum += calcWage(b, member, ps);
+          cleanerIds.add(a.staff_id);
+        }
+      } else if (b.staff_id) {
+        hasAssignment = true;
+        const sm = staffMap.get(b.staff_id) ?? null;
+        bookingPayrollSum += calcWage(b, sm, null);
+        cleanerIds.add(b.staff_id);
       }
-      const pay = bookingPay(b, staff);
-      const hrs = bookingHours(b);
-      row.jobs += 1;
-      row.revenue += Number(b.total_amount ?? 0);
-      row.payout += pay;
-      row.hours += hrs;
+
+      if (hasAssignment) {
+        jobs += 1;
+        payroll += bookingPayrollSum;
+        if (bookingPayrollSum === 0) zeroPay += 1;
+        if (bookingPayrollSum > rev) negMargin += 1;
+      }
     }
+
+    return {
+      revenue,
+      payroll,
+      profit: revenue - payroll,
+      laborPct: revenue > 0 ? (payroll / revenue) * 100 : 0,
+      jobs,
+      cleanersWorked: cleanerIds.size,
+      zeroPayBookings: zeroPay,
+      negativeMarginBookings: negMargin,
+      cleanerIdsWithJobs: cleanerIds,
+    };
   };
-  aggregate(currentBookings, aggCurrent);
-  aggregate(prev1Bookings, aggPrev1);
 
-  // --- 9. Totals + change vs prev ------------------------------------------
-  const sumPay = (list: typeof bookings) =>
-    list.reduce(
-      (acc, b) => acc + bookingPay(b, b.staff_id ? staffMap.get(b.staff_id) ?? null : null),
-      0,
-    );
-  const sumRev = (list: typeof bookings) =>
-    list.reduce((acc, b) => acc + Number(b.total_amount ?? 0), 0);
-
-  const currentRevenue = sumRev(currentBookings);
-  const currentPayroll = sumPay(currentBookings);
-  const prev1Revenue = sumRev(prev1Bookings);
-  const prev1Payroll = sumPay(prev1Bookings);
+  const currentTotals = computeTotals(currentBookings);
+  const prev1Totals = computeTotals(prev1Bookings);
+  const prev2Totals = computeTotals(prev2Bookings);
 
   const totals = {
-    revenue: currentRevenue,
-    payroll: currentPayroll,
-    profit: currentRevenue - currentPayroll,
-    laborPct: currentRevenue > 0 ? (currentPayroll / currentRevenue) * 100 : 0,
-    jobs: currentBookings.length,
-    cleanersWorked: aggCurrent.size,
+    revenue: currentTotals.revenue,
+    payroll: currentTotals.payroll,
+    profit: currentTotals.profit,
+    laborPct: currentTotals.laborPct,
+    jobs: currentTotals.jobs,
+    cleanersWorked: currentTotals.cleanersWorked,
   };
   result.totals = totals;
 
-  if (!opts.force && currentBookings.length === 0) {
+  if (!opts.force && currentTotals.jobs === 0) {
     return { ...result, skipped: "no_completed_bookings", success: true };
   }
 
@@ -384,14 +453,86 @@ export async function processOrg(
     if (prev === 0) return curr === 0 ? 0 : 100;
     return ((curr - prev) / prev) * 100;
   };
-  const hadPrev = prev1Bookings.length > 0;
+  const hadPrev = prev1Totals.jobs > 0;
   const changeVsPrevious = hadPrev
     ? {
-      revenuePct: pctChange(currentRevenue, prev1Revenue),
-      payrollPct: pctChange(currentPayroll, prev1Payroll),
-      jobsPct: pctChange(currentBookings.length, prev1Bookings.length),
+      revenuePct: pctChange(currentTotals.revenue, prev1Totals.revenue),
+      payrollPct: pctChange(currentTotals.payroll, prev1Totals.payroll),
+      jobsPct: pctChange(currentTotals.jobs, prev1Totals.jobs),
     }
     : null;
+
+  // --- 9. Per-cleaner aggregation — mirrors PayrollPage:getStaffPayEntries --
+  // For each cleaner: count every booking where they're the primary
+  // (bookings.staff_id) OR they have a team assignment. pay_share wins over
+  // calcWage when set. Revenue is attributed only when they're the primary
+  // (or single staff) so we don't multi-count revenue across team members.
+  interface CleanerAgg {
+    name: string;
+    jobs: number;
+    revenue: number;
+    payout: number;
+    hours: number;
+  }
+  const aggregateByCleaner = (
+    list: WageBooking[],
+  ): Map<string, CleanerAgg> => {
+    const agg = new Map<string, CleanerAgg>();
+    const ensure = (sid: string): CleanerAgg => {
+      let row = agg.get(sid);
+      if (!row) {
+        row = {
+          name: staffMap.get(sid)?.name ?? "Unknown",
+          jobs: 0,
+          revenue: 0,
+          payout: 0,
+          hours: 0,
+        };
+        agg.set(sid, row);
+      }
+      return row;
+    };
+
+    for (const b of list) {
+      const assignments = assignmentsByBookingId.get(b.id) ?? [];
+      const seenForBooking = new Set<string>();
+
+      // Primary staff_id path (with potentially-overriding team assignment)
+      if (b.staff_id) {
+        const sm = staffMap.get(b.staff_id) ?? null;
+        const a = assignments.find((a) => a.staff_id === b.staff_id);
+        const ps = a?.pay_share != null ? Number(a.pay_share) : null;
+        const pay = calcWage(b, sm, ps);
+        const hours = getActualHours(b, sm);
+        const row = ensure(b.staff_id);
+        row.jobs += 1;
+        row.revenue += bookingNetRevenue(b);
+        row.payout += pay;
+        row.hours += hours;
+        seenForBooking.add(b.staff_id);
+      }
+
+      // Team assignments where the cleaner isn't the primary
+      for (const a of assignments) {
+        if (seenForBooking.has(a.staff_id)) continue;
+        const member = staffMap.get(a.staff_id) ?? null;
+        const ps = a.pay_share != null ? Number(a.pay_share) : null;
+        const pay = calcWage(b, member, ps);
+        const hours = getActualHours(b, member);
+        const row = ensure(a.staff_id);
+        row.jobs += 1;
+        row.payout += pay;
+        row.hours += hours;
+        // No revenue attribution for non-primary team members.
+        seenForBooking.add(a.staff_id);
+      }
+    }
+
+    return agg;
+  };
+
+  const aggCurrent = aggregateByCleaner(currentBookings);
+  const aggPrev1 = aggregateByCleaner(prev1Bookings);
 
   // --- 10. Build the cleaner rows + standouts -------------------------------
   const cleaners: CleanerRow[] = Array.from(aggCurrent.values())
@@ -434,18 +575,14 @@ export async function processOrg(
     : null;
 
   // --- 11. Warnings ---------------------------------------------------------
-  // Idle: jobs in EITHER prior 2 periods AND zero current.
-  const staffIdsWithJobs = (list: typeof bookings) => {
-    const s = new Set<string>();
-    for (const b of list) if (b.staff_id) s.add(b.staff_id);
-    return s;
-  };
-  const inCurrent = staffIdsWithJobs(currentBookings);
-  const inPrev1 = staffIdsWithJobs(prev1Bookings);
-  const inPrev2 = staffIdsWithJobs(prev2Bookings);
-
+  // Idle: jobs in EITHER prior 2 periods (any role) AND zero current. Uses the
+  // team-aware sets built by computeTotals so team-only cleaners aren't missed.
+  const inCurrent = currentTotals.cleanerIdsWithJobs;
   const idleStaffIds: string[] = [];
-  for (const sid of new Set([...inPrev1, ...inPrev2])) {
+  for (const sid of new Set([
+    ...prev1Totals.cleanerIdsWithJobs,
+    ...prev2Totals.cleanerIdsWithJobs,
+  ])) {
     if (!inCurrent.has(sid)) idleStaffIds.push(sid);
   }
   const idleCleaners = idleStaffIds
@@ -453,27 +590,18 @@ export async function processOrg(
     .filter((n): n is string => !!n)
     .sort();
 
-  const noStripeCleaners = Array.from(aggCurrent.entries())
-    .filter(([sid]) => !payoutsEnabledFor.has(sid))
-    .map(([, agg]) => agg.name)
+  // No-Stripe: cleaners who actually worked this period without payouts_enabled.
+  const noStripeCleaners = Array.from(inCurrent)
+    .filter((sid) => !payoutsEnabledFor.has(sid))
+    .map((sid) => staffMap.get(sid)?.name)
+    .filter((n): n is string => !!n)
     .sort();
-
-  let negativeMargin = 0;
-  let zeroPay = 0;
-  for (const b of currentBookings) {
-    if (!b.staff_id) continue;
-    const staff = staffMap.get(b.staff_id) ?? null;
-    const pay = bookingPay(b, staff);
-    const rev = Number(b.total_amount ?? 0);
-    if (pay === 0) zeroPay += 1;
-    if (pay > rev) negativeMargin += 1;
-  }
 
   const warnings = {
     idleCleaners,
     noStripeCleaners,
-    negativeMarginBookings: negativeMargin,
-    zeroPayBookings: zeroPay,
+    negativeMarginBookings: currentTotals.negativeMarginBookings,
+    zeroPayBookings: currentTotals.zeroPayBookings,
   };
 
   // --- 12. Org email settings — block if missing ---------------------------
