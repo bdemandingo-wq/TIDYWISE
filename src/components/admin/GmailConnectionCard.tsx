@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug } from 'lucide-react';
+import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
