@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -18,7 +20,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { getDayName, getEndDay, type PayrollPeriodConfig, DEFAULT_PAYROLL_CONFIG } from '@/lib/payrollPeriod';
-import { Settings, Save, Mail, Send, Loader2 } from 'lucide-react';
+import { Settings, Save, Mail, Send, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 
 const DAYS = [
   { value: 0, label: 'Sun' },
@@ -82,6 +84,30 @@ export function PayrollPeriodSettings() {
         payroll_report_send_hour:
           (row.payroll_report_send_hour as number | null) ?? 20,
       } as PayrollPeriodConfig & ReportSettings;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Whether the org has the from_name + from_email + resend_api_key needed for
+  // any payroll-period email to actually be sent. We block the toggle until
+  // these are filled in so the user doesn't enable a feature that would silently
+  // fail at send time.
+  const { data: emailConfigured = false, isLoading: emailConfigLoading } = useQuery({
+    queryKey: ['org-email-configured', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return false;
+      const { data, error } = await supabase
+        .from('organization_email_settings')
+        .select('from_name, from_email, resend_api_key')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return false;
+      return Boolean(
+        (data.from_name ?? '').trim() &&
+          (data.from_email ?? '').trim() &&
+          (data.resend_api_key ?? '').trim()
+      );
     },
     enabled: !!organizationId,
   });
@@ -302,13 +328,44 @@ export function PayrollPeriodSettings() {
               </p>
             </div>
             <Switch
-              checked={reportEnabled}
-              onCheckedChange={setReportEnabled}
+              checked={reportEnabled && emailConfigured}
+              disabled={!emailConfigured && !reportEnabled}
+              onCheckedChange={(checked) => {
+                if (checked && !emailConfigured) {
+                  toast.error(
+                    'Configure your email sender in Settings → Emails before enabling payroll reports.'
+                  );
+                  return;
+                }
+                setReportEnabled(checked);
+              }}
               aria-label="Enable payroll period reports"
             />
           </div>
 
-          {reportEnabled && (
+          {!emailConfigured && !emailConfigLoading && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Email sender not configured</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>
+                  Payroll reports send from your own Resend account. To enable
+                  this feature, add your sender name, sender email, and Resend
+                  API key in your email settings. Without these,{' '}
+                  <strong>nothing will send</strong> — there is no platform
+                  fallback.
+                </p>
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <Link to="/dashboard/settings?tab=emails">
+                    Open Email Settings
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {reportEnabled && emailConfigured && (
             <div className="space-y-4 pl-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Preferred send time</label>
@@ -367,12 +424,16 @@ export function PayrollPeriodSettings() {
           <Button
             variant="outline"
             onClick={() => sendNowMutation.mutate()}
-            disabled={sendNowMutation.isPending || !reportEnabled}
+            disabled={
+              sendNowMutation.isPending || !reportEnabled || !emailConfigured
+            }
             className="gap-2"
             title={
-              reportEnabled
-                ? 'Send the report for the most recent completed period'
-                : 'Enable email reports to send'
+              !emailConfigured
+                ? 'Configure your email sender in Settings → Emails first'
+                : reportEnabled
+                  ? 'Send the report for the most recent completed period'
+                  : 'Enable email reports to send'
             }
           >
             {sendNowMutation.isPending ? (
