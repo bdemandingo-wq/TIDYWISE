@@ -164,12 +164,12 @@ export function EmailTemplatesSettings({
         <Tabs value={activeTemplate} onValueChange={setActiveTemplate}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="confirmation" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Confirmation SMS
+              <Mail className="w-4 h-4" />
+              Confirmation Email
             </TabsTrigger>
             <TabsTrigger value="reminder" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Reminder SMS
+              <Mail className="w-4 h-4" />
+              Reminder Email
             </TabsTrigger>
           </TabsList>
 
