@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug, Send } from 'lucide-react';
+import { Mail, Loader2, AlertTriangle, CheckCircle2, Unplug, Send, Copy, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -220,23 +220,27 @@ export function GmailConnectionCard() {
             </div>
           ) : !connection ? (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Connect your Gmail account to send emails from your real address (better deliverability and trust).
-              </p>
-              <Button
-                onClick={handleConnect}
-                disabled={!isAdmin || connecting}
-                className="bg-[#4f46e5] hover:bg-[#4338ca] text-white"
-              >
-                {connecting ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Redirecting…</>
-                ) : (
-                  <><Mail className="h-4 w-4 mr-2" />Connect Gmail</>
-                )}
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <p className="text-sm text-foreground">
+                  Gmail integration is currently in private beta. To request access, email{' '}
+                  <span className="font-medium">support@tidywisecleaning.com</span> with your TidyWise account email and we'll add you to the test users list.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText('support@tidywisecleaning.com');
+                    toast.success('Email copied');
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy support email
+                </Button>
+              </div>
+              <Button disabled className="bg-muted text-muted-foreground cursor-not-allowed">
+                <Lock className="h-4 w-4 mr-2" />
+                Connect Gmail (request access)
               </Button>
-              {!isAdmin && (
-                <p className="text-xs text-muted-foreground">Only admins can connect Gmail.</p>
-              )}
             </div>
           ) : isLost ? (
             <div className="space-y-3">
