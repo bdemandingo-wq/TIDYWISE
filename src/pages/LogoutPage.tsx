@@ -44,13 +44,18 @@ export default function LogoutPage() {
 
   return (
     <>
-      <SEOHead title="Logging Out | TidyWise" description="You are being logged out." noIndex />
+      <SEOHead
+        title="Logging Out | TidyWise"
+        description="Signing you out of TidyWise and clearing your session — you'll be redirected to the login page in a moment."
+        noIndex
+      />
       <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Signing out...</p>
+        <h1 className="sr-only">Signing out of TidyWise</h1>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Signing out...</p>
+        </div>
       </div>
-    </div>
     </>
   );
 }

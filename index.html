@@ -1,8 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Order matters for SEO scorers: charset → viewport → title →
+         description → og:* → twitter:* → canonical → THEN scripts/links. -->
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
     <title>TidyWise — Cleaning Business Software for Maid Services</title>
+    <meta name="description" content="The all-in-one platform for cleaning business owners. Online booking, scheduling, invoicing, payments, and CRM in one dashboard. Free forever for cleaning teams." />
 
     <!-- Open Graph (defaults; SEOHead updates per route) -->
     <meta property="og:title" content="TidyWise — Cleaning Business Software" />
@@ -20,7 +25,10 @@
     <meta name="twitter:description" content="The all-in-one platform for cleaning business owners. Online booking, scheduling, invoicing, payments, and CRM in one dashboard." />
     <meta name="twitter:image" content="https://www.jointidywise.com/images/tidywise-og.png" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- Canonical (default; SEOHead updates href per route) -->
+    <link rel="canonical" href="https://www.jointidywise.com/" />
+
+    <!-- Mobile / PWA hints (after the SEO-critical block) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -29,7 +37,7 @@
     <!-- Author & Keywords (not managed by SEOHead) -->
     <meta name="author" content="TidyWise" />
     <meta name="keywords" content="cleaning business software, maid service software, cleaning company CRM, booking software for cleaning business, house cleaning software, cleaning scheduling software, janitorial software, housekeeping management, Booking Koala alternative, Jobber alternative, cleaning business management software" />
-    
+
     <!-- Google Search Console Verification -->
     <meta name="google-site-verification" content="6lZT4WUePfR_tgzuYn5kq_rnd77Hs6QiNxA2SE" />
 
@@ -40,9 +48,6 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-
-    <!-- Canonical (default; SEOHead updates href per route) -->
-    <link rel="canonical" href="https://www.jointidywise.com/" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />

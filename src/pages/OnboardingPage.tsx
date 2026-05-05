@@ -72,10 +72,11 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <SEOHead
           title="Finish setup on web | TidyWise"
-          description="Complete your TidyWise business setup on the web."
+          description="iOS app users need to finish creating their TidyWise business on the web. Open jointidywise.com to complete onboarding, then return to the app."
           canonical="/onboarding"
           noIndex
         />
+        <h1 className="sr-only">Finish your TidyWise business setup on the web</h1>
         <Card className="w-full max-w-md border-border/50 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Finish setup on the web</CardTitle>
@@ -374,7 +375,12 @@ export default function OnboardingPage() {
   if (orgLoading) {
     return (
       <>
-      <SEOHead title="Set Up Your Business | TidyWise" description="Complete your business setup to start using TidyWise." noIndex />
+      <SEOHead
+        title="Set Up Your Business | TidyWise"
+        description="Loading your TidyWise business setup wizard. This takes a moment while we check your account — you'll be guided through the rest in two short steps."
+        noIndex
+      />
+      <h1 className="sr-only">Setting up your TidyWise business</h1>
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
@@ -384,6 +390,13 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <SEOHead
+        title="Set Up Your Cleaning Business | TidyWise"
+        description="Tell TidyWise about your cleaning business and pick the services you offer in two quick steps. You'll be ready to take bookings right after."
+        canonical="/onboarding"
+        noIndex
+      />
+      <h1 className="sr-only">Set up your cleaning business in TidyWise</h1>
       {/* Logout button in top right */}
       <div className="absolute top-4 right-4">
         <Button
@@ -396,7 +409,7 @@ export default function OnboardingPage() {
           Sign out
         </Button>
       </div>
-      
+
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">

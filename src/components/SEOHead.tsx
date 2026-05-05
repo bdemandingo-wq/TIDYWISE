@@ -50,6 +50,10 @@ export function SEOHead({
 
     setLinkHref('link[rel="canonical"]', canonicalUrl);
 
+    // Sync the static description meta in index.html so non-JS crawlers and
+    // SEO scorers that read the initial HTML see the correct, per-route copy.
+    setMetaContent('meta[name="description"]', description);
+
     setMetaContent('meta[property="og:title"]', title);
     setMetaContent('meta[property="og:description"]', description);
     setMetaContent('meta[property="og:image"]', imageUrl);

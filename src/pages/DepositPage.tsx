@@ -116,7 +116,12 @@ export default function DepositPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
         <TrackingPixels metaPixelId={depositDetails?.metaPixelId} googleAnalyticsId={depositDetails?.googleAnalyticsId} />
-        <SEOHead title="Deposit Paid!" description="Your deposit has been received." />
+        <SEOHead
+          title="Deposit Paid | TidyWise"
+          description="Your service deposit has been received and your booking is confirmed. The cleaning company will follow up with next steps shortly."
+          noIndex
+        />
+        <h1 className="sr-only">Deposit received and booking confirmed</h1>
         <Card className="w-full max-w-md text-center shadow-xl border-blue-200">
           <CardContent className="pt-8 pb-8 space-y-4">
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 flex items-center justify-center">
@@ -138,7 +143,12 @@ export default function DepositPage() {
   if (error || !depositDetails) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-        <SEOHead title="Deposit" description="Pay your deposit." />
+        <SEOHead
+          title="Deposit Link Invalid | TidyWise"
+          description="This deposit link is no longer valid or has expired. Contact your cleaning company to request a new payment link."
+          noIndex
+        />
+        <h1 className="sr-only">Deposit link no longer valid</h1>
         <Card className="w-full max-w-md text-center shadow-xl">
           <CardContent className="pt-8 pb-8 space-y-4">
             <p className="text-muted-foreground">{error || 'This deposit link is no longer valid.'}</p>
@@ -151,7 +161,12 @@ export default function DepositPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
       <TrackingPixels metaPixelId={depositDetails.metaPixelId} googleAnalyticsId={depositDetails.googleAnalyticsId} />
-      <SEOHead title={`Pay Deposit - ${depositDetails.companyName}`} description="Pay your service deposit." />
+      <SEOHead
+        title={`Pay Deposit · ${depositDetails.companyName}`}
+        description={`Securely pay your booking deposit to ${depositDetails.companyName} via TidyWise. Your card details are encrypted and processed by Stripe.`}
+        noIndex
+      />
+      <h1 className="sr-only">Pay your booking deposit</h1>
       <Card className="w-full max-w-md shadow-xl border-blue-200/50">
         <CardHeader className="text-center pb-2">
           {depositDetails.logoUrl && (

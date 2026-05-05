@@ -162,10 +162,11 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <SEOHead
         title="Set new password | TidyWise"
-        description="Enter your code and set a new password for your TidyWise account."
+        description="Enter your reset code and set a new password for your TidyWise cleaning business account. Codes expire after a short time for security."
         canonical="/reset-password"
         noIndex
       />
+      <h1 className="sr-only">Set a new password for your TidyWise account</h1>
       <div className="w-full max-w-md">
         <Link
           to="/login"

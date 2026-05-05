@@ -42,7 +42,11 @@ export default function RedirectPage() {
   if (error) {
     return (
       <>
-      <SEOHead title="Redirecting... | TidyWise" description="You are being redirected." noIndex />
+      <SEOHead
+        title="Link Error | TidyWise"
+        description="The redirect link you followed could not be resolved. Try going back to the page that referred you, or visit the TidyWise homepage."
+        noIndex
+      />
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8">
           <h1 className="text-2xl font-bold text-destructive mb-2">Link Error</h1>
@@ -54,11 +58,19 @@ export default function RedirectPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-        <p className="text-muted-foreground">Redirecting...</p>
+    <>
+      <SEOHead
+        title="Redirecting… | TidyWise"
+        description="Resolving your link and forwarding you to the correct TidyWise destination — this should only take a moment."
+        noIndex
+      />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <h1 className="sr-only">Redirecting to your destination</h1>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Redirecting...</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
