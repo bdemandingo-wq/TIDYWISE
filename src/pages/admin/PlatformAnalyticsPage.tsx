@@ -770,7 +770,7 @@ export default function PlatformAnalyticsPage() {
                         if (filteredUsers.length > 0) {
                           return (
                             <div className="space-y-2">
-                              {filteredUsers.slice(0, 15).map((userStat, index) => (
+                              {filteredUsers.map((userStat, index) => (
                                 <div 
                                   key={userStat.user_id} 
                                   className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
