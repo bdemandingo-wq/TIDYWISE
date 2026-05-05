@@ -145,6 +145,31 @@ export function GmailConnectionCard() {
     }
   };
 
+  const handleSendTest = async () => {
+    if (!organization?.id || !connection?.google_email) return;
+    setSendingTest(true);
+    try {
+      const timestamp = new Date().toLocaleString();
+      const { data, error } = await supabase.functions.invoke('gmail-send', {
+        body: {
+          organization_id: organization.id,
+          to: connection.google_email,
+          subject: 'TidyWise Gmail Test',
+          html: `<p>Hello from TidyWise! If you can read this, your Gmail integration is working correctly.</p><p>Sent at: ${timestamp}</p>`,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Test email sent — check your inbox');
+      fetchConnection();
+    } catch (e: any) {
+      console.error('[GmailConnectionCard] test email failed', e);
+      toast.error(`Test email failed: ${e?.message || e}`);
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   const formatDate = (iso: string | null) => {
     if (!iso) return 'Never';
     return new Date(iso).toLocaleString();
