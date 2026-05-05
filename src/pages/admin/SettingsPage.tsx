@@ -42,7 +42,7 @@ import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { GmailConnectionCard } from '@/components/admin/GmailConnectionCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
-import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
 import { useAuth } from '@/hooks/useAuth';
