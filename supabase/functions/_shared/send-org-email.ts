@@ -2,7 +2,7 @@
 // Drop-in replacement for direct Resend calls in edge functions.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendViaGmail } from "../gmail-send/index.ts";
+import { sendViaGmail } from "./gmail-send-core.ts";
 import { getOrgEmailSettings } from "./get-org-email-settings.ts";
 
 export interface SendEmailInput {
