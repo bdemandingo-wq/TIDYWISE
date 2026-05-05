@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquare, Save, Loader2, Info, Eye } from 'lucide-react';
+import { Mail, Save, Loader2, Info, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface EmailTemplatesSettingsProps {
@@ -133,11 +133,11 @@ export function EmailTemplatesSettings({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
-          SMS Templates
+          <Mail className="w-5 h-5" />
+          Email Templates
         </CardTitle>
         <CardDescription>
-          Customize the SMS messages sent to customers for booking confirmations and reminders
+          Customize the emails sent to customers for booking confirmations and reminders
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -164,12 +164,12 @@ export function EmailTemplatesSettings({
         <Tabs value={activeTemplate} onValueChange={setActiveTemplate}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="confirmation" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Confirmation SMS
+              <Mail className="w-4 h-4" />
+              Confirmation Email
             </TabsTrigger>
             <TabsTrigger value="reminder" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Reminder SMS
+              <Mail className="w-4 h-4" />
+              Reminder Email
             </TabsTrigger>
           </TabsList>
 
