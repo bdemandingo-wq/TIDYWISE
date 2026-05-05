@@ -202,14 +202,17 @@ export async function processOrg(
   result.periodLabel = formatPeriodLabel(periodStart, periodEnd);
 
   // --- 3. Pre-send dedupe check --------------------------------------------
+  // org_id + period_end live inside metadata (the email_send_log table only
+  // has id/message_id/template_name/recipient_email/status/error_message/
+  // metadata/created_at), so we filter via jsonb operators.
   if (!opts.dryRun) {
     const { data: existing } = await supabase
       .from("email_send_log")
       .select("id")
-      .eq("organization_id", org.id)
       .eq("template_name", TEMPLATE_NAME)
-      .eq("period_end", result.periodEnd)
       .eq("status", "sent")
+      .eq("metadata->>organization_id", org.id)
+      .eq("metadata->>period_end", result.periodEnd)
       .limit(1);
     if (existing && existing.length > 0) {
       return { ...result, skipped: "already_sent", success: true };
@@ -479,14 +482,16 @@ export async function processOrg(
   if (!emailSettingsResult.success || !emailSettingsResult.settings) {
     if (!opts.dryRun) {
       await supabase.from("email_send_log").insert({
-        organization_id: org.id,
         template_name: TEMPLATE_NAME,
         recipient_email: recipients[0],
         status: "failed",
         error_message: emailSettingsResult.error ?? "Email settings missing",
-        period_start: result.periodStart,
-        period_end: result.periodEnd,
-        metadata: { reason: "no_email_settings" },
+        metadata: {
+          reason: "no_email_settings",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
       });
     }
     return {
@@ -500,15 +505,17 @@ export async function processOrg(
   if (!emailSettings.resend_api_key) {
     if (!opts.dryRun) {
       await supabase.from("email_send_log").insert({
-        organization_id: org.id,
         template_name: TEMPLATE_NAME,
         recipient_email: recipients[0],
         status: "failed",
         error_message:
           "No Resend API key configured. Set one in Settings → Emails.",
-        period_start: result.periodStart,
-        period_end: result.periodEnd,
-        metadata: { reason: "no_resend_key" },
+        metadata: {
+          reason: "no_resend_key",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
       });
     }
     return {
@@ -560,16 +567,16 @@ export async function processOrg(
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
     message_id: messageId,
-    organization_id: org.id,
     template_name: TEMPLATE_NAME,
     recipient_email: recipients[0],
     status: "pending",
-    period_start: result.periodStart,
-    period_end: result.periodEnd,
     metadata: {
       recipients,
       period_label: result.periodLabel,
       totals,
+      organization_id: org.id,
+      period_start: result.periodStart,
+      period_end: result.periodEnd,
     },
   });
 
