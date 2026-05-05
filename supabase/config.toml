@@ -156,3 +156,13 @@ project_id = "slwfkaqczvwvvvavkgpr"
 
 [functions.process-email-queue]
 verify_jwt = true
+  [functions.gmail-oauth-init]
+    verify_jwt = false
+  [functions.gmail-oauth-callback]
+    verify_jwt = false
+  [functions.gmail-refresh-token]
+    verify_jwt = false
+  [functions.gmail-send]
+    verify_jwt = false
+  [functions.gmail-disconnect]
+    verify_jwt = false

@@ -2998,6 +2998,44 @@ export type Database = {
           },
         ]
       }
+      email_send_failures: {
+        Row: {
+          attempted_at: string
+          error: string
+          id: string
+          organization_id: string
+          provider: string
+          recipient: string
+          subject: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          error: string
+          id?: string
+          organization_id: string
+          provider?: string
+          recipient: string
+          subject?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          error?: string
+          id?: string
+          organization_id?: string
+          provider?: string
+          recipient?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_failures_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -4474,6 +4512,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "org_feature_flags_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_gmail_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expires_at: string | null
+          connected_at: string
+          connected_by_user_id: string | null
+          created_at: string
+          google_email: string
+          id: string
+          last_refreshed_at: string | null
+          last_send_at: string | null
+          organization_id: string
+          refresh_token_encrypted: string
+          scopes: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          connected_at?: string
+          connected_by_user_id?: string | null
+          created_at?: string
+          google_email: string
+          id?: string
+          last_refreshed_at?: string | null
+          last_send_at?: string | null
+          organization_id: string
+          refresh_token_encrypted: string
+          scopes?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          connected_at?: string
+          connected_by_user_id?: string | null
+          created_at?: string
+          google_email?: string
+          id?: string
+          last_refreshed_at?: string | null
+          last_send_at?: string | null
+          organization_id?: string
+          refresh_token_encrypted?: string
+          scopes?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_gmail_connections_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
