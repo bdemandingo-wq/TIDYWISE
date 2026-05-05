@@ -202,14 +202,17 @@ export async function processOrg(
   result.periodLabel = formatPeriodLabel(periodStart, periodEnd);
 
   // --- 3. Pre-send dedupe check --------------------------------------------
+  // org_id + period_end live inside metadata (the email_send_log table only
+  // has id/message_id/template_name/recipient_email/status/error_message/
+  // metadata/created_at), so we filter via jsonb operators.
   if (!opts.dryRun) {
     const { data: existing } = await supabase
       .from("email_send_log")
       .select("id")
-      .eq("organization_id", org.id)
       .eq("template_name", TEMPLATE_NAME)
-      .eq("period_end", result.periodEnd)
       .eq("status", "sent")
+      .eq("metadata->>organization_id", org.id)
+      .eq("metadata->>period_end", result.periodEnd)
       .limit(1);
     if (existing && existing.length > 0) {
       return { ...result, skipped: "already_sent", success: true };
