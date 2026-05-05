@@ -482,14 +482,16 @@ export async function processOrg(
   if (!emailSettingsResult.success || !emailSettingsResult.settings) {
     if (!opts.dryRun) {
       await supabase.from("email_send_log").insert({
-        organization_id: org.id,
         template_name: TEMPLATE_NAME,
         recipient_email: recipients[0],
         status: "failed",
         error_message: emailSettingsResult.error ?? "Email settings missing",
-        period_start: result.periodStart,
-        period_end: result.periodEnd,
-        metadata: { reason: "no_email_settings" },
+        metadata: {
+          reason: "no_email_settings",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
       });
     }
     return {
