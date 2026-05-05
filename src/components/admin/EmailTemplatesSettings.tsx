@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquare, Save, Loader2, Info, Eye } from 'lucide-react';
+import { Mail, Save, Loader2, Info, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface EmailTemplatesSettingsProps {
