@@ -38,6 +38,7 @@ export function GmailConnectionCard() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [recentFailures, setRecentFailures] = useState(0);
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
