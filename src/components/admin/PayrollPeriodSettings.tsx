@@ -195,7 +195,7 @@ export function PayrollPeriodSettings() {
     },
     onSuccess: (data) => {
       if (data?.skipped) {
-        toast.info(`Report skipped: ${data.skipped.replaceAll('_', ' ')}`);
+        toast.info(`Report skipped: ${data.skipped.replace(/_/g, ' ')}`);
         return;
       }
       const recipients = data?.recipients?.join(', ') ?? 'recipients';
