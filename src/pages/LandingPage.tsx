@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
 import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
-import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
+import { SiteFooter } from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Lazy load below-the-fold heavy components for better LCP
@@ -827,78 +827,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer - Clean and minimal */}
-      <footer className="py-10 px-4 sm:px-6 lg:px-8 border-t border-border bg-background">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
-            <div className="md:col-span-1">
-              <span className="font-bold text-xl text-foreground mb-4 block">TIDYWISE</span>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                The complete platform to grow your cleaning business.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Product</h3>
-              <ul className="space-y-3">
-                <li><a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
-                <li><Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
-                <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Blog</Link></li>
-                <li><Link to="/cleaning-business-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">By Location</Link></li>
-                <li><a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Company</h3>
-              <ul className="space-y-3">
-                <li>
-                  <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/delete-account" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Delete Account
-                  </Link>
-                </li>
-                <li>
-                  <TermsOfServiceDialog>
-                    <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</button>
-                  </TermsOfServiceDialog>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Compare</h3>
-              <ul className="space-y-3">
-                <li><Link to="/compare/jobber" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Jobber</Link></li>
-                <li><Link to="/compare/booking-koala" className="text-sm text-muted-foreground hover:text-foreground transition-colors">vs Booking Koala</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-4">Resources</h3>
-              <ul className="space-y-3">
-                <li><Link to="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">All Guides</Link></li>
-                <li><Link to="/blog/best-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Best Cleaning Software</Link></li>
-                <li><Link to="/blog/maid-service-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Maid Service Software</Link></li>
-                <li><Link to="/blog/scheduling-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Scheduling Software</Link></li>
-                <li><Link to="/blog/invoicing-software-for-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Invoicing Software</Link></li>
-                <li><Link to="/blog/cleaning-business-management-software" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Management Software</Link></li>
-                <li><Link to="/blog/gps-tracking-cleaning-business" className="text-sm text-muted-foreground hover:text-foreground transition-colors">GPS Tracking</Link></li>
-                <li><Link to="/blog/how-to-automate-cleaning-company" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Automation Guide</Link></li>
-                <li><Link to="/blog/how-to-grow-cleaning-business-2025" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Growth Playbook</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} TIDYWISE. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
