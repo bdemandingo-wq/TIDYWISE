@@ -505,15 +505,17 @@ export async function processOrg(
   if (!emailSettings.resend_api_key) {
     if (!opts.dryRun) {
       await supabase.from("email_send_log").insert({
-        organization_id: org.id,
         template_name: TEMPLATE_NAME,
         recipient_email: recipients[0],
         status: "failed",
         error_message:
           "No Resend API key configured. Set one in Settings → Emails.",
-        period_start: result.periodStart,
-        period_end: result.periodEnd,
-        metadata: { reason: "no_resend_key" },
+        metadata: {
+          reason: "no_resend_key",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
       });
     }
     return {
