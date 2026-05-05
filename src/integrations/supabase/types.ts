@@ -1386,6 +1386,9 @@ export type Database = {
           organization_id: string | null
           payroll_custom_days: number[] | null
           payroll_frequency: string
+          payroll_report_email_enabled: boolean
+          payroll_report_recipients: string[]
+          payroll_report_send_hour: number
           payroll_start_day: number
           primary_color: string | null
           reminder_email_body: string | null
@@ -1428,6 +1431,9 @@ export type Database = {
           organization_id?: string | null
           payroll_custom_days?: number[] | null
           payroll_frequency?: string
+          payroll_report_email_enabled?: boolean
+          payroll_report_recipients?: string[]
+          payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
           reminder_email_body?: string | null
@@ -1470,6 +1476,9 @@ export type Database = {
           organization_id?: string | null
           payroll_custom_days?: number[] | null
           payroll_frequency?: string
+          payroll_report_email_enabled?: boolean
+          payroll_report_recipients?: string[]
+          payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
           reminder_email_body?: string | null
