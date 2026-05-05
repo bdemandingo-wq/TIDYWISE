@@ -29,6 +29,14 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.confirm-tip-payment]
     verify_jwt = false
+  [functions.copilot-chat]
+    verify_jwt = false
+  [functions.copilot-csv-import]
+    verify_jwt = false
+  [functions.copilot-mark-milestone]
+    verify_jwt = false
+  [functions.copilot-reengagement-cron]
+    verify_jwt = false
   [functions.create-customer-portal-invite]
     verify_jwt = false
   [functions.create-setup-intent]
