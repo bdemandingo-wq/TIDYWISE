@@ -4491,6 +4491,9 @@ export type Database = {
           organization_id: string
           reengagement_count: number
           reengagement_paused: boolean
+          tour_completed_at: string | null
+          tour_current_step: number
+          tour_skipped_at: string | null
           updated_at: string
         }
         Insert: {
@@ -4511,6 +4514,9 @@ export type Database = {
           organization_id: string
           reengagement_count?: number
           reengagement_paused?: boolean
+          tour_completed_at?: string | null
+          tour_current_step?: number
+          tour_skipped_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -4531,6 +4537,9 @@ export type Database = {
           organization_id?: string
           reengagement_count?: number
           reengagement_paused?: boolean
+          tour_completed_at?: string | null
+          tour_current_step?: number
+          tour_skipped_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5650,6 +5659,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "pnl_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_tour_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          organization_id: string | null
+          step_number: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          organization_id?: string | null
+          step_number?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string | null
+          step_number?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_tour_events_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
