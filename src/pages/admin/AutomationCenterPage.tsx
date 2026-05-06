@@ -15,6 +15,10 @@ function FeatureGuideTab() {
     { title: 'Rebooking Reminders', description: 'If a customer has no future booking 28 days after their last completed job, they receive a nudge to rebook.' },
     { title: 'Recurring Upsell', description: 'Two hours after a one-time customer\'s first completed job, they receive an offer to switch to a recurring service plan.' },
     { title: 'Win-Back (60 Days)', description: 'Customers inactive for 60+ days receive a re-engagement message to bring them back.' },
+    { title: 'Seasonal Promo Sender', description: 'Three days before each major US holiday (Christmas, Thanksgiving, July 4, etc.) we send your customers a promo SMS with a booking link. Each customer receives at most one nudge per holiday per 300 days; capped at 200 SMS per holiday firing per org. Respects marketing_status opt-outs.' },
+    { title: 'Weekly Business Summary', description: 'Every Monday we email the org owner a digest of last week\'s bookings, revenue, and team stats — comparing against the prior week. Only sends to orgs that have this toggle enabled.' },
+    { title: 'Recurring Booking Lapse Alert', description: 'Daily we check for active recurring bookings whose next scheduled date passed without generating a booking. If we find one, we SMS the org owner so they can investigate. Each lapse only alerts once per 7 days.' },
+    { title: 'Quote Stale Re-engage', description: 'Daily we look for quotes sitting in "sent" status for 3-4 days and SMS the customer with a friendly check-in. Fires once per quote, capped at 50 quotes per org per run, and runs earlier in the lifecycle than the existing 24-hour-before-expiry reminder.' },
   ];
 
   return (

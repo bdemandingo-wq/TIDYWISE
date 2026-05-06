@@ -14,6 +14,7 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
+  AlertTriangle, MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -233,6 +234,30 @@ const activeAutomationsMeta: Record<string, {
     description: 'Offers recurring service plan 2 hours after first completed cleaning',
     color: 'text-purple-500',
   },
+  seasonal_promo: {
+    icon: PartyPopper,
+    emoji: '🎉',
+    description: 'Sends promo SMS 3 days before major US holidays (Christmas, Thanksgiving, July 4, etc.)',
+    color: 'text-pink-500',
+  },
+  weekly_summary: {
+    icon: BarChart3,
+    emoji: '📊',
+    description: 'Emails you a weekly digest of bookings, revenue, and team stats every Monday',
+    color: 'text-blue-500',
+  },
+  recurring_lapse_alert: {
+    icon: AlertTriangle,
+    emoji: '⚠️',
+    description: 'Alerts you when a recurring client\'s expected booking didn\'t get created',
+    color: 'text-red-500',
+  },
+  quote_stale_reengage: {
+    icon: MessageSquare,
+    emoji: '💬',
+    description: 'Auto-sends a follow-up SMS when a quote sits unbooked for 3 days',
+    color: 'text-cyan-500',
+  },
 };
 
 const availableAutomations = [
@@ -249,20 +274,6 @@ const availableAutomations = [
     icon: CreditCard,
     name: 'Card Expiry Alert',
     description: 'Warns client when saved card is about to expire',
-  },
-  {
-    id: 'seasonal_promo',
-    emoji: '🐣',
-    icon: PartyPopper,
-    name: 'Seasonal Promo Sender',
-    description: 'Auto-sends campaign on holidays and seasonal events',
-  },
-  {
-    id: 'weekly_summary',
-    emoji: '📊',
-    icon: BarChart3,
-    name: 'Weekly Business Summary',
-    description: 'Sends you a weekly SMS/email digest of your business stats',
   },
   {
     id: 'loyalty_milestone',

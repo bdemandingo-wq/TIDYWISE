@@ -36,8 +36,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get all organizations
-    const { data: orgs } = await supabase.from('organizations').select('id, name, owner_id');
+    // Gate: only orgs that opted in via the `weekly_summary` automation toggle
+    // get the digest. Loads enabled org_ids first, then fans out only those.
+    const { data: enabled } = await supabase
+      .from('organization_automations')
+      .select('organization_id')
+      .eq('automation_type', 'weekly_summary')
+      .eq('is_enabled', true);
+    const enabledOrgIds = new Set((enabled ?? []).map((r: { organization_id: string }) => r.organization_id));
+
+    if (enabledOrgIds.size === 0) {
+      console.log('[weekly-business-report] No orgs have weekly_summary enabled — exiting.');
+      return new Response(
+        JSON.stringify({ success: true, summary: { total: 0, sent: 0 } }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: orgs } = await supabase
+      .from('organizations')
+      .select('id, name, owner_id')
+      .in('id', Array.from(enabledOrgIds));
 
     const reports = [];
 

@@ -1,0 +1,161 @@
+// quote-stale-reengage — daily SMS follow-up for quotes that have been sitting
+// in 'sent' status for 3-4 days without conversion.
+//
+// The 3-4 day window is intentional: it fires earlier than
+// quote-expiry-reminder (which fires 24h before valid_until), so a customer
+// gets one nudge mid-life and another right before expiry.
+//
+// Hard cap: 50 quotes per org per run.
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
+};
+
+const PER_ORG_CAP = 50;
+const QUOTE_LINK_BASE = "https://app.jointidywise.com/quote";
+
+serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Missing Supabase configuration" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: enabledOrgs } = await supabase
+    .from("organization_automations")
+    .select("organization_id")
+    .eq("automation_type", "quote_stale_reengage")
+    .eq("is_enabled", true);
+
+  // Quotes whose created_at is between 3 and 4 days ago.
+  const fourDaysAgo = new Date(Date.now() - 4 * 86_400_000).toISOString();
+  const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString();
+
+  const summary = { orgs: 0, sent: 0, skipped: 0, errors: 0 };
+
+  for (const row of enabledOrgs ?? []) {
+    const orgId = row.organization_id as string;
+    summary.orgs += 1;
+
+    try {
+      const { data: staleQuotes } = await supabase
+        .from("quotes")
+        .select(
+          "id, customer_id, service_id, total_amount, organization_id, customer:customers(first_name, phone), service:services(name)",
+        )
+        .eq("organization_id", orgId)
+        .eq("status", "sent")
+        .gte("created_at", fourDaysAgo)
+        .lte("created_at", threeDaysAgo)
+        .limit(PER_ORG_CAP);
+
+      if (!staleQuotes || staleQuotes.length === 0) continue;
+
+      const { data: bs } = await supabase
+        .from("business_settings")
+        .select("company_name")
+        .eq("organization_id", orgId)
+        .maybeSingle();
+      const companyName = (bs as { company_name?: string } | null)?.company_name ??
+        "Our team";
+
+      for (const q of staleQuotes) {
+        const quote = q as unknown as {
+          id: string;
+          customer_id: string | null;
+          customer: { first_name: string | null; phone: string | null } | null;
+          service: { name: string | null } | null;
+        };
+
+        if (!quote.customer?.phone) {
+          summary.skipped += 1;
+          continue;
+        }
+
+        // Already nudged this quote? (target_id = quote.id)
+        const { data: prior } = await supabase
+          .from("automation_fire_log")
+          .select("id")
+          .eq("organization_id", orgId)
+          .eq("automation_type", "quote_stale_reengage")
+          .eq("target_id", quote.id)
+          .limit(1);
+        if (prior && prior.length > 0) {
+          summary.skipped += 1;
+          continue;
+        }
+
+        const customerName = quote.customer.first_name ?? "there";
+        const serviceName = quote.service?.name ?? "cleaning service";
+        const quoteLink = `${QUOTE_LINK_BASE}/${quote.id}`;
+        const message = `Hi ${customerName} — just checking in on your ${serviceName} quote from ${companyName}. Still interested? View it here: ${quoteLink}. Reply if you have questions!`;
+
+        try {
+          const res = await fetch(
+            `${SUPABASE_URL}/functions/v1/send-openphone-sms`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: quote.customer.phone,
+                message,
+                organizationId: orgId,
+              }),
+            },
+          );
+          const result = await res.json() as { success?: boolean; error?: string };
+          if (!result.success) {
+            summary.errors += 1;
+            console.warn(
+              `[quote-stale-reengage] SMS failed org=${orgId} quote=${quote.id}: ${result.error}`,
+            );
+            continue;
+          }
+          summary.sent += 1;
+          await supabase.from("automation_fire_log").insert({
+            organization_id: orgId,
+            automation_type: "quote_stale_reengage",
+            target_id: quote.id,
+            metadata: {
+              customer_name: customerName,
+              service_name: serviceName,
+              sent_at: new Date().toISOString(),
+            },
+          });
+        } catch (smsErr) {
+          summary.errors += 1;
+          console.error(
+            `[quote-stale-reengage] SMS error org=${orgId} quote=${quote.id}:`,
+            smsErr,
+          );
+        }
+      }
+    } catch (err) {
+      summary.errors += 1;
+      console.error(`[quote-stale-reengage] Org ${orgId} threw:`, err);
+    }
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, summary }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+});
