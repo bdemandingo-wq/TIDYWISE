@@ -211,8 +211,6 @@ export function BookingFormProvider({
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
-  const { settings: orgPricingSettings } = useOrganizationSettings();
-  const combinedPricingEnabled = !!orgPricingSettings?.combined_pricing_enabled;
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
@@ -371,7 +369,6 @@ export function BookingFormProvider({
         squareFootageLabel: squareFootage || null,
         bedrooms: bedrooms || null,
         bathrooms: bathrooms || null,
-        combinedPricingEnabled,
         pricingMode,
       });
       basePrice = result.base;
@@ -391,7 +388,7 @@ export function BookingFormProvider({
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, combinedPricingEnabled]);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
