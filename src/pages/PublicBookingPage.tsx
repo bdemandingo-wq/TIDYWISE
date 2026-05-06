@@ -34,6 +34,12 @@ import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { calculateBasePrice } from '@/lib/pricingEngine';
+import {
+  configFromBusinessSettings,
+  getFrequencyDiscountMultiplier,
+  HARDCODED_DEFAULTS,
+  type RecurringDiscountConfig,
+} from '@/lib/recurringDiscount';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
@@ -86,6 +92,8 @@ export default function PublicBookingPage() {
     surge_holiday_enabled: boolean; surge_holiday_multiplier: number;
   } | null>(null);
   const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
+  const [recurringDiscountConfig, setRecurringDiscountConfig] =
+    useState<RecurringDiscountConfig>(HARDCODED_DEFAULTS);
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -159,12 +167,12 @@ export default function PublicBookingPage() {
     return () => clearPublicBranding();
   }, [primaryColor, accentColor, formColors.accent]);
 
-  // Fetch surge pricing settings once org is known
+  // Fetch surge pricing + recurring discount settings once org is known
   useEffect(() => {
     if (!organizationId) return;
     (supabase
       .from('business_settings' as any) as any)
-      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier,meta_pixel_id,google_analytics_id')
+      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier,meta_pixel_id,google_analytics_id,recurring_discount_one_time,recurring_discount_monthly,recurring_discount_biweekly,recurring_discount_weekly')
       .eq('organization_id', organizationId)
       .maybeSingle()
       .then(({ data }: any) => {
@@ -174,6 +182,7 @@ export default function PublicBookingPage() {
           meta_pixel_id: data.meta_pixel_id ?? null,
           google_analytics_id: data.google_analytics_id ?? null,
         });
+        setRecurringDiscountConfig(configFromBusinessSettings(data));
       });
   }, [organizationId]);
 
@@ -284,11 +293,13 @@ export default function PublicBookingPage() {
       if (condition) total += condition.price;
     }
 
-    // Apply frequency discount
+    // Apply frequency discount — pulled from per-org business_settings.
+    // The helper handles both 'bi-weekly' (public form) and 'biweekly'
+    // (admin form) ids and falls back to the prior hardcoded values when
+    // business_settings is missing the columns.
     if (selectedFrequency !== 'one-time') {
-      const discounts: Record<string, number> = { weekly: 0.20, 'bi-weekly': 0.15, monthly: 0.10 };
-      const discount = discounts[selectedFrequency] || 0;
-      total = total * (1 - discount);
+      const discountMult = getFrequencyDiscountMultiplier(selectedFrequency, recurringDiscountConfig);
+      if (discountMult > 0) total = total * (1 - discountMult);
     }
 
     // Apply surge multiplier

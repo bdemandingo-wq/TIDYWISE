@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { getLocalDateInTimezone, getTimeInTimezone } from '@/lib/timezoneUtils';
 import { calculateBasePrice } from '@/lib/pricingEngine';
+import { useRecurringDiscounts } from '@/hooks/useRecurringDiscounts';
+import { getFrequencyDiscountMultiplier } from '@/lib/recurringDiscount';
 
 interface CardInfo {
   hasCard: boolean;
@@ -211,6 +213,10 @@ export function BookingFormProvider({
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  // Per-org recurring discount config (one_time / monthly / biweekly / weekly).
+  // Falls back to the previous hardcoded values when business_settings is
+  // missing the columns or the row hasn't been created yet.
+  const { config: recurringDiscountConfig } = useRecurringDiscounts();
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
@@ -343,12 +349,14 @@ export function BookingFormProvider({
     if (selectedLocationPriceOverride != null && selectedLocationPriceOverride > 0) {
       let basePrice = selectedLocationPriceOverride;
       
-      // Apply frequency discount
-      const freqOption = frequencyOptions.find(f => f.id === frequency);
-      if (freqOption && freqOption.discount > 0 && basePrice > 0) {
-        basePrice = Math.round(basePrice * (1 - freqOption.discount));
+      // Apply frequency discount — pulled from per-org business_settings.
+      // For triweekly/anyday (not yet configurable per-org) the helper
+      // falls back to the legacy hardcoded values from pricingData.
+      const discountMult = getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
+      if (discountMult > 0 && basePrice > 0) {
+        basePrice = Math.round(basePrice * (1 - discountMult));
       }
-      
+
       return basePrice + extrasTotal + conditionTotal + petTotal;
     }
 
@@ -378,17 +386,17 @@ export function BookingFormProvider({
       basePrice = Number(selectedService.price);
     }
     
-    const freqOption = frequencyOptions.find(f => f.id === frequency);
-    if (freqOption && freqOption.discount > 0 && basePrice > 0) {
-      basePrice = Math.round(basePrice * (1 - freqOption.discount));
+    const discountMult = getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
+    if (discountMult > 0 && basePrice > 0) {
+      basePrice = Math.round(basePrice * (1 - discountMult));
     }
-    
+
     if (servicePricing?.minimum_price && basePrice > 0 && basePrice < servicePricing.minimum_price) {
       basePrice = servicePricing.minimum_price;
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride]);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
