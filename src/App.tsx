@@ -408,7 +408,8 @@ const App = () => (
                      </Routes>
                    </Suspense>
                  </ErrorBoundary>
-                  <CopilotMount />
+                   <CopilotMount />
+                   <ProductTour />
                   </CopilotProvider>
                 </BrowserRouter>
               )}
