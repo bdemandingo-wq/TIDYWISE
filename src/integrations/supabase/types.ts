@@ -2619,6 +2619,55 @@ export type Database = {
           },
         ]
       }
+      customer_duplicate_ignored: {
+        Row: {
+          customer_a_id: string
+          customer_b_id: string
+          id: string
+          ignored_at: string
+          ignored_by: string | null
+          organization_id: string
+        }
+        Insert: {
+          customer_a_id: string
+          customer_b_id: string
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          organization_id: string
+        }
+        Update: {
+          customer_a_id?: string
+          customer_b_id?: string
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_duplicate_ignored_customer_a_id_fkey"
+            columns: ["customer_a_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_duplicate_ignored_customer_b_id_fkey"
+            columns: ["customer_b_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_duplicate_ignored_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_intelligence: {
         Row: {
           ai_insights: Json | null
@@ -2757,6 +2806,7 @@ export type Database = {
           is_recurring: boolean
           last_name: string
           marketing_status: string
+          merged_into: string | null
           notes: string | null
           organization_id: string | null
           phone: string | null
@@ -2777,6 +2827,7 @@ export type Database = {
           is_recurring?: boolean
           last_name: string
           marketing_status?: string
+          merged_into?: string | null
           notes?: string | null
           organization_id?: string | null
           phone?: string | null
@@ -2797,6 +2848,7 @@ export type Database = {
           is_recurring?: boolean
           last_name?: string
           marketing_status?: string
+          merged_into?: string | null
           notes?: string | null
           organization_id?: string | null
           phone?: string | null
@@ -2806,6 +2858,13 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_merged_into_fkey"
+            columns: ["merged_into"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_organization_id_fkey"
             columns: ["organization_id"]
@@ -7980,6 +8039,10 @@ export type Database = {
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
         Returns: boolean
+      }
+      merge_customers: {
+        Args: { primary_id: string; secondary_id: string }
+        Returns: Json
       }
       move_to_dlq: {
         Args: {
