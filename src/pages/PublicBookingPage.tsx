@@ -113,7 +113,6 @@ export default function PublicBookingPage() {
     bedroomPricing,
     petOptions,
     homeConditionOptions,
-    combinedPricingEnabled,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
@@ -259,9 +258,7 @@ export default function PublicBookingPage() {
         squareFootageIndex: selectedSqFtIndex,
         bedrooms: selectedBedrooms,
         bathrooms: selectedBathrooms,
-        combinedPricingEnabled,
-        // Legacy fallback: if combined OFF, prefer bed/bath when both selected
-        // (matches previous behavior where bed/bath took priority).
+        // Prefer bed/bath when both selected (matches previous behavior).
         pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
         fallbackBasePrice: service.minimumPrice,
       });

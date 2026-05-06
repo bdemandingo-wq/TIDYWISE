@@ -2,13 +2,12 @@
  * Centralized pricing engine — single source of truth for base price calculation
  * across the admin booking form, the public booking form, and any future surface.
  *
- * Behavior:
- *  - combinedPricingEnabled = false (default): base = sqftPart OR bedBathPart (whichever
- *    the booking surface picked, preserving existing either/or behavior).
- *  - combinedPricingEnabled = true: base = sqftPart + bedBathPart (additive).
- *
- * This ALWAYS falls back gracefully — missing pieces resolve to 0, and a configured
- * minimum_price is applied at the end.
+ * Behavior (legacy either/or):
+ *   base = pricingMode === 'bedroom'
+ *     ? (bedBathPart || sqftPart)
+ *     : (sqftPart || bedBathPart);
+ * Then fallbackBasePrice is applied if base resolved to 0, then minimumPrice
+ * is applied as a floor.
  */
 
 import { squareFootageRanges } from '@/data/pricingData';
@@ -30,12 +29,7 @@ export interface PricingEngineInput {
   /** Selected bed/bath. Strings accepted to match historical data shape. */
   bedrooms?: string | number | null;
   bathrooms?: string | number | null;
-  /** Org-level toggle. Defaults to false (legacy behavior). */
-  combinedPricingEnabled?: boolean;
-  /**
-   * Which mode the booking surface is currently using. Only consulted when
-   * combinedPricingEnabled = false (legacy either/or behavior).
-   */
+  /** Which mode the booking surface is currently using. */
   pricingMode?: 'sqft' | 'bedroom';
   /** Optional fallback when nothing else resolves (e.g. service.price). */
   fallbackBasePrice?: number;
@@ -45,8 +39,6 @@ export interface PricingEngineResult {
   base: number;
   sqftPart: number;
   bedBathPart: number;
-  /** True if the org-level combined toggle was honored. */
-  combinedApplied: boolean;
 }
 
 function resolveSqftPart(input: PricingEngineInput): number {
@@ -77,21 +69,12 @@ function resolveBedBathPart(input: PricingEngineInput): number {
 export function calculateBasePrice(input: PricingEngineInput): PricingEngineResult {
   const sqftPart = resolveSqftPart(input);
   const bedBathPart = resolveBedBathPart(input);
-  const combined = !!input.combinedPricingEnabled;
 
-  let base = 0;
-
-  if (combined) {
-    // Additive mode — the headline behavior of this feature.
-    base = sqftPart + bedBathPart;
-  } else {
-    // Legacy either/or — preserve existing behavior for orgs that haven't opted in.
-    if (input.pricingMode === 'bedroom') {
-      base = bedBathPart || sqftPart; // graceful fallback
-    } else {
-      base = sqftPart || bedBathPart;
-    }
-  }
+  // Legacy either/or — graceful fallback between the two modes.
+  let base =
+    input.pricingMode === 'bedroom'
+      ? bedBathPart || sqftPart
+      : sqftPart || bedBathPart;
 
   // Last-resort fallback (e.g. service.price) so we never regress to $0 silently.
   if (base === 0 && input.fallbackBasePrice && input.fallbackBasePrice > 0) {
@@ -103,5 +86,5 @@ export function calculateBasePrice(input: PricingEngineInput): PricingEngineResu
     base = input.minimumPrice;
   }
 
-  return { base, sqftPart, bedBathPart, combinedApplied: combined };
+  return { base, sqftPart, bedBathPart };
 }
