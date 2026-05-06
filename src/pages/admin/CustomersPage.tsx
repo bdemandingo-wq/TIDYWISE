@@ -94,7 +94,7 @@ export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
   const { maskName, maskEmail, maskPhone, maskAddress, isTestMode, maskAmount } = useTestMode();
-  const { organization } = useOrganization();
+  const { organization, isAdmin } = useOrganization();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { maxCustomers, hasFullAccess } = useSubscription();
@@ -331,22 +331,101 @@ export default function CustomersPage() {
   };
 
   const exportToCsv = async () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Status', 'Total Bookings', 'Lifetime Revenue', 'Last Booking'];
-    const rows = filteredCustomers.map(c => {
+    if (!organization?.id) return;
+    if (customers.length === 0) {
+      toast('No customers to export');
+      return;
+    }
+
+    // Pull each customer's last service_type (from most recent non-cancelled
+    // booking) and active recurring frequency. Both fired in parallel — kept
+    // out of the always-mounted query so the page doesn't pay for them on
+    // every load. statsMap already carries total_bookings / revenue / last
+    // booking date.
+    const [bookingsResult, recurringResult] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('customer_id, scheduled_at, services(name)')
+        .eq('organization_id', organization.id)
+        .neq('status', 'cancelled')
+        .order('scheduled_at', { ascending: false }),
+      supabase
+        .from('recurring_bookings')
+        .select('customer_id, frequency')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true),
+    ]);
+
+    const lastServiceMap = new Map<string, string>();
+    for (const b of (bookingsResult.data ?? []) as Array<{
+      customer_id: string | null;
+      services: { name: string } | null;
+    }>) {
+      if (!b.customer_id) continue;
+      if (!lastServiceMap.has(b.customer_id)) {
+        lastServiceMap.set(b.customer_id, b.services?.name ?? '');
+      }
+    }
+    const recurringMap = new Map<string, string>();
+    for (const r of (recurringResult.data ?? []) as Array<{
+      customer_id: string | null;
+      frequency: string;
+    }>) {
+      if (!r.customer_id) continue;
+      recurringMap.set(r.customer_id, r.frequency);
+    }
+
+    const formatFreq = (raw: string | undefined): string => {
+      if (!raw) return 'One-Time';
+      if (raw === 'weekly') return 'Weekly';
+      if (raw === 'biweekly') return 'Bi-Weekly';
+      if (raw === 'monthly') return 'Monthly';
+      return raw;
+    };
+
+    const escape = (v: unknown): string => {
+      if (v == null) return '';
+      const s = String(v);
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    const headers = [
+      'first_name', 'last_name', 'email', 'phone',
+      'street_address', 'city', 'state', 'zip',
+      'service_type', 'frequency',
+      'created_at', 'last_booking_at',
+      'total_bookings', 'total_spent',
+    ];
+
+    const rows = customers.map((c) => {
       const s = statsMap.get(c.id);
       return [
-        c.first_name, c.last_name, c.email, c.phone || '',
-        c.address || '', c.city || '', c.state || '', c.zip_code || '',
-        c.customer_status || 'lead',
-        s?.total_bookings || 0,
-        s?.total_revenue?.toFixed(2) || '0.00',
-        s?.last_booking_date ? format(new Date(s.last_booking_date), 'yyyy-MM-dd') : '',
-      ];
+        c.first_name ?? '',
+        c.last_name ?? '',
+        c.email ?? '',
+        c.phone ?? '',
+        c.address ?? '',
+        c.city ?? '',
+        c.state ?? '',
+        c.zip_code ?? '',
+        lastServiceMap.get(c.id) ?? '',
+        formatFreq(recurringMap.get(c.id)),
+        c.created_at ?? '',
+        s?.last_booking_date ?? '',
+        s?.total_bookings ?? 0,
+        (s?.total_revenue ?? 0).toFixed(2),
+      ].map(escape);
     });
-    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(`customers-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
-    toast.success('Exported to CSV');
+    await exportFile(
+      `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`,
+      csv,
+      'text/csv',
+    );
+    toast.success(`Exported ${customers.length} customers`);
   };
 
   // Mobile helpers
@@ -408,10 +487,12 @@ export default function CustomersPage() {
       actions={
         <div className="flex gap-2">
       <SEOHead title="Customers | TidyWise" description="Manage your customer database" noIndex />
-          <Button variant="outline" size="sm" className="gap-2" onClick={exportToCsv}>
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportToCsv}>
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>
