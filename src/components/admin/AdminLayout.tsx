@@ -3,9 +3,6 @@ import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
-import { CopilotProvider } from '@/components/copilot/CopilotProvider';
-import { CopilotBubble } from '@/components/copilot/CopilotBubble';
-import { CopilotPanel } from '@/components/copilot/CopilotPanel';
 import { cn } from '@/lib/utils';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
@@ -36,35 +33,33 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
     location.pathname.includes('/calendar')
   ) || isInsideConversation;
 
+  // The Tidy co-pilot bubble + panel are NOT mounted here. They live in
+  // App.tsx so the CopilotProvider survives route changes — otherwise every
+  // navigation would remount the provider and clear the conversation.
   return (
-    <CopilotProvider>
-      <div className="min-h-screen bg-background">
-        <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+    <div className="min-h-screen bg-background">
+      <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-        <div className={cn(
-          "transition-all duration-300 min-h-screen",
-          "pl-0 md:pl-16",
-          sidebarOpen && "md:pl-64"
-        )}>
-          {!hideHeader && <AdminHeader title={title} subtitle={subtitle} actions={actions} />}
+      <div className={cn(
+        "transition-all duration-300 min-h-screen",
+        "pl-0 md:pl-16",
+        sidebarOpen && "md:pl-64"
+      )}>
+        {!hideHeader && <AdminHeader title={title} subtitle={subtitle} actions={actions} />}
 
-          <main
-            className={cn(
-              "animate-page-enter flex-1",
-              "p-1.5 md:p-4 pt-1.5 md:pt-4 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-4"
-            )}
-          >
-            {children}
-          </main>
-        </div>
-
-        <OfflineIndicator />
-
-        <MobileBottomNav />
-
-        <CopilotBubble />
-        <CopilotPanel />
+        <main
+          className={cn(
+            "animate-page-enter flex-1",
+            "p-1.5 md:p-4 pt-1.5 md:pt-4 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-4"
+          )}
+        >
+          {children}
+        </main>
       </div>
-    </CopilotProvider>
+
+      <OfflineIndicator />
+
+      <MobileBottomNav />
+    </div>
   );
 }

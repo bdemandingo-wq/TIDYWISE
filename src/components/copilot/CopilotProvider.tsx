@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrgId } from '@/hooks/useOrgId';
 
 const OPEN_STATE_KEY = 'tidywise.copilot.isOpen';
+const CONVERSATION_ID_KEY = 'tidywise.copilot.conversationId';
 const HISTORY_LIMIT = 12;
 
 export interface CopilotMessage {
@@ -58,7 +59,16 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // Conversation id is the thread key. Hydrate from localStorage on mount so
+  // navigations / new tabs / hard refreshes resume the same thread instead of
+  // starting fresh. Server is still the source of truth for messages.
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(CONVERSATION_ID_KEY);
+    } catch {
+      return null;
+    }
+  });
   const lastUserMessage = useRef<string | null>(null);
   const historyLoadedFor = useRef<string | null>(null);
 
@@ -71,18 +81,38 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
     }
   }, [isOpen]);
 
+  // Persist conversation id so a new mount (cross-tab, hard refresh) resumes
+  // the same thread. Cleared when null (e.g., user explicitly resets).
+  useEffect(() => {
+    try {
+      if (conversationId) {
+        localStorage.setItem(CONVERSATION_ID_KEY, conversationId);
+      } else {
+        localStorage.removeItem(CONVERSATION_ID_KEY);
+      }
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [conversationId]);
+
   // Clear unread badge when the user opens the panel.
   useEffect(() => {
     if (isOpen && hasUnread) setHasUnread(false);
   }, [isOpen, hasUnread]);
 
-  // Load the most recent conversation from copilot_conversations on first
-  // mount per (user, org). Keyed by `${userId}:${orgId}` so a context switch
-  // re-fetches; the sentinel prevents redundant fetches across re-renders.
+  // Load conversation history on first mount per (user, org). Now that the
+  // provider is hoisted to the app shell, this fires ONCE per session per
+  // (user, org), not on every route change.
+  //
+  // Resolution order:
+  //   1. If localStorage has a conversation_id, try to load that thread first
+  //      (with user_id + organization_id RLS guards) so we resume cleanly.
+  //   2. Otherwise, fall back to the latest conversation_id from the DB
+  //      (filtered by user_id + organization_id) and load that.
   //
   // The generated Supabase types don't yet include copilot_conversations
-  // (table was just added in 20260505095823_copilot_phase_1.sql), so we route
-  // through an untyped client until `npm run gen:types` regenerates them.
+  // (added in 20260505095823_copilot_phase_1.sql), so we route through an
+  // untyped client until `npm run gen:types` regenerates them.
   useEffect(() => {
     if (!user?.id || !organizationId) return;
     const key = `${user.id}:${organizationId}`;
@@ -94,22 +124,34 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const db = supabase as any;
-        const { data: latest, error: latestErr } = await db
-          .from('copilot_conversations')
-          .select('conversation_id')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (latestErr) throw latestErr;
-        if (!latest?.conversation_id) return;
-        if (cancelled) return;
+
+        // 1) Prefer the localStorage conversation_id when available.
+        let targetConvId: string | null = conversationId;
+
+        // 2) Fallback: ask the DB for the most recent conversation in this
+        //    (user, org) scope. Ordered by created_at since the table is
+        //    append-only and has no updated_at column.
+        if (!targetConvId) {
+          const { data: latest, error: latestErr } = await db
+            .from('copilot_conversations')
+            .select('conversation_id')
+            .eq('user_id', user.id)
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (latestErr) throw latestErr;
+          targetConvId = latest?.conversation_id ?? null;
+        }
+
+        if (!targetConvId || cancelled) return;
 
         const { data: rows, error: rowsErr } = await db
           .from('copilot_conversations')
           .select('id, message_role, message_content, created_at')
           .eq('user_id', user.id)
-          .eq('conversation_id', latest.conversation_id)
+          .eq('organization_id', organizationId)
+          .eq('conversation_id', targetConvId)
           .order('created_at', { ascending: true })
           .limit(HISTORY_LIMIT);
         if (rowsErr) throw rowsErr;
@@ -130,7 +172,16 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
             createdAt: r.created_at,
           }));
 
-        setConversationId(latest.conversation_id as string);
+        // The localStorage conversation_id might be stale (deleted, scoped to
+        // a different org the user used to belong to). If we got 0 rows back,
+        // re-resolve via the latest-from-DB fallback path on the next mount
+        // by clearing the cached id.
+        if (loaded.length === 0 && conversationId === targetConvId) {
+          setConversationId(null);
+          return;
+        }
+
+        setConversationId(targetConvId);
         setMessages(loaded);
       } catch (err) {
         // History load failures are non-fatal — just start fresh.
@@ -141,6 +192,10 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
     return () => {
       cancelled = true;
     };
+    // conversationId is intentionally NOT a dep — it's read once per
+    // (user, org) hydration. Subsequent updates from sendMessage are written
+    // by setConversationId without retriggering this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, organizationId]);
 
   const sendMessage = useCallback(

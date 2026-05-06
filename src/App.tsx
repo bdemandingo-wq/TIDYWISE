@@ -16,6 +16,8 @@ import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CopilotProvider } from "@/components/copilot/CopilotProvider";
+import { CopilotMount } from "@/components/copilot/CopilotMount";
 import { Capacitor } from "@capacitor/core";
 import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
@@ -178,6 +180,7 @@ const App = () => (
                 */}
                 {Capacitor.isNativePlatform() ? (
                   <HashRouter>
+                    <CopilotProvider>
                      <ErrorBoundary featureName="App">
                        <Suspense fallback={<PageLoader />}>
                           <Routes>
@@ -268,9 +271,12 @@ const App = () => (
                        </Routes>
                      </Suspense>
                    </ErrorBoundary>
+                    <CopilotMount />
+                    </CopilotProvider>
                 </HashRouter>
               ) : (
                 <BrowserRouter>
+                  <CopilotProvider>
                  <ErrorBoundary featureName="App">
                    <Suspense fallback={<PageLoader />}>
                      <Routes>
@@ -397,6 +403,8 @@ const App = () => (
                      </Routes>
                    </Suspense>
                  </ErrorBoundary>
+                  <CopilotMount />
+                  </CopilotProvider>
                 </BrowserRouter>
               )}
               </TooltipProvider>
