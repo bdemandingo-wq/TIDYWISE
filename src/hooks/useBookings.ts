@@ -341,10 +341,14 @@ export function useCustomers() {
       if (!organizationId) {
         return [];
       }
+      // Hide merged-out customers everywhere — they live on as audit history
+      // (merged_into = primary.id) but should never appear in lists, counts,
+      // or exports.
       const { data, error } = await supabase
         .from('customers')
         .select('*')
         .eq('organization_id', organizationId)
+        .is('merged_into', null)
         .order('created_at', { ascending: false })
         .limit(1000); // Pagination limit
 

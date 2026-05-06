@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import {
   Search, Plus, Mail, Phone, Edit, Trash2, CreditCard, Upload, Users,
   UserX, RefreshCw, MapPin, Download, AlertTriangle, ArrowUpDown,
   ArrowUp, ArrowDown, CalendarDays, DollarSign, FileText, Eye, UserPlus,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, GitMerge,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -95,6 +96,7 @@ export default function CustomersPage() {
   const deleteCustomer = useDeleteCustomer();
   const { maskName, maskEmail, maskPhone, maskAddress, isTestMode, maskAmount } = useTestMode();
   const { organization, isAdmin } = useOrganization();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { maxCustomers, hasFullAccess } = useSubscription();
@@ -487,6 +489,17 @@ export default function CustomersPage() {
       actions={
         <div className="flex gap-2">
       <SEOHead title="Customers | TidyWise" description="Manage your customer database" noIndex />
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => navigate('/dashboard/customers/duplicates')}
+            >
+              <GitMerge className="w-4 h-4" />
+              <span className="hidden sm:inline">Find duplicates</span>
+            </Button>
+          )}
           {isAdmin && (
             <Button variant="outline" size="sm" className="gap-2" onClick={exportToCsv}>
               <Download className="w-4 h-4" />
