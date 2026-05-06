@@ -778,13 +778,17 @@ export default function SettingsPage() {
 
         {/* SMS Settings */}
         <TabsContent value="sms" className="space-y-6">
-          <SMSSettingsCard />
+          <div data-tour-id="openphone-connect">
+            <SMSSettingsCard />
+          </div>
           <OpenPhoneDebugTools />
         </TabsContent>
 
         {/* Email & Domain Settings */}
         <TabsContent value="emails" className="space-y-6">
-          <GmailConnectionCard />
+          <div data-tour-id="gmail-connect">
+            <GmailConnectionCard />
+          </div>
           <EmailSettingsCard />
           <DomainVerificationCard />
           <EmailTemplatesSettings
@@ -1143,7 +1147,9 @@ export default function SettingsPage() {
 
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-6">
-          <StripeConnectHealthPanel />
+          <div data-tour-id="stripe-connect">
+            <StripeConnectHealthPanel />
+          </div>
 
           <Card>
             <CardHeader>

@@ -18,6 +18,7 @@ import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CopilotProvider } from "@/components/copilot/CopilotProvider";
 import { CopilotMount } from "@/components/copilot/CopilotMount";
+import { ProductTour } from "@/components/copilot/ProductTour";
 import { Capacitor } from "@capacitor/core";
 import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
@@ -272,6 +273,7 @@ const App = () => (
                      </Suspense>
                    </ErrorBoundary>
                     <CopilotMount />
+                    <ProductTour />
                     </CopilotProvider>
                 </HashRouter>
               ) : (

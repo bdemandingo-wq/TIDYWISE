@@ -13,6 +13,7 @@ export function CopilotBubble() {
       onClick={toggle}
       aria-label={isOpen ? 'Close Tidy' : 'Open Tidy'}
       aria-pressed={isOpen}
+      data-tour-id="tidy-bubble"
       className={cn(
         'fixed z-[9999]',
         'bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6',

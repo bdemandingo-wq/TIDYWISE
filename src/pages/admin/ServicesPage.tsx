@@ -139,7 +139,7 @@ export default function ServicesPage() {
         </Button>
       }
     >
-      <Tabs defaultValue="custom-services" className="space-y-6">
+      <Tabs defaultValue="custom-services" className="space-y-6" data-tour-id="services-list">
         <TabsList>
           <TabsTrigger value="custom-services" className="flex items-center gap-2">
             <Plus className="w-4 h-4" />

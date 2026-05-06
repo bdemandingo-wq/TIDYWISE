@@ -256,7 +256,7 @@ export default function HelpPage() {
     >
       <div className="space-y-8">
         {/* Videos Section */}
-        <div>
+        <div data-tour-id="help-videos">
           <h2 className="text-lg font-semibold mb-4">Tutorial Videos</h2>
           
           {videos.length === 0 ? (
