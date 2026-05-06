@@ -329,7 +329,16 @@ export function ProductTour() {
       showSkipButton
       showProgress
       disableScrollParentFix
+      disableScrolling={false}
+      spotlightPadding={8}
       callback={handleCallback}
+      floaterProps={{
+        styles: {
+          floater: {
+            transition: 'opacity 200ms ease, transform 200ms ease',
+          },
+        },
+      }}
       // z-index 1000 keeps the overlay BELOW the Tidy bubble (z-9999) so the
       // bubble stays visible & clickable mid-tour. Step 6 spotlights the
       // bubble — joyride's spotlight is a hole in the overlay rather than a
@@ -340,12 +349,17 @@ export function ProductTour() {
           textColor: '#111827',
           backgroundColor: '#ffffff',
           arrowColor: '#ffffff',
-          overlayColor: 'rgba(0, 0, 0, 0.7)',
+          overlayColor: 'rgba(15, 15, 20, 0.55)',
           zIndex: 1000,
+        },
+        spotlight: {
+          borderRadius: 12,
+          boxShadow: '0 0 0 4px rgba(79, 70, 229, 0.25), 0 8px 32px rgba(0, 0, 0, 0.4)',
         },
         tooltip: {
           borderRadius: 12,
           borderTop: '3px solid #4f46e5',
+          padding: 20,
         },
         tooltipTitle: {
           fontSize: 16,
@@ -364,7 +378,7 @@ export function ProductTour() {
           borderRadius: 8,
         },
         buttonBack: {
-          color: '#6b7280',
+          color: '#4f46e5',
           fontSize: 14,
         },
         buttonSkip: {
