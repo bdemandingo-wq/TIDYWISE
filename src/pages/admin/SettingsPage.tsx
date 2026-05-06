@@ -668,6 +668,8 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <CopilotSettingsCard />
         </TabsContent>
 
         {/* Booking Form Sharing */}
