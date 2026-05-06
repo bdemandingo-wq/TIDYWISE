@@ -71,7 +71,7 @@ serve(async (req: Request) => {
     .insert({
       organization_id: TIDYWISE_ORG_ID,
       name: name || "Facebook Lead",
-      email: email || null,
+      email,
       phone: phone || null,
       source,
       status: "new",
