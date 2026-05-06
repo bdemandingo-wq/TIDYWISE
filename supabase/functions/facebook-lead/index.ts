@@ -51,9 +51,9 @@ serve(async (req: Request) => {
     : null;
   const notes = body.notes ? body.notes.toString().trim() : null;
 
-  if (!name && !email && !phone) {
+  if (!email) {
     return new Response(
-      JSON.stringify({ error: "At least one of name, email, or phone is required" }),
+      JSON.stringify({ error: "email is required" }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
