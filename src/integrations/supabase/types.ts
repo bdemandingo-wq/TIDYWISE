@@ -2315,6 +2315,103 @@ export type Database = {
           },
         ]
       }
+      copilot_conversations: {
+        Row: {
+          context: Json
+          conversation_id: string
+          created_at: string
+          id: string
+          message_content: string
+          message_role: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_content: string
+          message_role: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_content?: string
+          message_role?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copilot_reengagement_log: {
+        Row: {
+          channel: string
+          id: string
+          in_app_dismissed_at: string | null
+          message_body: string | null
+          message_subject: string | null
+          metadata: Json
+          organization_id: string
+          recipient: string | null
+          response_at: string | null
+          sent_at: string
+          trigger_reason: string
+          user_id: string | null
+          user_responded: boolean
+        }
+        Insert: {
+          channel: string
+          id?: string
+          in_app_dismissed_at?: string | null
+          message_body?: string | null
+          message_subject?: string | null
+          metadata?: Json
+          organization_id: string
+          recipient?: string | null
+          response_at?: string | null
+          sent_at?: string
+          trigger_reason: string
+          user_id?: string | null
+          user_responded?: boolean
+        }
+        Update: {
+          channel?: string
+          id?: string
+          in_app_dismissed_at?: string | null
+          message_body?: string | null
+          message_subject?: string | null
+          metadata?: Json
+          organization_id?: string
+          recipient?: string | null
+          response_at?: string | null
+          sent_at?: string
+          trigger_reason?: string
+          user_id?: string | null
+          user_responded?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copilot_reengagement_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_automation_logs: {
         Row: {
           automation_id: string
@@ -4311,6 +4408,77 @@ export type Database = {
             foreignKeyName: "offline_sync_queue_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_progress: {
+        Row: {
+          activated_at: string | null
+          copilot_dismissed_at: string | null
+          copilot_enabled: boolean
+          created_at: string
+          csv_imports_attempted: number
+          csv_imports_succeeded: number
+          id: string
+          last_engagement_at: string | null
+          milestone_1_company_info_completed_at: string | null
+          milestone_2_services_pricing_completed_at: string | null
+          milestone_3_clients_added_completed_at: string | null
+          milestone_4_staff_added_completed_at: string | null
+          milestone_5_stripe_connected_completed_at: string | null
+          milestone_6_first_booking_completed_at: string | null
+          organization_id: string
+          reengagement_count: number
+          reengagement_paused: boolean
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          copilot_dismissed_at?: string | null
+          copilot_enabled?: boolean
+          created_at?: string
+          csv_imports_attempted?: number
+          csv_imports_succeeded?: number
+          id?: string
+          last_engagement_at?: string | null
+          milestone_1_company_info_completed_at?: string | null
+          milestone_2_services_pricing_completed_at?: string | null
+          milestone_3_clients_added_completed_at?: string | null
+          milestone_4_staff_added_completed_at?: string | null
+          milestone_5_stripe_connected_completed_at?: string | null
+          milestone_6_first_booking_completed_at?: string | null
+          organization_id: string
+          reengagement_count?: number
+          reengagement_paused?: boolean
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          copilot_dismissed_at?: string | null
+          copilot_enabled?: boolean
+          created_at?: string
+          csv_imports_attempted?: number
+          csv_imports_succeeded?: number
+          id?: string
+          last_engagement_at?: string | null
+          milestone_1_company_info_completed_at?: string | null
+          milestone_2_services_pricing_completed_at?: string | null
+          milestone_3_clients_added_completed_at?: string | null
+          milestone_4_staff_added_completed_at?: string | null
+          milestone_5_stripe_connected_completed_at?: string | null
+          milestone_6_first_booking_completed_at?: string | null
+          organization_id?: string
+          reengagement_count?: number
+          reengagement_paused?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },

@@ -43,6 +43,7 @@ import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { GmailConnectionCard } from '@/components/admin/GmailConnectionCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
 import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 
@@ -667,6 +668,8 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
+          <CopilotSettingsCard />
         </TabsContent>
 
         {/* Booking Form Sharing */}
