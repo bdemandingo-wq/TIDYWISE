@@ -70,7 +70,7 @@ export function useSubscription(): SubscriptionAccess {
     isSubscribed,
     isTrialActive,
     hasFullAccess,
-    isLoading: !isNativeApp && (loading || subscription === null),
+    isLoading: false,
 
     canAccessCampaigns: hasFullAccess,
     canAccessOpenPhone: hasFullAccess,
