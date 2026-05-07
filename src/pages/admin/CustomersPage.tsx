@@ -332,26 +332,19 @@ export default function CustomersPage() {
       : <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
-  const exportToCsv = async () => {
-    if (!organization?.id) return;
-    if (filteredCustomers.length === 0) {
-      toast('No customers to export');
-      return;
-    }
+  // Build the CSV body for a given list of customers. Both export paths
+  // (filtered + selected) call this so column structure / completed-revenue
+  // calc / customer-type resolution stay in one place.
+  const buildCustomersCsv = async (
+    list: Array<(typeof customers)[number]>,
+  ): Promise<string> => {
+    const ids = list.map((c) => c.id);
 
-    toast(`Exporting ${filteredCustomers.length} customers...`);
-
-    const ids = filteredCustomers.map((c) => c.id);
-
-    // Total Revenue uses completed bookings only (per spec). Customer Type
-    // comes from the customer's primary (else most-recent) location's
-    // property_type, mapped commercial/residential. Both fetches scoped to
-    // the visible customer set so we don't pull the whole org's history.
     const [completedResult, locationsResult] = await Promise.all([
       supabase
         .from('bookings')
         .select('customer_id, total_amount')
-        .eq('organization_id', organization.id)
+        .eq('organization_id', organization!.id)
         .eq('status', 'completed')
         .in('customer_id', ids),
       (supabase as unknown as {
@@ -372,7 +365,7 @@ export default function CustomersPage() {
       })
         .from('locations')
         .select('customer_id, property_type, created_at, is_primary')
-        .eq('organization_id', organization.id)
+        .eq('organization_id', organization!.id)
         .in('customer_id', ids),
     ]);
 
@@ -388,7 +381,6 @@ export default function CustomersPage() {
       );
     }
 
-    // Group locations by customer, then pick primary > newest by created_at.
     const locsByCustomer = new Map<string, Array<{
       property_type: string | null;
       created_at: string | null;
@@ -401,15 +393,15 @@ export default function CustomersPage() {
       locsByCustomer.set(l.customer_id, arr);
     }
     const customerTypeFor = (id: string): string => {
-      const list = locsByCustomer.get(id);
-      if (!list || list.length === 0) return '';
-      list.sort((a, b) => {
+      const locs = locsByCustomer.get(id);
+      if (!locs || locs.length === 0) return '';
+      locs.sort((a, b) => {
         const ap = a.is_primary ? 1 : 0;
         const bp = b.is_primary ? 1 : 0;
         if (ap !== bp) return bp - ap;
         return (b.created_at ?? '').localeCompare(a.created_at ?? '');
       });
-      const raw = (list[0].property_type ?? '').toLowerCase();
+      const raw = (locs[0].property_type ?? '').toLowerCase();
       if (!raw) return '';
       return raw === 'commercial' ? 'commercial' : 'residential';
     };
@@ -431,7 +423,7 @@ export default function CustomersPage() {
       'Last Booking Date', 'Created Date', 'Notes',
     ];
 
-    const rows = filteredCustomers.map((c) => {
+    const rows = list.map((c) => {
       const stats = statsMap.get(c.id);
       return [
         c.first_name ?? '',
@@ -453,8 +445,10 @@ export default function CustomersPage() {
 
     // U+FEFF BOM so Excel detects UTF-8 (preserves accents). \r\n line
     // endings — Excel on Windows expects them.
-    const csv = '﻿' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-    const filename = `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    return '﻿' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+  };
+
+  const triggerCsvDownload = (csv: string, filename: string): void => {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -464,8 +458,38 @@ export default function CustomersPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
 
+  const exportToCsv = async () => {
+    if (!organization?.id || !isAdmin) return;
+    if (filteredCustomers.length === 0) {
+      toast('No customers to export');
+      return;
+    }
+    toast(`Exporting ${filteredCustomers.length} customers...`);
+    const csv = await buildCustomersCsv(filteredCustomers);
+    triggerCsvDownload(csv, `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast.success(`Exported ${filteredCustomers.length} customers to CSV`);
+  };
+
+  const exportSelectedToCsv = async () => {
+    if (!organization?.id || !isAdmin) return;
+    if (selectedIds.size === 0) {
+      toast('No customers selected');
+      return;
+    }
+    const selected = customers.filter((c) => selectedIds.has(c.id));
+    if (selected.length === 0) {
+      toast('No customers selected');
+      return;
+    }
+    toast(`Exporting ${selected.length} customers...`);
+    const csv = await buildCustomersCsv(selected);
+    triggerCsvDownload(
+      csv,
+      `tidywise-customers-selected-${format(new Date(), 'yyyy-MM-dd')}.csv`,
+    );
+    toast.success(`Exported ${selected.length} selected customers to CSV`);
   };
 
   // Mobile helpers
@@ -614,10 +638,14 @@ export default function CustomersPage() {
                   <DropdownMenuItem onClick={() => { setBulkAction('remove_campaigns'); setBulkActionDialogOpen(true); }}>
                     <UserX className="w-4 h-4 mr-2" /> Remove from Campaigns
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportToCsv}>
-                    <Download className="w-4 h-4 mr-2" /> Export Selected
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={exportSelectedToCsv}>
+                        <Download className="w-4 h-4 mr-2" /> Export Selected
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive"
