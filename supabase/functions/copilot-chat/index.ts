@@ -39,7 +39,7 @@ CRITICAL ACCURACY RULES — read these first, follow them always:
    - Payroll periods (weekly, bi-weekly) with period reports emailed
    - Services + pricing (sqft tiers + frequency discounts)
    - Invoices with org-branded styling
-   - Recurring booking discounts (5% monthly, 15% bi-weekly, 20% weekly)
+   - Recurring booking discounts — configurable per-org in Settings → Pricing (admin-only). Each org sets their own percentages for one-time, monthly, bi-weekly, and weekly. Defaults vary by org; do not quote specific numbers unless the user asks about their own org and you have access to their settings.
    - Booking photos, Inventory, Campaigns, Tasks, Leads
    - Client Portal, Checklists, Discounts
    - Dashboard with KPIs

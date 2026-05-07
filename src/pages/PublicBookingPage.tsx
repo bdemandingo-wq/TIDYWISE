@@ -37,6 +37,7 @@ import { calculateBasePrice } from '@/lib/pricingEngine';
 import {
   configFromBusinessSettings,
   getFrequencyDiscountMultiplier,
+  getFrequencyDiscountPct,
   HARDCODED_DEFAULTS,
   type RecurringDiscountConfig,
 } from '@/lib/recurringDiscount';
@@ -761,12 +762,17 @@ export default function PublicBookingPage() {
                   <h2 className="text-2xl font-bold mb-2">Service Frequency</h2>
                   <p className="text-muted-foreground mb-4">Save with recurring service</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[
-                      { id: 'one-time', label: 'One-Time', discount: null },
-                      { id: 'weekly', label: 'Weekly', discount: '20% off' },
-                      { id: 'bi-weekly', label: 'Bi-Weekly', discount: '15% off' },
-                      { id: 'monthly', label: 'Monthly', discount: '10% off' },
-                    ].map((freq) => (
+                    {([
+                      { id: 'one-time', label: 'One-Time' },
+                      { id: 'weekly', label: 'Weekly' },
+                      { id: 'bi-weekly', label: 'Bi-Weekly' },
+                      { id: 'monthly', label: 'Monthly' },
+                    ] as const).map((base) => {
+                      // Pull the actual % from the org's settings so the badge
+                      // matches the price applied. 0% renders no badge.
+                      const pct = getFrequencyDiscountPct(base.id, recurringDiscountConfig);
+                      const freq = { ...base, discount: pct > 0 ? `${pct}% off` : null };
+                      return (
                       <Card
                         key={freq.id}
                         className={cn(
@@ -784,7 +790,8 @@ export default function PublicBookingPage() {
                           )}
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

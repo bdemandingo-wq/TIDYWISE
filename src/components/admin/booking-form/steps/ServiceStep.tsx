@@ -13,12 +13,14 @@ import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { 
-  squareFootageRanges, 
-  bedroomOptions, 
-  bathroomOptions, 
+import {
+  squareFootageRanges,
+  bedroomOptions,
+  bathroomOptions,
   frequencyOptions
 } from '@/data/pricingData';
+import { useRecurringDiscounts } from '@/hooks/useRecurringDiscounts';
+import { getFrequencyDiscountPct } from '@/lib/recurringDiscount';
 
 interface ChecklistTemplate {
   id: string;
@@ -68,6 +70,7 @@ export function ServiceStep() {
     selectedChecklistId,
     setSelectedChecklistId,
   } = useBookingForm();
+  const { config: recurringDiscountConfig } = useRecurringDiscounts();
 
   // Use service-specific pricing
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
@@ -416,11 +419,15 @@ export function ServiceStep() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
-                  {frequencyOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                  {frequencyOptions.map((opt) => {
+                    const pct = getFrequencyDiscountPct(opt.id, recurringDiscountConfig);
+                    const displayLabel = pct > 0 ? `${opt.label} (${pct}% off)` : opt.label;
+                    return (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {displayLabel}
+                      </SelectItem>
+                    );
+                  })}
                   {customFrequencies.length > 0 && (
                     <>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">

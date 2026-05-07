@@ -162,12 +162,17 @@ export const bedroomPricing = [
   { bedrooms: '6', bathrooms: '6', basePrice: 550 },
 ];
 
+// `label` is the bare frequency name. The "(N% off)" suffix is appended at
+// render time using each org's resolved business_settings via
+// getFrequencyDiscountPct() — see ServiceStep / PublicBookingPage. The
+// `discount` field is the legacy multiplier and is no longer the source of
+// truth for pricing math (callsites use getFrequencyDiscountMultiplier).
 export const frequencyOptions = [
   { id: 'one_time', label: 'One-Time', discount: 0 },
-  { id: 'weekly', label: 'Weekly (30% off)', discount: 0.30 },
-  { id: 'biweekly', label: 'Bi-Weekly (25% off)', discount: 0.25 },
-  { id: 'triweekly', label: 'Tri-Weekly (20% off)', discount: 0.20 },
-  { id: 'monthly', label: 'Monthly (15% off)', discount: 0.15 },
+  { id: 'weekly', label: 'Weekly', discount: 0.30 },
+  { id: 'biweekly', label: 'Bi-Weekly', discount: 0.25 },
+  { id: 'triweekly', label: 'Tri-Weekly', discount: 0.20 },
+  { id: 'monthly', label: 'Monthly', discount: 0.15 },
   { id: 'anyday', label: 'Any Day (Airbnb)', discount: 0.15 },
 ];
 
