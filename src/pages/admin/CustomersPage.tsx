@@ -334,56 +334,88 @@ export default function CustomersPage() {
 
   const exportToCsv = async () => {
     if (!organization?.id) return;
-    if (customers.length === 0) {
+    if (filteredCustomers.length === 0) {
       toast('No customers to export');
       return;
     }
 
-    // Pull each customer's last service_type (from most recent non-cancelled
-    // booking) and active recurring frequency. Both fired in parallel — kept
-    // out of the always-mounted query so the page doesn't pay for them on
-    // every load. statsMap already carries total_bookings / revenue / last
-    // booking date.
-    const [bookingsResult, recurringResult] = await Promise.all([
+    toast(`Exporting ${filteredCustomers.length} customers...`);
+
+    const ids = filteredCustomers.map((c) => c.id);
+
+    // Total Revenue uses completed bookings only (per spec). Customer Type
+    // comes from the customer's primary (else most-recent) location's
+    // property_type, mapped commercial/residential. Both fetches scoped to
+    // the visible customer set so we don't pull the whole org's history.
+    const [completedResult, locationsResult] = await Promise.all([
       supabase
         .from('bookings')
-        .select('customer_id, scheduled_at, services(name)')
+        .select('customer_id, total_amount')
         .eq('organization_id', organization.id)
-        .neq('status', 'cancelled')
-        .order('scheduled_at', { ascending: false }),
-      supabase
-        .from('recurring_bookings')
-        .select('customer_id, frequency')
+        .eq('status', 'completed')
+        .in('customer_id', ids),
+      (supabase as unknown as {
+        from: (t: string) => {
+          select: (s: string) => {
+            eq: (k: string, v: string) => {
+              in: (k: string, v: string[]) => Promise<{
+                data: Array<{
+                  customer_id: string | null;
+                  property_type: string | null;
+                  created_at: string | null;
+                  is_primary: boolean | null;
+                }> | null;
+              }>;
+            };
+          };
+        };
+      })
+        .from('locations')
+        .select('customer_id, property_type, created_at, is_primary')
         .eq('organization_id', organization.id)
-        .eq('is_active', true),
+        .in('customer_id', ids),
     ]);
 
-    const lastServiceMap = new Map<string, string>();
-    for (const b of (bookingsResult.data ?? []) as Array<{
+    const completedMap = new Map<string, number>();
+    for (const b of (completedResult.data ?? []) as Array<{
       customer_id: string | null;
-      services: { name: string } | null;
+      total_amount: number | string | null;
     }>) {
       if (!b.customer_id) continue;
-      if (!lastServiceMap.has(b.customer_id)) {
-        lastServiceMap.set(b.customer_id, b.services?.name ?? '');
-      }
-    }
-    const recurringMap = new Map<string, string>();
-    for (const r of (recurringResult.data ?? []) as Array<{
-      customer_id: string | null;
-      frequency: string;
-    }>) {
-      if (!r.customer_id) continue;
-      recurringMap.set(r.customer_id, r.frequency);
+      completedMap.set(
+        b.customer_id,
+        (completedMap.get(b.customer_id) ?? 0) + (Number(b.total_amount) || 0),
+      );
     }
 
-    const formatFreq = (raw: string | undefined): string => {
-      if (!raw) return 'One-Time';
-      if (raw === 'weekly') return 'Weekly';
-      if (raw === 'biweekly') return 'Bi-Weekly';
-      if (raw === 'monthly') return 'Monthly';
-      return raw;
+    // Group locations by customer, then pick primary > newest by created_at.
+    const locsByCustomer = new Map<string, Array<{
+      property_type: string | null;
+      created_at: string | null;
+      is_primary: boolean | null;
+    }>>();
+    for (const l of locationsResult.data ?? []) {
+      if (!l.customer_id) continue;
+      const arr = locsByCustomer.get(l.customer_id) ?? [];
+      arr.push(l);
+      locsByCustomer.set(l.customer_id, arr);
+    }
+    const customerTypeFor = (id: string): string => {
+      const list = locsByCustomer.get(id);
+      if (!list || list.length === 0) return '';
+      list.sort((a, b) => {
+        const ap = a.is_primary ? 1 : 0;
+        const bp = b.is_primary ? 1 : 0;
+        if (ap !== bp) return bp - ap;
+        return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+      });
+      const raw = (list[0].property_type ?? '').toLowerCase();
+      if (!raw) return '';
+      return raw === 'commercial' ? 'commercial' : 'residential';
     };
+
+    const dateOnly = (iso: string | null | undefined): string =>
+      iso ? iso.slice(0, 10) : '';
 
     const escape = (v: unknown): string => {
       if (v == null) return '';
@@ -393,15 +425,14 @@ export default function CustomersPage() {
     };
 
     const headers = [
-      'first_name', 'last_name', 'email', 'phone',
-      'street_address', 'city', 'state', 'zip',
-      'service_type', 'frequency',
-      'created_at', 'last_booking_at',
-      'total_bookings', 'total_spent',
+      'First Name', 'Last Name', 'Email', 'Phone',
+      'Street Address', 'City', 'State', 'ZIP',
+      'Customer Type', 'Total Bookings', 'Total Revenue',
+      'Last Booking Date', 'Created Date', 'Notes',
     ];
 
-    const rows = customers.map((c) => {
-      const s = statsMap.get(c.id);
+    const rows = filteredCustomers.map((c) => {
+      const stats = statsMap.get(c.id);
       return [
         c.first_name ?? '',
         c.last_name ?? '',
@@ -411,23 +442,30 @@ export default function CustomersPage() {
         c.city ?? '',
         c.state ?? '',
         c.zip_code ?? '',
-        lastServiceMap.get(c.id) ?? '',
-        formatFreq(recurringMap.get(c.id)),
-        c.created_at ?? '',
-        s?.last_booking_date ?? '',
-        s?.total_bookings ?? 0,
-        (s?.total_revenue ?? 0).toFixed(2),
+        customerTypeFor(c.id),
+        stats?.total_bookings ?? 0,
+        (completedMap.get(c.id) ?? 0).toFixed(2),
+        dateOnly(stats?.last_booking_date),
+        dateOnly(c.created_at),
+        c.notes ?? '',
       ].map(escape);
     });
 
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(
-      `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`,
-      csv,
-      'text/csv',
-    );
-    toast.success(`Exported ${customers.length} customers`);
+    // U+FEFF BOM so Excel detects UTF-8 (preserves accents). \r\n line
+    // endings — Excel on Windows expects them.
+    const csv = '﻿' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const filename = `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${filteredCustomers.length} customers to CSV`);
   };
 
   // Mobile helpers
@@ -503,7 +541,7 @@ export default function CustomersPage() {
           {isAdmin && (
             <Button variant="outline" size="sm" className="gap-2" onClick={exportToCsv}>
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">Export CSV</span>
             </Button>
           )}
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportDialogOpen(true)}>
