@@ -62,13 +62,15 @@ export function useSubscription(): SubscriptionAccess {
   const isFreeAccount = isDemoAccount(user?.email ?? '');
   const isSubscribed = subscription?.subscribed === true;
   const isTrialActive = subscription?.trial_active === true;
-  const hasFullAccess = isNativeApp || isFreeAccount || isSubscribed || isTrialActive;
+  // Free-Forever: every organization gets full access across all platforms.
+  const hasFullAccess = true;
+  void isNativeApp; void isFreeAccount; void isSubscribed; void isTrialActive;
 
   return {
     isSubscribed,
     isTrialActive,
     hasFullAccess,
-    isLoading: !isNativeApp && (loading || subscription === null),
+    isLoading: false,
 
     canAccessCampaigns: hasFullAccess,
     canAccessOpenPhone: hasFullAccess,
