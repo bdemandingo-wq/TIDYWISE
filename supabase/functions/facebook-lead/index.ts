@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const TIDYWISE_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
-const WEBHOOK_SECRET = "tidywise-fb-lead-2026";
+const WEBHOOK_SECRET = Deno.env.get("FACEBOOK_LEAD_WEBHOOK_SECRET") ?? "";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -23,9 +23,9 @@ serve(async (req: Request) => {
     });
   }
 
-  // Auth via custom header
+  // Auth via custom header. Reject if env secret not configured.
   const providedSecret = req.headers.get("x-webhook-secret");
-  if (providedSecret !== WEBHOOK_SECRET) {
+  if (!WEBHOOK_SECRET || !providedSecret || providedSecret !== WEBHOOK_SECRET) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

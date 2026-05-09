@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const FACEBOOK_VERIFY_TOKEN = "footprint_leads_2025";
+  const FACEBOOK_VERIFY_TOKEN = Deno.env.get("FACEBOOK_VERIFY_TOKEN") ?? "";
+  const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
   // ── GET: Meta webhook verification ──
   if (req.method === 'GET') {
@@ -15,7 +16,7 @@ serve(async (req: Request) => {
 
     console.log("[facebook-lead-webhook] GET verification:", { mode, token, challenge });
 
-    if (mode === 'subscribe' && token === FACEBOOK_VERIFY_TOKEN) {
+    if (FACEBOOK_VERIFY_TOKEN && mode === 'subscribe' && token === FACEBOOK_VERIFY_TOKEN) {
       console.log("[facebook-lead-webhook] Verification SUCCESS");
       return new Response(challenge || '', {
         status: 200,
@@ -29,9 +30,36 @@ serve(async (req: Request) => {
 
   // ── POST: Incoming lead events ──
   if (req.method === 'POST') {
+    // Verify HMAC signature from Meta
+    const sigHeader = req.headers.get('x-hub-signature-256') || '';
+    const rawBody = await req.text();
+    if (!META_APP_SECRET) {
+      console.error("[facebook-lead-webhook] META_APP_SECRET not configured");
+      return new Response('Server misconfigured', { status: 503 });
+    }
+    try {
+      const key = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(META_APP_SECRET),
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      );
+      const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+      const expected = 'sha256=' + Array.from(new Uint8Array(sigBuf))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      // timing-safe-ish compare
+      if (sigHeader.length !== expected.length) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      let diff = 0;
+      for (let i = 0; i < expected.length; i++) diff |= sigHeader.charCodeAt(i) ^ expected.charCodeAt(i);
+      if (diff !== 0) return new Response('Forbidden', { status: 403 });
+    } catch (e) {
+      console.error("[facebook-lead-webhook] sig verify error", e);
+      return new Response('Forbidden', { status: 403 });
+    }
+
     let body: any;
     try {
-      body = await req.json();
+      body = JSON.parse(rawBody);
     } catch {
       return new Response('Bad Request', { status: 400, headers: { 'Content-Type': 'text/plain' } });
     }
