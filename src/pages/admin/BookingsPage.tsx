@@ -2424,6 +2424,7 @@ export default function BookingsPage() {
         onDuplicate={(b) => { setActionSheetBooking(null); handleDuplicate(b); }}
         onMarkCompleteAdjustPay={(b) => { handleStatusChange(b.id, 'completed'); setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
         onMarkUncleaned={async (b) => { await handleStatusChange(b.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }}
+        onMarkCancelled={(b) => { setActionSheetBooking(null); setCancelBookingTarget(b); }}
         onAdjustCleanerPay={(b) => { setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
         onDelete={(b) => { setActionSheetBooking(null); handleDelete(b); }}
         onMarkUnpaid={async (b) => { await updateBooking.mutateAsync({ id: b.id, payment_status: 'pending' as any }); toast({ title: "Marked Unpaid" }); setActionSheetBooking(null); }}
