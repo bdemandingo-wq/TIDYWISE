@@ -546,6 +546,47 @@ export type Database = {
           },
         ]
       }
+      benchmark_audit_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_code: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          organization_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          organization_id?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_code?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "benchmark_audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_keyword_queue: {
         Row: {
           attempts: number
@@ -8189,6 +8230,17 @@ export type Database = {
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_platform_blog_admin: { Args: never; Returns: boolean }
+      log_benchmark_event: {
+        Args: {
+          p_duration_ms: number
+          p_error_code?: string
+          p_event_type: string
+          p_metadata: Json
+          p_organization_id: string
+          p_status: string
+        }
+        Returns: string
+      }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
         Returns: boolean
