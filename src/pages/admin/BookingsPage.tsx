@@ -591,7 +591,7 @@ export default function BookingsPage() {
         toast({
           title: "Refund Recorded (Manual)",
           description: refundType === 'full'
-            ? `Full refund of ${fmt(booking.total_amount?)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
+            ? `Full refund of ${fmt(booking.total_amount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
             : `Partial refund of ${fmt(parseFloat(refundAmount))} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
