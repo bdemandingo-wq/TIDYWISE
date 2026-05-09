@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff } from '@/hooks/useBookings';
-import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck, XCircle, Percent } from 'lucide-react';
 import {
   PieChart,
   Pie,
