@@ -175,3 +175,6 @@ verify_jwt = true
 
   [functions.get-portal-photo-journal]
     verify_jwt = false
+
+  [functions.refresh-benchmark-snapshots]
+    verify_jwt = false
