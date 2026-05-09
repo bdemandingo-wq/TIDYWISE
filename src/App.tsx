@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthProviderNoSession } from "@/hooks/useAuthNoSession";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
 import { AdminRoute } from "@/components/AdminRoute";
@@ -170,6 +171,7 @@ const App = () => (
         <AuthProvider>
           <SessionTrackerProvider>
             <OrganizationProvider>
+              <CurrencySync />
               <TestModeProvider>
                 <ClientPortalProvider>
                 <TooltipProvider>
