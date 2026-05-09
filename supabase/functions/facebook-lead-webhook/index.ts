@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const FACEBOOK_VERIFY_TOKEN = "footprint_leads_2025";
+  const FACEBOOK_VERIFY_TOKEN = Deno.env.get("FACEBOOK_VERIFY_TOKEN") ?? "";
+  const META_APP_SECRET = Deno.env.get("META_APP_SECRET") ?? "";
 
   // ── GET: Meta webhook verification ──
   if (req.method === 'GET') {
@@ -15,7 +16,7 @@ serve(async (req: Request) => {
 
     console.log("[facebook-lead-webhook] GET verification:", { mode, token, challenge });
 
-    if (mode === 'subscribe' && token === FACEBOOK_VERIFY_TOKEN) {
+    if (FACEBOOK_VERIFY_TOKEN && mode === 'subscribe' && token === FACEBOOK_VERIFY_TOKEN) {
       console.log("[facebook-lead-webhook] Verification SUCCESS");
       return new Response(challenge || '', {
         status: 200,
