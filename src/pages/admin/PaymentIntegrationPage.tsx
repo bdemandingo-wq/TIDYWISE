@@ -606,7 +606,7 @@ export default function PaymentIntegrationPage() {
                           </p>
                         </div>
                         <div className="text-right shrink-0 ml-3">
-                          <p className="font-semibold text-sm text-green-600">${p.amount.toFixed(2)}</p>
+                          <p className="font-semibold text-sm text-green-600">{fmt(p.amount)}</p>
                           {p.stripe_charge_id && (
                             <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">
                               {p.stripe_charge_id.slice(0, 16)}...

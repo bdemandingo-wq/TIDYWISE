@@ -539,7 +539,7 @@ export function EditBookingDialog({
               {estimatedPay !== null && (
                 <div className="sm:col-span-2 p-3 bg-secondary/50 rounded-lg">
                   <p className="text-sm text-muted-foreground">Estimated Cleaner Pay</p>
-                  <p className="text-lg font-bold text-primary">${estimatedPay.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-primary">{fmt(estimatedPay)}</p>
                 </div>
               )}
             </div>
@@ -754,7 +754,7 @@ export function AdjustPaymentDialog({
             {estimatedPay !== null && !isTeamBooking && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Estimated Pay:</span>
-                <span className="font-medium">${estimatedPay.toFixed(2)}</span>
+                <span className="font-medium">{fmt(estimatedPay)}</span>
               </div>
             )}
           </div>

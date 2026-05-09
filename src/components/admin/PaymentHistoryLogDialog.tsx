@@ -11,6 +11,7 @@ import { Loader2, CreditCard, DollarSign, XCircle, Clock, CheckCircle } from 'lu
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { BookingWithDetails } from '@/hooks/useBookings';
+import { fmt } from '@/lib/activeCurrency';
 
 interface PaymentHistoryLogDialogProps {
   open: boolean;
@@ -278,7 +279,7 @@ export function PaymentHistoryLogDialog({ open, onOpenChange, booking }: Payment
             </div>
             <div className="flex justify-between items-center text-sm mt-2">
               <span className="text-muted-foreground">Total Amount:</span>
-              <span className="font-bold">${booking.total_amount?.toFixed(2)}</span>
+              <span className="font-bold">{fmt(booking.total_amount?)}</span>
             </div>
           </div>
         )}

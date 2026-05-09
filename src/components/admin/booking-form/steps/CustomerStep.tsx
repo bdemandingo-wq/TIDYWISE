@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
+import { fmt } from '@/lib/activeCurrency';
 
 interface LastBookingInfo {
   address: string | null;
@@ -174,7 +175,7 @@ export function CustomerStep() {
                       <Badge variant="outline" className="text-xs">{lastBooking.address}</Badge>
                     )}
                     {lastBooking.total_amount && (
-                      <Badge variant="outline" className="text-xs">${lastBooking.total_amount.toFixed(2)}</Badge>
+                      <Badge variant="outline" className="text-xs">{fmt(lastBooking.total_amount)}</Badge>
                     )}
                   </div>
                 </div>

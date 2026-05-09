@@ -431,7 +431,7 @@ export function PaymentStep() {
             <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${pricingBreakdown.subtotal.toFixed(2)}</span>
+                <span>{fmt(pricingBreakdown.subtotal)}</span>
               </div>
               {appliedDiscount && (
                 <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
@@ -442,13 +442,13 @@ export function PaymentStep() {
               {appliedDiscount && pricingBreakdown.taxRate > 0 && (
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Discounted Subtotal</span>
-                  <span>${pricingBreakdown.discountedSubtotal.toFixed(2)}</span>
+                  <span>{fmt(pricingBreakdown.discountedSubtotal)}</span>
                 </div>
               )}
               {pricingBreakdown.taxRate > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sales Tax ({pricingBreakdown.taxRate}%)</span>
-                  <span>${pricingBreakdown.taxAmount.toFixed(2)}</span>
+                  <span>{fmt(pricingBreakdown.taxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/30">

@@ -50,6 +50,7 @@ import {
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Expense {
   id: string;
@@ -266,7 +267,7 @@ export default function ExpensesPage() {
               <DollarSign className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">Total Expenses</span>
             </div>
-            <p className="text-xl font-bold text-primary">${totalExpenses.toFixed(2)}</p>
+            <p className="text-xl font-bold text-primary">{fmt(totalExpenses)}</p>
           </CardContent>
         </Card>
         {EXPENSE_CATEGORIES.map(cat => {
@@ -279,7 +280,7 @@ export default function ExpensesPage() {
                   <Icon className="w-4 h-4 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">{cat.label}</span>
                 </div>
-                <p className="text-lg font-semibold">${total.toFixed(2)}</p>
+                <p className="text-lg font-semibold">{fmt(total)}</p>
               </CardContent>
             </Card>
           );

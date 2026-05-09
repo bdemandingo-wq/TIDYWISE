@@ -10,6 +10,7 @@ import { Loader2, CreditCard, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { fmt } from '@/lib/activeCurrency';
 
 interface PaymentHistoryDialogProps {
   open: boolean;
@@ -122,14 +123,14 @@ export function PaymentHistoryDialog({
                   <DollarSign className="w-4 h-4 text-emerald-600" />
                   <span className="text-sm text-emerald-700">Total Paid</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-700">${totals.paid.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-emerald-700">{fmt(totals.paid)}</p>
               </div>
               <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
                 <div className="flex items-center gap-2 mb-1">
                   <DollarSign className="w-4 h-4 text-amber-600" />
                   <span className="text-sm text-amber-700">Pending</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">${totals.pending.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-amber-700">{fmt(totals.pending)}</p>
               </div>
               <div className="bg-primary/10 rounded-xl p-4 border border-primary/20">
                 <div className="flex items-center gap-2 mb-1">
@@ -165,7 +166,7 @@ export function PaymentHistoryDialog({
                     </div>
                     <div className="flex items-center gap-4">
                       {getPaymentBadge(payment.payment_status)}
-                      <span className="font-bold text-lg">${payment.total_amount.toFixed(2)}</span>
+                      <span className="font-bold text-lg">{fmt(payment.total_amount)}</span>
                     </div>
                   </div>
                 ))

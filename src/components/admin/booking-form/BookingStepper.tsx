@@ -1473,7 +1473,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             {selectedService && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{selectedService.name}</span>
-                <span className="font-medium">${calculatedPrice.toFixed(2)}</span>
+                <span className="font-medium">{fmt(calculatedPrice)}</span>
               </div>
             )}
 
@@ -1488,7 +1488,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
             <div className="flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span className="text-primary">${finalPrice.toFixed(2)}</span>
+              <span className="text-primary">{fmt(finalPrice)}</span>
             </div>
 
             {frequency !== 'one_time' && (
