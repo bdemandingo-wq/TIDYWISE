@@ -30,9 +30,36 @@ serve(async (req: Request) => {
 
   // ── POST: Incoming lead events ──
   if (req.method === 'POST') {
+    // Verify HMAC signature from Meta
+    const sigHeader = req.headers.get('x-hub-signature-256') || '';
+    const rawBody = await req.text();
+    if (!META_APP_SECRET) {
+      console.error("[facebook-lead-webhook] META_APP_SECRET not configured");
+      return new Response('Server misconfigured', { status: 503 });
+    }
+    try {
+      const key = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(META_APP_SECRET),
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      );
+      const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+      const expected = 'sha256=' + Array.from(new Uint8Array(sigBuf))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      // timing-safe-ish compare
+      if (sigHeader.length !== expected.length) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      let diff = 0;
+      for (let i = 0; i < expected.length; i++) diff |= sigHeader.charCodeAt(i) ^ expected.charCodeAt(i);
+      if (diff !== 0) return new Response('Forbidden', { status: 403 });
+    } catch (e) {
+      console.error("[facebook-lead-webhook] sig verify error", e);
+      return new Response('Forbidden', { status: 403 });
+    }
+
     let body: any;
     try {
-      body = await req.json();
+      body = JSON.parse(rawBody);
     } catch {
       return new Response('Bad Request', { status: 400, headers: { 'Content-Type': 'text/plain' } });
     }
