@@ -2,7 +2,7 @@
 // Pulls Google reviews via Places, runs AI sentiment on review text,
 // pings the website for basic quality signals, and writes everything to DB.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { generateText, Output } from "npm:ai@5";
+import { generateObject } from "npm:ai@5";
 import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@1";
 import { z } from "npm:zod@3.23.8";
 
@@ -129,12 +129,12 @@ Tasks:
 2. Extract up to 6 review themes (short labels, 1-3 words each) with sentiment.
 3. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
 
-  const { output } = await generateText({
+  const { object } = await generateObject({
     model: gateway("google/gemini-3-flash-preview"),
     prompt,
-    output: Output.object({ schema: InsightsSchema }),
+    schema: InsightsSchema,
   });
-  return output;
+  return object;
 }
 
 Deno.serve(async (req) => {

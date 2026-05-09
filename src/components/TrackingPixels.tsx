@@ -22,9 +22,21 @@ type Props = {
  * tip, and review pages) so each organization's ads manager can track
  * conversions without needing admin access to the CRM.
  */
+// SECURITY: validate IDs before interpolating into <script> innerHTML.
+// Meta Pixel IDs are numeric (10–20 digits). GA IDs match G-XXXXXX or UA-XXX-X.
+const META_PIXEL_RE = /^\d{10,20}$/;
+const GA_ID_RE = /^(G-[A-Z0-9]{6,12}|UA-\d{4,}-\d+|AW-\d{6,}|DC-\d{6,})$/;
+
+function isSafeMetaPixel(id: string | null | undefined): id is string {
+  return !!id && META_PIXEL_RE.test(id);
+}
+function isSafeGaId(id: string | null | undefined): id is string {
+  return !!id && GA_ID_RE.test(id);
+}
+
 export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props) {
   useEffect(() => {
-    if (!metaPixelId) return;
+    if (!isSafeMetaPixel(metaPixelId)) return;
     const flagId = `meta-pixel-${metaPixelId}`;
     if (document.getElementById(flagId)) return;
 
@@ -51,7 +63,7 @@ export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props) {
   }, [metaPixelId]);
 
   useEffect(() => {
-    if (!googleAnalyticsId) return;
+    if (!isSafeGaId(googleAnalyticsId)) return;
     const flagId = `ga-${googleAnalyticsId}`;
     if (document.getElementById(flagId)) return;
 
