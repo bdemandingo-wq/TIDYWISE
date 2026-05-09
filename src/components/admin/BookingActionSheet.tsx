@@ -276,6 +276,9 @@ export function BookingActionSheet({
             <ActionBtn colorClass="text-emerald-500 hover:bg-emerald-500/10" onClick={() => onAdjustCleanerPay(booking)}>
               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
             </ActionBtn>
+            <ActionBtn variant="destructive" onClick={() => onMarkCancelled(booking)} disabled={booking.status === 'cancelled'}>
+              <XCircle className="w-4 h-4" /> Mark Cancelled
+            </ActionBtn>
             <ActionBtn variant="destructive" onClick={() => onDelete(booking)}>
               <Trash2 className="w-4 h-4" /> Delete
             </ActionBtn>
