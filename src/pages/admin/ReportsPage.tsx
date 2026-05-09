@@ -357,6 +357,18 @@ export default function ReportsPage() {
           trend="up"
           icon={<Users className="w-6 h-6" />}
         />
+        <StatCard
+          title="Cancellations"
+          value={isTestMode ? 'XX' : totalStats.cancelledCount}
+          changeLabel="in date range"
+          icon={<XCircle className="w-6 h-6" />}
+        />
+        <StatCard
+          title="Cancellation Rate"
+          value={isTestMode ? 'XX%' : `${totalStats.cancellationRate}%`}
+          changeLabel="of total bookings"
+          icon={<Percent className="w-6 h-6" />}
+        />
       </div>
 
       {/* Tabs for different reports */}
