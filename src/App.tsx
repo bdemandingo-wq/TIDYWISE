@@ -25,6 +25,9 @@ import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const ScoreSearchPage = lazy(() => import("./pages/score/ScoreSearchPage"));
+const ScoreCityPage = lazy(() => import("./pages/score/ScoreCityPage"));
+const ScoreCompanyPage = lazy(() => import("./pages/score/ScoreCompanyPage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
