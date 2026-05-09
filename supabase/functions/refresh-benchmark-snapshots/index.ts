@@ -11,23 +11,51 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
+  let source = "manual";
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body && typeof body.source === "string") source = body.source;
+  } catch (_) { /* noop */ }
+
+  try {
     const { data, error } = await supabase.rpc(
       "refresh_peer_benchmark_snapshots",
     );
     if (error) throw error;
 
+    const duration = Date.now() - startedAt;
+
+    // Audit: aggregate-only metadata, no per-org PII
+    await supabase.rpc("log_benchmark_event", {
+      p_organization_id: null,
+      p_event_type: "refresh_snapshots",
+      p_status: "success",
+      p_duration_ms: duration,
+      p_metadata: { snapshots_written: data ?? 0, source },
+      p_error_code: null,
+    });
+
     return new Response(
-      JSON.stringify({ ok: true, snapshots_written: data }),
+      JSON.stringify({ ok: true, snapshots_written: data, duration_ms: duration }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    const duration = Date.now() - startedAt;
     console.error("refresh-benchmark-snapshots error", e);
+    await supabase.rpc("log_benchmark_event", {
+      p_organization_id: null,
+      p_event_type: "refresh_snapshots",
+      p_status: "error",
+      p_duration_ms: duration,
+      p_metadata: { source },
+      p_error_code: (e as Error).message?.slice(0, 200) ?? "unknown",
+    }).catch(() => {});
     return new Response(
       JSON.stringify({ error: (e as Error).message }),
       {
