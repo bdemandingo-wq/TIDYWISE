@@ -591,7 +591,7 @@ export default function BookingsPage() {
         toast({
           title: "Refund Recorded (Manual)",
           description: refundType === 'full'
-            ? `Full refund of ${fmt(booking.total_amount?)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
+            ? `Full refund of ${fmt(booking.total_amount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
             : `Partial refund of ${fmt(parseFloat(refundAmount))} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
@@ -2678,7 +2678,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Charge</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to charge <strong>{fmt(chargeConfirmBooking?.total_amount?)}</strong> to{' '}
+              Are you sure you want to charge <strong>{fmt(chargeConfirmBooking?.total_amount)}</strong> to{' '}
               <strong>{chargeConfirmBooking?.customer?.first_name} {chargeConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will immediately charge their saved payment method.
@@ -2707,7 +2707,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Place Hold</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to place a hold of <strong>{fmt(placeHoldConfirmBooking?.total_amount?)}</strong> on{' '}
+              Are you sure you want to place a hold of <strong>{fmt(placeHoldConfirmBooking?.total_amount)}</strong> on{' '}
               <strong>{placeHoldConfirmBooking?.customer?.first_name} {placeHoldConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will authorize the amount but not charge the card until you capture the payment.
@@ -2736,7 +2736,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Capture Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to capture <strong>{fmt(captureConfirmBooking?.total_amount?)}</strong> from the hold on{' '}
+              Are you sure you want to capture <strong>{fmt(captureConfirmBooking?.total_amount)}</strong> from the hold on{' '}
               <strong>{captureConfirmBooking?.customer?.first_name} {captureConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will finalize the payment hold and transfer the funds.
@@ -2774,7 +2774,7 @@ export default function BookingsPage() {
               Refund payment for Booking #{refundDialogBooking?.booking_number} —{' '}
               <strong>{refundDialogBooking?.customer?.first_name} {refundDialogBooking?.customer?.last_name}</strong>
               <br />
-              Original amount: <strong>{fmt(refundDialogBooking?.total_amount?)}</strong>
+              Original amount: <strong>{fmt(refundDialogBooking?.total_amount)}</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
@@ -2827,7 +2827,7 @@ export default function BookingsPage() {
                   Processing...
                 </>
               ) : (
-                `Refund ${refundType === 'full' ? `${fmt(refundDialogBooking?.total_amount?)}` : refundAmount ? `${fmt(parseFloat(refundAmount))}` : '...'}`
+                `Refund ${refundType === 'full' ? `${fmt(refundDialogBooking?.total_amount)}` : refundAmount ? `${fmt(parseFloat(refundAmount))}` : '...'}`
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -19,8 +19,8 @@ import {
   Bar
 } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, DollarSign, Target, AlertTriangle } from 'lucide-react';
-import { 
 import { fmt } from '@/lib/activeCurrency';
+import { 
   format, 
   addMonths, 
   subMonths, 

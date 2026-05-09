@@ -279,7 +279,7 @@ export function PaymentHistoryLogDialog({ open, onOpenChange, booking }: Payment
             </div>
             <div className="flex justify-between items-center text-sm mt-2">
               <span className="text-muted-foreground">Total Amount:</span>
-              <span className="font-bold">{fmt(booking.total_amount?)}</span>
+              <span className="font-bold">{fmt(booking.total_amount)}</span>
             </div>
           </div>
         )}
