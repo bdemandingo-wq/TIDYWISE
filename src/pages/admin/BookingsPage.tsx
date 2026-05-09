@@ -111,6 +111,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
+import { CancelBookingDialog, type CancellationCategory } from '@/components/admin/CancelBookingDialog';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { SEOHead } from '@/components/SEOHead';
@@ -217,6 +218,7 @@ export default function BookingsPage() {
   const [deleteConfirmBooking, setDeleteConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
@@ -386,6 +388,36 @@ export default function BookingsPage() {
 
   const handleDelete = (booking: BookingWithDetails) => {
     setDeleteConfirmBooking(booking);
+  };
+
+  const handleConfirmCancel = async ({ reason, category }: { reason: string; category: CancellationCategory }) => {
+    if (!cancelBookingTarget) return;
+    await updateBooking.mutateAsync({
+      id: cancelBookingTarget.id,
+      status: 'cancelled' as any,
+      cancellation_reason: reason,
+      cancellation_category: category,
+      cancelled_at: new Date().toISOString(),
+    } as any);
+    // Reuse handleStatusChange's SMS notify by simulating its effect (already updated above; trigger SMS):
+    if (organization?.id) {
+      const scheduledDate = new Date(cancelBookingTarget.scheduled_at);
+      const formattedDate = scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const formattedTime = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      supabase.functions.invoke('send-cancellation-sms-notification', {
+        body: {
+          customerName: cancelBookingTarget.customer ? `${cancelBookingTarget.customer.first_name} ${cancelBookingTarget.customer.last_name}` : 'Customer',
+          serviceName: cancelBookingTarget.service?.name || 'Cleaning',
+          scheduledAt: cancelBookingTarget.scheduled_at,
+          formattedDate,
+          formattedTime,
+          bookingNumber: cancelBookingTarget.booking_number,
+          organizationId: organization.id,
+        },
+      }).catch(() => {});
+    }
+    toast({ title: 'Booking Cancelled', description: `Booking #${cancelBookingTarget.booking_number} marked as cancelled.` });
+    setCancelBookingTarget(null);
   };
 
   const confirmDelete = async () => {
@@ -2207,6 +2239,13 @@ export default function BookingsPage() {
                                 >
                                   <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600"
+                                  onClick={() => setCancelBookingTarget(booking)}
+                                  disabled={booking.status === 'cancelled'}
+                                >
+                                  <XCircle className="w-4 h-4" /> Mark Cancelled
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="gap-2 text-destructive cursor-pointer focus:text-destructive"
@@ -2424,6 +2463,7 @@ export default function BookingsPage() {
         onDuplicate={(b) => { setActionSheetBooking(null); handleDuplicate(b); }}
         onMarkCompleteAdjustPay={(b) => { handleStatusChange(b.id, 'completed'); setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
         onMarkUncleaned={async (b) => { await handleStatusChange(b.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }}
+        onMarkCancelled={(b) => { setActionSheetBooking(null); setCancelBookingTarget(b); }}
         onAdjustCleanerPay={(b) => { setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
         onDelete={(b) => { setActionSheetBooking(null); handleDelete(b); }}
         onMarkUnpaid={async (b) => { await updateBooking.mutateAsync({ id: b.id, payment_status: 'pending' as any }); toast({ title: "Marked Unpaid" }); setActionSheetBooking(null); }}
@@ -3077,6 +3117,14 @@ export default function BookingsPage() {
         selectedBookingIds={selectedBookings.size > 0 ? selectedBookings : undefined}
         staffList={staffList}
         services={servicesList as any}
+      />
+
+      {/* Cancel booking dialog */}
+      <CancelBookingDialog
+        open={!!cancelBookingTarget}
+        bookingNumber={cancelBookingTarget?.booking_number}
+        onOpenChange={(open) => !open && setCancelBookingTarget(null)}
+        onConfirm={handleConfirmCancel}
       />
 
       {/* Single booking delete confirmation */}

@@ -37,6 +37,7 @@ interface BookingActionSheetProps {
   onDuplicate: (booking: BookingWithDetails) => void;
   onMarkCompleteAdjustPay: (booking: BookingWithDetails) => void;
   onMarkUncleaned: (booking: BookingWithDetails) => void;
+  onMarkCancelled: (booking: BookingWithDetails) => void;
   onAdjustCleanerPay: (booking: BookingWithDetails) => void;
   onDelete: (booking: BookingWithDetails) => void;
   onMarkUnpaid: (booking: BookingWithDetails) => void;
@@ -160,7 +161,7 @@ export function BookingActionSheet({
   maskAmount,
   maskName,
   onViewDetails, onMarkPaid, onMarkComplete, onEdit, onDuplicate,
-  onMarkCompleteAdjustPay, onMarkUncleaned, onAdjustCleanerPay, onDelete,
+  onMarkCompleteAdjustPay, onMarkUncleaned, onMarkCancelled, onAdjustCleanerPay, onDelete,
   onMarkUnpaid, onAdditionalCharge, onChargeCard, onPlaceHold, onCaptureHold,
   onReleaseHold, onRefund, onPaymentHistory, onSendReminder, onNotifyCleaner,
   onNotifyOpenJob, onSendReview, onSendTipLink, onSendDepositLink, onAssignCleaner,
@@ -274,6 +275,9 @@ export function BookingActionSheet({
             </ActionBtn>
             <ActionBtn colorClass="text-emerald-500 hover:bg-emerald-500/10" onClick={() => onAdjustCleanerPay(booking)}>
               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
+            </ActionBtn>
+            <ActionBtn variant="destructive" onClick={() => onMarkCancelled(booking)} disabled={booking.status === 'cancelled'}>
+              <XCircle className="w-4 h-4" /> Mark Cancelled
             </ActionBtn>
             <ActionBtn variant="destructive" onClick={() => onDelete(booking)}>
               <Trash2 className="w-4 h-4" /> Delete

@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff } from '@/hooks/useBookings';
-import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck, XCircle, Percent } from 'lucide-react';
 import {
   PieChart,
   Pie,
@@ -227,11 +227,13 @@ export default function ReportsPage() {
     }
 
     const completedInRange = filteredBookings.filter((b: any) => b.status === 'completed');
+    const cancelledInRange = filteredBookings.filter((b: any) => b.status === 'cancelled');
     const totalRevenue = completedInRange.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
     const completedBookings = completedInRange;
     const avgBookingValue = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
     const totalBookings = filteredBookings.length;
     const conversionRate = totalBookings > 0 ? Math.round((completedBookings.length / totalBookings) * 100) : 0;
+    const cancellationRate = totalBookings > 0 ? Math.round((cancelledInRange.length / totalBookings) * 100) : 0;
 
     return {
       serviceStats,
@@ -244,6 +246,9 @@ export default function ReportsPage() {
         avgBookingValue,
         conversionRate,
         totalBookings,
+        cancelledCount: cancelledInRange.length,
+        cancellationRate,
+        cancelledList: cancelledInRange,
       },
       recurringCleansCount,
       recurringCleansRevenue,
@@ -351,6 +356,18 @@ export default function ReportsPage() {
           changeLabel="vs last month"
           trend="up"
           icon={<Users className="w-6 h-6" />}
+        />
+        <StatCard
+          title="Cancellations"
+          value={isTestMode ? 'XX' : totalStats.cancelledCount}
+          changeLabel="in date range"
+          icon={<XCircle className="w-6 h-6" />}
+        />
+        <StatCard
+          title="Cancellation Rate"
+          value={isTestMode ? 'XX%' : `${totalStats.cancellationRate}%`}
+          changeLabel="of total bookings"
+          icon={<Percent className="w-6 h-6" />}
         />
       </div>
 
@@ -483,6 +500,61 @@ export default function ReportsPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Cancellations Breakdown */}
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-rose-500" />
+                Cancellations Breakdown
+              </h3>
+              <span className="text-sm text-muted-foreground">
+                {totalStats.cancelledCount} cancelled · excluded from revenue & cleaner pay
+              </span>
+            </div>
+            {totalStats.cancelledList.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No cancellations in this date range.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b border-border">
+                      <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Client</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Cleaner</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Category</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {totalStats.cancelledList.slice(0, 50).map((b: any) => (
+                      <tr key={b.id} className="border-b border-border/50 last:border-0">
+                        <td className="py-2.5 whitespace-nowrap">
+                          {format(new Date(b.cancelled_at || b.scheduled_at), 'MMM d, yyyy')}
+                        </td>
+                        <td className="py-2.5">
+                          {maskName(`${b.customer?.first_name || ''} ${b.customer?.last_name || ''}`.trim() || 'Unknown')}
+                        </td>
+                        <td className="py-2.5">
+                          {b.staff?.name ? maskName(b.staff.name) : <span className="text-muted-foreground">Unassigned</span>}
+                        </td>
+                        <td className="py-2.5">
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-rose-500/10 text-rose-600">
+                            {b.cancellation_category || 'Uncategorized'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-muted-foreground max-w-xs truncate">
+                          {b.cancellation_reason || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </TabsContent>
 

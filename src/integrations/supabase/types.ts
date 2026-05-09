@@ -1073,6 +1073,9 @@ export type Database = {
           bathrooms: string | null
           bedrooms: string | null
           booking_number: number
+          cancellation_category: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
           city: string | null
           cleaner_actual_payment: number | null
           cleaner_checkin_at: string | null
@@ -1126,6 +1129,9 @@ export type Database = {
           bathrooms?: string | null
           bedrooms?: string | null
           booking_number?: number
+          cancellation_category?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           city?: string | null
           cleaner_actual_payment?: number | null
           cleaner_checkin_at?: string | null
@@ -1179,6 +1185,9 @@ export type Database = {
           bathrooms?: string | null
           bedrooms?: string | null
           booking_number?: number
+          cancellation_category?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           city?: string | null
           cleaner_actual_payment?: number | null
           cleaner_checkin_at?: string | null

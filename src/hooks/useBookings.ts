@@ -119,6 +119,9 @@ export interface UpdateBookingData {
   cleaner_override_hours?: number | null;
   cleaner_actual_payment?: number | null;
   cleaner_pay_expected?: number | null;
+  cancellation_reason?: string | null;
+  cancellation_category?: string | null;
+  cancelled_at?: string | null;
 }
 
 export interface NewCustomerData {
