@@ -315,7 +315,10 @@ const App = () => (
                      <Route path="/demo" element={<DemoPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
-                    <Route path="/blog" element={<BlogIndex />} />
+                     <Route path="/blog" element={<BlogIndex />} />
+                     <Route path="/score/search" element={<ScoreSearchPage />} />
+                     <Route path="/score/city/:citySlug" element={<ScoreCityPage />} />
+                     <Route path="/score/c/:slug" element={<ScoreCompanyPage />} />
                     <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
                     <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                     <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />
