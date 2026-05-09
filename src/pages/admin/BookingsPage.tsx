@@ -2239,6 +2239,13 @@ export default function BookingsPage() {
                                 >
                                   <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600"
+                                  onClick={() => setCancelBookingTarget(booking)}
+                                  disabled={booking.status === 'cancelled'}
+                                >
+                                  <XCircle className="w-4 h-4" /> Mark Cancelled
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="gap-2 text-destructive cursor-pointer focus:text-destructive"
