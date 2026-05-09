@@ -1,74 +1,73 @@
+# AI Business Benchmarking
 
-# Client Portal Photo Journal
+Show every TidyWise owner how their business stacks up against anonymous peers (same ZIP, same service type, similar size), with AI-generated explanations and recommendations.
 
-A visual history of every cleaning, captured by the cleaner at clock-out and surfaced to the client in their portal.
+## What the owner sees
 
-## Goals
+A new **Benchmarks** page (admin sidebar + mobile nav) with:
 
-1. **Cleaner is required to upload photos before clock-out is allowed.**
-2. **Client sees a beautiful, chronological visual history per property** in the client portal.
-3. Multi-tenant safe (org-scoped storage + RLS).
+1. **Headline cards** — each shows your value, the peer median, and a delta:
+   - Avg price per service type (Standard, Deep, Move-in/out, Airbnb, Recurring)
+   - Avg ticket size
+   - Cancellation rate (last 90 days)
+   - No-show rate
+   - Repeat customer rate
+   - Reviews per completed job
+   - Avg rating
+   - Recurring customer share
 
-## Scope
+2. **Peer group selector** — Local (same ZIP/metro), Regional (state), National. Defaults to the smallest group with ≥5 peers (k-anonymity).
 
-### 1. Database (migration)
+3. **AI insights panel** — calls Lovable AI Gateway with the owner's metrics + peer aggregates and returns 3–5 plain-English bullets like "You're charging 18% below the local median for deep cleans — raising to $X would add ~$Y/month at current volume" and "Your cancellation rate is 3x peers; the most common cause among similar orgs is no card-on-file at booking."
 
-New table `booking_photos`:
-- `id`, `booking_id` (fk), `organization_id`, `client_id`, `staff_id`, `storage_path`, `caption` (text, optional), `room_label` (text, optional, e.g. "Kitchen"), `photo_type` (`before` | `after` | `general`, default `after`), `taken_at`, `created_at`.
-- Indexes on `(client_id, taken_at desc)` and `(booking_id)`.
-- RLS:
-  - Org admins/staff in same org: full access (scoped by `organization_id`).
-  - Client portal session: SELECT own photos via existing `client_portal_sessions` mechanism (match `client_id`).
+4. **Trend sparkline** per metric (your value vs peer median over the last 6 months).
 
-New storage bucket `booking-photos` (private):
-- Path: `{organization_id}/{booking_id}/{uuid}.jpg`
-- RLS: org members can read/write their org's folder; signed URLs served to client portal.
+## Privacy model (non-negotiable)
 
-Optional org setting: `business_settings.require_clockout_photos` (boolean, default `true`) and `min_clockout_photos` (int, default 2).
+- Aggregates only. No org names, no customer names, no addresses. Ever.
+- Minimum cohort size of 5 orgs for any aggregate; below that the slice is hidden.
+- Org IDs and ZIPs are hashed in the aggregate cache; raw IDs never leave the server.
+- Owners can opt out via a single toggle in business settings (`benchmarks_opt_in`, default ON). Opted-out orgs neither contribute nor receive comparisons.
+- All queries run inside a single SECURITY DEFINER RPC with hard-coded aggregations — no raw row access from the client.
 
-### 2. Cleaner clock-out flow (mobile)
+## Technical sections
 
-- Update the existing clock-out screen so the "Clock Out" button is **disabled** until at least N photos are uploaded for the active booking.
-- Add a `BookingPhotoCapture` component:
-  - Camera-first input (`capture="environment"`) with gallery fallback (Safari fix already in mem).
-  - Optional room label dropdown + caption.
-  - Uploads directly to `booking-photos` bucket; inserts row in `booking_photos`.
-- Surface upload progress + thumbnails of what's already uploaded for the booking.
+### Data sources (already in DB)
 
-### 3. Client portal — Photo Journal page
+- `bookings` (status, total_amount, scheduled_at, service_id, organization_id, zip_code, customer_id)
+- `services` (name → service-type bucket)
+- `customers` (for repeat detection, never returned)
+- `review_requests` (rating, status)
+- `organizations` (zip + state for cohort grouping)
+- `business_settings` (timezone, plus new `benchmarks_opt_in` column)
 
-- New route under existing client portal (e.g. `/portal/journal` or tab inside the booking history view).
-- Components:
-  - `PhotoJournalTimeline` — grouped by booking date, header shows date + staff name + service.
-  - `PhotoGalleryGrid` — responsive grid (mobile: 2 cols, desktop: 3-4), tap → lightbox.
-  - `PhotoLightbox` — full-screen swipeable viewer with caption + room label.
-- Empty state with friendly copy ("Your visual history will appear here after your next cleaning").
-- Pulls signed URLs via an edge function (`get-client-photo-urls`) so private bucket stays private.
+### Migration
 
-### 4. Admin dashboard
+- Add `business_settings.benchmarks_opt_in BOOLEAN DEFAULT TRUE`.
+- Create materialized view `peer_benchmark_snapshots` keyed by `(period, cohort_type, cohort_key, service_bucket)` storing: median/avg price, p25/p75, cancel_rate, noshow_rate, repeat_rate, review_rate, avg_rating, recurring_share, `org_count`. Refreshed nightly via scheduled edge function.
+- Create SECURITY DEFINER RPC `get_org_benchmarks(p_org_id uuid, p_cohort text)` returning the org's own metrics plus the matching peer aggregates, but only where `org_count >= 5`. RLS denies the materialized view to clients; only the RPC reads it.
 
-- Lightweight tab on the booking detail page showing the photos uploaded for that booking (so owners can audit).
-- No new top-level admin page in this pass.
+### Edge functions
 
-## Technical Details
+- `refresh-benchmark-snapshots` — nightly cron. Recomputes the materialized view from the last 90 days of data, only including opted-in orgs.
+- `benchmark-ai-insights` — POST `{ org_metrics, peer_metrics, cohort }`. Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) with a tight system prompt and returns structured `{ insights: [{ title, body, severity, suggested_action }] }` via AI SDK `Output`. Server-only; never exposes peer data beyond what the RPC already sanitized.
 
-- **Storage**: private bucket, signed URLs (1 hr TTL) generated server-side for client portal.
-- **Edge function `get-client-photo-urls`**: validates client portal session, returns signed URLs for that client only.
-- **Clock-out enforcement**: client-side gate + server-side check in the clock-out RPC (reject if `require_clockout_photos` is true and photo count < min).
-- **Multi-tenant**: every query scoped by `organization_id`; storage path enforces org isolation via `(storage.foldername(name))[1]`.
-- **Realtime**: optionally subscribe client portal to `booking_photos` inserts so journal updates live (nice-to-have, can defer).
+### Frontend
 
-## Out of scope (this pass)
+- New route `/admin/benchmarks` → `BenchmarksPage.tsx`
+- Components: `BenchmarkHeadlineCard`, `BenchmarkPeerSelector`, `BenchmarkInsightsPanel`, `BenchmarkTrendChart` (recharts, already in project).
+- React Query hook `useOrgBenchmarks(cohort)` — calls the RPC, scoped to `organization.id` per the project's isolation rule.
+- Sidebar entry under Operations; mobile nav module mapping added.
+- Settings → Business: toggle for `benchmarks_opt_in` with a one-line privacy explanation.
 
-- Before/after side-by-side comparison UI.
-- AI auto-captioning / room detection.
-- Client commenting / reactions on photos.
-- Email/SMS notifications when new photos drop (can add later).
+### Out of scope (this pass)
+
+- Per-staff benchmarking, public/share URLs, exports, custom cohort builder.
+- Historical backfill beyond 90 days (the snapshot job will start fresh).
 
 ## Deliverables
 
-1. Migration: `booking_photos` table + RLS + `booking-photos` bucket + bucket policies + business_settings columns.
-2. Cleaner UI: photo capture component + clock-out gate.
-3. Client portal: Photo Journal tab/page + lightbox.
-4. Edge function: `get-client-photo-urls`.
-5. Admin booking detail: photos sub-tab.
+1. Migration: `benchmarks_opt_in` column + `peer_benchmark_snapshots` materialized view + `get_org_benchmarks` RPC + RLS.
+2. Edge functions: `refresh-benchmark-snapshots`, `benchmark-ai-insights`.
+3. Frontend: `BenchmarksPage` + 4 components + hook + nav entries + settings toggle.
+4. Cron schedule entry for nightly refresh (2am org-local time → 06:00 UTC default).

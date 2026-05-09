@@ -1367,6 +1367,7 @@ export type Database = {
           accent_color: string | null
           allow_online_booking: boolean | null
           app_url: string | null
+          benchmarks_opt_in: boolean
           booking_buffer_minutes: number | null
           cancellation_policy: string | null
           cancellation_window_hours: number | null
@@ -1414,6 +1415,7 @@ export type Database = {
           accent_color?: string | null
           allow_online_booking?: boolean | null
           app_url?: string | null
+          benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
           cancellation_window_hours?: number | null
@@ -1461,6 +1463,7 @@ export type Database = {
           accent_color?: string | null
           allow_online_booking?: boolean | null
           app_url?: string | null
+          benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
           cancellation_window_hours?: number | null
@@ -5512,6 +5515,69 @@ export type Database = {
           },
         ]
       }
+      peer_benchmark_snapshots: {
+        Row: {
+          avg_price: number | null
+          avg_rating: number | null
+          bookings_per_org: number | null
+          cancel_rate: number | null
+          cohort_key: string
+          cohort_type: string
+          created_at: string
+          id: string
+          median_price: number | null
+          noshow_rate: number | null
+          org_count: number
+          p25_price: number | null
+          p75_price: number | null
+          period_start: string
+          recurring_share: number | null
+          repeat_rate: number | null
+          review_rate: number | null
+          service_bucket: string
+        }
+        Insert: {
+          avg_price?: number | null
+          avg_rating?: number | null
+          bookings_per_org?: number | null
+          cancel_rate?: number | null
+          cohort_key: string
+          cohort_type: string
+          created_at?: string
+          id?: string
+          median_price?: number | null
+          noshow_rate?: number | null
+          org_count?: number
+          p25_price?: number | null
+          p75_price?: number | null
+          period_start: string
+          recurring_share?: number | null
+          repeat_rate?: number | null
+          review_rate?: number | null
+          service_bucket?: string
+        }
+        Update: {
+          avg_price?: number | null
+          avg_rating?: number | null
+          bookings_per_org?: number | null
+          cancel_rate?: number | null
+          cohort_key?: string
+          cohort_type?: string
+          created_at?: string
+          id?: string
+          median_price?: number | null
+          noshow_rate?: number | null
+          org_count?: number
+          p25_price?: number | null
+          p75_price?: number | null
+          period_start?: string
+          recurring_share?: number | null
+          repeat_rate?: number | null
+          review_rate?: number | null
+          service_bucket?: string
+        }
+        Relationships: []
+      }
       platform_notifications: {
         Row: {
           created_at: string | null
@@ -7896,9 +7962,24 @@ export type Database = {
         }
         Returns: Json
       }
+      classify_service_bucket: { Args: { p_name: string }; Returns: string }
       client_cancel_booking: {
         Args: { p_booking_id: string; p_customer_id: string }
         Returns: Json
+      }
+      compute_org_benchmark_metrics: {
+        Args: { p_org_id: string; p_period_start: string }
+        Returns: {
+          avg_price: number
+          avg_rating: number
+          bookings_count: number
+          cancel_rate: number
+          noshow_rate: number
+          recurring_share: number
+          repeat_rate: number
+          review_rate: number
+          service_bucket: string
+        }[]
       }
       create_booking_from_request: {
         Args: {
@@ -8050,6 +8131,10 @@ export type Database = {
           tier_order: number
         }[]
       }
+      get_org_benchmarks: {
+        Args: { p_cohort?: string; p_org_id: string }
+        Returns: Json
+      }
       get_org_stripe_secret: {
         Args: { p_org_id: string }
         Returns: {
@@ -8129,6 +8214,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      refresh_peer_benchmark_snapshots: { Args: never; Returns: number }
       reset_client_portal_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
