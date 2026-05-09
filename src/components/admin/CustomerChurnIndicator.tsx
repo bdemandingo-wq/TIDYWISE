@@ -131,7 +131,7 @@ export function CustomerChurnIndicator({ customerId, compact = false }: Customer
             <DollarSign className="h-3 w-3" />
             Predicted LTV
           </div>
-          <p className="font-bold text-green-600">{fmt(intelligence.predicted_lifetime_value?)}</p>
+          <p className="font-bold text-green-600">{fmt(intelligence.predicted_lifetime_value)}</p>
         </div>
 
         <div className="p-2 rounded bg-muted/50">
