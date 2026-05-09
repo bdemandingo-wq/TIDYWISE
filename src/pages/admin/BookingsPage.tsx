@@ -218,6 +218,7 @@ export default function BookingsPage() {
   const [deleteConfirmBooking, setDeleteConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
   const { data: staffList = [] } = useStaff();
