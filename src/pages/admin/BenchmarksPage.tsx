@@ -101,7 +101,7 @@ export default function BenchmarksPage() {
   }, [peerCohort]);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Benchmarks">
       <SEOHead title="Benchmarks · TidyWise" description="See how your business compares to anonymous peers." />
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
