@@ -16,8 +16,8 @@ import { Link } from 'react-router-dom';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
-import {
 import { fmt } from '@/lib/activeCurrency';
+import {
   Table,
   TableBody,
   TableCell,
