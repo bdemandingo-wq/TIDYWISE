@@ -37,6 +37,7 @@ interface BookingActionSheetProps {
   onDuplicate: (booking: BookingWithDetails) => void;
   onMarkCompleteAdjustPay: (booking: BookingWithDetails) => void;
   onMarkUncleaned: (booking: BookingWithDetails) => void;
+  onMarkCancelled: (booking: BookingWithDetails) => void;
   onAdjustCleanerPay: (booking: BookingWithDetails) => void;
   onDelete: (booking: BookingWithDetails) => void;
   onMarkUnpaid: (booking: BookingWithDetails) => void;
