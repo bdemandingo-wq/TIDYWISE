@@ -51,6 +51,7 @@ import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
+import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { fmt } from '@/lib/activeCurrency';
@@ -831,6 +832,9 @@ export default function PortalDashboardPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs sm:text-sm shrink-0 min-h-[44px]">
+              <ImageIcon className="h-4 w-4 mr-1" /> Journal
+            </TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs sm:text-sm shrink-0 min-h-[44px]">Referrals</TabsTrigger>
             <TabsTrigger value="reports" className="relative text-xs sm:text-sm shrink-0 min-h-[44px]">
               Reports
@@ -1063,6 +1067,17 @@ export default function PortalDashboardPage() {
                 </Card>
               ))
             )}
+          </TabsContent>
+
+          {/* Photo Journal Tab */}
+          <TabsContent value="journal" className="space-y-3 mt-4">
+            <div>
+              <h2 className="font-semibold text-base mb-1">Photo Journal</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                A visual history of every cleaning, captured by your team.
+              </p>
+            </div>
+            <PortalPhotoJournalTab />
           </TabsContent>
 
           {/* Referrals Tab */}

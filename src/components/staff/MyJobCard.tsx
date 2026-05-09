@@ -73,6 +73,40 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
   const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
+  const [photoCount, setPhotoCount] = useState<number>(0);
+  const [photoReqs, setPhotoReqs] = useState<{ required: boolean; min: number }>({ required: true, min: 2 });
+
+  // Load org photo requirements
+  useEffect(() => {
+    if (!booking.organization_id) return;
+    (supabase
+      .from('business_settings' as any) as any)
+      .select('require_clockout_photos, min_clockout_photos')
+      .eq('organization_id', booking.organization_id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setPhotoReqs({
+            required: data.require_clockout_photos ?? true,
+            min: data.min_clockout_photos ?? 2,
+          });
+        }
+      });
+  }, [booking.organization_id]);
+
+  // Count photos for this booking (refresh on demand)
+  const refreshPhotoCount = async () => {
+    const { count } = await supabase
+      .from('booking_photos')
+      .select('id', { count: 'exact', head: true })
+      .eq('booking_id', booking.id);
+    setPhotoCount(count ?? 0);
+  };
+  useEffect(() => {
+    refreshPhotoCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking.id]);
+
 
   const destAddress = [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ');
 
@@ -507,11 +541,20 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
             </Dialog>
           )}
           {staffInfo.id && booking.status === 'in_progress' && (
-            <BookingPhotoUpload 
-              bookingId={booking.id} 
-              staffId={staffInfo.id}
-              organizationId={booking.organization_id || ''}
-            />
+            <div className="flex flex-col gap-1 w-full">
+              <BookingPhotoUpload
+                bookingId={booking.id}
+                staffId={staffInfo.id}
+                organizationId={booking.organization_id || ''}
+                onPhotoUploaded={refreshPhotoCount}
+              />
+              {photoReqs.required && (
+                <p className="text-xs text-muted-foreground">
+                  {photoCount}/{photoReqs.min} photos uploaded
+                  {photoCount < photoReqs.min ? ' — required to complete job' : ' ✓'}
+                </p>
+              )}
+            </div>
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (
             <Button
@@ -523,16 +566,26 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               Start Job
             </Button>
           )}
-          {booking.status === 'in_progress' && onUpdateStatus && (
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={() => onUpdateStatus(booking.id, 'completed')}
-              disabled={isUpdating}
-            >
-              Complete Job
-            </Button>
-          )}
+          {booking.status === 'in_progress' && onUpdateStatus && (() => {
+            const blocked = photoReqs.required && photoCount < photoReqs.min;
+            return (
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  if (blocked) {
+                    toast.error(`Upload at least ${photoReqs.min} photos before completing this job.`);
+                    return;
+                  }
+                  onUpdateStatus(booking.id, 'completed');
+                }}
+                disabled={isUpdating || blocked}
+                title={blocked ? `Requires ${photoReqs.min} photos` : undefined}
+              >
+                {blocked ? `Need ${photoReqs.min - photoCount} more photo${photoReqs.min - photoCount === 1 ? '' : 's'}` : 'Complete Job'}
+              </Button>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>

@@ -1,78 +1,74 @@
-## Goal
-Add global currency and timezone support across the app. Replace all hardcoded `$` and UTC assumptions with org-level preferences, set during onboarding and editable in settings.
 
-## Current State
-- Timezone: already partially supported via `business_settings.timezone` and `useOrgTimezone` hook (default `America/New_York`). Many components already use `formatInTimezone` / `getDateInTimezone`. Some still don't.
-- Currency: not supported at all. Hardcoded `$` and `.toFixed(2)` / `toLocaleString()` in dozens of files (e.g. `ProfitMarginReport.tsx`, KPI cards, invoices, booking cards, charge modals).
-- Onboarding: `OnboardingPage.tsx` exists but does not collect currency/timezone.
+# Client Portal Photo Journal
 
-## Scope of Changes
+A visual history of every cleaning, captured by the cleaner at clock-out and surfaced to the client in their portal.
+
+## Goals
+
+1. **Cleaner is required to upload photos before clock-out is allowed.**
+2. **Client sees a beautiful, chronological visual history per property** in the client portal.
+3. Multi-tenant safe (org-scoped storage + RLS).
+
+## Scope
 
 ### 1. Database (migration)
-- Add `currency` column (text, default `'USD'`) to `business_settings`.
-- Ensure `timezone` column exists (it does).
-- No RLS changes — table already org-scoped.
 
-### 2. New shared infrastructure
-- `src/lib/currency.ts` — currency catalog (USD, GBP, EUR, CAD, AUD, NZD, ZAR, AED, SGD, CHF, JPY, MXN, INR) with code, symbol, locale, and `formatCurrency(amount, code, { showCode? })` using `Intl.NumberFormat`.
-- `src/hooks/useOrgCurrency.ts` — mirrors `useOrgTimezone`, reads `business_settings.currency`, defaults to `'USD'`.
-- `src/lib/timezones.ts` — full IANA timezone list (use `Intl.supportedValuesOf('timeZone')` at runtime + curated fallback).
+New table `booking_photos`:
+- `id`, `booking_id` (fk), `organization_id`, `client_id`, `staff_id`, `storage_path`, `caption` (text, optional), `room_label` (text, optional, e.g. "Kitchen"), `photo_type` (`before` | `after` | `general`, default `after`), `taken_at`, `created_at`.
+- Indexes on `(client_id, taken_at desc)` and `(booking_id)`.
+- RLS:
+  - Org admins/staff in same org: full access (scoped by `organization_id`).
+  - Client portal session: SELECT own photos via existing `client_portal_sessions` mechanism (match `client_id`).
 
-### 3. Settings UI
-- Extend the business settings page with two searchable comboboxes:
-  - Currency (shows symbol + code + name)
-  - Timezone (shows IANA name + current offset)
-- Save to `business_settings`.
+New storage bucket `booking-photos` (private):
+- Path: `{organization_id}/{booking_id}/{uuid}.jpg`
+- RLS: org members can read/write their org's folder; signed URLs served to client portal.
 
-### 4. Onboarding
-- Add a first step (or merge into existing first step) that:
-  - Auto-detects `Intl.DateTimeFormat().resolvedOptions().timeZone` and browser locale → suggested currency.
-  - Lets the user confirm/override.
-  - Writes to `business_settings` before proceeding.
+Optional org setting: `business_settings.require_clockout_photos` (boolean, default `true`) and `min_clockout_photos` (int, default 2).
 
-### 5. Replace hardcoded `$` site-wide
-Sweep all components and use `formatCurrency(amount, currency)` from the new helper. High-traffic targets:
-- `ProfitMarginReport.tsx` (KPI cards, table, CSV export)
-- `ReportsPage.tsx`
-- `BookingsPage.tsx`, `BookingActionSheet.tsx`, booking cards
-- Invoice components and PDFs
-- Charge / refund modals (`StripeCardForm`, payment dialogs)
-- Pricing fields in `ServicesPage`, `EstimatesPage`
-- Cleaner earnings, payroll
-- Dashboard KPI cards
+### 2. Cleaner clock-out flow (mobile)
 
-For PDFs/emails generated server-side (edge functions), pass currency as a parameter from the client OR have edge functions read `business_settings.currency` for the org.
+- Update the existing clock-out screen so the "Clock Out" button is **disabled** until at least N photos are uploaded for the active booking.
+- Add a `BookingPhotoCapture` component:
+  - Camera-first input (`capture="environment"`) with gallery fallback (Safari fix already in mem).
+  - Optional room label dropdown + caption.
+  - Uploads directly to `booking-photos` bucket; inserts row in `booking_photos`.
+- Surface upload progress + thumbnails of what's already uploaded for the booking.
 
-### 6. Replace UTC / browser-local time usage
-Audit components that still use raw `new Date()` / `format()` without `useOrgTimezone`. Update to use `formatInTimezone` / `getDateInTimezone` / `getLocalDateInTimezone`. Booking time pickers must interpret picker time in org timezone (already partly handled via `selectedDateTimeToUTCISO`).
+### 3. Client portal — Photo Journal page
 
-"Today" logic for KPIs / same-day cancellations must call `getDateInTimezone(new Date(), tz)` instead of `new Date().toDateString()`.
+- New route under existing client portal (e.g. `/portal/journal` or tab inside the booking history view).
+- Components:
+  - `PhotoJournalTimeline` — grouped by booking date, header shows date + staff name + service.
+  - `PhotoGalleryGrid` — responsive grid (mobile: 2 cols, desktop: 3-4), tap → lightbox.
+  - `PhotoLightbox` — full-screen swipeable viewer with caption + room label.
+- Empty state with friendly copy ("Your visual history will appear here after your next cleaning").
+- Pulls signed URLs via an edge function (`get-client-photo-urls`) so private bucket stays private.
 
-### 7. Edge functions
-Update outbound emails/SMS/invoices that include money to format with the org's currency (read from `business_settings`). At minimum: invoice send, payment receipt, cancellation, deposit, tip.
+### 4. Admin dashboard
 
-## Technical Notes
-- `Intl.NumberFormat(localeForCurrency, { style: 'currency', currency: code })` handles symbol, decimals, and grouping.
-- For ambiguous symbols ($, £ in CAD/AUD/NZD/MXN), append code: `formatCurrency(x, 'CAD', { showCode: true })` → `CA$190.00 CAD` or use `currencyDisplay: 'code'` for forms.
-- Timezone dropdown: prefer `Intl.supportedValuesOf('timeZone')` (modern browsers) — group by region for UX.
-- Default org currency on existing rows = `'USD'` (back-compat).
-- Loading state: while `useOrgCurrency` resolves, render with `'USD'` placeholder to avoid flicker — same pattern as `useOrgTimezone`.
+- Lightweight tab on the booking detail page showing the photos uploaded for that booking (so owners can audit).
+- No new top-level admin page in this pass.
 
-## Out of Scope
-- Multi-currency per booking (org-wide currency only).
-- Currency conversion / FX rates.
-- Per-user (vs per-org) currency — kept at org level to match existing timezone pattern.
-- Stripe charge currency change (Stripe accounts have their own currency; we display in org currency but Stripe will still charge in account currency — flagged as future work if mismatch).
+## Technical Details
 
-## Rollout Order
-1. Migration: add `currency` column.
-2. Build helpers + hooks (`currency.ts`, `useOrgCurrency`, `timezones.ts`).
-3. Settings page: currency + timezone pickers.
-4. Onboarding: auto-detect + confirm step.
-5. Sweep frontend hardcoded `$` → `formatCurrency`.
-6. Sweep "today"/UTC date logic.
-7. Update edge functions for invoices/receipts.
-8. QA pass on bookings, reports, invoices, charge flow in a non-USD org.
+- **Storage**: private bucket, signed URLs (1 hr TTL) generated server-side for client portal.
+- **Edge function `get-client-photo-urls`**: validates client portal session, returns signed URLs for that client only.
+- **Clock-out enforcement**: client-side gate + server-side check in the clock-out RPC (reject if `require_clockout_photos` is true and photo count < min).
+- **Multi-tenant**: every query scoped by `organization_id`; storage path enforces org isolation via `(storage.foldername(name))[1]`.
+- **Realtime**: optionally subscribe client portal to `booking_photos` inserts so journal updates live (nice-to-have, can defer).
 
-## Estimated Surface
-~60–80 files touched in the frontend sweep, ~5–8 edge functions, 1 migration.
+## Out of scope (this pass)
+
+- Before/after side-by-side comparison UI.
+- AI auto-captioning / room detection.
+- Client commenting / reactions on photos.
+- Email/SMS notifications when new photos drop (can add later).
+
+## Deliverables
+
+1. Migration: `booking_photos` table + RLS + `booking-photos` bucket + bucket policies + business_settings columns.
+2. Cleaner UI: photo capture component + clock-out gate.
+3. Client portal: Photo Journal tab/page + lightbox.
+4. Edge function: `get-client-photo-urls`.
+5. Admin booking detail: photos sub-tab.

@@ -1387,6 +1387,7 @@ export type Database = {
           logo_url: string | null
           max_advance_booking_days: number | null
           meta_pixel_id: string | null
+          min_clockout_photos: number
           minimum_notice_hours: number | null
           notify_cancellations: boolean | null
           notify_new_booking: boolean | null
@@ -1402,6 +1403,7 @@ export type Database = {
           primary_color: string | null
           reminder_email_body: string | null
           reminder_email_subject: string | null
+          require_clockout_photos: boolean
           require_deposit: boolean | null
           resend_api_key: string | null
           review_sms_template: string | null
@@ -1432,6 +1434,7 @@ export type Database = {
           logo_url?: string | null
           max_advance_booking_days?: number | null
           meta_pixel_id?: string | null
+          min_clockout_photos?: number
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
           notify_new_booking?: boolean | null
@@ -1447,6 +1450,7 @@ export type Database = {
           primary_color?: string | null
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
+          require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
@@ -1477,6 +1481,7 @@ export type Database = {
           logo_url?: string | null
           max_advance_booking_days?: number | null
           meta_pixel_id?: string | null
+          min_clockout_photos?: number
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
           notify_new_booking?: boolean | null
@@ -1492,6 +1497,7 @@ export type Database = {
           primary_color?: string | null
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
+          require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
