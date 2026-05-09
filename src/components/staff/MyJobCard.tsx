@@ -73,6 +73,40 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
   const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
+  const [photoCount, setPhotoCount] = useState<number>(0);
+  const [photoReqs, setPhotoReqs] = useState<{ required: boolean; min: number }>({ required: true, min: 2 });
+
+  // Load org photo requirements
+  useEffect(() => {
+    if (!booking.organization_id) return;
+    (supabase
+      .from('business_settings' as any) as any)
+      .select('require_clockout_photos, min_clockout_photos')
+      .eq('organization_id', booking.organization_id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setPhotoReqs({
+            required: data.require_clockout_photos ?? true,
+            min: data.min_clockout_photos ?? 2,
+          });
+        }
+      });
+  }, [booking.organization_id]);
+
+  // Count photos for this booking (refresh on demand)
+  const refreshPhotoCount = async () => {
+    const { count } = await supabase
+      .from('booking_photos')
+      .select('id', { count: 'exact', head: true })
+      .eq('booking_id', booking.id);
+    setPhotoCount(count ?? 0);
+  };
+  useEffect(() => {
+    refreshPhotoCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking.id]);
+
 
   const destAddress = [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ');
 
