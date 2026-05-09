@@ -5267,6 +5267,7 @@ export type Database = {
       organization_sms_settings: {
         Row: {
           created_at: string
+          external_booking_webhook_secret: string | null
           id: string
           notify_admin_on_the_way: boolean
           notify_client_distance_eta: boolean
@@ -5282,6 +5283,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_booking_webhook_secret?: string | null
           id?: string
           notify_admin_on_the_way?: boolean
           notify_client_distance_eta?: boolean
@@ -5297,6 +5299,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_booking_webhook_secret?: string | null
           id?: string
           notify_admin_on_the_way?: boolean
           notify_client_distance_eta?: boolean
@@ -8455,6 +8458,7 @@ export type Database = {
       is_org_admin: { Args: { _org_id: string }; Returns: boolean }
       is_org_member: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
       is_platform_blog_admin: { Args: never; Returns: boolean }
       log_benchmark_event: {
         Args: {
@@ -8551,6 +8555,10 @@ export type Database = {
       validate_client_portal_login: {
         Args: { p_email: string; p_password: string }
         Returns: Json
+      }
+      verify_external_booking_secret: {
+        Args: { _org_id: string; _secret: string }
+        Returns: boolean
       }
     }
     Enums: {
