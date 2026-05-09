@@ -1217,7 +1217,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.city, booking.state, booking.zip_code]
+      const fullAddress = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null, booking.city, booking.state, booking.zip_code]
         .filter(Boolean)
         .join(', ');
 

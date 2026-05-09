@@ -130,7 +130,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
               serviceName: booking.service?.name || 'Cleaning Service',
               appointmentDate: format(new Date(booking.scheduled_at), 'EEEE, MMMM d, yyyy'),
               appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
-              address: booking.address || 'Address not provided',
+              address: [booking.address, (booking as any).apt_suite ? `Unit ${(booking as any).apt_suite}` : null, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') || 'Address not provided',
               bookingNumber: booking.booking_number,
               organizationId: organization?.id,
             },
