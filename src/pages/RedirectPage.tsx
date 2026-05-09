@@ -16,9 +16,7 @@ export default function RedirectPage() {
       }
 
       const { data, error: fetchError } = await supabase
-        .from('short_urls')
-        .select('target_url, expires_at')
-        .eq('code', code)
+        .rpc('resolve_short_url', { p_code: code })
         .maybeSingle();
 
       if (fetchError || !data) {

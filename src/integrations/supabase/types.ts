@@ -8128,6 +8128,13 @@ export type Database = {
         Returns: boolean
       }
       reset_daily_tasks: { Args: never; Returns: undefined }
+      resolve_short_url: {
+        Args: { p_code: string }
+        Returns: {
+          expires_at: string
+          target_url: string
+        }[]
+      }
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
