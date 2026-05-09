@@ -227,11 +227,13 @@ export default function ReportsPage() {
     }
 
     const completedInRange = filteredBookings.filter((b: any) => b.status === 'completed');
+    const cancelledInRange = filteredBookings.filter((b: any) => b.status === 'cancelled');
     const totalRevenue = completedInRange.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
     const completedBookings = completedInRange;
     const avgBookingValue = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
     const totalBookings = filteredBookings.length;
     const conversionRate = totalBookings > 0 ? Math.round((completedBookings.length / totalBookings) * 100) : 0;
+    const cancellationRate = totalBookings > 0 ? Math.round((cancelledInRange.length / totalBookings) * 100) : 0;
 
     return {
       serviceStats,
@@ -244,6 +246,9 @@ export default function ReportsPage() {
         avgBookingValue,
         conversionRate,
         totalBookings,
+        cancelledCount: cancelledInRange.length,
+        cancellationRate,
+        cancelledList: cancelledInRange,
       },
       recurringCleansCount,
       recurringCleansRevenue,
