@@ -12,6 +12,7 @@ import { CreditCard, Building, FileText, DollarSign, Loader2, Banknote } from 'l
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { fmt } from '@/lib/activeCurrency';
 
 interface PaymentMethodsSheetProps {
   open: boolean;
@@ -162,7 +163,7 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
               description="Accept Visa, Mastercard, Amex via Stripe"
               enabled={formData.accept_cards}
               onToggle={(v) => setFormData({ ...formData, accept_cards: v })}
-              feeLabel={`${formData.card_fee_percent}% + $${formData.card_fee_fixed.toFixed(2)} per transaction`}
+              feeLabel={`${formData.card_fee_percent}% + ${fmt(formData.card_fee_fixed)} per transaction`}
             />
 
             <PaymentMethod

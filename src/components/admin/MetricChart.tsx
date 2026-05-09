@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import { fmt } from '@/lib/activeCurrency';
 
 interface DataPoint {
   date: string;
@@ -46,9 +47,9 @@ export function MetricChart({
   const formatValue = (val: number) => {
     if (isCurrency) {
       if (val >= 1000) {
-        return `$${(val / 1000).toFixed(1)}K`;
+        return `${fmt((val / 1000))}K`;
       }
-      return `$${val.toFixed(2)}`;
+      return `${fmt(val)}`;
     }
     return val.toString();
   };
@@ -83,7 +84,7 @@ export function MetricChart({
                   return label;
                 }
               }}
-              formatter={(val: number) => [isCurrency ? `$${val.toFixed(2)}` : val, title]}
+              formatter={(val: number) => [isCurrency ? `${fmt(val)}` : val, title]}
             />
             <Line
               type="monotone"

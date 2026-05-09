@@ -36,6 +36,7 @@ import { format, addDays } from 'date-fns';
 import { useCustomers, useServices } from '@/hooks/useBookings';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Quote {
   id: string;
@@ -205,7 +206,7 @@ export function QuotesTabContent() {
     setSendingReminder(quote.id);
     try {
       const validUntil = quote.valid_until ? format(new Date(quote.valid_until), 'MMM d, yyyy') : 'soon';
-      const message = `Hi ${customer.first_name}! Just a reminder - your quote #${quote.quote_number} for $${quote.total_amount.toFixed(2)} expires on ${validUntil}. Reply YES to confirm or call us with any questions!`;
+      const message = `Hi ${customer.first_name}! Just a reminder - your quote #${quote.quote_number} for ${fmt(quote.total_amount)} expires on ${validUntil}. Reply YES to confirm or call us with any questions!`;
 
       const response = await supabase.functions.invoke('send-openphone-sms', {
         body: {
@@ -340,7 +341,7 @@ export function QuotesTabContent() {
               </div>
               <span className="text-sm font-medium text-muted-foreground">Total Value</span>
             </div>
-            <p className="text-3xl font-bold">${isTestMode ? '0.00' : stats.totalValue.toLocaleString()}</p>
+            <p className="text-3xl font-bold">{fmt(isTestMode ? '0.00' : stats.totalValue)}</p>
           </CardContent>
         </Card>
       </div>

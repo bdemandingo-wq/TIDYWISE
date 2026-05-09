@@ -7,6 +7,7 @@ import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
+import { fmt } from '@/lib/activeCurrency';
 
 interface TipDetails {
   id: string;
@@ -135,7 +136,7 @@ export default function TipPage() {
             </div>
             <h2 className="text-2xl font-bold text-emerald-800">Thank You! 🎉</h2>
             <p className="text-emerald-700">
-              Your generous tip{tipDetails?.amount ? ` of $${Number(tipDetails.amount).toFixed(2)}` : ''} has been received.
+              Your generous tip{tipDetails?.amount ? ` of ${fmt(Number(tipDetails.amount))}` : ''} has been received.
             </p>
             <p className="text-sm text-emerald-600">
               {tipDetails?.companyName} appreciates your kindness!
@@ -249,7 +250,7 @@ export default function TipPage() {
             ) : (
               <Heart className="w-5 h-5 mr-2" />
             )}
-            {finalAmount > 0 ? `Send $${finalAmount.toFixed(2)} Tip` : 'Select an amount'}
+            {finalAmount > 0 ? `Send ${fmt(finalAmount)} Tip` : 'Select an amount'}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">

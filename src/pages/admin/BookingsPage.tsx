@@ -116,6 +116,7 @@ import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialo
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { SEOHead } from '@/components/SEOHead';
 import { usePlatform } from '@/hooks/usePlatform';
+import { fmt } from '@/lib/activeCurrency';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
@@ -590,8 +591,8 @@ export default function BookingsPage() {
         toast({
           title: "Refund Recorded (Manual)",
           description: refundType === 'full'
-            ? `Full refund of $${booking.total_amount?.toFixed(2)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
-            : `Partial refund of $${parseFloat(refundAmount).toFixed(2)} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
+            ? `Full refund of ${fmt(booking.total_amount?)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
+            : `Partial refund of ${fmt(parseFloat(refundAmount))} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
         setRefundType('full');
@@ -871,7 +872,7 @@ export default function BookingsPage() {
         } else {
           toast({
             title: "✓ Hold released",
-            description: data.message || `$${(data.amountReleased ?? 0).toFixed(2)} returned to the customer.`,
+            description: data.message || `${fmt((data.amountReleased ?? 0))} returned to the customer.`,
           });
         }
         return;
@@ -1310,7 +1311,7 @@ export default function BookingsPage() {
 
       if (error) throw error;
       if (data?.success) {
-        toast({ title: "Deposit Link Sent", description: `Deposit request of $${amount.toFixed(2)} sent to ${depositDialogBooking.customer.first_name}` });
+        toast({ title: "Deposit Link Sent", description: `Deposit request of ${fmt(amount)} sent to ${depositDialogBooking.customer.first_name}` });
         setDepositDialogBooking(null);
         setDepositAmount('');
       } else {
@@ -2677,7 +2678,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Charge</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to charge <strong>${chargeConfirmBooking?.total_amount?.toFixed(2)}</strong> to{' '}
+              Are you sure you want to charge <strong>{fmt(chargeConfirmBooking?.total_amount?)}</strong> to{' '}
               <strong>{chargeConfirmBooking?.customer?.first_name} {chargeConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will immediately charge their saved payment method.
@@ -2706,7 +2707,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Place Hold</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to place a hold of <strong>${placeHoldConfirmBooking?.total_amount?.toFixed(2)}</strong> on{' '}
+              Are you sure you want to place a hold of <strong>{fmt(placeHoldConfirmBooking?.total_amount?)}</strong> on{' '}
               <strong>{placeHoldConfirmBooking?.customer?.first_name} {placeHoldConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will authorize the amount but not charge the card until you capture the payment.
@@ -2735,7 +2736,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Capture Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to capture <strong>${captureConfirmBooking?.total_amount?.toFixed(2)}</strong> from the hold on{' '}
+              Are you sure you want to capture <strong>{fmt(captureConfirmBooking?.total_amount?)}</strong> from the hold on{' '}
               <strong>{captureConfirmBooking?.customer?.first_name} {captureConfirmBooking?.customer?.last_name}</strong>'s card?
               <br /><br />
               This will finalize the payment hold and transfer the funds.
@@ -2773,7 +2774,7 @@ export default function BookingsPage() {
               Refund payment for Booking #{refundDialogBooking?.booking_number} —{' '}
               <strong>{refundDialogBooking?.customer?.first_name} {refundDialogBooking?.customer?.last_name}</strong>
               <br />
-              Original amount: <strong>${refundDialogBooking?.total_amount?.toFixed(2)}</strong>
+              Original amount: <strong>{fmt(refundDialogBooking?.total_amount?)}</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
@@ -2826,7 +2827,7 @@ export default function BookingsPage() {
                   Processing...
                 </>
               ) : (
-                `Refund ${refundType === 'full' ? `$${refundDialogBooking?.total_amount?.toFixed(2)}` : refundAmount ? `$${parseFloat(refundAmount).toFixed(2)}` : '...'}`
+                `Refund ${refundType === 'full' ? `${fmt(refundDialogBooking?.total_amount?)}` : refundAmount ? `${fmt(parseFloat(refundAmount))}` : '...'}`
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

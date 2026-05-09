@@ -33,6 +33,7 @@ import { useDiscounts } from '@/hooks/useDiscounts';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { preloadStripeModules } from '@/lib/stripe';
 import { useAuth } from '@/hooks/useAuth';
+import { fmt } from '@/lib/activeCurrency';
 
 /**
  * Compute cleaner_pay_expected from current form values.
@@ -238,7 +239,7 @@ export function PaymentStep() {
       });
       
       setCouponCode('');
-      toast.success(`Coupon applied! You saved $${discountAmount.toFixed(2)}`);
+      toast.success(`Coupon applied! You saved ${fmt(discountAmount)}`);
     } catch (error) {
       setCouponError('Failed to validate coupon');
     } finally {
@@ -274,7 +275,7 @@ export function PaymentStep() {
       });
 
       if (!result.success) return;
-      toast.success(`Payment link for $${amountToCharge.toFixed(2)} sent via SMS`);
+      toast.success(`Payment link for ${fmt(amountToCharge)} sent via SMS`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send payment link via SMS');
     } finally {
@@ -430,7 +431,7 @@ export function PaymentStep() {
             <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${pricingBreakdown.subtotal.toFixed(2)}</span>
+                <span>{fmt(pricingBreakdown.subtotal)}</span>
               </div>
               {appliedDiscount && (
                 <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
@@ -441,13 +442,13 @@ export function PaymentStep() {
               {appliedDiscount && pricingBreakdown.taxRate > 0 && (
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Discounted Subtotal</span>
-                  <span>${pricingBreakdown.discountedSubtotal.toFixed(2)}</span>
+                  <span>{fmt(pricingBreakdown.discountedSubtotal)}</span>
                 </div>
               )}
               {pricingBreakdown.taxRate > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sales Tax ({pricingBreakdown.taxRate}%)</span>
-                  <span>${pricingBreakdown.taxAmount.toFixed(2)}</span>
+                  <span>{fmt(pricingBreakdown.taxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/30">
@@ -729,7 +730,7 @@ export function PaymentStep() {
                 className="h-11 w-full"
                 onClick={handleSendPaymentLinkSms}
                 disabled={sendingLinkSms || !customerPhone || !pricingBreakdown.grandTotal}
-                title={!customerPhone ? "Customer phone required" : !pricingBreakdown.grandTotal ? "Select service and details first" : `Send card collection link for $${pricingBreakdown.grandTotal.toFixed(2)} service`}
+                title={!customerPhone ? "Customer phone required" : !pricingBreakdown.grandTotal ? "Select service and details first" : `Send card collection link for ${fmt(pricingBreakdown.grandTotal)} service`}
               >
                 {sendingLinkSms ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

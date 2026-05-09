@@ -53,6 +53,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
+import { LocalePickers } from '@/components/admin/LocalePickers';
 
 interface BusinessSettings {
   id?: string;
@@ -628,41 +629,12 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select
-                    value={settings.timezone}
-                    onValueChange={(value) => updateField('timezone', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    value={settings.currency}
-                    onValueChange={(value) => updateField('currency', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <LocalePickers
+                currency={settings.currency}
+                timezone={settings.timezone}
+                onCurrencyChange={(value) => updateField('currency', value)}
+                onTimezoneChange={(value) => updateField('timezone', value)}
+              />
               <Button className="gap-2" onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save Changes

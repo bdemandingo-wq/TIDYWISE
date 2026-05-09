@@ -38,6 +38,7 @@ import { DueDateSheet } from './invoice/DueDateSheet';
 import { SendScheduleSheet } from './invoice/SendScheduleSheet';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
 import { formatInvoiceNumber } from '@/lib/invoiceUtils';
+import { fmt } from '@/lib/activeCurrency';
 
 interface LineItem {
   id?: string;
@@ -460,7 +461,7 @@ export function InvoiceFormDialog({
   if (paymentSettings?.accept_cards !== false) {
     enabledMethods.push({ 
       name: 'Debit/Credit Cards', 
-      fee: `${paymentSettings?.card_fee_percent ?? 2.9}% + $${(paymentSettings?.card_fee_fixed ?? 0.30).toFixed(2)}`,
+      fee: `${paymentSettings?.card_fee_percent ?? 2.9}% + ${fmt((paymentSettings?.card_fee_fixed ?? 0.30))}`,
       icon: CreditCard
     });
   }
@@ -862,7 +863,7 @@ export function InvoiceFormDialog({
               <div className="text-sm space-y-1 pb-2 border-b">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{fmt(subtotal)}</span>
                 </div>
                 {showDiscount && discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
@@ -873,7 +874,7 @@ export function InvoiceFormDialog({
                 {showTax && taxAmount > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax ({taxPercent}%)</span>
-                    <span>${taxAmount.toFixed(2)}</span>
+                    <span>{fmt(taxAmount)}</span>
                   </div>
                 )}
               </div>
@@ -881,7 +882,7 @@ export function InvoiceFormDialog({
             
             <div className="flex items-center justify-between">
               <span className="text-lg font-semibold">Total due</span>
-              <span className="text-lg font-semibold">${totalAmount.toFixed(2)}</span>
+              <span className="text-lg font-semibold">{fmt(totalAmount)}</span>
             </div>
             <div className="flex gap-3">
               <Button

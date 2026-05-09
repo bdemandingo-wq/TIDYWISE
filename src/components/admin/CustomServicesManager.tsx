@@ -38,6 +38,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Plus, Pencil, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Service {
   id: string;
@@ -331,7 +332,7 @@ export function CustomServicesManager() {
                     </div>
                   </TableCell>
                   <TableCell>{service.duration} min</TableCell>
-                  <TableCell>${service.price.toFixed(2)}</TableCell>
+                  <TableCell>{fmt(service.price)}</TableCell>
                   <TableCell>
                     <Badge variant={service.is_active ? 'default' : 'secondary'}>
                       {service.is_active ? 'Active' : 'Inactive'}

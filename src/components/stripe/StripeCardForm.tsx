@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import type { Stripe } from '@stripe/stripe-js';
+import { fmt } from '@/lib/activeCurrency';
 
 type StripeReact = typeof import('@stripe/react-stripe-js');
 
@@ -133,7 +134,7 @@ function CardFormInner({
           } else if (holdData?.success) {
             toast({
               title: 'Success',
-              description: `Card saved and $${parseFloat(holdAmount).toFixed(2)} hold placed (not charged)`,
+              description: `Card saved and ${fmt(parseFloat(holdAmount))} hold placed (not charged)`,
             });
             onHoldPlaced?.({
               paymentIntentId: holdData.paymentIntentId,
@@ -219,7 +220,7 @@ function CardFormInner({
         ) : (
           <CreditCard className="w-4 h-4 mr-2" />
         )}
-        {placeHold ? `Add Card & Place $${parseFloat(holdAmount || '0').toFixed(2)} Hold` : 'Add Card'}
+        {placeHold ? `Add Card & Place ${fmt(parseFloat(holdAmount || '0'))} Hold` : 'Add Card'}
       </Button>
     </div>
   );

@@ -47,6 +47,7 @@ import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
 import { SEOHead } from '@/components/SEOHead';
 import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { fmt } from '@/lib/activeCurrency';
 
 
 
@@ -259,7 +260,7 @@ export default function LeadsPage() {
     queryClient.invalidateQueries({ queryKey: ['customers'] });
     toast.success(
       estimatedValue 
-        ? `Lead converted to customer — estimated value: $${estimatedValue.toLocaleString()}`
+        ? `Lead converted to customer — estimated value: ${fmt(estimatedValue)}`
         : 'Lead converted to customer'
     );
   };

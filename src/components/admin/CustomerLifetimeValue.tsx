@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Users, DollarSign, Calendar, Star } from 'lucide-react';
 import { differenceInDays, format, parseISO } from 'date-fns';
+import { fmt } from '@/lib/activeCurrency';
 
 interface CustomerLifetimeValueProps {
   bookings: BookingWithDetails[];
@@ -200,7 +201,7 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
             <div>
               <p className="text-sm text-muted-foreground">Avg Customer Value</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$XXX' : `$${clvMetrics.avgCLV.toFixed(0)}`}
+                {isTestMode ? '$XXX' : `${fmt(clvMetrics.avgCLV)}`}
               </p>
             </div>
           </div>
@@ -214,7 +215,7 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
             <div>
               <p className="text-sm text-muted-foreground">Total CLV</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$XX,XXX' : `$${clvMetrics.totalCLV.toLocaleString()}`}
+                {isTestMode ? '$XX,XXX' : `${fmt(clvMetrics.totalCLV)}`}
               </p>
             </div>
           </div>
@@ -271,7 +272,7 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Total Spent']}
+                    formatter={(value: number) => [`${fmt(value)}`, 'Total Spent']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {topCustomersChartData.map((entry, index) => (
@@ -350,11 +351,11 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
                     </Badge>
                   </td>
                   <td className="py-3 text-right font-semibold text-success">
-                    {isTestMode ? '$XXX' : `$${customer.totalSpent.toLocaleString()}`}
+                    {isTestMode ? '$XXX' : `${fmt(customer.totalSpent)}`}
                   </td>
                   <td className="py-3 text-right">{isTestMode ? 'X' : customer.bookingCount}</td>
                   <td className="py-3 text-right">
-                    {isTestMode ? '$XX' : `$${customer.avgBookingValue.toFixed(0)}`}
+                    {isTestMode ? '$XX' : `${fmt(customer.avgBookingValue)}`}
                   </td>
                   <td className="py-3">
                     <Badge variant="secondary">{customer.frequency}</Badge>

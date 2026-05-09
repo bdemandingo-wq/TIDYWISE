@@ -53,6 +53,7 @@ import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { fmt } from '@/lib/activeCurrency';
 
 interface Booking {
   id: string;
@@ -117,7 +118,7 @@ function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }:
         body: { customerId, organizationId, pointsToRedeem: 100 },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
-      toast.success(`$${data.creditAmount.toFixed(2)} credit added to your account!`);
+      toast.success(`${fmt(data.creditAmount)} credit added to your account!`);
       setRedeemed(true);
       onRedeemed();
     } catch (e: any) {

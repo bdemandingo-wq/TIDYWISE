@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
 import {
+import { fmt } from '@/lib/activeCurrency';
   Table,
   TableBody,
   TableCell,
@@ -855,7 +856,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Revenue Goal</p>
-                <p className="text-2xl font-bold">${settings.annual_revenue_goal.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{fmt(settings.annual_revenue_goal)}</p>
               </div>
               <Target className="w-8 h-8 text-primary opacity-50" />
             </div>
@@ -866,7 +867,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">YTD Revenue</p>
-                <p className="text-2xl font-bold">${actuals.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{fmt(actuals.totalRevenue)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-success opacity-50" />
             </div>
@@ -882,7 +883,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Job Size</p>
-                <p className="text-2xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+                <p className="text-2xl font-bold">{fmt(actuals.avgJobSize)}</p>
               </div>
               <Calculator className="w-8 h-8 text-info opacity-50" />
             </div>
@@ -975,8 +976,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <TableBody>
               <TableRow>
                 <TableCell className="font-medium">Total Revenue</TableCell>
-                <TableCell className="text-right">${summaryData.revenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">${summaryData.revenueGoal.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{fmt(summaryData.revenue)}</TableCell>
+                <TableCell className="text-right">{fmt(summaryData.revenueGoal)}</TableCell>
                 <TableCell className="text-center">
                   <Badge className={statusColors[getStatus(summaryData.revenue, summaryData.revenueGoal)]}>
                     {statusIcons[getStatus(summaryData.revenue, summaryData.revenueGoal)]} {getStatus(summaryData.revenue, summaryData.revenueGoal) === 'behind' ? 'Behind' : 'On Track'}
@@ -985,8 +986,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ First-Time Revenue</TableCell>
-                <TableCell className="text-right">${summaryData.firstTimeRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{summaryData.firstTimeRevenueGoal > 0 ? `$${summaryData.firstTimeRevenueGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-right">{fmt(summaryData.firstTimeRevenue)}</TableCell>
+                <TableCell className="text-right">{summaryData.firstTimeRevenueGoal > 0 ? `${fmt(summaryData.firstTimeRevenueGoal)}` : '—'}</TableCell>
                 <TableCell className="text-center">
                   {summaryData.firstTimeRevenueGoal > 0 ? (
                     <Badge className={statusColors[getStatus(summaryData.firstTimeRevenue, summaryData.firstTimeRevenueGoal)]}>
@@ -997,8 +998,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ Recurring Revenue</TableCell>
-                <TableCell className="text-right">${summaryData.recurringRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{summaryData.recurringRevenueGoal > 0 ? `$${summaryData.recurringRevenueGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-right">{fmt(summaryData.recurringRevenue)}</TableCell>
+                <TableCell className="text-right">{summaryData.recurringRevenueGoal > 0 ? `${fmt(summaryData.recurringRevenueGoal)}` : '—'}</TableCell>
                 <TableCell className="text-center">
                   {summaryData.recurringRevenueGoal > 0 ? (
                     <Badge className={statusColors[getStatus(summaryData.recurringRevenue, summaryData.recurringRevenueGoal)]}>
@@ -1029,7 +1030,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   <TableRow>
                     <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
                     <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: $${summaryData.fixedCostGoal.toLocaleString()}` : '—'}</TableCell>
+                    <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: ${fmt(summaryData.fixedCostGoal)}` : '—'}</TableCell>
                     <TableCell className="text-center">
                       {summaryData.fixedCostGoal > 0 ? (
                         <Badge className={statusColors[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]}>
@@ -1064,7 +1065,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Avg Job Size</p>
-            <p className="text-xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+            <p className="text-xl font-bold">{fmt(actuals.avgJobSize)}</p>
             <Badge variant={actuals.avgJobSize >= settings.avg_job_size_goal ? 'default' : 'secondary'} className="mt-1">
               Goal: ${settings.avg_job_size_goal}
             </Badge>
@@ -1074,14 +1075,14 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">First-Time Clients ({currentYear})</p>
             <p className="text-xl font-bold">{actuals.totalFirstTime}</p>
-            <p className="text-xs text-muted-foreground">${actuals.totalFirstTimeRevenue.toLocaleString()} revenue</p>
+            <p className="text-xs text-muted-foreground">{fmt(actuals.totalFirstTimeRevenue)} revenue</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Recurring Clients</p>
             <p className="text-xl font-bold">{recurringStats?.recurringClients ?? actuals.totalRecurringClients}</p>
-            <p className="text-xs text-muted-foreground">${actuals.totalRecurringRevenue.toLocaleString()} revenue</p>
+            <p className="text-xs text-muted-foreground">{fmt(actuals.totalRecurringRevenue)} revenue</p>
           </CardContent>
         </Card>
       </div>
@@ -1162,7 +1163,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">YTD Revenue</p>
-                    <p className="text-xl font-bold">${actuals.totalRevenue.toLocaleString()}</p>
+                    <p className="text-xl font-bold">{fmt(actuals.totalRevenue)}</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Total Jobs</p>
@@ -1170,7 +1171,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Avg Job Size</p>
-                    <p className="text-xl font-bold">${actuals.avgJobSize.toFixed(0)}</p>
+                    <p className="text-xl font-bold">{fmt(actuals.avgJobSize)}</p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Repeat Revenue %</p>
@@ -1220,7 +1221,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">First-Time Revenue</p>
-                  <p className="text-2xl font-bold">${actuals.totalFirstTimeRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{fmt(actuals.totalFirstTimeRevenue)}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Clients</p>
@@ -1228,7 +1229,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Revenue</p>
-                  <p className="text-2xl font-bold">${actuals.totalRecurringRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{fmt(actuals.totalRecurringRevenue)}</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-4">
@@ -1303,7 +1304,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                               placeholder="0"
                             />
                           </TableCell>
-                          <TableCell className="text-right">${actual.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{fmt(actual)}</TableCell>
                           <TableCell className={`text-right ${variance >= 0 ? 'text-success' : 'text-destructive'}`}>
                             {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
                           </TableCell>
@@ -1313,8 +1314,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                     })}
                     <TableRow className="font-bold border-t-2">
                       <TableCell>TOTAL</TableCell>
-                      <TableCell className="text-right">${totalSalesGoal.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">${actuals.totalRevenue.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{fmt(totalSalesGoal)}</TableCell>
+                      <TableCell className="text-right">{fmt(actuals.totalRevenue)}</TableCell>
                       <TableCell className={`text-right ${actuals.totalRevenue - totalSalesGoal >= 0 ? 'text-success' : 'text-destructive'}`}>
                         {actuals.totalRevenue - totalSalesGoal >= 0 ? '+' : ''}{(actuals.totalRevenue - totalSalesGoal).toLocaleString()}
                       </TableCell>
@@ -1337,7 +1338,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   <div key={q} className="p-4 border rounded-lg">
                     <p className="font-medium mb-2">{q}</p>
                     <p className="text-sm text-muted-foreground">Goal</p>
-                    <p className="text-lg font-bold">${quarterlyGoals[i].toLocaleString()}</p>
+                    <p className="text-lg font-bold">{fmt(quarterlyGoals[i])}</p>
                     <p className="text-sm text-muted-foreground mt-2">Actual</p>
                     <p className={`text-lg font-bold ${quarterlyActuals[i] >= quarterlyGoals[i] ? 'text-success' : 'text-destructive'}`}>
                       ${quarterlyActuals[i].toLocaleString()}
@@ -1356,7 +1357,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Total Budget</p>
-                <p className="text-2xl font-bold">${totalMarketingBudget.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{fmt(totalMarketingBudget)}</p>
                 <p className="text-xs text-muted-foreground">Sum of monthly budgets</p>
               </CardContent>
             </Card>
@@ -1374,14 +1375,14 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Cost Per Lead (CPL)</p>
-                <p className="text-2xl font-bold">${calculatedCPL.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{fmt(calculatedCPL)}</p>
                 <p className="text-xs text-muted-foreground">{totalLeadsGoal} leads / yr goal</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Cost Per Acquisition (CPA)</p>
-                <p className="text-2xl font-bold">${calculatedCPA.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{fmt(calculatedCPA)}</p>
                 <p className="text-xs text-muted-foreground">{actuals.totalFirstTime} new customers YTD</p>
               </CardContent>
             </Card>
@@ -1445,7 +1446,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                           />
                         </TableCell>
                       ))}
-                      <TableCell className="text-right font-bold">${totalMarketingBudget.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold">{fmt(totalMarketingBudget)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -1572,7 +1573,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <Label className="text-sm text-muted-foreground">Field Labor (from Payroll)</Label>
-                  <p className="text-2xl font-bold">${actuals.totalLaborCost.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{fmt(actuals.totalLaborCost)}</p>
                   <p className="text-xs text-muted-foreground">Pulled from completed booking payments</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1608,7 +1609,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">Gross Profit</p>
-                    <p className="text-xl font-bold">${pnlTotals.grossProfit.toLocaleString()}</p>
+                    <p className="text-xl font-bold">{fmt(pnlTotals.grossProfit)}</p>
                     <p className="text-xs text-muted-foreground">
                       {pnlTotals.revenue > 0 ? ((pnlTotals.grossProfit / pnlTotals.revenue) * 100).toFixed(1) : 0}% margin
                     </p>
@@ -1733,8 +1734,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   <TableBody>
                     <TableRow className="bg-muted/50">
                       <TableCell className="font-bold">Revenue</TableCell>
-                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs">${d.revenue.toLocaleString()}</TableCell>)}
-                      <TableCell className="text-right font-bold">${pnlTotals.revenue.toLocaleString()}</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs">{fmt(d.revenue)}</TableCell>)}
+                      <TableCell className="text-right font-bold">{fmt(pnlTotals.revenue)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="pl-4 text-muted-foreground">Field Labor (Payroll)</TableCell>
@@ -1753,8 +1754,8 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                     </TableRow>
                     <TableRow className="bg-muted/30 border-t">
                       <TableCell className="font-bold">Gross Profit</TableCell>
-                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs font-medium">${d.grossProfit.toFixed(0)}</TableCell>)}
-                      <TableCell className="text-right font-bold">${pnlTotals.grossProfit.toLocaleString()}</TableCell>
+                      {pnlData.map((d, i) => <TableCell key={i} className="text-right text-xs font-medium">{fmt(d.grossProfit)}</TableCell>)}
+                      <TableCell className="text-right font-bold">{fmt(pnlTotals.grossProfit)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="pl-4 text-muted-foreground">Fixed Overhead</TableCell>

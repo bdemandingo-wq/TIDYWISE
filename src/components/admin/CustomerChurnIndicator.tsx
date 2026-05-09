@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Crown, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { fmt } from '@/lib/activeCurrency';
 
 interface CustomerChurnIndicatorProps {
   customerId: string;
@@ -130,7 +131,7 @@ export function CustomerChurnIndicator({ customerId, compact = false }: Customer
             <DollarSign className="h-3 w-3" />
             Predicted LTV
           </div>
-          <p className="font-bold text-green-600">${intelligence.predicted_lifetime_value?.toLocaleString()}</p>
+          <p className="font-bold text-green-600">{fmt(intelligence.predicted_lifetime_value?)}</p>
         </div>
 
         <div className="p-2 rounded bg-muted/50">

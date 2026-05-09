@@ -43,6 +43,7 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { cn } from '@/lib/utils';
+import { fmt } from '@/lib/activeCurrency';
 
 interface InventoryItem {
   id: string;
@@ -493,7 +494,7 @@ export default function InventoryPage() {
                             </button>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm">${item.cost_per_unit.toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-sm">{fmt(item.cost_per_unit)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{item.supplier || '—'}</TableCell>
                         <TableCell>
                           <DropdownMenu>

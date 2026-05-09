@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { calculateBookingWage, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Props {
   staffId: string;
@@ -323,7 +324,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Expected Pay</p>
-              <p className="text-2xl font-bold text-primary">${upcomingWeekStats.totalPay.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-primary">{fmt(upcomingWeekStats.totalPay)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Jobs</p>
@@ -350,7 +351,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground">{hoursWorked.toFixed(1)}h</span>
-                      <span className="font-medium text-green-600">${calculatedPay.toFixed(2)}</span>
+                      <span className="font-medium text-green-600">{fmt(calculatedPay)}</span>
                     </div>
                   </div>
                 );

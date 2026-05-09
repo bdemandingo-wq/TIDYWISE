@@ -12,6 +12,7 @@ import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { fmt } from '@/lib/activeCurrency';
 
 interface CleanerPerformanceDashboardProps {
   bookings: BookingWithDetails[];
@@ -213,7 +214,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Team Revenue</p>
-                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${totalTeamRevenue.toLocaleString()}`}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(totalTeamRevenue)}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                 <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -227,7 +228,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid Out</p>
-                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${totalTeamEarnings.toLocaleString()}`}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(totalTeamEarnings)}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <DollarSign className="w-5 h-5 text-purple-600 dark:text-purple-400" />

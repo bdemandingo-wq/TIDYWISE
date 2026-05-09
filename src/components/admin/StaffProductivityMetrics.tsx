@@ -23,6 +23,7 @@ import {
 } from 'recharts';
 import { Clock, TrendingUp, Target, Award, Users, DollarSign, CheckCircle } from 'lucide-react';
 import { differenceInMinutes, format, startOfWeek, eachWeekOfInterval, subMonths, isSameWeek } from 'date-fns';
+import { fmt } from '@/lib/activeCurrency';
 
 interface StaffProductivityMetricsProps {
   bookings: BookingWithDetails[];
@@ -233,7 +234,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Avg Efficiency</p>
-              <p className="text-2xl font-bold">{isTestMode ? '$XX' : `$${teamAverages.avgEfficiency.toFixed(0)}/hr`}</p>
+              <p className="text-2xl font-bold">{isTestMode ? '$XX' : `${fmt(teamAverages.avgEfficiency)}/hr`}</p>
             </div>
           </div>
         </Card>
@@ -351,10 +352,10 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
                   <td className="py-3 font-medium">{maskName(staff.name)}</td>
                   <td className="py-3 text-right">{isTestMode ? 'XX' : staff.completedJobs}</td>
                   <td className="py-3 text-right font-semibold text-success">
-                    {isTestMode ? '$X,XXX' : `$${staff.totalRevenue.toLocaleString()}`}
+                    {isTestMode ? '$X,XXX' : `${fmt(staff.totalRevenue)}`}
                   </td>
                   <td className="py-3 text-right">
-                    {isTestMode ? '$XX' : `$${staff.efficiency.toFixed(0)}/hr`}
+                    {isTestMode ? '$XX' : `${fmt(staff.efficiency)}/hr`}
                   </td>
                   <td className="py-3 text-right">
                     <Badge variant={staff.onTimeRate >= 90 ? 'default' : staff.onTimeRate >= 75 ? 'secondary' : 'destructive'}>

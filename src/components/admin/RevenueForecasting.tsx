@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, DollarSign, Target, AlertTriangle } from 'lucide-react';
 import { 
+import { fmt } from '@/lib/activeCurrency';
   format, 
   addMonths, 
   subMonths, 
@@ -236,7 +237,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
             <div>
               <p className="text-sm text-muted-foreground">This Month</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$X,XXX' : `$${metrics.currentMonthRevenue.toLocaleString()}`}
+                {isTestMode ? '$X,XXX' : `${fmt(metrics.currentMonthRevenue)}`}
               </p>
               <div className={`flex items-center gap-1 text-sm ${metrics.monthOverMonth >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {metrics.monthOverMonth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -254,7 +255,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
             <div>
               <p className="text-sm text-muted-foreground">Next Month Forecast</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$X,XXX' : `$${metrics.nextMonthForecast.toLocaleString()}`}
+                {isTestMode ? '$X,XXX' : `${fmt(metrics.nextMonthForecast)}`}
               </p>
             </div>
           </div>
@@ -268,7 +269,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
             <div>
               <p className="text-sm text-muted-foreground">3-Month Forecast</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$XX,XXX' : `$${metrics.threeMonthForecast.toLocaleString()}`}
+                {isTestMode ? '$XX,XXX' : `${fmt(metrics.threeMonthForecast)}`}
               </p>
             </div>
           </div>
@@ -282,7 +283,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
             <div>
               <p className="text-sm text-muted-foreground">Recurring Revenue</p>
               <p className="text-2xl font-bold">
-                {isTestMode ? '$X,XXX' : `$${metrics.recurringMonthlyRevenue.toLocaleString()}`}
+                {isTestMode ? '$X,XXX' : `${fmt(metrics.recurringMonthlyRevenue)}`}
               </p>
               <p className="text-xs text-muted-foreground">per month</p>
             </div>
@@ -326,7 +327,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
                   borderRadius: '8px',
                 }}
                 formatter={(value: number, name: string) => [
-                  `$${value.toLocaleString()}`,
+                  `${fmt(value)}`,
                   name === 'actual' ? 'Actual' : name === 'forecast' ? 'Forecast' : name
                 ]}
               />
@@ -432,7 +433,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
               <div>
                 <p className="font-medium">YTD Revenue</p>
                 <p className="text-sm text-muted-foreground">
-                  {isTestMode ? '$XX,XXX' : `$${metrics.ytdRevenue.toLocaleString()}`} earned this year
+                  {isTestMode ? '$XX,XXX' : `${fmt(metrics.ytdRevenue)}`} earned this year
                 </p>
               </div>
             </div>
@@ -444,7 +445,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
               <div>
                 <p className="font-medium">6-Month Projection</p>
                 <p className="text-sm text-muted-foreground">
-                  Estimated {isTestMode ? '$XX,XXX' : `$${metrics.sixMonthForecast.toLocaleString()}`} over the next 6 months
+                  Estimated {isTestMode ? '$XX,XXX' : `${fmt(metrics.sixMonthForecast)}`} over the next 6 months
                 </p>
               </div>
             </div>
@@ -457,7 +458,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
                 <div>
                   <p className="font-medium">Recurring Revenue Base</p>
                   <p className="text-sm text-muted-foreground">
-                    {isTestMode ? '$X,XXX' : `$${metrics.recurringMonthlyRevenue.toLocaleString()}`} guaranteed from recurring customers
+                    {isTestMode ? '$X,XXX' : `${fmt(metrics.recurringMonthlyRevenue)}`} guaranteed from recurring customers
                   </p>
                 </div>
               </div>

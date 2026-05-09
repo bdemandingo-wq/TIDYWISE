@@ -65,6 +65,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { fmt } from '@/lib/activeCurrency';
 
 const DEFAULT_STEPS = [
   { id: 'customer', label: 'Customer', icon: User },
@@ -368,7 +369,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       // Send SMS
       const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
         `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
-        `💰 Total: $${quoteAmount.toFixed(2)}\n\n` +
+        `💰 Total: ${fmt(quoteAmount)}\n\n` +
         `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
 
       const response = await supabase.functions.invoke('send-openphone-sms', {
@@ -490,7 +491,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           ${fullAddr ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Address</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${fullAddr}</td></tr>` : ''}
           <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Home Size</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${bedrooms || '?'} bed / ${bathrooms || '?'} bath</td></tr>
           <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Extras</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">${extrasTextList}</td></tr>
-          <tr><td style="padding:8px;color:#666;">Estimated Total</td><td style="padding:8px;font-weight:bold;font-size:18px;color:#22c55e;">$${quoteAmount.toFixed(2)}</td></tr>
+          <tr><td style="padding:8px;color:#666;">Estimated Total</td><td style="padding:8px;font-weight:bold;font-size:18px;color:#22c55e;">${fmt(quoteAmount)}</td></tr>
         </table>
         <p>This quote is valid for 7 days. Reply to this email to confirm your booking or if you have any questions!</p>
       `;
@@ -499,7 +500,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         body: {
           organizationId,
           to: email,
-          subject: `Your Cleaning Quote - $${quoteAmount.toFixed(2)}`,
+          subject: `Your Cleaning Quote - ${fmt(quoteAmount)}`,
           body: quoteHtml,
         },
       });
@@ -753,7 +754,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       changes.push({
         field: 'Price',
         oldValue: `$${booking.total_amount?.toFixed(2) || '0.00'}`,
-        newValue: `$${totalAmount.toFixed(2)}`,
+        newValue: `${fmt(totalAmount)}`,
         key: 'total_amount'
       });
     }
@@ -1472,7 +1473,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             {selectedService && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{selectedService.name}</span>
-                <span className="font-medium">${calculatedPrice.toFixed(2)}</span>
+                <span className="font-medium">{fmt(calculatedPrice)}</span>
               </div>
             )}
 
@@ -1487,7 +1488,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
             <div className="flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span className="text-primary">${finalPrice.toFixed(2)}</span>
+              <span className="text-primary">{fmt(finalPrice)}</span>
             </div>
 
             {frequency !== 'one_time' && (

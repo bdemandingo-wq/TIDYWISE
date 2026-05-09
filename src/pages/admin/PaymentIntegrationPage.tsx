@@ -41,6 +41,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
 import { Capacitor } from "@capacitor/core";
+import { fmt } from '@/lib/activeCurrency';
 
 /** Opens an external URL — uses Capacitor Browser plugin on native, window.open on web */
 const openExternalUrl = async (url: string) => {
@@ -330,7 +331,7 @@ export default function PaymentIntegrationPage() {
         return;
       }
 
-      toast.success(`Payment intent created for $${parseFloat(chargeAmount).toFixed(2)}`);
+      toast.success(`Payment intent created for ${fmt(parseFloat(chargeAmount))}`);
       setChargeOpen(false);
       setChargeName("");
       setChargeAmount("");
@@ -605,7 +606,7 @@ export default function PaymentIntegrationPage() {
                           </p>
                         </div>
                         <div className="text-right shrink-0 ml-3">
-                          <p className="font-semibold text-sm text-green-600">${p.amount.toFixed(2)}</p>
+                          <p className="font-semibold text-sm text-green-600">{fmt(p.amount)}</p>
                           {p.stripe_charge_id && (
                             <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">
                               {p.stripe_charge_id.slice(0, 16)}...

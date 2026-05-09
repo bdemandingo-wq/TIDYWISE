@@ -60,6 +60,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { getDateInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
+import { fmt } from '@/lib/activeCurrency';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -940,7 +941,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         {!isTestMode && booking.total_amount > 0 && (
                           <>
                             <span>•</span>
-                            <span>${Number(booking.total_amount).toFixed(0)}</span>
+                            <span>{fmt(Number(booking.total_amount))}</span>
                           </>
                         )}
                       </div>

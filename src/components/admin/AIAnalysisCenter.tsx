@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { useQuery as useRQ } from '@tanstack/react-query';
+import { fmt } from '@/lib/activeCurrency';
 
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; cardStyle: React.CSSProperties }) {
@@ -523,7 +524,7 @@ export function AIAnalysisCenter() {
       {/* ─── KPI Strip ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         {[
-          { label: 'Monthly Revenue', value: `$${animRevenue.toLocaleString()}`, sub: revenueChange >= 0 ? `+${revenueChange}% vs last month` : `${revenueChange}% vs last month`, color: TEAL, icon: TrendingUp },
+          { label: 'Monthly Revenue', value: `${fmt(animRevenue)}`, sub: revenueChange >= 0 ? `+${revenueChange}% vs last month` : `${revenueChange}% vs last month`, color: TEAL, icon: TrendingUp },
           { label: 'Hot Leads', value: animHotLeads.toString(), sub: `${hotLeads.filter(l => differenceInDays(now, new Date(l.updated_at)) > 5).length} need follow-up today`, color: AMBER, icon: Flame },
           { label: 'Churn Risk', value: animChurn.toString(), sub: churnCount > 0 ? `${churnCustomers.filter(c => c.daysSince > 45).length} critical (45+ days)` : 'All customers active', color: RED, icon: ShieldAlert },
           { label: 'Conversion Rate', value: `${animConversion}%`, sub: `${conversionData?.converted || 0} of ${conversionData?.total || 0} leads this month`, color: BLUE, icon: Target },

@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+import { fmt } from '@/lib/activeCurrency';
 
 const ADDRESS_LABELS = ["Home", "Office", "Airbnb", "Rental", "Other"];
 
@@ -651,9 +652,9 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
         format(new Date(row.booking_date), "MM/dd/yyyy"),
         row.service_name,
         row.address || "",
-        `$${Number(row.subtotal).toFixed(2)}`,
-        `$${Number(row.tax_amount).toFixed(2)}`,
-        `$${Number(row.total_amount).toFixed(2)}`,
+        `${fmt(Number(row.subtotal))}`,
+        `${fmt(Number(row.tax_amount))}`,
+        `${fmt(Number(row.total_amount))}`,
         row.payment_status,
       ]);
 
@@ -662,7 +663,7 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
       const totalTax = data.reduce((sum: number, r: any) => sum + Number(r.tax_amount), 0);
       const totalAmount = data.reduce((sum: number, r: any) => sum + Number(r.total_amount), 0);
 
-      rows.push(["", "", "TOTALS:", `$${totalSubtotal.toFixed(2)}`, `$${totalTax.toFixed(2)}`, `$${totalAmount.toFixed(2)}`, ""]);
+      rows.push(["", "", "TOTALS:", `${fmt(totalSubtotal)}`, `${fmt(totalTax)}`, `${fmt(totalAmount)}`, ""]);
 
       const csvContent = [
         headers.join(","),

@@ -37,6 +37,7 @@ import { InvoiceViewDialog } from '@/components/admin/InvoiceViewDialog';
 import { InvoiceFormDialog } from '@/components/admin/InvoiceFormDialog';
 import { SEOHead } from '@/components/SEOHead';
 import { buildInvoiceEmailPayload, formatInvoiceNumber, getInvoiceContact } from '@/lib/invoiceUtils';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Invoice {
   id: string;
@@ -300,8 +301,8 @@ export default function InvoicesPage() {
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Draft</span></div><p className="text-2xl font-bold mt-1">{stats.draft}</p></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Sent</span></div><p className="text-2xl font-bold mt-1">{stats.sent}</p></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Paid</span></div><p className="text-2xl font-bold mt-1">{stats.paid}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Total Paid</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `$${stats.totalPaid.toFixed(2)}`}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Outstanding</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `$${stats.totalOutstanding.toFixed(2)}`}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Total Paid</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `${fmt(stats.totalPaid)}`}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Outstanding</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `${fmt(stats.totalOutstanding)}`}</p></CardContent></Card>
         </div>
 
         <Card className="hidden md:block">
