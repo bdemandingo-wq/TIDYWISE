@@ -131,6 +131,7 @@ const defaultSettings: BusinessSettings = {
   resend_api_key: '',
   meta_pixel_id: '',
   google_analytics_id: '',
+  benchmarks_opt_in: true,
 };
 
 // Account Deletion Card Component - Required for App Store compliance (Guideline 5.1.1(v))
