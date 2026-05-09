@@ -832,6 +832,9 @@ export default function PortalDashboardPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs sm:text-sm shrink-0 min-h-[44px]">
+              <ImageIcon className="h-4 w-4 mr-1" /> Journal
+            </TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs sm:text-sm shrink-0 min-h-[44px]">Referrals</TabsTrigger>
             <TabsTrigger value="reports" className="relative text-xs sm:text-sm shrink-0 min-h-[44px]">
               Reports
