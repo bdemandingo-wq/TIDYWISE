@@ -590,7 +590,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
               serviceName: booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Cleaning Service'),
               appointmentDate: formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
               appointmentTime: formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
-              address: booking.address || 'Address not provided',
+              address: [booking.address, (booking as any).apt_suite ? `Unit ${(booking as any).apt_suite}` : null, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') || 'Address not provided',
               bookingNumber: booking.booking_number,
               organizationId: organization?.id,
             },
