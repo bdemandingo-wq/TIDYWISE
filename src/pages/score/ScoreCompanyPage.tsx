@@ -113,8 +113,8 @@ export default function ScoreCompanyPage() {
 
   const tips: any[] = metrics?.ai_tips ?? [];
   const themes: any[] = metrics?.review_themes ?? [];
-  const visibleTips = tips.slice(0, 2);
-  const gatedTips = tips.slice(2);
+  const visibleTips = tips;
+  const gatedTips: any[] = [];
   const grade = company.score_grade ?? "—";
   const score = company.score ?? null;
 
