@@ -3119,6 +3119,14 @@ export default function BookingsPage() {
         services={servicesList as any}
       />
 
+      {/* Cancel booking dialog */}
+      <CancelBookingDialog
+        open={!!cancelBookingTarget}
+        bookingNumber={cancelBookingTarget?.booking_number}
+        onOpenChange={(open) => !open && setCancelBookingTarget(null)}
+        onConfirm={handleConfirmCancel}
+      />
+
       {/* Single booking delete confirmation */}
       <AlertDialog open={!!deleteConfirmBooking} onOpenChange={(open) => !open && setDeleteConfirmBooking(null)}>
         <AlertDialogContent>
