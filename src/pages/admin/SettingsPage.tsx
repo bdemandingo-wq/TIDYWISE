@@ -95,6 +95,8 @@ interface BusinessSettings {
   // Marketing / analytics tracking
   meta_pixel_id: string;
   google_analytics_id: string;
+  // Peer benchmarks
+  benchmarks_opt_in: boolean;
 }
 
 const defaultSettings: BusinessSettings = {
