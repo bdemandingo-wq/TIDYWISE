@@ -501,6 +501,61 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
+
+          {/* Cancellations Breakdown */}
+          <div className="bg-card rounded-xl border border-border shadow-sm p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-rose-500" />
+                Cancellations Breakdown
+              </h3>
+              <span className="text-sm text-muted-foreground">
+                {totalStats.cancelledCount} cancelled · excluded from revenue & cleaner pay
+              </span>
+            </div>
+            {totalStats.cancelledList.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No cancellations in this date range.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b border-border">
+                      <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Client</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Cleaner</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Category</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {totalStats.cancelledList.slice(0, 50).map((b: any) => (
+                      <tr key={b.id} className="border-b border-border/50 last:border-0">
+                        <td className="py-2.5 whitespace-nowrap">
+                          {format(new Date(b.cancelled_at || b.scheduled_at), 'MMM d, yyyy')}
+                        </td>
+                        <td className="py-2.5">
+                          {maskName(`${b.customer?.first_name || ''} ${b.customer?.last_name || ''}`.trim() || 'Unknown')}
+                        </td>
+                        <td className="py-2.5">
+                          {b.staff?.name ? maskName(b.staff.name) : <span className="text-muted-foreground">Unassigned</span>}
+                        </td>
+                        <td className="py-2.5">
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-rose-500/10 text-rose-600">
+                            {b.cancellation_category || 'Uncategorized'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-muted-foreground max-w-xs truncate">
+                          {b.cancellation_reason || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="pnl">
