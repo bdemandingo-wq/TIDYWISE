@@ -53,6 +53,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
+import { LocalePickers } from '@/components/admin/LocalePickers';
 
 interface BusinessSettings {
   id?: string;
