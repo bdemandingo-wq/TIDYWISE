@@ -390,6 +390,36 @@ export default function BookingsPage() {
     setDeleteConfirmBooking(booking);
   };
 
+  const handleConfirmCancel = async ({ reason, category }: { reason: string; category: CancellationCategory }) => {
+    if (!cancelBookingTarget) return;
+    await updateBooking.mutateAsync({
+      id: cancelBookingTarget.id,
+      status: 'cancelled' as any,
+      cancellation_reason: reason,
+      cancellation_category: category,
+      cancelled_at: new Date().toISOString(),
+    } as any);
+    // Reuse handleStatusChange's SMS notify by simulating its effect (already updated above; trigger SMS):
+    if (organization?.id) {
+      const scheduledDate = new Date(cancelBookingTarget.scheduled_at);
+      const formattedDate = scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const formattedTime = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      supabase.functions.invoke('send-cancellation-sms-notification', {
+        body: {
+          customerName: cancelBookingTarget.customer ? `${cancelBookingTarget.customer.first_name} ${cancelBookingTarget.customer.last_name}` : 'Customer',
+          serviceName: cancelBookingTarget.service?.name || 'Cleaning',
+          scheduledAt: cancelBookingTarget.scheduled_at,
+          formattedDate,
+          formattedTime,
+          bookingNumber: cancelBookingTarget.booking_number,
+          organizationId: organization.id,
+        },
+      }).catch(() => {});
+    }
+    toast({ title: 'Booking Cancelled', description: `Booking #${cancelBookingTarget.booking_number} marked as cancelled.` });
+    setCancelBookingTarget(null);
+  };
+
   const confirmDelete = async () => {
     if (!deleteConfirmBooking) return;
     await deleteBooking.mutateAsync(deleteConfirmBooking.id);
