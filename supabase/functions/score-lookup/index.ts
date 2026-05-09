@@ -9,10 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const PLACES_KEY =
-  Deno.env.get("GOOGLE_PLACES_API_KEY") ??
-  Deno.env.get("VITE_GOOGLE_PLACES_API_KEY") ??
-  "";
+const PLACES_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY") ?? "";
 
 function slugify(s: string) {
   return s
