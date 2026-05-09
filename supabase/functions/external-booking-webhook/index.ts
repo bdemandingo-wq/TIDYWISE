@@ -98,6 +98,26 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: require x-webhook-secret matching this organization's per-org secret
+    const providedSecret = req.headers.get("x-webhook-secret") ?? "";
+    if (!providedSecret) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing x-webhook-secret header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { data: secretOk, error: secretErr } = await supabase.rpc(
+      "verify_external_booking_secret",
+      { _org_id: organizationId, _secret: providedSecret }
+    );
+    if (secretErr || !secretOk) {
+      console.error("[external-booking-webhook] Invalid webhook secret for org", organizationId, secretErr);
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid webhook secret" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("[external-booking-webhook] Using organization:", organizationId);
 
     // Check if customer exists, create if not
