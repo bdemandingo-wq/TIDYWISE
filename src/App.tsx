@@ -66,6 +66,7 @@ const LeadsPage = lazy(() => import("./pages/admin/LeadsPage"));
 const InventoryPage = lazy(() => import("./pages/admin/InventoryPage"));
 const InvoicesPage = lazy(() => import("./pages/admin/InvoicesPage"));
 const OperationsTrackerPage = lazy(() => import("./pages/admin/OperationsTrackerPage"));
+const BenchmarksPage = lazy(() => import("./pages/admin/BenchmarksPage"));
 const ClientFeedbackPage = lazy(() => import("./pages/admin/ClientFeedbackPage"));
 const CampaignsPage = lazy(() => import("./pages/admin/CampaignsPage"));
 const ChecklistsPage = lazy(() => import("./pages/admin/ChecklistsPage"));
@@ -267,6 +268,7 @@ const App = () => (
                       <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
                        <Route path="/dashboard/import" element={<AdminRoute><ErrorBoundary featureName="Data Import"><DataImportPage /></ErrorBoundary></AdminRoute>} />
                        <Route path="/dashboard/booking-photos" element={<AdminRoute><ErrorBoundary featureName="Booking Photos"><BookingPhotosPage /></ErrorBoundary></AdminRoute>} />
+                       <Route path="/dashboard/benchmarks" element={<AdminRoute><ErrorBoundary featureName="Benchmarks"><BenchmarksPage /></ErrorBoundary></AdminRoute>} />
 
                       <Route path="/admin" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
                       <Route path="/admin/*" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
@@ -392,6 +394,7 @@ const App = () => (
                     <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/import" element={<AdminRoute><ErrorBoundary featureName="Data Import"><DataImportPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/booking-photos" element={<AdminRoute><ErrorBoundary featureName="Booking Photos"><BookingPhotosPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/benchmarks" element={<AdminRoute><ErrorBoundary featureName="Benchmarks"><BenchmarksPage /></ErrorBoundary></AdminRoute>} />
 
                     {/* Platform-admin Blog Editor (must come BEFORE the legacy /admin/* catch-all) */}
                     <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
