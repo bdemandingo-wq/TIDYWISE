@@ -375,6 +375,7 @@ export default function SettingsPage() {
         resend_api_key: settings.resend_api_key,
         meta_pixel_id: settings.meta_pixel_id,
         google_analytics_id: settings.google_analytics_id,
+        benchmarks_opt_in: settings.benchmarks_opt_in,
       } as any;
 
       if (!organization?.id) {
