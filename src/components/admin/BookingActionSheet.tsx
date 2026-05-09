@@ -161,7 +161,7 @@ export function BookingActionSheet({
   maskAmount,
   maskName,
   onViewDetails, onMarkPaid, onMarkComplete, onEdit, onDuplicate,
-  onMarkCompleteAdjustPay, onMarkUncleaned, onAdjustCleanerPay, onDelete,
+  onMarkCompleteAdjustPay, onMarkUncleaned, onMarkCancelled, onAdjustCleanerPay, onDelete,
   onMarkUnpaid, onAdditionalCharge, onChargeCard, onPlaceHold, onCaptureHold,
   onReleaseHold, onRefund, onPaymentHistory, onSendReminder, onNotifyCleaner,
   onNotifyOpenJob, onSendReview, onSendTipLink, onSendDepositLink, onAssignCleaner,
