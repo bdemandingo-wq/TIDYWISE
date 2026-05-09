@@ -647,6 +647,39 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Peer Benchmarks
+              </CardTitle>
+              <CardDescription>
+                Compare your business anonymously against other cleaning companies in your area, region, and nationally.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start justify-between gap-4 p-4 rounded-lg border bg-muted/30">
+                <div className="space-y-1">
+                  <Label htmlFor="benchmarks_opt_in" className="text-base">
+                    Share anonymous metrics for benchmarking
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    When enabled, aggregated metrics (no customer names, addresses, or contact info) are pooled with other opted-in organizations so you can see how you stack up. Turning this off immediately stops both peer comparisons and AI insights for your account.
+                  </p>
+                </div>
+                <Switch
+                  id="benchmarks_opt_in"
+                  checked={settings.benchmarks_opt_in}
+                  onCheckedChange={(v) => updateField('benchmarks_opt_in', v)}
+                />
+              </div>
+              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            </CardContent>
+          </Card>
+
           <CopilotSettingsCard />
         </TabsContent>
 
