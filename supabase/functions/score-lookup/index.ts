@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ results: out.slice(0, 10) }), {
+    return new Response(JSON.stringify({ results: out.slice(0, maxResults) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
