@@ -385,18 +385,14 @@ export function BookingFormProvider({
     if (basePrice === 0 && selectedService.price && selectedService.price > 0) {
       basePrice = Number(selectedService.price);
     }
-
-    // Apply minimum price floor BEFORE the recurring-frequency discount so
-    // recurring discounts always reduce the price the customer actually pays
-    // (otherwise a $200 minimum would silently cancel a 25% bi-weekly discount
-    // on a $200 base).
-    if (servicePricing?.minimum_price && basePrice > 0 && basePrice < servicePricing.minimum_price) {
-      basePrice = servicePricing.minimum_price;
-    }
-
+    
     const discountMult = getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
     if (discountMult > 0 && basePrice > 0) {
       basePrice = Math.round(basePrice * (1 - discountMult));
+    }
+
+    if (servicePricing?.minimum_price && basePrice > 0 && basePrice < servicePricing.minimum_price) {
+      basePrice = servicePricing.minimum_price;
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
