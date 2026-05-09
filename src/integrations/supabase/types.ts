@@ -6328,6 +6328,8 @@ export type Database = {
           minimum_price: number | null
           organization_id: string
           pet_options: Json | null
+          pricing_lock_reason: string | null
+          pricing_locked: boolean
           service_id: string
           sqft_prices: Json | null
           updated_at: string
@@ -6341,6 +6343,8 @@ export type Database = {
           minimum_price?: number | null
           organization_id: string
           pet_options?: Json | null
+          pricing_lock_reason?: string | null
+          pricing_locked?: boolean
           service_id: string
           sqft_prices?: Json | null
           updated_at?: string
@@ -6354,6 +6358,8 @@ export type Database = {
           minimum_price?: number | null
           organization_id?: string
           pet_options?: Json | null
+          pricing_lock_reason?: string | null
+          pricing_locked?: boolean
           service_id?: string
           sqft_prices?: Json | null
           updated_at?: string
