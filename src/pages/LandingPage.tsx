@@ -33,6 +33,7 @@ const AIBusinessTools = lazy(() => import("@/components/landing/AIBusinessTools"
 const CompetitorComparison = lazy(() => import("@/components/landing/CompetitorComparison").then(m => ({ default: m.CompetitorComparison })));
 const BlogSection = lazy(() => import("@/components/landing/BlogSection").then(m => ({ default: m.BlogSection })));
 const InteractiveDemo = lazy(() => import("@/components/landing/InteractiveDemo").then(m => ({ default: m.InteractiveDemo })));
+const TidyWiseScoreSection = lazy(() => import("@/components/landing/TidyWiseScoreSection").then(m => ({ default: m.TidyWiseScoreSection })));
 
 // Lightweight skeleton for lazy sections
 const SectionSkeleton = () => (
@@ -494,6 +495,11 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* TidyWise Score - lead-gen ranking section */}
+      <Suspense fallback={<SectionSkeleton />}>
+        <TidyWiseScoreSection />
+      </Suspense>
 
       {/* Features Section - Enhanced with scroll reveal */}
       <section 

@@ -178,3 +178,12 @@ verify_jwt = true
 
   [functions.refresh-benchmark-snapshots]
     verify_jwt = false
+
+  [functions.score-lookup]
+    verify_jwt = false
+
+  [functions.score-compute]
+    verify_jwt = false
+
+  [functions.score-claim]
+    verify_jwt = false

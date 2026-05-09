@@ -25,6 +25,9 @@ import { useAppStateHandler } from '@/hooks/useAppStateHandler';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const ScoreSearchPage = lazy(() => import("./pages/score/ScoreSearchPage"));
+const ScoreCityPage = lazy(() => import("./pages/score/ScoreCityPage"));
+const ScoreCompanyPage = lazy(() => import("./pages/score/ScoreCompanyPage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -315,7 +318,10 @@ const App = () => (
                      <Route path="/demo" element={<DemoPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
-                    <Route path="/blog" element={<BlogIndex />} />
+                     <Route path="/blog" element={<BlogIndex />} />
+                     <Route path="/score/search" element={<ScoreSearchPage />} />
+                     <Route path="/score/city/:citySlug" element={<ScoreCityPage />} />
+                     <Route path="/score/c/:slug" element={<ScoreCompanyPage />} />
                     <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />
                     <Route path="/blog/booking-koala-vs-jobber-vs-tidywise" element={<BookingKoalaVsJobberVsTidywise />} />
                     <Route path="/blog/crm-for-cleaning-business" element={<CleaningBusinessCRM />} />

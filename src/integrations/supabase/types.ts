@@ -6393,6 +6393,232 @@ export type Database = {
           },
         ]
       }
+      score_claim_requests: {
+        Row: {
+          approved_organization_id: string | null
+          claimant_email: string
+          claimant_name: string
+          claimant_phone: string | null
+          company_id: string
+          created_at: string
+          id: string
+          message: string | null
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          approved_organization_id?: string | null
+          claimant_email: string
+          claimant_name: string
+          claimant_phone?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          approved_organization_id?: string | null
+          claimant_email?: string
+          claimant_name?: string
+          claimant_phone?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "score_claim_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "score_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      score_companies: {
+        Row: {
+          city: string | null
+          city_rank: number | null
+          city_slug: string | null
+          city_total: number | null
+          claimed: boolean
+          claimed_at: string | null
+          claimed_organization_id: string | null
+          created_at: string
+          formatted_address: string | null
+          google_place_id: string | null
+          google_rating: number | null
+          google_review_count: number | null
+          id: string
+          last_scored_at: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          score: number | null
+          score_grade: string | null
+          slug: string
+          source: string
+          state: string | null
+          updated_at: string
+          website: string | null
+          zip: string | null
+        }
+        Insert: {
+          city?: string | null
+          city_rank?: number | null
+          city_slug?: string | null
+          city_total?: number | null
+          claimed?: boolean
+          claimed_at?: string | null
+          claimed_organization_id?: string | null
+          created_at?: string
+          formatted_address?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string
+          last_scored_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          phone?: string | null
+          score?: number | null
+          score_grade?: string | null
+          slug: string
+          source?: string
+          state?: string | null
+          updated_at?: string
+          website?: string | null
+          zip?: string | null
+        }
+        Update: {
+          city?: string | null
+          city_rank?: number | null
+          city_slug?: string | null
+          city_total?: number | null
+          claimed?: boolean
+          claimed_at?: string | null
+          claimed_organization_id?: string | null
+          created_at?: string
+          formatted_address?: string | null
+          google_place_id?: string | null
+          google_rating?: number | null
+          google_review_count?: number | null
+          id?: string
+          last_scored_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          phone?: string | null
+          score?: number | null
+          score_grade?: string | null
+          slug?: string
+          source?: string
+          state?: string | null
+          updated_at?: string
+          website?: string | null
+          zip?: string | null
+        }
+        Relationships: []
+      }
+      score_company_metrics: {
+        Row: {
+          ai_tips: Json | null
+          company_id: string
+          computed_at: string
+          id: string
+          review_themes: Json | null
+          reviews_score: number | null
+          sentiment_communication: number | null
+          sentiment_quality: number | null
+          sentiment_reliability: number | null
+          sentiment_value: number | null
+          website_has_booking: boolean | null
+          website_has_https: boolean | null
+          website_load_ms: number | null
+          website_mobile_friendly: boolean | null
+          website_score: number | null
+        }
+        Insert: {
+          ai_tips?: Json | null
+          company_id: string
+          computed_at?: string
+          id?: string
+          review_themes?: Json | null
+          reviews_score?: number | null
+          sentiment_communication?: number | null
+          sentiment_quality?: number | null
+          sentiment_reliability?: number | null
+          sentiment_value?: number | null
+          website_has_booking?: boolean | null
+          website_has_https?: boolean | null
+          website_load_ms?: number | null
+          website_mobile_friendly?: boolean | null
+          website_score?: number | null
+        }
+        Update: {
+          ai_tips?: Json | null
+          company_id?: string
+          computed_at?: string
+          id?: string
+          review_themes?: Json | null
+          reviews_score?: number | null
+          sentiment_communication?: number | null
+          sentiment_quality?: number | null
+          sentiment_reliability?: number | null
+          sentiment_value?: number | null
+          website_has_booking?: boolean | null
+          website_has_https?: boolean | null
+          website_load_ms?: number | null
+          website_mobile_friendly?: boolean | null
+          website_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "score_company_metrics_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "score_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      score_top_cities: {
+        Row: {
+          city: string
+          city_slug: string
+          created_at: string
+          display_order: number
+          id: string
+          is_featured: boolean
+          state: string
+        }
+        Insert: {
+          city: string
+          city_slug: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_featured?: boolean
+          state: string
+        }
+        Update: {
+          city?: string
+          city_slug?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_featured?: boolean
+          state?: string
+        }
+        Relationships: []
+      }
       service_categories: {
         Row: {
           color: string | null
@@ -8279,6 +8505,8 @@ export type Database = {
           target_url: string
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
