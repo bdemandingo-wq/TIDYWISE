@@ -1069,6 +1069,17 @@ export default function PortalDashboardPage() {
             )}
           </TabsContent>
 
+          {/* Photo Journal Tab */}
+          <TabsContent value="journal" className="space-y-3 mt-4">
+            <div>
+              <h2 className="font-semibold text-base mb-1">Photo Journal</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                A visual history of every cleaning, captured by your team.
+              </p>
+            </div>
+            <PortalPhotoJournalTab />
+          </TabsContent>
+
           {/* Referrals Tab */}
           <TabsContent value="referrals" className="space-y-4 mt-4">
             <div>
