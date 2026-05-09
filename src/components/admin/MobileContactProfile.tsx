@@ -16,6 +16,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Customer {
   id: string;
@@ -318,7 +319,7 @@ export function MobileContactProfile({
           <StatRow
             icon={<DollarSign className="w-4 h-4 text-muted-foreground" />}
             label="Total Spent"
-            value={bookingStats?.totalSpent != null ? `$${bookingStats.totalSpent.toFixed(2)}` : '—'}
+            value={bookingStats?.totalSpent != null ? `${fmt(bookingStats.totalSpent)}` : '—'}
           />
         </div>
 

@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import type { Json } from '@/integrations/supabase/types';
 import {
+import { fmt } from '@/lib/activeCurrency';
   Table,
   TableBody,
   TableCell,
@@ -986,7 +987,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ First-Time Revenue</TableCell>
                 <TableCell className="text-right">${summaryData.firstTimeRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{summaryData.firstTimeRevenueGoal > 0 ? `$${summaryData.firstTimeRevenueGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-right">{summaryData.firstTimeRevenueGoal > 0 ? `${fmt(summaryData.firstTimeRevenueGoal)}` : '—'}</TableCell>
                 <TableCell className="text-center">
                   {summaryData.firstTimeRevenueGoal > 0 ? (
                     <Badge className={statusColors[getStatus(summaryData.firstTimeRevenue, summaryData.firstTimeRevenueGoal)]}>
@@ -998,7 +999,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               <TableRow>
                 <TableCell className="font-medium pl-6 text-muted-foreground">→ Recurring Revenue</TableCell>
                 <TableCell className="text-right">${summaryData.recurringRevenue.toLocaleString()}</TableCell>
-                <TableCell className="text-right">{summaryData.recurringRevenueGoal > 0 ? `$${summaryData.recurringRevenueGoal.toLocaleString()}` : '—'}</TableCell>
+                <TableCell className="text-right">{summaryData.recurringRevenueGoal > 0 ? `${fmt(summaryData.recurringRevenueGoal)}` : '—'}</TableCell>
                 <TableCell className="text-center">
                   {summaryData.recurringRevenueGoal > 0 ? (
                     <Badge className={statusColors[getStatus(summaryData.recurringRevenue, summaryData.recurringRevenueGoal)]}>
@@ -1029,7 +1030,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   <TableRow>
                     <TableCell className="font-medium">Fixed Costs ({summaryData.periodLabel})</TableCell>
                     <TableCell className="text-right text-destructive">-${summaryData.fixedCosts.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: $${summaryData.fixedCostGoal.toLocaleString()}` : '—'}</TableCell>
+                    <TableCell className="text-right">{summaryData.fixedCostGoal > 0 ? `Goal: ${fmt(summaryData.fixedCostGoal)}` : '—'}</TableCell>
                     <TableCell className="text-center">
                       {summaryData.fixedCostGoal > 0 ? (
                         <Badge className={statusColors[getStatus(summaryData.fixedCostGoal, summaryData.fixedCosts, false)]}>

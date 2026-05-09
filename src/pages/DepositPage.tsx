@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
+import { fmt } from '@/lib/activeCurrency';
 
 interface DepositDetails {
   id: string;
@@ -129,7 +130,7 @@ export default function DepositPage() {
             </div>
             <h2 className="text-2xl font-bold text-emerald-800">Deposit Received! ✓</h2>
             <p className="text-emerald-700">
-              Your deposit{depositDetails?.amount ? ` of $${Number(depositDetails.amount).toFixed(2)}` : ''} has been processed successfully.
+              Your deposit{depositDetails?.amount ? ` of ${fmt(Number(depositDetails.amount))}` : ''} has been processed successfully.
             </p>
             <p className="text-sm text-emerald-600">
               {depositDetails?.companyName} — Booking #{depositDetails?.bookingNumber}

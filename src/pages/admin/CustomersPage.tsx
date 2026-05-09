@@ -48,6 +48,7 @@ import { format } from 'date-fns';
 import { SEOHead } from '@/components/SEOHead';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
+import { fmt } from '@/lib/activeCurrency';
 
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
@@ -900,7 +901,7 @@ export default function CustomersPage() {
                               )}
                             </TableCell>
                             <TableCell className="text-center">
-                              <span className="text-sm font-medium">{isTestMode ? '$XXX' : `$${(cStats?.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}</span>
+                              <span className="text-sm font-medium">{isTestMode ? '$XXX' : `${fmt((cStats?.total_revenue || 0))}`}</span>
                             </TableCell>
                             <TableCell className="text-center">
                               <span className="text-sm">{isTestMode ? 'X' : (cStats?.total_bookings || 0)}</span>

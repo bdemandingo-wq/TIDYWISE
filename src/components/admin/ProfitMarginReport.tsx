@@ -21,6 +21,7 @@ import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
 import { supabase } from '@/lib/supabase';
+import { fmt } from '@/lib/activeCurrency';
 
 interface ProfitMarginReportProps {
   bookings: BookingWithDetails[];
@@ -255,7 +256,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalRevenue.toLocaleString()}`}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(summaryStats.totalRevenue)}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                 <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -269,7 +270,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Cleaner Pay</p>
-                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalCleanerPay.toLocaleString()}`}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(summaryStats.totalCleanerPay)}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                 <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -283,7 +284,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Net Profit</p>
-                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `$${summaryStats.totalProfit.toLocaleString()}`}</p>
+                <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(summaryStats.totalProfit)}`}</p>
               </div>
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                 <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />

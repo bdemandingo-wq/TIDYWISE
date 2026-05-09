@@ -38,6 +38,7 @@ import { DueDateSheet } from './invoice/DueDateSheet';
 import { SendScheduleSheet } from './invoice/SendScheduleSheet';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
 import { formatInvoiceNumber } from '@/lib/invoiceUtils';
+import { fmt } from '@/lib/activeCurrency';
 
 interface LineItem {
   id?: string;
@@ -460,7 +461,7 @@ export function InvoiceFormDialog({
   if (paymentSettings?.accept_cards !== false) {
     enabledMethods.push({ 
       name: 'Debit/Credit Cards', 
-      fee: `${paymentSettings?.card_fee_percent ?? 2.9}% + $${(paymentSettings?.card_fee_fixed ?? 0.30).toFixed(2)}`,
+      fee: `${paymentSettings?.card_fee_percent ?? 2.9}% + ${fmt((paymentSettings?.card_fee_fixed ?? 0.30))}`,
       icon: CreditCard
     });
   }

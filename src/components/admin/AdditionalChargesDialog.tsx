@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Loader2, DollarSign, CreditCard, Banknote } from 'lucide-react';
 import { usePlatform } from '@/hooks/usePlatform';
+import { fmt } from '@/lib/activeCurrency';
 
 interface AdditionalCharge {
   id: string;
@@ -205,7 +206,7 @@ export function AdditionalChargesDialog({
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       
       if (result.paymentMethod === 'existing_card') {
-        toast.success(`Charged $${result.amount.toFixed(2)} to card successfully`);
+        toast.success(`Charged ${fmt(result.amount)} to card successfully`);
       } else {
         toast.success('Additional charge added (cash/check)');
       }

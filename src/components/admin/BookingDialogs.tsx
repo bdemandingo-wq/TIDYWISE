@@ -14,6 +14,7 @@ import { Loader2, DollarSign, Percent, Clock, Send, CreditCard, FileText } from 
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { AdminLiveTracking } from "./AdminLiveTracking";
+import { fmt } from '@/lib/activeCurrency';
 
 const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string }> = [
   { value: "pending", label: "Pending Payment" },
@@ -165,11 +166,11 @@ export function BookingDetailsDialog({
       return `$${wage} flat fee`;
     } else if (wageType === 'percentage') {
       const amount = (booking.total_amount * wage) / 100;
-      return `${wage}% ($${amount.toFixed(2)})`;
+      return `${wage}% (${fmt(amount)})`;
     } else {
       const hours = bookingAny.cleaner_override_hours || (booking.duration / 60);
       const amount = wage * hours;
-      return `$${wage}/hr × ${hours}hrs = $${amount.toFixed(2)}`;
+      return `$${wage}/hr × ${hours}hrs = ${fmt(amount)}`;
     }
   };
 

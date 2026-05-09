@@ -37,6 +37,7 @@ import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { PnLCalendar } from '@/components/admin/PnLCalendar';
 import { SEOHead } from '@/components/SEOHead';
 import { toast } from 'sonner';
+import { fmt } from '@/lib/activeCurrency';
 
 interface Transaction {
   id: string;
@@ -431,7 +432,7 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-green-600">
-              {isTestMode ? '$X,XXX.XX' : `$${(stripeConnected ? stripeData.total_revenue : metrics.totalSales).toFixed(2)}`}
+              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales))}`}
             </p>
             {stripeConnected && (
               <p className="text-[10px] text-muted-foreground">{stripeData.successful_payments_count} payments</p>
@@ -446,7 +447,7 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-orange-600">
-              {isTestMode ? '-$XXX.XX' : `-$${(stripeConnected ? stripeData.total_fees : metrics.totalFees).toFixed(2)}`}
+              {isTestMode ? '-$XXX.XX' : `-${fmt((stripeConnected ? stripeData.total_fees : metrics.totalFees))}`}
             </p>
           </CardContent>
         </Card>
@@ -457,7 +458,7 @@ export default function FinancePage() {
               <span className="text-xs text-muted-foreground">Cleaner Pay</span>
             </div>
             <p className="text-xl font-bold text-blue-600">
-              {isTestMode ? '-$X,XXX.XX' : `-$${metrics.totalCleanerPay.toFixed(2)}`}
+              {isTestMode ? '-$X,XXX.XX' : `-${fmt(metrics.totalCleanerPay)}`}
             </p>
           </CardContent>
         </Card>
@@ -469,7 +470,7 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-red-600">
-              {isTestMode ? '-$X.XX' : `-$${(stripeConnected ? stripeData.total_refunds : metrics.totalRefunds).toFixed(2)}`}
+              {isTestMode ? '-$X.XX' : `-${fmt((stripeConnected ? stripeData.total_refunds : metrics.totalRefunds))}`}
             </p>
             {stripeConnected && stripeData.disputes_count > 0 && (
               <p className="text-[10px] text-red-500">{stripeData.disputes_count} disputes (-${stripeData.total_disputes})</p>
@@ -486,7 +487,7 @@ export default function FinancePage() {
               "text-xl font-bold",
               (stripeConnected ? stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `$${(stripeConnected ? (stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit).toFixed(2)}`}
+              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
             </p>
           </CardContent>
         </Card>
@@ -498,7 +499,7 @@ export default function FinancePage() {
               {stripeConnected && <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-purple-600">
-              {isTestMode ? '$XXX.XX' : `$${(stripeConnected ? stripeData.spend_per_customer : (metrics.transactionCount > 0 ? metrics.totalSales / metrics.transactionCount : 0)).toFixed(2)}`}
+              {isTestMode ? '$XXX.XX' : `${fmt((stripeConnected ? stripeData.spend_per_customer : (metrics.transactionCount > 0 ? metrics.totalSales / metrics.transactionCount : 0)))}`}
             </p>
             {stripeConnected && (
               <p className="text-[10px] text-muted-foreground">{stripeData.new_customers_count} customers</p>
@@ -546,16 +547,16 @@ export default function FinancePage() {
                       <TableCell>{maskName(t.customer_name)}</TableCell>
                       <TableCell>{t.service_name}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
-                        {isTestMode ? '$XXX.XX' : `$${t.gross_amount.toFixed(2)}`}
+                        {isTestMode ? '$XXX.XX' : `${fmt(t.gross_amount)}`}
                       </TableCell>
                       <TableCell className="text-right text-orange-600">
-                        {isTestMode ? '-$X.XX' : `-$${t.processing_fee.toFixed(2)}`}
+                        {isTestMode ? '-$X.XX' : `-${fmt(t.processing_fee)}`}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {isTestMode ? '$XXX.XX' : `$${t.net_amount.toFixed(2)}`}
+                        {isTestMode ? '$XXX.XX' : `${fmt(t.net_amount)}`}
                       </TableCell>
                       <TableCell className="text-right text-blue-600">
-                        {isTestMode ? '$XX.XX' : `$${t.cleaner_pay.toFixed(2)}`}
+                        {isTestMode ? '$XX.XX' : `${fmt(t.cleaner_pay)}`}
                       </TableCell>
                       <TableCell>
                         <Badge variant={t.payment_status === 'paid' ? 'default' : 'secondary'}>
@@ -600,7 +601,7 @@ export default function FinancePage() {
                     <TableRow key={row.zip_code}>
                       <TableCell className="font-medium">{row.zip_code}</TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X' : row.count}</TableCell>
-                      <TableCell className="text-right">{isTestMode ? '$XXX.XX' : `$${row.total.toFixed(2)}`}</TableCell>
+                      <TableCell className="text-right">{isTestMode ? '$XXX.XX' : `${fmt(row.total)}`}</TableCell>
                     </TableRow>
                   ))}
                   {salesTaxByZip.length === 0 && (
@@ -625,24 +626,24 @@ export default function FinancePage() {
               <div className="space-y-4 max-w-md">
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="font-medium">Total Sales (Gross)</span>
-                  <span className="text-lg font-bold text-green-600">{isTestMode ? '+$X,XXX.XX' : `+$${metrics.totalSales.toFixed(2)}`}</span>
+                  <span className="text-lg font-bold text-green-600">{isTestMode ? '+$X,XXX.XX' : `+${fmt(metrics.totalSales)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Processing Fees <span className="text-xs">(Stripe only)</span></span>
-                  <span className="text-orange-600">{isTestMode ? '-$XXX.XX' : `-$${metrics.totalFees.toFixed(2)}`}</span>
+                  <span className="text-orange-600">{isTestMode ? '-$XXX.XX' : `-${fmt(metrics.totalFees)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b bg-muted/50 px-3 rounded">
                   <span className="font-medium">Net Revenue</span>
-                  <span className="font-bold">{isTestMode ? '$X,XXX.XX' : `$${metrics.netRevenue.toFixed(2)}`}</span>
+                  <span className="font-bold">{isTestMode ? '$X,XXX.XX' : `${fmt(metrics.netRevenue)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Cleaner Pay</span>
-                  <span className="text-blue-600">{isTestMode ? '-$X,XXX.XX' : `-$${metrics.totalCleanerPay.toFixed(2)}`}</span>
+                  <span className="text-blue-600">{isTestMode ? '-$X,XXX.XX' : `-${fmt(metrics.totalCleanerPay)}`}</span>
                 </div>
                 {Object.entries(metrics.expensesByCategory).map(([category, amount]) => (
                   <div key={category} className="flex justify-between items-center py-3 border-b">
                     <span className="text-muted-foreground">Less: {category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                    <span className="text-muted-foreground">{isTestMode ? '-$XXX.XX' : `-$${(amount as number).toFixed(2)}`}</span>
+                    <span className="text-muted-foreground">{isTestMode ? '-$XXX.XX' : `-${fmt((amount as number))}`}</span>
                   </div>
                 ))}
                 {Object.keys(metrics.expensesByCategory).length === 0 && (
@@ -653,7 +654,7 @@ export default function FinancePage() {
                 )}
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Refunds</span>
-                  <span className="text-red-600">{isTestMode ? '-$X.XX' : `-$${metrics.totalRefunds.toFixed(2)}`}</span>
+                  <span className="text-red-600">{isTestMode ? '-$X.XX' : `-${fmt(metrics.totalRefunds)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-4 bg-primary/10 px-3 rounded-lg">
                   <span className="text-lg font-bold">Net Profit</span>
@@ -661,7 +662,7 @@ export default function FinancePage() {
                     "text-xl font-bold",
                     metrics.netProfit >= 0 ? "text-primary" : "text-red-600"
                   )}>
-                    {isTestMode ? '$X,XXX.XX' : `$${metrics.netProfit.toFixed(2)}`}
+                    {isTestMode ? '$X,XXX.XX' : `${fmt(metrics.netProfit)}`}
                   </span>
                 </div>
               </div>

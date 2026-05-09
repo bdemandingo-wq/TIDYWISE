@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { fmt } from '@/lib/activeCurrency';
 
 interface TestModeContextType {
   isTestMode: boolean;
@@ -57,7 +58,7 @@ export function TestModeProvider({ children }: { children: ReactNode }) {
   };
 
   const maskAmount = (amount: number): string => {
-    if (!isTestMode) return `$${amount.toFixed(2)}`;
+    if (!isTestMode) return `${fmt(amount)}`;
     return '$XXX.XX';
   };
 

@@ -35,6 +35,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useOrgId } from '@/hooks/useOrgId';
 import { SEOHead } from '@/components/SEOHead';
+import { fmt } from '@/lib/activeCurrency';
 
 // Helper to fetch data - uses any to break TS2589 type depth chain
 // Includes pagination limits for performance
@@ -314,7 +315,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
         <StatCard
           title="Total Revenue"
-          value={isTestMode ? '$X,XXX' : `$${totalStats.totalRevenue.toLocaleString()}`}
+          value={isTestMode ? '$X,XXX' : `${fmt(totalStats.totalRevenue)}`}
           change={18}
           changeLabel="vs last month"
           trend="up"
@@ -332,7 +333,7 @@ export default function ReportsPage() {
           title={`Recurring Cleans (${new Date().getFullYear()})`}
           value={isTestMode ? 'XX' : recurringCleansCount}
           change={0}
-          changeLabel={isTestMode ? '$X,XXX revenue' : `$${recurringCleansRevenue.toLocaleString()} revenue`}
+          changeLabel={isTestMode ? '$X,XXX revenue' : `${fmt(recurringCleansRevenue)} revenue`}
           trend="up"
           icon={<Repeat className="w-6 h-6" />}
         />
@@ -343,7 +344,7 @@ export default function ReportsPage() {
         />
         <StatCard
           title="Avg Booking Value"
-          value={isTestMode ? '$XXX' : `$${totalStats.avgBookingValue.toFixed(0)}`}
+          value={isTestMode ? '$XXX' : `${fmt(totalStats.avgBookingValue)}`}
           change={5}
           changeLabel="vs last month"
           trend="up"
@@ -402,9 +403,9 @@ export default function ReportsPage() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
-                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                      formatter={(value: number) => [`${fmt(value)}`, 'Revenue']}
                     />
-                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => v > 0 ? `$${(v/1000).toFixed(1)}k` : '', fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => v > 0 ? `${fmt((v/1000))}k` : '', fontSize: 11, fill: 'hsl(var(--foreground))' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -440,7 +441,7 @@ export default function ReportsPage() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                      <Tooltip formatter={(value: number) => [`${fmt(value)}`, 'Revenue']} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -488,7 +489,7 @@ export default function ReportsPage() {
                             </span>
                           </td>
                           <td className="py-3 text-right font-semibold text-success">
-                            {isTestMode ? '$XXX' : `$${staffMember.payment.toLocaleString()}`}
+                            {isTestMode ? '$XXX' : `${fmt(staffMember.payment)}`}
                           </td>
                           <td className="py-3 text-right">
                             {isTestMode ? '$XX' : `$${staffMember.bookings > 0 ? (staffMember.payment / staffMember.bookings).toFixed(0) : 0}`}

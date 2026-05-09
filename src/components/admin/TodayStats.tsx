@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { fmt } from '@/lib/activeCurrency';
 
 interface TodayStatsProps {
   grossVolume: number;
@@ -47,7 +48,7 @@ export function TodayStats({ grossVolume, payments, customers }: TodayStatsProps
               "text-lg md:text-2xl font-bold transition-colors duration-300",
               isPulsing && "text-primary"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `$${grossVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {isTestMode ? '$X,XXX.XX' : `${fmt(grossVolume)}`}
             </p>
           </div>
           <div className="text-center px-4">

@@ -25,6 +25,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { fmt } from '@/lib/activeCurrency';
 
 interface DailyPnL {
   revenue: number;
@@ -37,9 +38,9 @@ interface DailyPnL {
 const formatAmount = (amount: number, showSign = true): string => {
   const abs = Math.abs(amount);
   if (abs >= 1000) {
-    return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}$${(abs / 1000).toFixed(2)}K`;
+    return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}${fmt((abs / 1000))}K`;
   }
-  return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}$${abs.toFixed(2)}`;
+  return `${showSign ? (amount >= 0 ? '+' : '-') : (amount < 0 ? '-' : '')}${fmt(abs)}`;
 };
 
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];

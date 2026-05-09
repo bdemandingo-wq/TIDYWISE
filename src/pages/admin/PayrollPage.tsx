@@ -32,6 +32,7 @@ import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
 import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 import { SEOHead } from '@/components/SEOHead';
+import { fmt } from '@/lib/activeCurrency';
 
 interface StaffWithPayroll {
   id: string;
@@ -740,11 +741,11 @@ export default function PayrollPage() {
       format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2),
-      `$${b.calculated_pay.toFixed(2)}`,
+      `${fmt(b.calculated_pay)}`,
     ]);
     const totalHours = filteredBookingPayrollDetails.reduce((s, b) => s + b.hours_worked, 0);
     const totalPay = filteredBookingPayrollDetails.reduce((s, b) => s + b.calculated_pay, 0);
-    rows.push(['', '', '', `Totals (${filteredBookingPayrollDetails.length} bookings)`, totalHours.toFixed(2), `$${totalPay.toFixed(2)}`]);
+    rows.push(['', '', '', `Totals (${filteredBookingPayrollDetails.length} bookings)`, totalHours.toFixed(2), `${fmt(totalPay)}`]);
     const csv = [headers, ...rows].map((row) => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -773,16 +774,16 @@ export default function PayrollPage() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p className="text-muted-foreground">Revenue (Net)</p>
-            <p className="font-semibold">{isTestMode ? '$X,XXX' : `$${forecast.revenueNet.toFixed(2)}`}</p>
+            <p className="font-semibold">{isTestMode ? '$X,XXX' : `${fmt(forecast.revenueNet)}`}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Payroll</p>
-            <p className="font-semibold">{isTestMode ? '$X,XXX' : `$${forecast.laborTotal.toFixed(2)}`}</p>
+            <p className="font-semibold">{isTestMode ? '$X,XXX' : `${fmt(forecast.laborTotal)}`}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Profit</p>
             <p className={cn("font-semibold", forecast.profit < 0 ? "text-destructive" : "text-green-600")}>
-              {isTestMode ? '$XXX' : `$${forecast.profit.toFixed(2)}`}
+              {isTestMode ? '$XXX' : `${fmt(forecast.profit)}`}
             </p>
           </div>
           <div>
@@ -867,7 +868,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Payroll</p>
-                <p className="text-xl font-bold">{isTestMode ? '$X,XXX' : `$${totalPayroll.toFixed(2)}`}</p>
+                <p className="text-xl font-bold">{isTestMode ? '$X,XXX' : `${fmt(totalPayroll)}`}</p>
               </div>
             </div>
           </CardContent>
@@ -880,7 +881,7 @@ export default function PayrollPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Revenue (Net)</p>
-                <p className="text-xl font-bold">{isTestMode ? '$X,XXX' : `$${totalRevenue.toFixed(2)}`}</p>
+                <p className="text-xl font-bold">{isTestMode ? '$X,XXX' : `${fmt(totalRevenue)}`}</p>
               </div>
             </div>
           </CardContent>
@@ -894,7 +895,7 @@ export default function PayrollPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Profit</p>
                 <p className={cn("text-xl font-bold", totalProfit < 0 ? "text-destructive" : "text-green-600")}>
-                  {isTestMode ? '$XXX' : `$${totalProfit.toFixed(2)}`}
+                  {isTestMode ? '$XXX' : `${fmt(totalProfit)}`}
                 </p>
               </div>
             </div>
@@ -1075,19 +1076,19 @@ export default function PayrollPage() {
                        <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
                        <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
                        <TableCell className="text-right font-medium text-green-600">
-                         {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
+                         {isTestMode ? '$XXX' : `${fmt(s.totalPay)}`}
                        </TableCell>
                        <TableCell className="text-right">
-                         {isTestMode ? '$XXX' : `$${s.revenueAttributed.toFixed(2)}`}
+                         {isTestMode ? '$XXX' : `${fmt(s.revenueAttributed)}`}
                        </TableCell>
                        <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
-                         {isTestMode ? '$XXX' : `$${s.profitAttributed.toFixed(2)}`}
+                         {isTestMode ? '$XXX' : `${fmt(s.profitAttributed)}`}
                        </TableCell>
                        <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
                          {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
                        </TableCell>
                        <TableCell className="text-right">
-                         {isTestMode ? '$X,XXX' : `$${s.ytdEarnings.toFixed(2)}`}
+                         {isTestMode ? '$X,XXX' : `${fmt(s.ytdEarnings)}`}
                        </TableCell>
                        <TableCell>
                          <div className="flex items-center gap-2">
@@ -1126,7 +1127,7 @@ export default function PayrollPage() {
                             </Button>
                           ) : (
                             <span className="text-xs text-muted-foreground">
-                              {isTestMode ? '$XXX' : `$${s.totalPay.toFixed(2)}`}
+                              {isTestMode ? '$XXX' : `${fmt(s.totalPay)}`}
                             </span>
                          )}
                        </TableCell>
@@ -1215,17 +1216,17 @@ export default function PayrollPage() {
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium text-green-600">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isTestMode ? '$XXX' : `$${b.calculated_pay.toFixed(2)}`}
+                          {isTestMode ? '$XXX' : `${fmt(b.calculated_pay)}`}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        {isTestMode ? '$XXX' : `$${b.revenue_net.toFixed(2)}`}
+                        {isTestMode ? '$XXX' : `${fmt(b.revenue_net)}`}
                       </TableCell>
                       <TableCell className={cn("text-right", b.labor_percent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
                         {isTestMode ? 'XX%' : `${b.labor_percent.toFixed(1)}%`}
                       </TableCell>
                       <TableCell className={cn("text-right font-medium", b.profit < 0 ? "text-destructive" : "text-green-600")}>
-                        {isTestMode ? '$XXX' : `$${b.profit.toFixed(2)}`}
+                        {isTestMode ? '$XXX' : `${fmt(b.profit)}`}
                       </TableCell>
                       <TableCell className={cn("text-right", b.margin_percent < 0 ? "text-destructive" : b.margin_percent > settings.margin_percent_good_threshold ? "text-green-600" : "")}>
                         {isTestMode ? 'XX%' : `${b.margin_percent.toFixed(1)}%`}
@@ -1239,16 +1240,16 @@ export default function PayrollPage() {
                       </TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : filteredTotalHours.toFixed(2)}</TableCell>
                       <TableCell className="text-right text-green-600">
-                        {isTestMode ? '$XXX' : `$${filteredTotalPay.toFixed(2)}`}
+                        {isTestMode ? '$XXX' : `${fmt(filteredTotalPay)}`}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isTestMode ? '$XXX' : `$${filteredTotalRevenue.toFixed(2)}`}
+                        {isTestMode ? '$XXX' : `${fmt(filteredTotalRevenue)}`}
                       </TableCell>
                       <TableCell className={cn("text-right", filteredTotalRevenue > 0 && (filteredTotalPay / filteredTotalRevenue) * 100 > settings.labor_percent_warning_threshold ? "text-amber-600" : "")}>
                         {isTestMode ? 'XX%' : filteredTotalRevenue > 0 ? `${((filteredTotalPay / filteredTotalRevenue) * 100).toFixed(1)}%` : '—'}
                       </TableCell>
                       <TableCell className={cn("text-right", filteredTotalProfit < 0 ? "text-destructive" : "text-green-600")}>
-                        {isTestMode ? '$XXX' : `$${filteredTotalProfit.toFixed(2)}`}
+                        {isTestMode ? '$XXX' : `${fmt(filteredTotalProfit)}`}
                       </TableCell>
                       <TableCell className="text-right">
                         {isTestMode ? 'XX%' : filteredTotalRevenue > 0 ? `${((filteredTotalProfit / filteredTotalRevenue) * 100).toFixed(1)}%` : '—'}
