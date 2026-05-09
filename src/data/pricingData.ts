@@ -101,17 +101,14 @@ export const cleaningServices: CleaningService[] = [
 ];
 
 export const extras = [
-  { id: 'inside_oven', name: 'Inside Oven', price: 50, note: 'Included in Deep Clean', icon: 'Refrigerator' },
-  { id: 'pet_hair_shed', name: 'Extra Pet Hair Shed', price: 100, note: '', icon: 'Sparkles' },
-  { id: 'window_blinds', name: 'Wet Wipe Window Blinds', price: 10, note: 'Each', icon: 'Blinds' },
-  { id: 'inside_fridge', name: 'Inside Fridge', price: 75, note: 'Included in Move In/Out', icon: 'Refrigerator' },
-  { id: 'inside_dishwasher', name: 'Inside Dishwasher', price: 50, note: '', icon: 'UtensilsCrossed' },
+  { id: 'windows', name: 'Windows', price: 30, note: '', icon: 'Blinds' },
+  { id: 'appliances', name: 'Appliances', price: 50, note: '', icon: 'Refrigerator' },
   { id: 'baseboards', name: 'Baseboards', price: 40, note: '', icon: 'LayoutGrid' },
   { id: 'walls', name: 'Walls', price: 25, note: '', icon: 'Sparkles' },
-  { id: 'laundry', name: 'Laundry', price: 10, note: '', icon: 'Shirt' },
-  { id: 'dishes', name: 'Dishes', price: 15, note: '', icon: 'UtensilsCrossed' },
   { id: 'carpet', name: 'Carpet Clean', price: 0, note: 'Custom Pricing', icon: 'LayoutGrid' },
   { id: 'upholstery', name: 'Upholstery', price: 0, note: 'Custom Pricing', icon: 'Sofa' },
+  { id: 'laundry', name: 'Laundry', price: 10, note: '', icon: 'Shirt' },
+  { id: 'dishes', name: 'Dishes', price: 15, note: '', icon: 'UtensilsCrossed' },
 ];
 
 // Pet options
