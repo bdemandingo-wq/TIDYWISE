@@ -23,7 +23,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { name = "", location = "" } = await req.json().catch(() => ({}));
+    const { name = "", location = "", max = 10 } = await req.json().catch(() => ({}));
+    const maxResults = Math.min(20, Math.max(1, Number(max) || 10));
     const q = String(name).trim();
     const loc = String(location).trim();
     if (!q) {
@@ -53,8 +54,8 @@ Deno.serve(async (req) => {
     const out: any[] = (dbMatches ?? []).map((c) => ({ ...c, source: "db" }));
 
     // 2. If thin, query Google Places Text Search for additional candidates
-    if (out.length < 5 && PLACES_KEY) {
-      const text = loc ? `${q} cleaning ${loc}` : `${q} cleaning service`;
+    if (out.length < maxResults && PLACES_KEY) {
+      const text = loc ? `${q} ${loc}` : `${q}`;
       const url = `https://places.googleapis.com/v1/places:searchText`;
       const r = await fetch(url, {
         method: "POST",
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
           "X-Goog-FieldMask":
             "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.location,places.websiteUri,places.nationalPhoneNumber,places.addressComponents",
         },
-        body: JSON.stringify({ textQuery: text, maxResultCount: 8 }),
+        body: JSON.stringify({ textQuery: text, maxResultCount: maxResults }),
       });
       if (r.ok) {
         const j = await r.json();
