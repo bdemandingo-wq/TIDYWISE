@@ -111,6 +111,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
+import { CancelBookingDialog, type CancellationCategory } from '@/components/admin/CancelBookingDialog';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { SEOHead } from '@/components/SEOHead';
