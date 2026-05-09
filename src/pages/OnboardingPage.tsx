@@ -25,6 +25,9 @@ import { getIndustryTemplate } from '@/data/industryTemplates';
 import { cn } from '@/lib/utils';
 import { SEOHead } from '@/components/SEOHead';
 import { Capacitor } from '@capacitor/core';
+import { LocalePickers } from '@/components/admin/LocalePickers';
+import { detectBrowserCurrency } from '@/lib/currency';
+import { detectBrowserTimezone } from '@/lib/timezones';
 
 function slugify(input: string) {
   return input
@@ -58,6 +61,8 @@ export default function OnboardingPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDescription, setNewServiceDescription] = useState('');
+  const [currency, setCurrency] = useState<string>(() => detectBrowserCurrency());
+  const [timezone, setTimezone] = useState<string>(() => detectBrowserTimezone());
 
   const handleLogout = async () => {
     await signOut();
@@ -282,6 +287,8 @@ export default function OnboardingPage() {
       await supabase.from('business_settings').insert({
         organization_id: orgData.id,
         company_name: name,
+        currency,
+        timezone,
       });
 
       // Create service categories if defined
@@ -473,9 +480,22 @@ export default function OnboardingPage() {
                 />
                 <p className="text-xs text-muted-foreground">We'll send you tips and updates to help grow your business!</p>
               </div>
-              
-              <Button 
-                className="w-full" 
+
+              <div className="space-y-2 pt-2">
+                <Label className="text-sm font-medium">Region</Label>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  We auto-detected these — change them if needed.
+                </p>
+                <LocalePickers
+                  currency={currency}
+                  timezone={timezone}
+                  onCurrencyChange={setCurrency}
+                  onTimezoneChange={setTimezone}
+                />
+              </div>
+
+              <Button
+                className="w-full"
                 size="lg"
                 disabled={!canProceedStep1}
                 onClick={() => setStep(2)}
