@@ -329,6 +329,7 @@ export default function SettingsPage() {
           resend_api_key: typedData.resend_api_key || '',
           meta_pixel_id: typedData.meta_pixel_id || '',
           google_analytics_id: typedData.google_analytics_id || '',
+          benchmarks_opt_in: typedData.benchmarks_opt_in ?? true,
         });
       }
     } catch (error) {
