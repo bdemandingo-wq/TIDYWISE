@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -19,7 +19,23 @@ interface AdminRouteProps {
  */
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { organization, membership, loading: orgLoading, isAdmin } = useOrganization();
+  const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
+  const switchedRef = useRef(false);
+
+  // If the active org isn't admin/owner but the user IS admin/owner in another
+  // org, transparently switch to that org instead of bouncing to /staff. This
+  // protects users who accidentally have a member-role membership somewhere.
+  const adminOrgElsewhere = allOrganizations.find(
+    (o) => (o.role === 'owner' || o.role === 'admin') && o.organization.id !== organization?.id
+  );
+
+  useEffect(() => {
+    if (orgLoading || authLoading) return;
+    if (membership && !isAdmin && adminOrgElsewhere && !switchedRef.current) {
+      switchedRef.current = true;
+      switchOrganization(adminOrgElsewhere.organization.id);
+    }
+  }, [orgLoading, authLoading, membership, isAdmin, adminOrgElsewhere, switchOrganization]);
 
   if (authLoading || orgLoading) {
     return (
@@ -39,8 +55,16 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // User is a member but NOT an admin/owner - redirect to staff portal
-  // This is the critical security check that prevents staff from accessing admin
+  // Wait for the auto-switch above to take effect before deciding to bounce.
+  if (membership && !isAdmin && adminOrgElsewhere) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // User is a member but NOT an admin/owner anywhere - send to staff portal
   if (membership && !isAdmin) {
     console.warn(
       '[SECURITY] Non-admin user attempted to access admin route',

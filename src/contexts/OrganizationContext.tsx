@@ -93,10 +93,26 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       setAllOrganizations(allOrgs);
 
-      // Determine which org to activate
+      // Determine which org to activate.
+      // SECURITY/UX: Always prefer an owner/admin membership when one exists so
+      // users with elevated access in any organization land in the admin
+      // dashboard instead of being bounced to the staff portal. If a saved org
+      // is a member-only role but the user has admin access elsewhere, the
+      // admin org wins. Explicit switches via switchOrganization still persist.
+      const rolePriority = (r: 'owner' | 'admin' | 'member') =>
+        r === 'owner' ? 0 : r === 'admin' ? 1 : 2;
+      const sortedByRole = [...allOrgs].sort(
+        (a, b) => rolePriority(a.role) - rolePriority(b.role)
+      );
       const savedOrgId = localStorage.getItem(ACTIVE_ORG_KEY);
-      let activeOrg = allOrgs.find(o => o.organization.id === savedOrgId);
-      if (!activeOrg) activeOrg = allOrgs[0];
+      const savedOrg = allOrgs.find(o => o.organization.id === savedOrgId);
+      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin');
+      let activeOrg: OrgWithRole | undefined;
+      if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
+        activeOrg = savedOrg;
+      } else {
+        activeOrg = bestAdminOrg ?? sortedByRole[0];
+      }
 
       if (activeOrg) {
         setOrganization(activeOrg.organization);
