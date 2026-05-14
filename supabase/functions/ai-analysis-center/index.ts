@@ -546,6 +546,36 @@ For each tip, reference my actual data where relevant. Format each with a bold t
       });
     }
 
+    // ─── DRAFT MESSAGE (non-streaming) ───
+    if (type === "draft-message") {
+      const { prompt, channel } = (await Promise.resolve({ prompt: (messages as any)?.prompt, channel: (messages as any)?.channel })) as any;
+      const userPrompt = typeof (req as any) === "object" && prompt ? prompt : (typeof messages === "string" ? messages : (messages?.prompt || ""));
+      const ch = channel || "sms";
+      const sys = ch === "email"
+        ? "You write short, warm, professional re-engagement EMAILS for a cleaning business. Output ONLY the email body (no subject line, no signoff metadata). 80–140 words. Use the customer's first name. Include one specific incentive or scheduling CTA."
+        : "You write short, warm, professional re-engagement TEXT MESSAGES (SMS) for a cleaning business. Output ONLY the message body. Max 320 characters. Use the customer's first name. Include one specific incentive or scheduling CTA. No emojis unless natural.";
+
+      const upstream = await aiRequest(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: String(userPrompt || "") },
+        ],
+      });
+
+      const limited = handleRateLimit(upstream.status);
+      if (limited) return limited;
+      if (!upstream.ok) {
+        const errText = await upstream.text().catch(() => "");
+        console.error("AI gateway draft-message error:", upstream.status, errText);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const data = await upstream.json();
+      return new Response(JSON.stringify({ message: data.choices?.[0]?.message?.content?.trim() || "" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("ai-analysis-center error:", e);
