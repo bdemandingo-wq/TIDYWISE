@@ -180,7 +180,55 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload = await req.json() as OpenPhoneWebhookPayload;
+    // Read raw body so we can verify HMAC signature before parsing
+    const rawBody = await req.text();
+
+    // SECURITY: verify OpenPhone HMAC signature when secret is configured.
+    // Format from OpenPhone is: hmac;<version>;<timestamp>;<base64-signature>
+    const OPENPHONE_WEBHOOK_SECRET = Deno.env.get("OPENPHONE_WEBHOOK_SECRET") ?? "";
+    if (OPENPHONE_WEBHOOK_SECRET) {
+      const sigHeader = req.headers.get("openphone-signature") || req.headers.get("x-openphone-signature") || "";
+      const parts = sigHeader.split(";");
+      const ts = parts[2];
+      const providedB64 = parts[3];
+      if (!ts || !providedB64) {
+        console.error("[openphone-webhook] Missing/invalid signature header");
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const signedPayload = `${ts}.${rawBody}`;
+        const keyBytes = Uint8Array.from(atob(OPENPHONE_WEBHOOK_SECRET), c => c.charCodeAt(0));
+        const key = await crypto.subtle.importKey(
+          "raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+        );
+        const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+        const expectedB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
+        // timing-safe compare
+        if (expectedB64.length !== providedB64.length) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        let diff = 0;
+        for (let i = 0; i < expectedB64.length; i++) diff |= expectedB64.charCodeAt(i) ^ providedB64.charCodeAt(i);
+        if (diff !== 0) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (sigErr) {
+        console.error("[openphone-webhook] Signature verification error:", sigErr);
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.warn("[openphone-webhook] OPENPHONE_WEBHOOK_SECRET not set — signature verification disabled");
+    }
+
+    const payload = JSON.parse(rawBody) as OpenPhoneWebhookPayload;
     console.log("[openphone-webhook] Received payload:", JSON.stringify(payload, null, 2));
 
     // Detect if this is a call event vs a message event
