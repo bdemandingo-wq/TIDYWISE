@@ -31,6 +31,7 @@ export function InteractiveDemo() {
           <div className="aspect-video">
             <iframe
               src="https://www.loom.com/embed/faef0b008912405c81d2b67bd5d59491"
+              title="TidyWise product walkthrough video"
               frameBorder="0"
               allowFullScreen
               className="w-full h-full"

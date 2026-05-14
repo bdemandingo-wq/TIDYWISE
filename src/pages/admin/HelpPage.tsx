@@ -290,6 +290,7 @@ export default function HelpPage() {
                   <div className="aspect-video bg-muted relative">
                     <iframe
                       src={video.loom_url}
+                      title={video.title || 'Help video'}
                       frameBorder="0"
                       allowFullScreen
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
