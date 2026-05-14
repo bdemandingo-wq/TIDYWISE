@@ -21,6 +21,7 @@ const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string
   { value: "confirmed", label: "Uncleaned" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Clean Completed" },
+  { value: "rescheduled", label: "Rescheduled" },
   { value: "cancelled", label: "Cancelled" },
   { value: "no_show", label: "No Show" },
 ];
@@ -381,22 +382,43 @@ export function EditBookingDialog({
 
       // Compute cleaner_pay_expected snapshot so payroll always reads the correct value
       const computedExpectedPay = (() => {
-        // If admin entered an explicit actual payment, that IS the expected pay
         if (cleanerActualPayment) return parseFloat(cleanerActualPayment);
-        // Otherwise compute from wage fields
         const wage = cleanerWage ? parseFloat(cleanerWage) : null;
         if (wage == null || isNaN(wage) || wage === 0) return null;
         const totalAmt = Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount;
         if (cleanerWageType === 'flat') return wage;
         if (cleanerWageType === 'percentage') return Math.round((wage / 100) * totalAmt * 100) / 100;
-        // hourly
         const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : (booking.duration / 60);
         return Math.round(wage * hours * 100) / 100;
       })();
 
+      // Detect reschedule: scheduled_at changed OR admin set status to "rescheduled"
+      const bookingAny = booking as any;
+      const dateChanged = scheduledAtIso !== booking.scheduled_at;
+      const becameRescheduled = status === 'rescheduled' && booking.status !== 'rescheduled';
+      const isReschedule = dateChanged || becameRescheduled;
+
+      const reschedulePayload: Record<string, any> = {};
+      if (isReschedule) {
+        // Preserve original (very first scheduled_at) only on first reschedule
+        if (!bookingAny.original_scheduled_at) {
+          reschedulePayload.original_scheduled_at = booking.scheduled_at;
+        }
+        reschedulePayload.previous_scheduled_at = booking.scheduled_at;
+        reschedulePayload.rescheduled_at = new Date().toISOString();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) reschedulePayload.rescheduled_by = user.id;
+      }
+
+      // Auto-flag status as 'rescheduled' when admin only changed the date and left status as confirmed/pending
+      const finalStatus =
+        dateChanged && (status === 'pending' || status === 'confirmed') && !becameRescheduled
+          ? 'rescheduled'
+          : status;
+
       await updateBooking.mutateAsync({
         id: booking.id,
-        status,
+        status: finalStatus,
         scheduled_at: scheduledAtIso,
         staff_id: staffId && staffId !== '__unassigned__' ? staffId : null,
         notes: notes || null,
@@ -405,9 +427,9 @@ export function EditBookingDialog({
         cleaner_wage_type: cleanerWageType || null,
         cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
         cleaner_actual_payment: cleanerActualPayment ? parseFloat(cleanerActualPayment) : null,
-        // CRITICAL: Always persist the pay snapshot so payroll reads the correct value
         cleaner_pay_expected: computedExpectedPay,
-      });
+        ...reschedulePayload,
+      } as any);
 
       toast({ title: "Saved", description: "Booking updated" });
       onOpenChange(false);

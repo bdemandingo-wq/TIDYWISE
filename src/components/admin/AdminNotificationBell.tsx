@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { useOrgId } from '@/hooks/useOrgId';
 import { showBrowserNotification } from '@/hooks/usePushNotifications';
 
@@ -22,10 +23,12 @@ interface AdminNotification {
   created_at: string;
   resource_id?: string;
   resource_type?: string;
+  link?: string;
 }
 
 export function AdminNotificationBell() {
   const { organizationId } = useOrgId();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -159,8 +162,28 @@ export function AdminNotificationBell() {
         }
       }
 
+      // Fetch admin system notifications (e.g., month-end P&L reminder)
+      const { data: systemNotifs } = await supabase
+        .from('admin_system_notifications')
+        .select('id, type, title, message, link, is_read, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      const systemNotifications: AdminNotification[] = (systemNotifs || []).map((n: any) => ({
+        id: `system-${n.id}`,
+        type: 'system' as const,
+        title: n.title,
+        message: n.message,
+        is_read: !!n.is_read,
+        created_at: n.created_at,
+        resource_id: n.id,
+        resource_type: n.type,
+        link: n.link || undefined,
+      }));
+
       // Combine and sort by created_at
-      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications, ...weeklyReminders]
+      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications, ...weeklyReminders, ...systemNotifications]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setNotifications(allNotifications);
@@ -288,6 +311,12 @@ export function AdminNotificationBell() {
         .from('admin_booking_request_notifications')
         .update({ is_read: true })
         .eq('id', dbId);
+    } else if (notificationId.startsWith('system-')) {
+      const dbId = notificationId.replace('system-', '');
+      await supabase
+        .from('admin_system_notifications')
+        .update({ is_read: true })
+        .eq('id', dbId);
     }
   };
 
@@ -300,6 +329,11 @@ export function AdminNotificationBell() {
       if (organizationId) {
         await supabase
           .from('admin_booking_request_notifications')
+          .update({ is_read: true })
+          .eq('organization_id', organizationId)
+          .eq('is_read', false);
+        await supabase
+          .from('admin_system_notifications')
           .update({ is_read: true })
           .eq('organization_id', organizationId)
           .eq('is_read', false);
@@ -322,6 +356,10 @@ export function AdminNotificationBell() {
   const handleNotificationClick = (notification: AdminNotification) => {
     if (!notification.is_read) {
       markAsRead(notification.id);
+    }
+    if (notification.link) {
+      setIsOpen(false);
+      navigate(notification.link);
     }
   };
 
