@@ -43,7 +43,7 @@ interface AITemplate {
   message: string;
 }
 
-type ChannelFilter = "all" | "sms" | "email";
+type ChannelFilter = "all" | "sms" | "email" | "opted_out";
 type StatusFilter = "all" | "draft" | "scheduled" | "sent" | "active";
 type AudienceType = "active_clients" | "inactive_clients" | "leads" | "all_customers";
 
