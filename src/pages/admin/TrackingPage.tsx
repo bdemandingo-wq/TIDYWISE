@@ -49,6 +49,8 @@ interface SmsSettings {
   notify_admin_on_the_way: boolean;
   notify_client_on_the_way: boolean;
   notify_client_distance_eta: boolean;
+  notify_admin_arrived: boolean;
+  notify_client_arrived: boolean;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
