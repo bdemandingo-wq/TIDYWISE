@@ -12,7 +12,7 @@ interface BookingPhotoUploadProps {
   bookingId: string;
   staffId: string;
   organizationId: string;
-  onPhotoUploaded?: () => void;
+  onPhotoUploaded?: (path: string) => void;
 }
 
 const PHOTO_MAX_SIZE = 10 * 1024 * 1024;
