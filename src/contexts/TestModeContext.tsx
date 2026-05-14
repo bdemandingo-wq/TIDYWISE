@@ -29,9 +29,22 @@ function hashString(str: string): number {
 }
 
 export function TestModeProvider({ children }: { children: ReactNode }) {
-  const [isTestMode, setIsTestMode] = useState(false);
+  // Demo Mode (persisted org-level toggle) drives the same data masking as the
+  // local Test Mode flag. Either being on enables masking everywhere.
+  const { settings, toggleDemoMode } = useOrganizationSettings();
+  const demoModeEnabled = settings?.demo_mode_enabled ?? false;
+  const [localTestMode, setLocalTestMode] = useState(false);
+  const isTestMode = localTestMode || demoModeEnabled;
 
-  const toggleTestMode = () => setIsTestMode(!isTestMode);
+  const toggleTestMode = () => {
+    // If demo mode is on, turn it off via the persisted toggle. Otherwise flip
+    // the local in-memory test mode flag.
+    if (demoModeEnabled) {
+      void toggleDemoMode();
+    } else {
+      setLocalTestMode((v) => !v);
+    }
+  };
 
   const maskName = (name: string): string => {
     if (!isTestMode || !name) return name;
