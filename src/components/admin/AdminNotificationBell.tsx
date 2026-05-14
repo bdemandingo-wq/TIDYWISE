@@ -28,6 +28,7 @@ interface AdminNotification {
 
 export function AdminNotificationBell() {
   const { organizationId } = useOrgId();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
