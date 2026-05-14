@@ -115,6 +115,7 @@ export default function PlatformAnalyticsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'client_portal'>('all');
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
@@ -219,8 +220,12 @@ export default function PlatformAnalyticsPage() {
 
   const openDeleteDialog = (id: string, type: 'user' | 'organization', name: string) => {
     setItemToDelete({ id, type, name });
+    setDeleteConfirmText('');
     setDeleteDialogOpen(true);
   };
+
+  const confirmTextMatches =
+    !!itemToDelete && deleteConfirmText.trim() === itemToDelete.name.trim();
 
   useEffect(() => {
     fetchAnalytics();
@@ -836,15 +841,34 @@ export default function PlatformAnalyticsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {itemToDelete?.type === 'user' ? 'User' : 'Organization'}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{itemToDelete?.name}</strong>? 
-              This action cannot be undone and will permanently remove all associated data.
+              Are you sure you want to delete <strong>{itemToDelete?.name}</strong>?
+              This action cannot be undone and will permanently remove all associated data
+              {itemToDelete?.type === 'organization'
+                ? ' (bookings, customers, staff, settings, and everything else tied to this business)'
+                : ''}.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {itemToDelete && (
+            <div className="space-y-2 py-2">
+              <label className="text-sm font-medium">
+                Type <span className="font-mono text-destructive">{itemToDelete.name}</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={itemToDelete.name}
+                autoFocus
+                disabled={deleting}
+              />
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              disabled={deleting}
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting || !confirmTextMatches}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
