@@ -683,10 +683,11 @@ export function AIAnalysisCenter() {
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => {
-                        setActiveTab('ask-ai');
-                        setChatInput(`Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`);
-                      }}
+                      onClick={() => openDraftMessage(
+                        { name: lead.name, phone: lead.phone, email: lead.email },
+                        `Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`,
+                        'sms',
+                      )}
                       style={{ background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}30`, fontSize: 12, fontFamily: labelFont }}
                       className="hover:opacity-80"
                     >
