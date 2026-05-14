@@ -261,7 +261,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition]);
+  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival]);
 
   // Cleanup on unmount
   useEffect(() => {
