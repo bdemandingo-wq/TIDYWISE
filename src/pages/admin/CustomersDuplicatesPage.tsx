@@ -490,8 +490,8 @@ export default function CustomersDuplicatesPage() {
               onClick={() => {
                 if (!confirmMerge) return;
                 mergeMutation.mutate({
-                  primary_id: confirmMerge.primary.id,
-                  secondary_id: confirmMerge.secondary.id,
+                  primary: confirmMerge.primary,
+                  secondary: confirmMerge.secondary,
                 });
               }}
             >
