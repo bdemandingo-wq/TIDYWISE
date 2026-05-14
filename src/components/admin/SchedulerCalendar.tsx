@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -324,7 +324,17 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   }, [allTeamAssignments]);
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
-  const [trashConfirmBooking, setTrashConfirmBooking] = useState<BookingWithDetails | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clear any pending delete timers on unmount
+  useEffect(() => {
+    const timers = pendingDeleteTimers.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
   // Fetch staff for color consistency
   const { data: staffList = [] } = useQuery({
     queryKey: ['staff-for-calendar', organization?.id],
@@ -391,13 +401,14 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     // Use timezone-aware comparison (same as getBookingsForDate) to avoid mismatches
     return allBookings.filter(b => {
+      if (pendingDeleteIds.has(b.id)) return false;
       const bookingDateStr = getDateInTimezone(b.scheduled_at, orgTimezone);
       const inDateRange = bookingDateStr >= startStr && bookingDateStr <= endStr;
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
       const matchesStaff = !staffFilter || b.staff_id === staffFilter;
       return inDateRange && matchesStatus && matchesStaff;
     });
-  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone]);
+  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone, pendingDeleteIds]);
 
   const { year, month, days, monthWeekRows } = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -480,10 +491,54 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     const booking = allBookings.find(b => b.id === bookingId);
     if (!booking) return;
 
-    // Handle trash drop
+    // Handle trash drop — soft delete with 5s undo window
     if (targetId === 'trash-zone') {
       setActiveBooking(null);
-      setTrashConfirmBooking(booking);
+      const customerName = formatCustomerName(booking.customer);
+
+      // Hide booking from view immediately
+      setPendingDeleteIds(prev => {
+        const next = new Set(prev);
+        next.add(bookingId);
+        return next;
+      });
+
+      // After 5s, perform the actual delete
+      const timer = setTimeout(async () => {
+        pendingDeleteTimers.current.delete(bookingId);
+        try {
+          await deleteBooking.mutateAsync(bookingId);
+        } catch (err) {
+          console.error('Delete failed:', err);
+          toast.error('Failed to delete booking');
+        }
+        setPendingDeleteIds(prev => {
+          const next = new Set(prev);
+          next.delete(bookingId);
+          return next;
+        });
+      }, 5000);
+      pendingDeleteTimers.current.set(bookingId, timer);
+
+      toast(`${customerName}'s booking deleted`, {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            const t = pendingDeleteTimers.current.get(bookingId);
+            if (t) {
+              clearTimeout(t);
+              pendingDeleteTimers.current.delete(bookingId);
+            }
+            setPendingDeleteIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
+            toast.success('Booking restored');
+          },
+        },
+      });
       return;
     }
 
@@ -1115,44 +1170,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           }}
         />
 
-        {/* Trash Confirmation Dialog */}
-        <AlertDialog open={!!trashConfirmBooking} onOpenChange={(open) => !open && setTrashConfirmBooking(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Booking</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete the booking for{' '}
-                <span className="font-semibold text-foreground">
-                  {trashConfirmBooking?.customer
-                    ? `${trashConfirmBooking.customer.first_name} ${trashConfirmBooking.customer.last_name}`
-                    : 'Unknown Customer'}
-                </span>
-                {trashConfirmBooking?.scheduled_at && (
-                  <> on {formatInTimezone(trashConfirmBooking.scheduled_at, orgTimezone, { weekday: 'long', month: 'long', day: 'numeric' })}</>
-                )}
-                ? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={async () => {
-                  if (!trashConfirmBooking) return;
-                  try {
-                    await deleteBooking.mutateAsync(trashConfirmBooking.id);
-                    setTrashConfirmBooking(null);
-                  } catch (err) {
-                    console.error('Delete failed:', err);
-                  }
-                }}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </DndContext>
   );

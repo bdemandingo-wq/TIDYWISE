@@ -8576,6 +8576,10 @@ export type Database = {
         Args: { p_rating: number; p_review_text?: string; p_token: string }
         Returns: boolean
       }
+      unmerge_customers: {
+        Args: { primary_id: string; secondary_id: string; snapshot: Json }
+        Returns: Json
+      }
       update_client_portal_last_login: {
         Args: { p_user_id: string }
         Returns: undefined
