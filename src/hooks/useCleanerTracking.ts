@@ -195,14 +195,17 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
                   body: { address: destinationAddress },
                 });
                 if (res.data?.lat && res.data?.lng) {
+                  destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
                   const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
                   etaMinutes = estimateDriveMinutes(dist);
                 }
               } catch { /* non-critical */ }
             }
 
-            intervalRef.current = setInterval(updatePosition, 30000);
+            checkArrival(latitude, longitude);
+            intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
             setIsTracking(true);
+
 
             return {
               trackingToken: (existing as any).tracking_token,
