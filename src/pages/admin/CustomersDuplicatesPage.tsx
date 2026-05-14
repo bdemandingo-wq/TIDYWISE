@@ -144,6 +144,29 @@ function detectDuplicates(
   });
 }
 
+// Score a customer for "best to keep" — more bookings wins, then more recent
+// activity, then more complete profile (more non-empty contact fields).
+function profileCompleteness(c: Customer): number {
+  return [c.email, c.phone, c.address, c.city, c.state, c.zip_code, c.first_name, c.last_name]
+    .filter((v) => !!norm(v))
+    .length;
+}
+
+function pickRecommendedPrimary(
+  a: Customer,
+  b: Customer,
+  statsA: CustomerStats | undefined,
+  statsB: CustomerStats | undefined,
+): 'a' | 'b' {
+  const ba = statsA?.total_bookings ?? 0;
+  const bb = statsB?.total_bookings ?? 0;
+  if (ba !== bb) return ba > bb ? 'a' : 'b';
+  const ta = new Date(a.created_at).getTime();
+  const tb = new Date(b.created_at).getTime();
+  if (ta !== tb) return ta > tb ? 'a' : 'b';
+  return profileCompleteness(a) >= profileCompleteness(b) ? 'a' : 'b';
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CustomersDuplicatesPage() {
