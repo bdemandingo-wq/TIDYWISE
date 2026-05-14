@@ -422,7 +422,10 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     );
   }
 
-  const items = (checklist?.booking_checklist_items || []) as ChecklistItem[];
+  const items = ((checklist?.booking_checklist_items || []) as any[]).map((it) => ({
+    ...it,
+    requires_photo: !!(it.checklist_items?.requires_photo),
+  })) as ChecklistItem[];
   const completedCount = items.filter((item) => item.is_completed).length;
   const progress = items.length > 0 ? (completedCount / items.length) * 100 : 0;
   const isCompleted = checklist?.completed_at != null;
