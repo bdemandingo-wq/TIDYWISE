@@ -415,6 +415,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      <main>
       {/* Hero Section - Editorial redesign */}
       <section className="relative pt-[calc(7rem+env(safe-area-inset-top))] md:pt-[calc(10rem+env(safe-area-inset-top))] pb-20 md:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Warm radial wash */}
@@ -832,6 +833,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </main>
 
       <SiteFooter />
     </div>
