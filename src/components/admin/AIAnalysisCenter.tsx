@@ -724,10 +724,11 @@ export function AIAnalysisCenter() {
                         <span style={{ fontFamily: monoFont, fontSize: 13, color: barColor }}>{c.daysSince}d</span>
                         <Button
                           size="sm"
-                          onClick={() => {
-                            setActiveTab('ask-ai');
-                            setChatInput(`Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`);
-                          }}
+                          onClick={() => openDraftMessage(
+                            { name: `${c.first_name} ${c.last_name}`, phone: (c as any).phone, email: (c as any).email },
+                            `Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`,
+                            'sms',
+                          )}
                           style={{ background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}30`, fontSize: 12, fontFamily: labelFont }}
                           className="hover:opacity-80"
                         >
