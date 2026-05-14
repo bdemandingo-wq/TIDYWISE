@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { fmt } from '@/lib/activeCurrency';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 
 interface TestModeContextType {
   isTestMode: boolean;
