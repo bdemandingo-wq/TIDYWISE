@@ -550,6 +550,9 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
                   bookingId={bookingId}
                   staffId={staffId}
                   organizationId={organizationId || ''}
+                  onPhotoUploaded={(path) =>
+                    setItemPhoto.mutate({ itemId: item.id, photoPath: path })
+                  }
                 />
               </div>
             )}
