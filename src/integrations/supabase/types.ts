@@ -316,6 +316,53 @@ export type Database = {
           },
         ]
       }
+      admin_system_notifications: {
+        Row: {
+          created_at: string
+          dedupe_key: string | null
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string
+          metadata: Json
+          organization_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          metadata?: Json
+          organization_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          metadata?: Json
+          organization_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_system_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_calculation_log: {
         Row: {
           calculation_type: string
@@ -1142,6 +1189,7 @@ export type Database = {
           location_id: string | null
           notes: string | null
           organization_id: string | null
+          original_scheduled_at: string | null
           pay_base_amount: number | null
           pay_base_mode: string | null
           pay_last_saved_at: string | null
@@ -1149,7 +1197,11 @@ export type Database = {
           pay_locked: boolean | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
+          previous_scheduled_at: string | null
           recurring_days_of_week: number[] | null
+          reschedule_reason: string | null
+          rescheduled_at: string | null
+          rescheduled_by: string | null
           scheduled_at: string
           service_id: string | null
           square_footage: string | null
@@ -1198,6 +1250,7 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          original_scheduled_at?: string | null
           pay_base_amount?: number | null
           pay_base_mode?: string | null
           pay_last_saved_at?: string | null
@@ -1205,7 +1258,11 @@ export type Database = {
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          previous_scheduled_at?: string | null
           recurring_days_of_week?: number[] | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           scheduled_at: string
           service_id?: string | null
           square_footage?: string | null
@@ -1254,6 +1311,7 @@ export type Database = {
           location_id?: string | null
           notes?: string | null
           organization_id?: string | null
+          original_scheduled_at?: string | null
           pay_base_amount?: number | null
           pay_base_mode?: string | null
           pay_last_saved_at?: string | null
@@ -1261,7 +1319,11 @@ export type Database = {
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          previous_scheduled_at?: string | null
           recurring_days_of_week?: number[] | null
+          reschedule_reason?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           scheduled_at?: string
           service_id?: string | null
           square_footage?: string | null
@@ -8611,6 +8673,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+        | "rescheduled"
       payment_status: "pending" | "partial" | "paid" | "refunded"
     }
     CompositeTypes: {
@@ -8747,6 +8810,7 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_show",
+        "rescheduled",
       ],
       payment_status: ["pending", "partial", "paid", "refunded"],
     },
