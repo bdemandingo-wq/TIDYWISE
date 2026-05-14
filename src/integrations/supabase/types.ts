@@ -1813,6 +1813,7 @@ export type Database = {
       }
       cleaner_location_tracking: {
         Row: {
+          arrived_at: string | null
           booking_id: string
           created_at: string
           id: string
@@ -1825,6 +1826,7 @@ export type Database = {
           tracking_token: string
         }
         Insert: {
+          arrived_at?: string | null
           booking_id: string
           created_at?: string
           id?: string
@@ -1837,6 +1839,7 @@ export type Database = {
           tracking_token?: string
         }
         Update: {
+          arrived_at?: string | null
           booking_id?: string
           created_at?: string
           id?: string
@@ -5291,7 +5294,9 @@ export type Database = {
           created_at: string
           external_booking_webhook_secret: string | null
           id: string
+          notify_admin_arrived: boolean
           notify_admin_on_the_way: boolean
+          notify_client_arrived: boolean
           notify_client_distance_eta: boolean
           notify_client_on_the_way: boolean
           openphone_api_key: string | null
@@ -5307,7 +5312,9 @@ export type Database = {
           created_at?: string
           external_booking_webhook_secret?: string | null
           id?: string
+          notify_admin_arrived?: boolean
           notify_admin_on_the_way?: boolean
+          notify_client_arrived?: boolean
           notify_client_distance_eta?: boolean
           notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
@@ -5323,7 +5330,9 @@ export type Database = {
           created_at?: string
           external_booking_webhook_secret?: string | null
           id?: string
+          notify_admin_arrived?: boolean
           notify_admin_on_the_way?: boolean
+          notify_client_arrived?: boolean
           notify_client_distance_eta?: boolean
           notify_client_on_the_way?: boolean
           openphone_api_key?: string | null
@@ -7068,6 +7077,8 @@ export type Database = {
           hourly_rate: number | null
           id: string
           is_active: boolean
+          location_permission_status: string | null
+          location_permission_updated_at: string | null
           name: string
           organization_id: string | null
           percentage_rate: number | null
@@ -7093,6 +7104,8 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
+          location_permission_status?: string | null
+          location_permission_updated_at?: string | null
           name: string
           organization_id?: string | null
           percentage_rate?: number | null
@@ -7118,6 +7131,8 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
+          location_permission_status?: string | null
+          location_permission_updated_at?: string | null
           name?: string
           organization_id?: string | null
           percentage_rate?: number | null
