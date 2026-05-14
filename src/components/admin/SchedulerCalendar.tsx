@@ -1162,44 +1162,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           }}
         />
 
-        {/* Trash Confirmation Dialog */}
-        <AlertDialog open={!!trashConfirmBooking} onOpenChange={(open) => !open && setTrashConfirmBooking(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Booking</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete the booking for{' '}
-                <span className="font-semibold text-foreground">
-                  {trashConfirmBooking?.customer
-                    ? `${trashConfirmBooking.customer.first_name} ${trashConfirmBooking.customer.last_name}`
-                    : 'Unknown Customer'}
-                </span>
-                {trashConfirmBooking?.scheduled_at && (
-                  <> on {formatInTimezone(trashConfirmBooking.scheduled_at, orgTimezone, { weekday: 'long', month: 'long', day: 'numeric' })}</>
-                )}
-                ? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={async () => {
-                  if (!trashConfirmBooking) return;
-                  try {
-                    await deleteBooking.mutateAsync(trashConfirmBooking.id);
-                    setTrashConfirmBooking(null);
-                  } catch (err) {
-                    console.error('Delete failed:', err);
-                  }
-                }}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </DndContext>
   );
