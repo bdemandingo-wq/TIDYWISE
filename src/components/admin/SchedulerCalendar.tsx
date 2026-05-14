@@ -73,6 +73,7 @@ const statusColors: Record<string, string> = {
   confirmed: 'bg-primary/20 text-primary border-primary/30',
   in_progress: 'bg-info/20 text-info border-info/30',
   completed: 'bg-success/20 text-success border-success/30',
+  rescheduled: 'bg-purple-500/20 text-purple-700 border-purple-500/30',
   cancelled: 'bg-destructive/20 text-destructive border-destructive/30',
   no_show: 'bg-muted text-muted-foreground border-muted',
 };
@@ -82,6 +83,7 @@ const statusLabels: Record<string, string> = {
   confirmed: 'uncleaned',
   in_progress: 'in progress',
   completed: 'clean completed',
+  rescheduled: 'rescheduled',
   cancelled: 'cancelled',
   no_show: 'no show',
 };
