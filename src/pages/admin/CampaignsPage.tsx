@@ -61,6 +61,76 @@ const toneOptions = [
   { value: "seasonal", label: "Seasonal" },
 ];
 
+function ManualOptOutForm({ orgId, isPending, onSubmit }: {
+  orgId: string | null;
+  isPending: boolean;
+  onSubmit: (customerId: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const { data: results = [] } = useQuery({
+    queryKey: ["customer-search-optout", orgId, search],
+    queryFn: async () => {
+      if (!orgId || search.trim().length < 2) return [];
+      const term = `%${search.trim()}%`;
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email")
+        .eq("organization_id", orgId)
+        .eq("marketing_status", "active")
+        .or(`first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term},email.ilike.${term}`)
+        .limit(8);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!orgId && search.trim().length >= 2,
+  });
+
+  return (
+    <Card className="mt-4">
+      <CardContent className="p-4 space-y-3">
+        <div>
+          <Label className="text-sm font-medium">Manually mark a contact as opted out</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Search by name, phone, or email. They will be excluded from all future campaign sends.
+          </p>
+        </div>
+        <Input
+          placeholder="Search active contacts…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {results.length > 0 && (
+          <div className="border rounded-lg divide-y">
+            {results.map((c: any) => {
+              const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+              return (
+                <div key={c.id} className="flex items-center justify-between p-2.5 gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.phone || c.email || '—'}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={isPending}
+                    onClick={() => { onSubmit(c.id); setSearch(""); }}
+                  >
+                    <UserX className="w-3.5 h-3.5 mr-1" /> Opt out
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {search.trim().length >= 2 && results.length === 0 && (
+          <p className="text-xs text-muted-foreground">No active contacts match.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function CampaignsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1403,76 +1473,6 @@ function StatCard({ icon: Icon, label, value, trend }: {
           {trend === "up" && <TrendingUp className="w-4 h-4 text-emerald-500" />}
           {trend === "down" && <TrendingDown className="w-4 h-4 text-destructive" />}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ManualOptOutForm({ orgId, isPending, onSubmit }: {
-  orgId: string | null;
-  isPending: boolean;
-  onSubmit: (customerId: string) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const { data: results = [] } = useQuery({
-    queryKey: ["customer-search-optout", orgId, search],
-    queryFn: async () => {
-      if (!orgId || search.trim().length < 2) return [];
-      const term = `%${search.trim()}%`;
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, first_name, last_name, phone, email")
-        .eq("organization_id", orgId)
-        .eq("marketing_status", "active")
-        .or(`first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term},email.ilike.${term}`)
-        .limit(8);
-      if (error) return [];
-      return data || [];
-    },
-    enabled: !!orgId && search.trim().length >= 2,
-  });
-
-  return (
-    <Card className="mt-4">
-      <CardContent className="p-4 space-y-3">
-        <div>
-          <Label className="text-sm font-medium">Manually mark a contact as opted out</Label>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Search by name, phone, or email. They will be excluded from all future campaign sends.
-          </p>
-        </div>
-        <Input
-          placeholder="Search active contacts…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {results.length > 0 && (
-          <div className="border rounded-lg divide-y">
-            {results.map((c: any) => {
-              const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
-              return (
-                <div key={c.id} className="flex items-center justify-between p-2.5 gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{c.phone || c.email || '—'}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                    disabled={isPending}
-                    onClick={() => { onSubmit(c.id); setSearch(""); }}
-                  >
-                    <UserX className="w-3.5 h-3.5 mr-1" /> Opt out
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {search.trim().length >= 2 && results.length === 0 && (
-          <p className="text-xs text-muted-foreground">No active contacts match.</p>
-        )}
       </CardContent>
     </Card>
   );
