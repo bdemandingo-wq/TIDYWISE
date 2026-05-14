@@ -56,7 +56,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
 
   const cleanerStats = useMemo(() => {
     return staff
-      .filter(s => s.is_active)
+      .filter(s => s.is_active === true)
       .map((cleaner): CleanerStats => {
         const cleanerBookings = bookings.filter(b => b.staff?.id === cleaner.id);
         
