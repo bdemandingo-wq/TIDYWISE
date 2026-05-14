@@ -224,6 +224,12 @@ const handler = async (req: Request): Promise<Response> => {
     const responseData = await openPhoneResponse.json();
     console.log("Review request SMS sent successfully:", responseData);
 
+    // Flag the customer so they never receive another review request
+    await supabase
+      .from('customers')
+      .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() } as any)
+      .eq('id', customerId);
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
