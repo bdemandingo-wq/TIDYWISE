@@ -34,6 +34,7 @@ import {
   Check,
   Bell,
   Navigation as NavigationIcon,
+  Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
