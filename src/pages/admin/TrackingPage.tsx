@@ -368,6 +368,28 @@ export default function TrackingPage() {
                 Include distance &amp; ETA in client SMS
               </Label>
             </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client-arrived"
+                checked={smsSettings.notify_client_arrived}
+                onCheckedChange={(v) => handleToggle('notify_client_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client-arrived" className="text-sm cursor-pointer">
+                Notify client when cleaner has arrived
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-admin-arrived"
+                checked={smsSettings.notify_admin_arrived}
+                onCheckedChange={(v) => handleToggle('notify_admin_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-admin-arrived" className="text-sm cursor-pointer">
+                Notify admin when cleaner has arrived
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>
