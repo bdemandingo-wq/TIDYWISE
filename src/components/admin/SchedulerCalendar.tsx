@@ -324,9 +324,17 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   }, [allTeamAssignments]);
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
-  const [trashConfirmBooking, setTrashConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
   const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clear any pending delete timers on unmount
+  useEffect(() => {
+    const timers = pendingDeleteTimers.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
   // Fetch staff for color consistency
   const { data: staffList = [] } = useQuery({
     queryKey: ['staff-for-calendar', organization?.id],
