@@ -483,10 +483,54 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     const booking = allBookings.find(b => b.id === bookingId);
     if (!booking) return;
 
-    // Handle trash drop
+    // Handle trash drop — soft delete with 5s undo window
     if (targetId === 'trash-zone') {
       setActiveBooking(null);
-      setTrashConfirmBooking(booking);
+      const customerName = formatCustomerName(booking.customer);
+
+      // Hide booking from view immediately
+      setPendingDeleteIds(prev => {
+        const next = new Set(prev);
+        next.add(bookingId);
+        return next;
+      });
+
+      // After 5s, perform the actual delete
+      const timer = setTimeout(async () => {
+        pendingDeleteTimers.current.delete(bookingId);
+        try {
+          await deleteBooking.mutateAsync(bookingId);
+        } catch (err) {
+          console.error('Delete failed:', err);
+          toast.error('Failed to delete booking');
+        }
+        setPendingDeleteIds(prev => {
+          const next = new Set(prev);
+          next.delete(bookingId);
+          return next;
+        });
+      }, 5000);
+      pendingDeleteTimers.current.set(bookingId, timer);
+
+      toast(`${customerName}'s booking deleted`, {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            const t = pendingDeleteTimers.current.get(bookingId);
+            if (t) {
+              clearTimeout(t);
+              pendingDeleteTimers.current.delete(bookingId);
+            }
+            setPendingDeleteIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
+            toast.success('Booking restored');
+          },
+        },
+      });
       return;
     }
 
