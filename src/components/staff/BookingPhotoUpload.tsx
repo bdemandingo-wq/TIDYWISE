@@ -12,7 +12,7 @@ interface BookingPhotoUploadProps {
   bookingId: string;
   staffId: string;
   organizationId: string;
-  onPhotoUploaded?: () => void;
+  onPhotoUploaded?: (path: string) => void;
 }
 
 const PHOTO_MAX_SIZE = 10 * 1024 * 1024;
@@ -256,7 +256,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       setIsOpen(false);
       clearPreview();
       setUploadProgress(0);
-      onPhotoUploaded?.();
+      onPhotoUploaded?.(filePath);
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);

@@ -74,9 +74,10 @@ interface SortableItemProps {
   item: ChecklistItem;
   index: number;
   onRemove: (index: number) => void;
+  onToggleRequiresPhoto: (index: number, requires: boolean) => void;
 }
 
-function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
+function SortableChecklistItem({ item, index, onRemove, onToggleRequiresPhoto }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -113,12 +114,17 @@ function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
           <p className="text-sm text-muted-foreground">{item.description}</p>
         )}
       </div>
-      {item.requires_photo && (
-        <Badge variant="outline" className="gap-1">
-          <Camera className="w-3 h-3" />
-          Photo
-        </Badge>
-      )}
+      <div className="flex items-center gap-2">
+        <Camera className={`w-4 h-4 ${item.requires_photo ? 'text-primary' : 'text-muted-foreground'}`} />
+        <Label htmlFor={`req-photo-${item._key}`} className="text-xs cursor-pointer select-none">
+          Photo required
+        </Label>
+        <Switch
+          id={`req-photo-${item._key}`}
+          checked={item.requires_photo}
+          onCheckedChange={(checked) => onToggleRequiresPhoto(index, checked)}
+        />
+      </div>
       <Button
         type="button"
         variant="ghost"
@@ -305,7 +311,20 @@ export default function ChecklistsPage() {
     }
   });
 
-  // Toggle template active
+  // Inline toggle of requires_photo on a saved item
+  const toggleItemRequiresPhoto = useMutation({
+    mutationFn: async ({ itemId, requires }: { itemId: string; requires: boolean }) => {
+      const { error } = await supabase
+        .from('checklist_items')
+        .update({ requires_photo: requires })
+        .eq('id', itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checklist-templates'] });
+    },
+    onError: (err: Error) => toast.error(`Failed to update item: ${err.message}`),
+  });
   const toggleTemplate = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
@@ -488,6 +507,11 @@ export default function ChecklistsPage() {
                           item={item}
                           index={index}
                           onRemove={removeItemFromForm}
+                          onToggleRequiresPhoto={(idx, requires) => {
+                            const updated = [...formData.items];
+                            updated[idx] = { ...updated[idx], requires_photo: requires };
+                            setFormData({ ...formData, items: updated });
+                          }}
                         />
                       ))}
                     </div>
@@ -519,7 +543,7 @@ export default function ChecklistsPage() {
                     />
                     <Label htmlFor="requires-photo" className="flex items-center gap-2 cursor-pointer">
                       <Camera className="w-4 h-4" />
-                      Photo suggested (optional)
+                      Photo required
                     </Label>
                   </div>
                   <Button type="button" size="sm" onClick={addItemToForm} disabled={!newItem.title.trim()}>
@@ -676,12 +700,19 @@ export default function ChecklistsPage() {
                               <p className="text-xs text-muted-foreground">{item.description}</p>
                             )}
                           </div>
-                          {item.requires_photo && (
-                            <Badge variant="outline" className="gap-1 text-xs">
-                              <Camera className="w-3 h-3" />
-                              Photo
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Camera className={`w-3 h-3 ${item.requires_photo ? 'text-primary' : 'text-muted-foreground'}`} />
+                            <Label htmlFor={`saved-req-photo-${item.id}`} className="text-xs cursor-pointer select-none">
+                              Photo required
+                            </Label>
+                            <Switch
+                              id={`saved-req-photo-${item.id}`}
+                              checked={!!item.requires_photo}
+                              onCheckedChange={(checked) =>
+                                toggleItemRequiresPhoto.mutate({ itemId: item.id, requires: checked })
+                              }
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>

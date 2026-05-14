@@ -71,7 +71,8 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
           is_completed,
           notes,
           photo_url,
-          checklist_item_id
+          checklist_item_id,
+          checklist_items:checklist_item_id ( requires_photo )
         )
       `;
 
@@ -211,7 +212,8 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
                 is_completed,
                 notes,
                 photo_url,
-                checklist_item_id
+                checklist_item_id,
+                checklist_items:checklist_item_id ( requires_photo )
               )
             `)
             .eq('id', existing.id)
@@ -279,7 +281,8 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
               is_completed,
               notes,
               photo_url,
-              checklist_item_id
+              checklist_item_id,
+              checklist_items:checklist_item_id ( requires_photo )
             )
           `)
           .eq('id', newChecklist.id)
@@ -335,7 +338,8 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
             is_completed,
             notes,
             photo_url,
-            checklist_item_id
+            checklist_item_id,
+            checklist_items:checklist_item_id ( requires_photo )
           )
         `)
         .eq('id', newChecklist.id)
@@ -345,9 +349,29 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     },
   });
 
+  // Set / clear per-item photo
+  const setItemPhoto = useMutation({
+    mutationFn: async ({ itemId, photoPath }: { itemId: string; photoPath: string | null }) => {
+      const { error } = await supabase
+        .from('booking_checklist_items')
+        .update({ photo_url: photoPath })
+        .eq('id', itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking-checklist', bookingId] });
+    },
+  });
+
   // Toggle item completion
   const toggleItem = useMutation({
     mutationFn: async ({ itemId, isCompleted }: { itemId: string; isCompleted: boolean }) => {
+      if (isCompleted) {
+        const target = items.find((it) => it.id === itemId);
+        if (target?.requires_photo && !target?.photo_url) {
+          throw new Error('PHOTO_REQUIRED');
+        }
+      }
       const { error } = await supabase
         .from('booking_checklist_items')
         .update({
@@ -361,7 +385,12 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-checklist', bookingId] });
     },
-    onError: () => {
+    onError: (err: Error, variables) => {
+      if (err.message === 'PHOTO_REQUIRED') {
+        toast.error('A photo is required to complete this item.');
+        setExpandedItem(variables.itemId);
+        return;
+      }
       toast.error('Failed to update item');
     },
   });
@@ -418,7 +447,10 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     );
   }
 
-  const items = (checklist?.booking_checklist_items || []) as ChecklistItem[];
+  const items = ((checklist?.booking_checklist_items || []) as any[]).map((it) => ({
+    ...it,
+    requires_photo: !!(it.checklist_items?.requires_photo),
+  })) as ChecklistItem[];
   const completedCount = items.filter((item) => item.is_completed).length;
   const progress = items.length > 0 ? (completedCount / items.length) * 100 : 0;
   const isCompleted = checklist?.completed_at != null;
@@ -477,6 +509,15 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
                 >
                   {item.title}
                 </p>
+                {item.requires_photo && (
+                  <Badge
+                    variant={item.photo_url ? 'default' : 'destructive'}
+                    className="mt-1 gap-1 text-[10px]"
+                  >
+                    <Camera className="w-3 h-3" />
+                    {item.photo_url ? 'Photo added' : 'Photo required'}
+                  </Badge>
+                )}
                 {item.notes && (
                   <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
                 )}
@@ -509,6 +550,9 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
                   bookingId={bookingId}
                   staffId={staffId}
                   organizationId={organizationId || ''}
+                  onPhotoUploaded={(path) =>
+                    setItemPhoto.mutate({ itemId: item.id, photoPath: path })
+                  }
                 />
               </div>
             )}
