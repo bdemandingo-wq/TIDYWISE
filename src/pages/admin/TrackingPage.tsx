@@ -208,7 +208,7 @@ export default function TrackingPage() {
   const [historicalJobs, setHistoricalJobs] = useState<HistoricalTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true, notify_client_distance_eta: true });
+  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true, notify_client_distance_eta: true, notify_admin_arrived: true, notify_client_arrived: true });
   const [savingToggle, setSavingToggle] = useState(false);
 
   const fetchActive = useCallback(async () => {
