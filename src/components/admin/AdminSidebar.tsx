@@ -92,7 +92,7 @@ const defaultNavigation = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Benchmarks', href: '/dashboard/benchmarks', icon: BarChart3 },
+  { name: 'Benchmarks', href: '/dashboard/benchmarks', icon: Gauge },
   { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
