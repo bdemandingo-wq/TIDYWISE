@@ -11,9 +11,36 @@ interface ChatMessage {
   content: string;
 }
 
+// Simple in-memory per-IP rate limiter to throttle AI abuse on this public endpoint.
+// 20 requests per IP per 10 minutes.
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const ipHits = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipHits.get(ip);
+  if (!entry || entry.resetAt < now) {
+    ipHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  if (entry.count > RATE_LIMIT_MAX) return true;
+  return false;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // SECURITY: rate-limit by client IP to prevent AI credit / lead-spam abuse
+  const clientIp = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
+  if (isRateLimited(clientIp)) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Too many requests. Please try again shortly.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
