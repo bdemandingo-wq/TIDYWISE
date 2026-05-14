@@ -68,9 +68,23 @@ interface UseCleanerTrackingOptions {
   destinationAddress?: string;
 }
 
+const ARRIVAL_THRESHOLD_METERS = 100;
+const POLL_INTERVAL_MS = 12000; // 12s — within the 10–15s spec
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function useCleanerTracking({ bookingId, staffId, organizationId, destinationAddress }: UseCleanerTrackingOptions) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const trackingIdRef = useRef<string | null>(null);
+  const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const arrivedRef = useRef<boolean>(false);
   const [isTracking, setIsTracking] = useState(false);
 
   const stopTracking = useCallback(async () => {
@@ -85,15 +99,37 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         .eq('id', trackingIdRef.current);
       trackingIdRef.current = null;
     }
+    arrivedRef.current = false;
     setIsTracking(false);
   }, []);
 
-  const updatePosition = useCallback(async () => {
-    if (!trackingIdRef.current) return;
+  const checkArrival = useCallback(async (lat: number, lng: number) => {
+    if (arrivedRef.current || !destCoordsRef.current) return;
+    const meters = haversineMeters(lat, lng, destCoordsRef.current.lat, destCoordsRef.current.lng);
+    if (meters > ARRIVAL_THRESHOLD_METERS) return;
+
+    arrivedRef.current = true;
+    console.log('[GPS] Arrival detected — within', Math.round(meters), 'm');
 
     try {
-      const { latitude, longitude } = await getCurrentPosition(10000);
+      if (trackingIdRef.current) {
+        await supabase
+          .from('cleaner_location_tracking')
+          .update({ arrived_at: new Date().toISOString() } as any)
+          .eq('id', trackingIdRef.current);
+      }
+      await supabase.functions.invoke('send-arrival-sms', {
+        body: { bookingId, staffId },
+      });
+    } catch (err) {
+      console.warn('[GPS] Arrival notification failed:', err);
+    }
+  }, [bookingId, staffId]);
 
+  const updatePosition = useCallback(async () => {
+    if (!trackingIdRef.current) return;
+    try {
+      const { latitude, longitude } = await getCurrentPosition(10000);
       await supabase
         .from('cleaner_location_tracking')
         .update({
@@ -102,10 +138,12 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
           recorded_at: new Date().toISOString(),
         } as any)
         .eq('id', trackingIdRef.current);
+      checkArrival(latitude, longitude);
     } catch (err) {
       console.warn('[GPS] Periodic update failed:', err);
     }
-  }, []);
+  }, [checkArrival]);
+
 
   const startTracking = useCallback(async (): Promise<{
     trackingToken: string | null;
@@ -157,14 +195,17 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
                   body: { address: destinationAddress },
                 });
                 if (res.data?.lat && res.data?.lng) {
+                  destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
                   const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
                   etaMinutes = estimateDriveMinutes(dist);
                 }
               } catch { /* non-critical */ }
             }
 
-            intervalRef.current = setInterval(updatePosition, 30000);
+            checkArrival(latitude, longitude);
+            intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
             setIsTracking(true);
+
 
             return {
               trackingToken: (existing as any).tracking_token,
@@ -187,14 +228,17 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
             body: { address: destinationAddress },
           });
           if (res.data?.lat && res.data?.lng) {
+            destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
             const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
             etaMinutes = estimateDriveMinutes(dist);
           }
         } catch { /* non-critical */ }
       }
 
-      intervalRef.current = setInterval(updatePosition, 30000);
+      checkArrival(latitude, longitude);
+      intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
       setIsTracking(true);
+
 
       return {
         trackingToken: (data as any).tracking_token,
@@ -217,7 +261,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition]);
+  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival]);
 
   // Cleanup on unmount
   useEffect(() => {

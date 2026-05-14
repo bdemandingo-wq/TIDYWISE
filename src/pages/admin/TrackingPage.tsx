@@ -49,6 +49,8 @@ interface SmsSettings {
   notify_admin_on_the_way: boolean;
   notify_client_on_the_way: boolean;
   notify_client_distance_eta: boolean;
+  notify_admin_arrived: boolean;
+  notify_client_arrived: boolean;
 }
 
 function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; destLat?: number; destLng?: number }) {
@@ -206,7 +208,7 @@ export default function TrackingPage() {
   const [historicalJobs, setHistoricalJobs] = useState<HistoricalTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true, notify_client_distance_eta: true });
+  const [smsSettings, setSmsSettings] = useState<SmsSettings>({ notify_admin_on_the_way: true, notify_client_on_the_way: true, notify_client_distance_eta: true, notify_admin_arrived: true, notify_client_arrived: true });
   const [savingToggle, setSavingToggle] = useState(false);
 
   const fetchActive = useCallback(async () => {
@@ -253,7 +255,7 @@ export default function TrackingPage() {
     if (!orgId) return;
     const { data } = await supabase
       .from('organization_sms_settings')
-      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta')
+      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta, notify_admin_arrived, notify_client_arrived')
       .eq('organization_id', orgId)
       .maybeSingle();
     if (data) {
@@ -261,6 +263,8 @@ export default function TrackingPage() {
         notify_admin_on_the_way: data.notify_admin_on_the_way ?? true,
         notify_client_on_the_way: data.notify_client_on_the_way ?? true,
         notify_client_distance_eta: (data as any).notify_client_distance_eta ?? true,
+        notify_admin_arrived: (data as any).notify_admin_arrived ?? true,
+        notify_client_arrived: (data as any).notify_client_arrived ?? true,
       });
     }
   }, [orgId]);
@@ -362,6 +366,28 @@ export default function TrackingPage() {
               />
               <Label htmlFor="notify-client-eta" className="text-sm cursor-pointer">
                 Include distance &amp; ETA in client SMS
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client-arrived"
+                checked={smsSettings.notify_client_arrived}
+                onCheckedChange={(v) => handleToggle('notify_client_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client-arrived" className="text-sm cursor-pointer">
+                Notify client when cleaner has arrived
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-admin-arrived"
+                checked={smsSettings.notify_admin_arrived}
+                onCheckedChange={(v) => handleToggle('notify_admin_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-admin-arrived" className="text-sm cursor-pointer">
+                Notify admin when cleaner has arrived
               </Label>
             </div>
           </div>
