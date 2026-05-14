@@ -34,7 +34,30 @@ export function AdminNotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
 
+  // One-time prompt for browser notification permission so desktop notifications
+  // actually fire when realtime events arrive (booking requests, new leads, etc.).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    const KEY = 'admin-notif-permission-asked-v1';
+    if (localStorage.getItem(KEY)) return;
+    // Defer slightly so it doesn't block initial render
+    const t = window.setTimeout(() => {
+      localStorage.setItem(KEY, '1');
+      Notification.requestPermission().catch(() => {});
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const deliverBrowserNotification = (notification: Pick<AdminNotification, 'id' | 'title' | 'message'>) => {
+    // Best-effort: if permission was never granted, request it lazily on first event
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
+      Notification.requestPermission().catch(() => {});
+    }
     showBrowserNotification({
       title: notification.title,
       body: notification.message,
