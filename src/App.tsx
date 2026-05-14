@@ -168,7 +168,7 @@ const AppStateHandler = () => {
 };
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
+  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="tidywise-theme">
     <QueryClientProvider client={queryClient}>
       {/* AuthProviderNoSession MUST wrap AuthProvider since AuthProvider uses useAuthNoSession */}
       <AuthProviderNoSession>
