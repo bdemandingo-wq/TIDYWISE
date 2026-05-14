@@ -4,7 +4,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useBenchmarks, type CohortType, type ServiceBucket } from '@/hooks/useBenchmarks';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { Loader2, BarChart3, Lock, Users } from 'lucide-react';
+import { Loader2, Gauge, Lock, Users } from 'lucide-react';
 import { BenchmarkHeadlineCard } from '@/components/admin/benchmarks/BenchmarkHeadlineCard';
 import { BenchmarkInsightsPanel } from '@/components/admin/benchmarks/BenchmarkInsightsPanel';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
