@@ -496,6 +496,56 @@ For each tip, reference my actual data where relevant. Format each with a bold t
       });
     }
 
+    // ─── ASK AI CHAT (streaming SSE) ───
+    if (type === "chat") {
+      let ctx: any = null;
+      if (orgId) {
+        try { ctx = await fetchBusinessContext(supabaseAdmin, orgId); } catch (e) { console.error("Context fetch error:", e); }
+      }
+      const snap = ctx || businessSnapshot || {};
+      const systemPrompt = ctx
+        ? buildSystemPrompt(ctx)
+        : `You are TidyWise AI, an expert cleaning business advisor. Use this snapshot: ${JSON.stringify(snap).slice(0, 4000)}`;
+
+      const safeMessages = Array.isArray(messages)
+        ? messages
+            .filter((m: any) => m && typeof m.content === "string" && (m.role === "user" || m.role === "assistant"))
+            .slice(-20)
+            .map((m: any) => ({ role: m.role, content: m.content }))
+        : [];
+
+      const upstream = await aiRequest(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...safeMessages,
+        ],
+      });
+
+      const limited = handleRateLimit(upstream.status);
+      if (limited) return limited;
+
+      if (!upstream.ok || !upstream.body) {
+        const errText = await upstream.text().catch(() => "");
+        console.error("AI gateway chat error:", upstream.status, errText);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(upstream.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("ai-analysis-center error:", e);
