@@ -224,10 +224,14 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
 
-        // Mark as sent
+        // Mark as sent + flag customer so they never get another review request
         await supabase.from("automated_review_sms_queue")
           .update({ sent: true, sent_at: new Date().toISOString() })
           .eq("id", item.id);
+
+        await supabase.from("customers")
+          .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() } as any)
+          .eq("id", item.customer_id);
 
         successCount++;
         console.log(`Review SMS sent for booking ${item.booking_id} to ${formattedPhone}`);
