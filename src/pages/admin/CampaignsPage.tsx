@@ -43,7 +43,7 @@ interface AITemplate {
   message: string;
 }
 
-type ChannelFilter = "all" | "sms" | "email";
+type ChannelFilter = "all" | "sms" | "email" | "opted_out";
 type StatusFilter = "all" | "draft" | "scheduled" | "sent" | "active";
 type AudienceType = "active_clients" | "inactive_clients" | "leads" | "all_customers";
 
@@ -182,6 +182,46 @@ export default function CampaignsPage() {
       return count || 0;
     },
     enabled: !!orgId,
+  });
+
+  // Opted-out customer list
+  const { data: optedOutList = [] } = useQuery({
+    queryKey: ["opted-out-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email, opted_out_at, opted_out_method, opted_out_campaign_id, updated_at")
+        .eq("organization_id", orgId)
+        .eq("marketing_status", "opted_out")
+        .order("opted_out_at", { ascending: false, nullsFirst: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Map of campaign id -> name for opt-out attribution
+  const campaignNameMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    campaigns.forEach((c: any) => { m[c.id] = c.name; });
+    return m;
+  }, [campaigns]);
+
+  const setOptOutStatus = useMutation({
+    mutationFn: async ({ customerId, optedOut }: { customerId: string; optedOut: boolean }) => {
+      const update: any = optedOut
+        ? { marketing_status: "opted_out", opted_out_at: new Date().toISOString(), opted_out_method: "manual" }
+        : { marketing_status: "active", opted_out_at: null, opted_out_method: null, opted_out_campaign_id: null };
+      const { error } = await supabase.from("customers").update(update).eq("id", customerId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["opted-out-list"] });
+      queryClient.invalidateQueries({ queryKey: ["opted-out-count"] });
+      toast({ title: vars.optedOut ? "Marked as opted out" : "Opted back in" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   // Campaign link tracking stats (aggregated per campaign)
@@ -496,6 +536,12 @@ export default function CampaignsPage() {
               <TabsTrigger value="all">All Channels</TabsTrigger>
               <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> SMS</TabsTrigger>
               <TabsTrigger value="email" className="gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</TabsTrigger>
+              <TabsTrigger value="opted_out" className="gap-1.5">
+                <UserX className="w-3.5 h-3.5" /> Opted Out
+                {optedOutCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{optedOutCount}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -508,7 +554,136 @@ export default function CampaignsPage() {
             <StatCard icon={UserX} label="Opted Out" value={optedOutCount} />
           </div>
 
-          {/* Campaign Library */}
+          {channelFilter === "opted_out" ? (
+            /* Opted Out List */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold">Opted-Out Contacts</h2>
+                  <p className="text-xs text-muted-foreground">
+                    These contacts replied STOP or were manually excluded — they will not receive any future campaign sends.
+                  </p>
+                </div>
+              </div>
+
+              {optedOutList.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                      <UserX className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-semibold mb-1">No opted-out contacts</h3>
+                    <p className="text-sm text-muted-foreground">When customers reply STOP or are marked as opted out, they will appear here.</p>
+                  </CardContent>
+                </Card>
+              ) : isMobile ? (
+                <div className="space-y-3">
+                  {optedOutList.map((c: any) => {
+                    const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+                    const campaignName = c.opted_out_campaign_id ? campaignNameMap[c.opted_out_campaign_id] : null;
+                    return (
+                      <Card key={c.id} className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{name}</p>
+                            <p className="text-xs text-muted-foreground">{c.phone || c.email || '—'}</p>
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              <Badge variant="outline" className="text-[10px]">
+                                {c.opted_out_method === 'sms_stop' ? 'Replied STOP' : c.opted_out_method === 'manual' ? 'Manual' : (c.opted_out_method || 'Manual')}
+                              </Badge>
+                              {c.opted_out_at && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {format(new Date(c.opted_out_at), 'MMM d, yyyy')}
+                                </Badge>
+                              )}
+                              {campaignName && (
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <Send className="w-2.5 h-2.5" />{campaignName}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setOptOutStatus.mutate({ customerId: c.id, optedOut: false })}
+                            disabled={setOptOutStatus.isPending}
+                          >
+                            Opt back in
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-card rounded-xl border border-border shadow-sm overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Contact</TableHead>
+                        <TableHead className="w-[180px]">Phone</TableHead>
+                        <TableHead className="w-[140px]">Date Opted Out</TableHead>
+                        <TableHead className="w-[140px]">Method</TableHead>
+                        <TableHead>Triggering Campaign</TableHead>
+                        <TableHead className="w-[140px] text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {optedOutList.map((c: any) => {
+                        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+                        const campaignName = c.opted_out_campaign_id ? campaignNameMap[c.opted_out_campaign_id] : null;
+                        return (
+                          <TableRow key={c.id} className="hover:bg-muted/30">
+                            <TableCell>
+                              <p className="font-medium text-sm">{name}</p>
+                              {c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}
+                            </TableCell>
+                            <TableCell><span className="text-sm">{c.phone || '—'}</span></TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">
+                                {c.opted_out_at ? format(new Date(c.opted_out_at), 'MMM d, yyyy') : '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {c.opted_out_method === 'sms_stop' ? 'Replied STOP' : c.opted_out_method === 'manual' ? 'Manual' : (c.opted_out_method || 'Manual')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {campaignName ? (
+                                <span className="text-sm">{campaignName}</span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setOptOutStatus.mutate({ customerId: c.id, optedOut: false })}
+                                disabled={setOptOutStatus.isPending}
+                              >
+                                Opt back in
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Manually mark a contact as opted out */}
+              <ManualOptOutForm
+                onSubmit={(customerId) => setOptOutStatus.mutate({ customerId, optedOut: true })}
+                orgId={orgId}
+                isPending={setOptOutStatus.isPending}
+              />
+            </div>
+          ) : (
+          /* Campaign Library */
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold">Campaign Library</h2>
@@ -660,6 +835,7 @@ export default function CampaignsPage() {
               </div>
             )}
           </div>
+          )}
 
         </div>
       </SubscriptionGate>
@@ -1227,6 +1403,76 @@ function StatCard({ icon: Icon, label, value, trend }: {
           {trend === "up" && <TrendingUp className="w-4 h-4 text-emerald-500" />}
           {trend === "down" && <TrendingDown className="w-4 h-4 text-destructive" />}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ManualOptOutForm({ orgId, isPending, onSubmit }: {
+  orgId: string | null;
+  isPending: boolean;
+  onSubmit: (customerId: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const { data: results = [] } = useQuery({
+    queryKey: ["customer-search-optout", orgId, search],
+    queryFn: async () => {
+      if (!orgId || search.trim().length < 2) return [];
+      const term = `%${search.trim()}%`;
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email")
+        .eq("organization_id", orgId)
+        .eq("marketing_status", "active")
+        .or(`first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term},email.ilike.${term}`)
+        .limit(8);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!orgId && search.trim().length >= 2,
+  });
+
+  return (
+    <Card className="mt-4">
+      <CardContent className="p-4 space-y-3">
+        <div>
+          <Label className="text-sm font-medium">Manually mark a contact as opted out</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Search by name, phone, or email. They will be excluded from all future campaign sends.
+          </p>
+        </div>
+        <Input
+          placeholder="Search active contacts…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {results.length > 0 && (
+          <div className="border rounded-lg divide-y">
+            {results.map((c: any) => {
+              const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+              return (
+                <div key={c.id} className="flex items-center justify-between p-2.5 gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.phone || c.email || '—'}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={isPending}
+                    onClick={() => { onSubmit(c.id); setSearch(""); }}
+                  >
+                    <UserX className="w-3.5 h-3.5 mr-1" /> Opt out
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {search.trim().length >= 2 && results.length === 0 && (
+          <p className="text-xs text-muted-foreground">No active contacts match.</p>
+        )}
       </CardContent>
     </Card>
   );

@@ -2867,6 +2867,9 @@ export type Database = {
           marketing_status: string
           merged_into: string | null
           notes: string | null
+          opted_out_at: string | null
+          opted_out_campaign_id: string | null
+          opted_out_method: string | null
           organization_id: string | null
           phone: string | null
           state: string | null
@@ -2888,6 +2891,9 @@ export type Database = {
           marketing_status?: string
           merged_into?: string | null
           notes?: string | null
+          opted_out_at?: string | null
+          opted_out_campaign_id?: string | null
+          opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
           state?: string | null
@@ -2909,6 +2915,9 @@ export type Database = {
           marketing_status?: string
           merged_into?: string | null
           notes?: string | null
+          opted_out_at?: string | null
+          opted_out_campaign_id?: string | null
+          opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
           state?: string | null
@@ -2922,6 +2931,13 @@ export type Database = {
             columns: ["merged_into"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_opted_out_campaign_id_fkey"
+            columns: ["opted_out_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "automated_campaigns"
             referencedColumns: ["id"]
           },
           {
