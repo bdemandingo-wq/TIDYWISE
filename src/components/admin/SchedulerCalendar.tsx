@@ -325,6 +325,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const [trashConfirmBooking, setTrashConfirmBooking] = useState<BookingWithDetails | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   // Fetch staff for color consistency
   const { data: staffList = [] } = useQuery({
     queryKey: ['staff-for-calendar', organization?.id],
