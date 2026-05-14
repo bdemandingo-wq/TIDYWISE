@@ -161,8 +161,28 @@ export function AdminNotificationBell() {
         }
       }
 
+      // Fetch admin system notifications (e.g., month-end P&L reminder)
+      const { data: systemNotifs } = await supabase
+        .from('admin_system_notifications')
+        .select('id, type, title, message, link, is_read, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      const systemNotifications: AdminNotification[] = (systemNotifs || []).map((n: any) => ({
+        id: `system-${n.id}`,
+        type: 'system' as const,
+        title: n.title,
+        message: n.message,
+        is_read: !!n.is_read,
+        created_at: n.created_at,
+        resource_id: n.id,
+        resource_type: n.type,
+        link: n.link || undefined,
+      }));
+
       // Combine and sort by created_at
-      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications, ...weeklyReminders]
+      const allNotifications = [...bookingRequestNotifs, ...bookingNotifications, ...weeklyReminders, ...systemNotifications]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setNotifications(allNotifications);
