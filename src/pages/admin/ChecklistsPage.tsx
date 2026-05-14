@@ -700,12 +700,19 @@ export default function ChecklistsPage() {
                               <p className="text-xs text-muted-foreground">{item.description}</p>
                             )}
                           </div>
-                          {item.requires_photo && (
-                            <Badge variant="outline" className="gap-1 text-xs">
-                              <Camera className="w-3 h-3" />
-                              Photo
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Camera className={`w-3 h-3 ${item.requires_photo ? 'text-primary' : 'text-muted-foreground'}`} />
+                            <Label htmlFor={`saved-req-photo-${item.id}`} className="text-xs cursor-pointer select-none">
+                              Photo required
+                            </Label>
+                            <Switch
+                              id={`saved-req-photo-${item.id}`}
+                              checked={!!item.requires_photo}
+                              onCheckedChange={(checked) =>
+                                toggleItemRequiresPhoto.mutate({ itemId: item.id, requires: checked })
+                              }
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
