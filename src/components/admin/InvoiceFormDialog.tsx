@@ -691,8 +691,9 @@ export function InvoiceFormDialog({
                           <Input
                             type="number"
                             min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                            placeholder="1"
+                            value={item.quantity === 0 ? '' : item.quantity}
+                            onChange={(e) => updateLineItem(index, 'quantity', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
                           />
                         </div>
                         <div className="flex-1">
@@ -700,8 +701,9 @@ export function InvoiceFormDialog({
                           <Input
                             type="number"
                             step="0.01"
-                            value={item.unit_price}
-                            onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                            value={item.unit_price === 0 ? '' : item.unit_price}
+                            onChange={(e) => updateLineItem(index, 'unit_price', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
                           />
                         </div>
                         <div className="flex-1">
