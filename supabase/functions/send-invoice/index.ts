@@ -190,9 +190,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
     const companyName = bizSettings?.company_name || emailSettings.from_name || "TidyWise";
+    const orgEmailLine = bizSettings?.company_email || emailSettings.from_email;
     const companyMeta = [
       [bizSettings?.company_address, [bizSettings?.company_city, bizSettings?.company_state, bizSettings?.company_zip].filter(Boolean).join(", ")].filter(Boolean).join("\n"),
-      [bizSettings?.company_phone, bizSettings?.company_email || emailSettings.from_email].filter(Boolean).join(" · "),
+      orgEmailLine,
     ].filter(Boolean);
 
     const lineItemsRows = safeLineItems
