@@ -29,9 +29,6 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // LOCKED: Only allowed for TidyWise organization
-  const ALLOWED_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
-
   let orgId: string | null = null;
   try {
     if (req.method === "POST") {
@@ -40,13 +37,37 @@ Deno.serve(async (req) => {
     }
   } catch { /* ignore */ }
 
+  // If no org_id provided, fan out to ALL organizations and self-invoke
   if (!orgId) {
-    orgId = ALLOWED_ORG_ID;
-  }
-
-  if (orgId !== ALLOWED_ORG_ID) {
-    return new Response(JSON.stringify({ error: "This feature is not available for your organization" }), {
-      status: 403,
+    const { data: orgs, error: orgsErr } = await supabase
+      .from("organizations")
+      .select("id");
+    if (orgsErr) {
+      return new Response(JSON.stringify({ error: orgsErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/evening-brief`;
+    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const results: Array<{ org_id: string; ok: boolean; status: number }> = [];
+    for (const o of orgs ?? []) {
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-cron-secret": cronSecret,
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") ?? ""}`,
+          },
+          body: JSON.stringify({ org_id: o.id }),
+        });
+        results.push({ org_id: o.id, ok: r.ok, status: r.status });
+      } catch (e: any) {
+        results.push({ org_id: o.id, ok: false, status: 0 });
+      }
+    }
+    return new Response(JSON.stringify({ processed: results.length, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
