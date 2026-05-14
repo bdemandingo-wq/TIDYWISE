@@ -74,9 +74,10 @@ interface SortableItemProps {
   item: ChecklistItem;
   index: number;
   onRemove: (index: number) => void;
+  onToggleRequiresPhoto: (index: number, requires: boolean) => void;
 }
 
-function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
+function SortableChecklistItem({ item, index, onRemove, onToggleRequiresPhoto }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -113,12 +114,17 @@ function SortableChecklistItem({ item, index, onRemove }: SortableItemProps) {
           <p className="text-sm text-muted-foreground">{item.description}</p>
         )}
       </div>
-      {item.requires_photo && (
-        <Badge variant="outline" className="gap-1">
-          <Camera className="w-3 h-3" />
-          Photo
-        </Badge>
-      )}
+      <div className="flex items-center gap-2">
+        <Camera className={`w-4 h-4 ${item.requires_photo ? 'text-primary' : 'text-muted-foreground'}`} />
+        <Label htmlFor={`req-photo-${item._key}`} className="text-xs cursor-pointer select-none">
+          Photo required
+        </Label>
+        <Switch
+          id={`req-photo-${item._key}`}
+          checked={item.requires_photo}
+          onCheckedChange={(checked) => onToggleRequiresPhoto(index, checked)}
+        />
+      </div>
       <Button
         type="button"
         variant="ghost"
