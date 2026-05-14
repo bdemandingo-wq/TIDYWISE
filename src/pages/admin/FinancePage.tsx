@@ -164,6 +164,24 @@ export default function FinancePage() {
     enabled: !!organizationId && bookingIds.length > 0,
   });
 
+  // Fetch paid tips collected through portal in date range
+  const { data: paidTips = [] } = useQuery({
+    queryKey: ['finance-paid-tips', organizationId, dateRange],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('tips')
+        .select('amount, paid_at, payment_intent_id')
+        .eq('organization_id', organizationId)
+        .eq('status', 'paid')
+        .gte('paid_at', dateRange.from.toISOString())
+        .lte('paid_at', dateRange.to.toISOString());
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
   // Fetch expenses for the date range - scoped to organization
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses-finance', organizationId, dateRange],
@@ -241,6 +259,26 @@ export default function FinancePage() {
     const totalCleanerPay = activeTransactions.reduce((sum, t) => sum + t.cleaner_pay, 0);
     const refundedTransactions = activeTransactions.filter(t => t.payment_status === 'refunded');
     const totalRefunds = refundedTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
+
+    // Portal revenue: paid bookings collected through the client portal
+    // (not yet captured by Stripe sync — i.e. no payment_intent_id) + paid tips
+    const portalBookingsRevenue = bookings
+      .filter((b: any) =>
+        b.status !== 'cancelled' &&
+        (b.payment_status === 'paid' || b.payment_status === 'partial') &&
+        !b.payment_intent_id
+      )
+      .reduce((sum: number, b: any) => sum + (Number(b.total_amount) || 0), 0);
+    const portalTipsRevenue = paidTips
+      .filter((t: any) => !t.payment_intent_id)
+      .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+    const portalRevenue = portalBookingsRevenue + portalTipsRevenue;
+    const portalPaymentCount =
+      bookings.filter((b: any) =>
+        b.status !== 'cancelled' &&
+        (b.payment_status === 'paid' || b.payment_status === 'partial') &&
+        !b.payment_intent_id
+      ).length + paidTips.filter((t: any) => !t.payment_intent_id).length;
     
     // Calculate expenses by category
     const expensesByCategory: Record<string, number> = {};
@@ -266,8 +304,10 @@ export default function FinancePage() {
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 10) / 10,
       transactionCount: activeTransactions.length,
+      portalRevenue: Math.round(portalRevenue * 100) / 100,
+      portalPaymentCount,
     };
-  }, [transactions, expenses]);
+  }, [transactions, expenses, bookings, paidTips]);
 
   // Sales tax by zip code
   const salesTaxByZip = useMemo(() => {
@@ -432,11 +472,34 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-green-600">
-              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales))}`}
+              {isTestMode
+                ? '$X,XXX.XX'
+                : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales) + metrics.portalRevenue)}`}
             </p>
-            {stripeConnected && (
-              <p className="text-[10px] text-muted-foreground">{stripeData.successful_payments_count} payments</p>
+            {stripeConnected ? (
+              <p className="text-[10px] text-muted-foreground">
+                Stripe {fmt(stripeData.total_revenue)} + Portal {fmt(metrics.portalRevenue)}
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground">
+                Includes {fmt(metrics.portalRevenue)} portal payments
+              </p>
             )}
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-blue-500" />
+              <span className="text-xs text-muted-foreground">Portal Revenue</span>
+              <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />
+            </div>
+            <p className="text-xl font-bold text-blue-600">
+              {isTestMode ? '$X,XXX.XX' : `${fmt(metrics.portalRevenue)}`}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {metrics.portalPaymentCount} portal payments (incl. tips)
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -485,9 +548,9 @@ export default function FinancePage() {
             </div>
             <p className={cn(
               "text-xl font-bold",
-              (stripeConnected ? stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
+              (stripeConnected ? stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
+              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
             </p>
           </CardContent>
         </Card>
