@@ -543,7 +543,7 @@ export default function ChecklistsPage() {
                     />
                     <Label htmlFor="requires-photo" className="flex items-center gap-2 cursor-pointer">
                       <Camera className="w-4 h-4" />
-                      Photo suggested (optional)
+                      Photo required
                     </Label>
                   </div>
                   <Button type="button" size="sm" onClick={addItemToForm} disabled={!newItem.title.trim()}>
