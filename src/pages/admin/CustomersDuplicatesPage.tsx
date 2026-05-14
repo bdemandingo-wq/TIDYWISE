@@ -307,29 +307,91 @@ export default function CustomersDuplicatesPage() {
   });
 
   const mergeMutation = useMutation({
-    mutationFn: async (args: { primary_id: string; secondary_id: string }) => {
+    mutationFn: async (args: { primary: Customer; secondary: Customer }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
+      const { primary, secondary } = args;
+
+      // Snapshot the secondary's owned records BEFORE the merge so we can
+      // reverse it if the admin clicks Undo.
+      const [bookingsRes, recurringRes, quotesRes, locationsRes, notesRes, refRes1, refRes2] =
+        await Promise.all([
+          db.from('bookings').select('id').eq('customer_id', secondary.id),
+          db.from('recurring_bookings').select('id').eq('customer_id', secondary.id),
+          db.from('quotes').select('id').eq('customer_id', secondary.id),
+          db.from('locations').select('id').eq('customer_id', secondary.id),
+          db.from('property_notes').select('id').eq('customer_id', secondary.id),
+          db.from('referrals').select('id').eq('referrer_customer_id', secondary.id),
+          db.from('referrals').select('id').eq('referred_customer_id', secondary.id),
+        ]);
+
+      const snapshot = {
+        primary_fields: {
+          email: primary.email ?? '',
+          phone: primary.phone ?? '',
+          address: primary.address ?? '',
+          city: primary.city ?? '',
+          state: primary.state ?? '',
+          zip_code: primary.zip_code ?? '',
+        },
+        booking_ids: (bookingsRes.data ?? []).map((r: { id: string }) => r.id),
+        recurring_ids: (recurringRes.data ?? []).map((r: { id: string }) => r.id),
+        quote_ids: (quotesRes.data ?? []).map((r: { id: string }) => r.id),
+        location_ids: (locationsRes.data ?? []).map((r: { id: string }) => r.id),
+        property_note_ids: (notesRes.data ?? []).map((r: { id: string }) => r.id),
+        referrer_ids: (refRes1.data ?? []).map((r: { id: string }) => r.id),
+        referred_ids: (refRes2.data ?? []).map((r: { id: string }) => r.id),
+      };
+
       const { data, error } = await db.rpc('merge_customers', {
-        primary_id: args.primary_id,
-        secondary_id: args.secondary_id,
+        primary_id: primary.id,
+        secondary_id: secondary.id,
       });
       if (error) throw error;
-      return data as {
-        bookings_moved: number;
-        recurring_moved: number;
-        quotes_moved: number;
-      } | null;
+      return {
+        result: data as { bookings_moved: number; recurring_moved: number; quotes_moved: number } | null,
+        snapshot,
+        primary_id: primary.id,
+        secondary_id: secondary.id,
+      };
     },
-    onSuccess: (data) => {
-      const moved = (data?.bookings_moved ?? 0) + (data?.recurring_moved ?? 0);
+    onSuccess: ({ result, snapshot, primary_id, secondary_id }) => {
+      const moved = (result?.bookings_moved ?? 0) + (result?.recurring_moved ?? 0);
+      const invalidate = () => {
+        queryClient.invalidateQueries({ queryKey: ['customers-for-dedupe', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['customers', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['customer-stats-for-dedupe', orgId] });
+      };
+      invalidate();
+      setConfirmMerge(null);
+
       toast.success(
         `Merged 2 customers — ${moved} booking${moved === 1 ? '' : 's'} transferred`,
+        {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const db = supabase as any;
+                const { error } = await db.rpc('unmerge_customers', {
+                  primary_id,
+                  secondary_id,
+                  snapshot,
+                });
+                if (error) throw error;
+                invalidate();
+                toast.success('Merge undone — customer restored');
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : 'Failed to undo merge';
+                toast.error(msg);
+                console.error(err);
+              }
+            },
+          },
+        },
       );
-      queryClient.invalidateQueries({ queryKey: ['customers-for-dedupe', orgId] });
-      queryClient.invalidateQueries({ queryKey: ['customers', orgId] });
-      queryClient.invalidateQueries({ queryKey: ['customer-stats-for-dedupe', orgId] });
-      setConfirmMerge(null);
     },
     onError: (err: Error) => {
       toast.error(err.message ?? 'Merge failed');
