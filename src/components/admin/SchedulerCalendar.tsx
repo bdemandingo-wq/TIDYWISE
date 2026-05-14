@@ -393,13 +393,14 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     // Use timezone-aware comparison (same as getBookingsForDate) to avoid mismatches
     return allBookings.filter(b => {
+      if (pendingDeleteIds.has(b.id)) return false;
       const bookingDateStr = getDateInTimezone(b.scheduled_at, orgTimezone);
       const inDateRange = bookingDateStr >= startStr && bookingDateStr <= endStr;
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
       const matchesStaff = !staffFilter || b.staff_id === staffFilter;
       return inDateRange && matchesStatus && matchesStaff;
     });
-  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone]);
+  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone, pendingDeleteIds]);
 
   const { year, month, days, monthWeekRows } = useMemo(() => {
     const year = currentDate.getFullYear();
