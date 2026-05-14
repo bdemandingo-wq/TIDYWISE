@@ -77,12 +77,19 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Get customer details
+        // Get customer details + verify review request not already sent
         const { data: customer } = await supabase
           .from("customers")
-          .select("first_name, last_name, phone")
+          .select("first_name, last_name, phone, review_request_sent")
           .eq("id", item.customer_id)
           .single();
+
+        if ((customer as any)?.review_request_sent) {
+          await supabase.from("automated_review_sms_queue")
+            .update({ sent: true, sent_at: new Date().toISOString(), error: "Customer already received a review request" })
+            .eq("id", item.id);
+          continue;
+        }
 
         if (!customer?.phone) {
           await supabase.from("automated_review_sms_queue")
