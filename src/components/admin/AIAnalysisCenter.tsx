@@ -383,6 +383,59 @@ export function AIAnalysisCenter() {
   const chatMessagesRef = useRef(chatMessages);
   chatMessagesRef.current = chatMessages;
 
+  // ─── Draft Message Modal ───
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftSending, setDraftSending] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [draftTarget, setDraftTarget] = useState<{ name: string; phone?: string | null; email?: string | null; channel: 'sms' | 'email' } | null>(null);
+
+  const openDraftMessage = useCallback(async (
+    target: { name: string; phone?: string | null; email?: string | null },
+    prompt: string,
+    channel: 'sms' | 'email' = 'sms'
+  ) => {
+    setDraftTarget({ ...target, channel });
+    setDraftOpen(true);
+    setDraftText('');
+    setDraftLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
+        body: { type: 'draft-message', prompt, channel, organizationId: orgId },
+      });
+      if (error) throw error;
+      setDraftText((data as any)?.message || '');
+    } catch (e: any) {
+      console.error('Draft message error:', e);
+      toast.error('Could not generate draft message.');
+    } finally {
+      setDraftLoading(false);
+    }
+  }, [orgId]);
+
+  const sendDraftSms = useCallback(async () => {
+    if (!draftTarget?.phone || !draftText.trim()) {
+      toast.error('Missing phone number or message.');
+      return;
+    }
+    setDraftSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: { to: draftTarget.phone, message: draftText.trim(), organizationId: orgId },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Message sent to ${draftTarget.name}`);
+      setDraftOpen(false);
+    } catch (e: any) {
+      console.error('Send SMS error:', e);
+      toast.error(e?.message || 'Could not send SMS. Copy the message instead.');
+    } finally {
+      setDraftSending(false);
+    }
+  }, [draftTarget, draftText, orgId]);
+
+
   const sendChat = useCallback(async (input: string) => {
     if (!input.trim() || !orgId) return;
     const userMsg = { role: 'user' as const, content: input };
