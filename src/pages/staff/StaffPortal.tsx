@@ -577,6 +577,9 @@ export default function StaffPortal() {
   return (
     <>
       <SEOHead title="Staff Portal | TidyWise" description="Manage your jobs, availability, and earnings." noIndex />
+      {staffInfo?.id && (
+        <StaffLocationPrompt staffId={staffInfo.id} onResolved={() => { /* unmounts itself */ }} />
+      )}
       <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
