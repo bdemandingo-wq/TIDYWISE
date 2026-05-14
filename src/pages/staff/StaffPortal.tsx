@@ -15,6 +15,7 @@ import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
+import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
 
 // Lazy-load heavy tab components to speed up initial render
 const CleanerAvailabilityManager = lazy(() => import('@/components/staff/CleanerAvailabilityManager').then(m => ({ default: m.CleanerAvailabilityManager })));
