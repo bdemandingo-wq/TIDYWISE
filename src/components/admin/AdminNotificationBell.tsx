@@ -352,6 +352,10 @@ export function AdminNotificationBell() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
+    if (notification.link) {
+      setIsOpen(false);
+      navigate(notification.link);
+    }
   };
 
   const getTypeIcon = (type: string) => {
