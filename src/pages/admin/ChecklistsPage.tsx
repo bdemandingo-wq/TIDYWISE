@@ -494,6 +494,11 @@ export default function ChecklistsPage() {
                           item={item}
                           index={index}
                           onRemove={removeItemFromForm}
+                          onToggleRequiresPhoto={(idx, requires) => {
+                            const updated = [...formData.items];
+                            updated[idx] = { ...updated[idx], requires_photo: requires };
+                            setFormData({ ...formData, items: updated });
+                          }}
                         />
                       ))}
                     </div>
