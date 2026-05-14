@@ -420,11 +420,11 @@ export function AIAnalysisCenter() {
     }
     setDraftSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-sms', {
+      const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
         body: { to: draftTarget.phone, message: draftText.trim(), organizationId: orgId },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as any)?.success === false) throw new Error((data as any)?.error || 'Send failed');
       toast.success(`Message sent to ${draftTarget.name}`);
       setDraftOpen(false);
     } catch (e: any) {
