@@ -548,12 +548,11 @@ For each tip, reference my actual data where relevant. Format each with a bold t
 
     // ─── DRAFT MESSAGE (non-streaming) ───
     if (type === "draft-message") {
-      const { prompt, channel } = (await Promise.resolve({ prompt: (messages as any)?.prompt, channel: (messages as any)?.channel })) as any;
-      const userPrompt = typeof (req as any) === "object" && prompt ? prompt : (typeof messages === "string" ? messages : (messages?.prompt || ""));
       const ch = channel || "sms";
       const sys = ch === "email"
         ? "You write short, warm, professional re-engagement EMAILS for a cleaning business. Output ONLY the email body (no subject line, no signoff metadata). 80–140 words. Use the customer's first name. Include one specific incentive or scheduling CTA."
         : "You write short, warm, professional re-engagement TEXT MESSAGES (SMS) for a cleaning business. Output ONLY the message body. Max 320 characters. Use the customer's first name. Include one specific incentive or scheduling CTA. No emojis unless natural.";
+      const userPrompt = String(prompt || "");
 
       const upstream = await aiRequest(LOVABLE_API_KEY, {
         model: "google/gemini-3-flash-preview",
