@@ -311,6 +311,12 @@ export function AdminNotificationBell() {
         .from('admin_booking_request_notifications')
         .update({ is_read: true })
         .eq('id', dbId);
+    } else if (notificationId.startsWith('system-')) {
+      const dbId = notificationId.replace('system-', '');
+      await supabase
+        .from('admin_system_notifications')
+        .update({ is_read: true })
+        .eq('id', dbId);
     }
   };
 
