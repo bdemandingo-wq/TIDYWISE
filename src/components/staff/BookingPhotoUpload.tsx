@@ -256,7 +256,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       setIsOpen(false);
       clearPreview();
       setUploadProgress(0);
-      onPhotoUploaded?.();
+      onPhotoUploaded?.(filePath);
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
