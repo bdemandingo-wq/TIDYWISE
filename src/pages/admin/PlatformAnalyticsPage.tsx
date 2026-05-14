@@ -115,6 +115,7 @@ export default function PlatformAnalyticsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'client_portal'>('all');
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
