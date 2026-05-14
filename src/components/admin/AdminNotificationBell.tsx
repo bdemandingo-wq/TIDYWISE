@@ -23,6 +23,7 @@ interface AdminNotification {
   created_at: string;
   resource_id?: string;
   resource_type?: string;
+  link?: string;
 }
 
 export function AdminNotificationBell() {
