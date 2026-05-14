@@ -385,6 +385,16 @@ export function EditBookingDialog({
 
   const estimatedPay = calculateEstimatedPay();
 
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+
+  const attemptSave = () => {
+    if (status === "cancelled" && booking.status !== "cancelled") {
+      setConfirmCancelOpen(true);
+      return;
+    }
+    void handleSave();
+  };
+
   const handleSave = async () => {
     try {
       const scheduledAtIso = date && time ? new Date(`${date}T${time}:00`).toISOString() : booking.scheduled_at;
