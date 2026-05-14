@@ -182,7 +182,7 @@ export function AIAnalysisCenter() {
     queryKey: ['ai-churn', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data: customers } = await supabase.from('customers').select('id, first_name, last_name, email').eq('organization_id', orgId);
+      const { data: customers } = await supabase.from('customers').select('id, first_name, last_name, email, phone').eq('organization_id', orgId);
       if (!customers?.length) return [];
       const results: any[] = [];
       for (const c of customers) {
