@@ -2872,6 +2872,8 @@ export type Database = {
           opted_out_method: string | null
           organization_id: string | null
           phone: string | null
+          review_request_sent: boolean
+          review_request_sent_at: string | null
           state: string | null
           updated_at: string
           user_id: string | null
@@ -2896,6 +2898,8 @@ export type Database = {
           opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
+          review_request_sent?: boolean
+          review_request_sent_at?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string | null
@@ -2920,6 +2924,8 @@ export type Database = {
           opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
+          review_request_sent?: boolean
+          review_request_sent_at?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string | null

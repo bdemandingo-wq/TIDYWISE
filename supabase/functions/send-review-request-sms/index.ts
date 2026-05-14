@@ -47,6 +47,24 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Block if customer has already received a review request
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('review_request_sent')
+      .eq('id', customerId)
+      .maybeSingle();
+
+    if ((existingCustomer as any)?.review_request_sent) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'This customer has already received a review request.',
+        errorCode: 'ALREADY_SENT'
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
     
     // Fetch SMS settings for the organization
     const { data: smsSettings, error: smsError } = await supabase
@@ -205,6 +223,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     const responseData = await openPhoneResponse.json();
     console.log("Review request SMS sent successfully:", responseData);
+
+    // Flag the customer so they never receive another review request
+    await supabase
+      .from('customers')
+      .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() } as any)
+      .eq('id', customerId);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
