@@ -43,3 +43,32 @@ TIDYWISE is an all-in-one software platform built specifically for residential c
 
 - Website: https://www.jointidywise.com
 - Sign up: https://www.jointidywise.com/signup
+
+## Pages
+
+- [Homepage](/): All-in-one cleaning business software overview.
+- [Pricing](/pricing): Free forever tier and $50/month premium plan.
+- [Blog](/blog): Articles on growing and running a cleaning business.
+- [Contact](/contact): Get in touch with TidyWise.
+- [Cleaning Business Software](/cleaning-business-software): Full feature overview for cleaning businesses.
+- [CRM Software](/features/crm): Client relationship management for cleaners.
+- [Scheduling Software](/features/scheduling): Drag-and-drop scheduling for cleaning teams.
+- [Invoicing Software](/features/invoicing): Automatic invoicing and Stripe payments.
+- [Payroll Software](/features/payroll-software): Automated payroll for cleaners.
+- [Route Optimization](/features/route-optimization): Smart routing for cleaning crews.
+- [Booking Software](/features/booking): Public booking page with instant quotes.
+- [Quote Software](/features/quotes): Generate and send cleaning quotes.
+- [SMS Notifications](/features/sms-notifications): Automated SMS reminders and updates.
+- [Payment Processing](/features/payments): Stripe-powered payment processing.
+- [Automated Dispatching](/features/dispatching): Automatically assign cleaners to jobs.
+- [Compare Jobber](/compare/jobber): TidyWise vs Jobber for cleaners.
+- [Compare ZenMaid](/compare/zenmaid): TidyWise vs ZenMaid.
+- [Compare Housecall Pro](/compare/housecall-pro): TidyWise vs Housecall Pro.
+- [Compare ServiceTitan](/compare/servicetitan): TidyWise vs ServiceTitan.
+- [Compare BookingKoala](/compare/bookingkoala): TidyWise vs BookingKoala.
+- [Privacy Policy](/privacy-policy): How TidyWise handles your data.
+
+## Optional
+
+- [Login](/login): Existing user sign-in.
+- [Signup](/signup): Create a new TidyWise account.
