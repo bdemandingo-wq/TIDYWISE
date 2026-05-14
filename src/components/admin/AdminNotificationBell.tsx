@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { useOrgId } from '@/hooks/useOrgId';
 import { showBrowserNotification } from '@/hooks/usePushNotifications';
 
