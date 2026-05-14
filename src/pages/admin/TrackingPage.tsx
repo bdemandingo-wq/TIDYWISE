@@ -255,7 +255,7 @@ export default function TrackingPage() {
     if (!orgId) return;
     const { data } = await supabase
       .from('organization_sms_settings')
-      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta')
+      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta, notify_admin_arrived, notify_client_arrived')
       .eq('organization_id', orgId)
       .maybeSingle();
     if (data) {
@@ -263,6 +263,8 @@ export default function TrackingPage() {
         notify_admin_on_the_way: data.notify_admin_on_the_way ?? true,
         notify_client_on_the_way: data.notify_client_on_the_way ?? true,
         notify_client_distance_eta: (data as any).notify_client_distance_eta ?? true,
+        notify_admin_arrived: (data as any).notify_admin_arrived ?? true,
+        notify_client_arrived: (data as any).notify_client_arrived ?? true,
       });
     }
   }, [orgId]);
