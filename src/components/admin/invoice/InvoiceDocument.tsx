@@ -106,7 +106,6 @@ export function InvoiceDocument({
             {businessAddressLines.map((line) => (
               <div key={line}>{line}</div>
             ))}
-            {businessPhone && <div>{businessPhone}</div>}
           </div>
         </div>
 

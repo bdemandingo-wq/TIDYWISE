@@ -190,9 +190,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
     const companyName = bizSettings?.company_name || emailSettings.from_name || "TidyWise";
+    const orgEmailLine = bizSettings?.company_email || emailSettings.from_email;
     const companyMeta = [
       [bizSettings?.company_address, [bizSettings?.company_city, bizSettings?.company_state, bizSettings?.company_zip].filter(Boolean).join(", ")].filter(Boolean).join("\n"),
-      [bizSettings?.company_phone, bizSettings?.company_email || emailSettings.from_email].filter(Boolean).join(" · "),
+      orgEmailLine,
     ].filter(Boolean);
 
     const lineItemsRows = safeLineItems
@@ -279,7 +280,7 @@ const handler = async (req: Request): Promise<Response> => {
     ${data.notes ? `<div style="padding:0 32px 32px;"><div style="border:1px solid ${BORDER};border-radius:16px;padding:18px 20px;"><div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin-bottom:10px;">Notes</div><div style="font-size:14px;line-height:1.7;color:${MUTED};">${escapeHtml(data.notes).replace(/\n/g, "<br />")}</div></div></div>` : ""}
 
     <div style="padding:24px 32px;border-top:1px solid ${BORDER};font-size:13px;line-height:1.7;color:${MUTED};text-align:center;">
-      Questions? Reply to this email or call ${escapeHtml(bizSettings?.company_phone || "your office")}<br />
+      Questions? Reply to this email or contact ${escapeHtml(orgEmailLine || "us")}<br />
       ${escapeHtml(companyName)}
     </div>
   </div>

@@ -173,7 +173,7 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
             paymentUrl={!isPaid ? invoice.stripe_invoice_url : null}
           />
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Questions? Reply to this email or call {businessSettings?.company_phone || 'your office'}
+            Questions? Reply to this email or contact {businessSettings?.company_email || 'us'}
           </div>
         </div>
       </DialogContent>
