@@ -332,6 +332,11 @@ export function AdminNotificationBell() {
           .update({ is_read: true })
           .eq('organization_id', organizationId)
           .eq('is_read', false);
+        await supabase
+          .from('admin_system_notifications')
+          .update({ is_read: true })
+          .eq('organization_id', organizationId)
+          .eq('is_read', false);
       }
 
       // Dismiss weekly reminder so it doesn't reappear
