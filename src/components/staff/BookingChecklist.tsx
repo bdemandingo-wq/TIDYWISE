@@ -509,6 +509,15 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
                 >
                   {item.title}
                 </p>
+                {item.requires_photo && (
+                  <Badge
+                    variant={item.photo_url ? 'default' : 'destructive'}
+                    className="mt-1 gap-1 text-[10px]"
+                  >
+                    <Camera className="w-3 h-3" />
+                    {item.photo_url ? 'Photo added' : 'Photo required'}
+                  </Badge>
+                )}
                 {item.notes && (
                   <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
                 )}
