@@ -215,6 +215,15 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Failed to update invoice:", updateError);
     }
 
+    // Fetch the actual invoice to get the auto-generated invoice number + address
+    const { data: invoiceRow } = await supabase
+      .from("invoices")
+      .select("invoice_number, address, subtotal, total_amount, due_date, notes, created_at")
+      .eq("id", data.invoiceId)
+      .maybeSingle();
+
+    const resolvedInvoiceNumber = invoiceRow?.invoice_number ?? null;
+
     // Send SMS if requested
     if (wantsSms && data.customerPhone) {
       // Get organization SMS settings
@@ -227,68 +236,93 @@ const handler = async (req: Request): Promise<Response> => {
       const openPhoneApiKey = smsSettings?.openphone_api_key;
       const openPhoneNumberId = smsSettings?.openphone_phone_number_id;
 
-      if (openPhoneApiKey && openPhoneNumberId && smsSettings?.sms_enabled) {
-        try {
-          let formattedPhone = data.customerPhone.replace(/\D/g, '');
-          if (!formattedPhone.startsWith('+')) {
-            if (formattedPhone.length === 10) {
-              formattedPhone = `+1${formattedPhone}`;
-            } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
-              formattedPhone = `+${formattedPhone}`;
-            } else {
-              formattedPhone = `+${formattedPhone}`;
-            }
-          }
-
-          const dueDateText = data.dueDate 
-            ? ` Due: ${new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate))}.`
-            : '';
-          
-          const smsContent = `Hi ${data.customerName}! 📄 You have a new invoice for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
-
-          const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "Authorization": openPhoneApiKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              content: smsContent,
-              from: openPhoneNumberId,
-              to: [formattedPhone],
-            }),
-          });
-
-          if (smsResponse.ok) {
-            console.log("Invoice SMS sent to:", formattedPhone);
-          } else {
-            const errorText = await smsResponse.text();
-            console.error("Invoice SMS failed:", errorText);
-          }
-        } catch (smsError) {
-          console.error("Failed to send invoice SMS:", smsError);
-        }
-      } else {
-        console.log("SMS not sent - missing phone settings");
+      if (!openPhoneApiKey || !openPhoneNumberId) {
+        return new Response(
+          JSON.stringify({ error: "SMS is not configured for this organization. Add an OpenPhone API key and phone number in Settings → SMS." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    } else {
-      console.log("SMS not requested or no phone number");
+
+      try {
+        let formattedPhone = data.customerPhone.replace(/\D/g, '');
+        if (!formattedPhone.startsWith('+')) {
+          if (formattedPhone.length === 10) {
+            formattedPhone = `+1${formattedPhone}`;
+          } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+            formattedPhone = `+${formattedPhone}`;
+          } else {
+            formattedPhone = `+${formattedPhone}`;
+          }
+        }
+
+        const dueDateText = data.dueDate
+          ? ` Due: ${new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate))}.`
+          : '';
+
+        const invLabel = resolvedInvoiceNumber ? `INV-${String(resolvedInvoiceNumber).padStart(4, '0')}` : 'your invoice';
+        const smsContent = `Hi ${data.customerName}! 📄 ${invLabel} for $${data.totalAmount.toFixed(2)} from ${companyName}.${dueDateText}\n\nPay securely here: ${session.url}`;
+
+        const smsResponse = await fetch("https://api.openphone.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Authorization": openPhoneApiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: smsContent,
+            from: openPhoneNumberId,
+            to: [formattedPhone],
+          }),
+        });
+
+        if (smsResponse.ok) {
+          console.log("Invoice SMS sent to:", formattedPhone);
+        } else {
+          const errorText = await smsResponse.text();
+          console.error("Invoice SMS failed:", errorText);
+          return new Response(
+            JSON.stringify({ error: `Failed to send SMS: ${errorText}` }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (smsError: any) {
+        console.error("Failed to send invoice SMS:", smsError);
+        return new Response(
+          JSON.stringify({ error: `Failed to send SMS: ${smsError?.message || smsError}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else if (wantsSms && !data.customerPhone) {
+      return new Response(
+        JSON.stringify({ error: "Customer has no phone number on file." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Send email if requested
     if (wantsEmail && data.customerEmail) {
       try {
+        const lineItemsForEmail = data.items.map((it) => ({
+          description: it.description,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          total: Number((it.quantity * it.unitPrice).toFixed(2)),
+        }));
+
         const { error: emailError } = await supabase.functions.invoke('send-invoice', {
           body: {
-            invoiceNumber: null, // Will be fetched inside the function
             organizationId: data.organizationId,
             customerEmail: data.customerEmail,
             customerName: data.customerName,
-            serviceName: data.items.map(i => i.description).join(', '),
-            amount: data.totalAmount,
-            paymentLink: session.url,
-            validUntil: data.dueDate ? new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(data.dueDate)) : undefined,
-            notes: data.notes || undefined,
+            customerPhone: data.customerPhone || undefined,
+            invoiceNumber: resolvedInvoiceNumber,
+            lineItems: lineItemsForEmail,
+            subtotal: lineItemsForEmail.reduce((s, it) => s + it.total, 0),
+            total: data.totalAmount,
+            address: invoiceRow?.address || undefined,
+            invoiceDate: invoiceRow?.created_at || new Date().toISOString(),
+            dueDate: data.dueDate || invoiceRow?.due_date || undefined,
+            notes: data.notes || invoiceRow?.notes || undefined,
           },
         });
         if (emailError) {
