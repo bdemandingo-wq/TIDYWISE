@@ -220,8 +220,12 @@ export default function PlatformAnalyticsPage() {
 
   const openDeleteDialog = (id: string, type: 'user' | 'organization', name: string) => {
     setItemToDelete({ id, type, name });
+    setDeleteConfirmText('');
     setDeleteDialogOpen(true);
   };
+
+  const confirmTextMatches =
+    !!itemToDelete && deleteConfirmText.trim() === itemToDelete.name.trim();
 
   useEffect(() => {
     fetchAnalytics();
