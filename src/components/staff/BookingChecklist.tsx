@@ -349,9 +349,29 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     },
   });
 
+  // Set / clear per-item photo
+  const setItemPhoto = useMutation({
+    mutationFn: async ({ itemId, photoPath }: { itemId: string; photoPath: string | null }) => {
+      const { error } = await supabase
+        .from('booking_checklist_items')
+        .update({ photo_url: photoPath })
+        .eq('id', itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking-checklist', bookingId] });
+    },
+  });
+
   // Toggle item completion
   const toggleItem = useMutation({
     mutationFn: async ({ itemId, isCompleted }: { itemId: string; isCompleted: boolean }) => {
+      if (isCompleted) {
+        const target = items.find((it) => it.id === itemId);
+        if (target?.requires_photo && !target?.photo_url) {
+          throw new Error('PHOTO_REQUIRED');
+        }
+      }
       const { error } = await supabase
         .from('booking_checklist_items')
         .update({
@@ -365,7 +385,12 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-checklist', bookingId] });
     },
-    onError: () => {
+    onError: (err: Error, variables) => {
+      if (err.message === 'PHOTO_REQUIRED') {
+        toast.error('A photo is required to complete this item.');
+        setExpandedItem(variables.itemId);
+        return;
+      }
       toast.error('Failed to update item');
     },
   });
