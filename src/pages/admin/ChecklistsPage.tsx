@@ -311,7 +311,20 @@ export default function ChecklistsPage() {
     }
   });
 
-  // Toggle template active
+  // Inline toggle of requires_photo on a saved item
+  const toggleItemRequiresPhoto = useMutation({
+    mutationFn: async ({ itemId, requires }: { itemId: string; requires: boolean }) => {
+      const { error } = await supabase
+        .from('checklist_items')
+        .update({ requires_photo: requires })
+        .eq('id', itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checklist-templates'] });
+    },
+    onError: (err: Error) => toast.error(`Failed to update item: ${err.message}`),
+  });
   const toggleTemplate = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
