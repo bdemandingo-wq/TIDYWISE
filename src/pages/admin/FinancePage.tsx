@@ -472,11 +472,34 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-green-600">
-              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales))}`}
+              {isTestMode
+                ? '$X,XXX.XX'
+                : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales) + metrics.portalRevenue)}`}
             </p>
-            {stripeConnected && (
-              <p className="text-[10px] text-muted-foreground">{stripeData.successful_payments_count} payments</p>
+            {stripeConnected ? (
+              <p className="text-[10px] text-muted-foreground">
+                Stripe {fmt(stripeData.total_revenue)} + Portal {fmt(metrics.portalRevenue)}
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground">
+                Includes {fmt(metrics.portalRevenue)} portal payments
+              </p>
             )}
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-blue-500" />
+              <span className="text-xs text-muted-foreground">Portal Revenue</span>
+              <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />
+            </div>
+            <p className="text-xl font-bold text-blue-600">
+              {isTestMode ? '$X,XXX.XX' : `${fmt(metrics.portalRevenue)}`}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {metrics.portalPaymentCount} portal payments (incl. tips)
+            </p>
           </CardContent>
         </Card>
         <Card>
