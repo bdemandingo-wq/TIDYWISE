@@ -21,6 +21,7 @@ const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string
   { value: "confirmed", label: "Uncleaned" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Clean Completed" },
+  { value: "rescheduled", label: "Rescheduled" },
   { value: "cancelled", label: "Cancelled" },
   { value: "no_show", label: "No Show" },
 ];
