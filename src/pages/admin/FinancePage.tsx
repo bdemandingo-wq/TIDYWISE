@@ -548,9 +548,9 @@ export default function FinancePage() {
             </div>
             <p className={cn(
               "text-xl font-bold",
-              (stripeConnected ? stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
+              (stripeConnected ? stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
             )}>
-              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
+              {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
             </p>
           </CardContent>
         </Card>
