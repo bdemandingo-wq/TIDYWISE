@@ -274,10 +274,34 @@ export default function CustomersDuplicatesPage() {
         ignored_by: user.id,
       });
       if (error) throw error;
+      return pair;
     },
-    onSuccess: () => {
+    onSuccess: (pair) => {
       queryClient.invalidateQueries({ queryKey: ['customer-duplicate-ignored', orgId] });
-      toast.success('Pair ignored — will not show up again');
+      toast.success('Pair ignored', {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const db = supabase as any;
+              const { error } = await db
+                .from('customer_duplicate_ignored')
+                .delete()
+                .eq('organization_id', orgId)
+                .eq('customer_a_id', pair.a.id)
+                .eq('customer_b_id', pair.b.id);
+              if (error) throw error;
+              queryClient.invalidateQueries({ queryKey: ['customer-duplicate-ignored', orgId] });
+              toast.success('Restored — pair will show again');
+            } catch (err) {
+              toast.error('Failed to undo');
+              console.error(err);
+            }
+          },
+        },
+      });
     },
     onError: (err: Error) => toast.error(err.message ?? 'Failed to ignore pair'),
   });
