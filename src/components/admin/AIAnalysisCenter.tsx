@@ -902,6 +902,52 @@ export function AIAnalysisCenter() {
         </TabsContent>
 
       </Tabs>
+
+      <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Draft message{draftTarget?.name ? ` for ${draftTarget.name}` : ''}</DialogTitle>
+            <DialogDescription>
+              AI-generated {draftTarget?.channel === 'email' ? 'email' : 'SMS'}. Edit before sending.
+            </DialogDescription>
+          </DialogHeader>
+          {draftLoading ? (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              <RefreshCw size={16} className="animate-spin mr-2" /> Generating message…
+            </div>
+          ) : (
+            <Textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={8}
+              placeholder="Your message…"
+            />
+          )}
+          {draftTarget?.phone ? (
+            <p className="text-xs text-muted-foreground">Will send to {draftTarget.phone}</p>
+          ) : (
+            <p className="text-xs text-amber-500">No phone on file — copy the message and send manually.</p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(draftText);
+                toast.success('Copied to clipboard');
+              }}
+              disabled={!draftText.trim() || draftLoading}
+            >
+              Copy
+            </Button>
+            <Button
+              onClick={sendDraftSms}
+              disabled={!draftText.trim() || draftLoading || draftSending || !draftTarget?.phone}
+            >
+              {draftSending ? <><RefreshCw size={14} className="animate-spin mr-2" /> Sending…</> : 'Send SMS'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
