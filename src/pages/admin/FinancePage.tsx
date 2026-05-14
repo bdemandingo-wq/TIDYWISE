@@ -164,6 +164,24 @@ export default function FinancePage() {
     enabled: !!organizationId && bookingIds.length > 0,
   });
 
+  // Fetch paid tips collected through portal in date range
+  const { data: paidTips = [] } = useQuery({
+    queryKey: ['finance-paid-tips', organizationId, dateRange],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('tips')
+        .select('amount, paid_at, payment_intent_id')
+        .eq('organization_id', organizationId)
+        .eq('status', 'paid')
+        .gte('paid_at', dateRange.from.toISOString())
+        .lte('paid_at', dateRange.to.toISOString());
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
   // Fetch expenses for the date range - scoped to organization
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses-finance', organizationId, dateRange],
