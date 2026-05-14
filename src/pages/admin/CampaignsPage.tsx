@@ -536,6 +536,12 @@ export default function CampaignsPage() {
               <TabsTrigger value="all">All Channels</TabsTrigger>
               <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> SMS</TabsTrigger>
               <TabsTrigger value="email" className="gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</TabsTrigger>
+              <TabsTrigger value="opted_out" className="gap-1.5">
+                <UserX className="w-3.5 h-3.5" /> Opted Out
+                {optedOutCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{optedOutCount}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
