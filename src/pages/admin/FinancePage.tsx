@@ -259,6 +259,26 @@ export default function FinancePage() {
     const totalCleanerPay = activeTransactions.reduce((sum, t) => sum + t.cleaner_pay, 0);
     const refundedTransactions = activeTransactions.filter(t => t.payment_status === 'refunded');
     const totalRefunds = refundedTransactions.reduce((sum, t) => sum + t.gross_amount, 0);
+
+    // Portal revenue: paid bookings collected through the client portal
+    // (not yet captured by Stripe sync — i.e. no payment_intent_id) + paid tips
+    const portalBookingsRevenue = bookings
+      .filter((b: any) =>
+        b.status !== 'cancelled' &&
+        (b.payment_status === 'paid' || b.payment_status === 'partial') &&
+        !b.payment_intent_id
+      )
+      .reduce((sum: number, b: any) => sum + (Number(b.total_amount) || 0), 0);
+    const portalTipsRevenue = paidTips
+      .filter((t: any) => !t.payment_intent_id)
+      .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+    const portalRevenue = portalBookingsRevenue + portalTipsRevenue;
+    const portalPaymentCount =
+      bookings.filter((b: any) =>
+        b.status !== 'cancelled' &&
+        (b.payment_status === 'paid' || b.payment_status === 'partial') &&
+        !b.payment_intent_id
+      ).length + paidTips.filter((t: any) => !t.payment_intent_id).length;
     
     // Calculate expenses by category
     const expensesByCategory: Record<string, number> = {};
@@ -284,8 +304,10 @@ export default function FinancePage() {
       netProfit: Math.round(netProfit * 100) / 100,
       profitMargin: Math.round(profitMargin * 10) / 10,
       transactionCount: activeTransactions.length,
+      portalRevenue: Math.round(portalRevenue * 100) / 100,
+      portalPaymentCount,
     };
-  }, [transactions, expenses]);
+  }, [transactions, expenses, bookings, paidTips]);
 
   // Sales tax by zip code
   const salesTaxByZip = useMemo(() => {
