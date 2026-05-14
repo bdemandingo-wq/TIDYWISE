@@ -281,7 +281,8 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
               is_completed,
               notes,
               photo_url,
-              checklist_item_id
+              checklist_item_id,
+              checklist_items:checklist_item_id ( requires_photo )
             )
           `)
           .eq('id', newChecklist.id)
