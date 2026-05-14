@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, ArrowRight, Loader2, ShieldX, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, ShieldX, Sparkles, Star } from 'lucide-react';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
