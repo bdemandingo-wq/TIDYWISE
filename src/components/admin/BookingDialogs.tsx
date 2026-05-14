@@ -12,6 +12,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, DollarSign, Percent, Clock, Send, CreditCard, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
 import { AdminLiveTracking } from "./AdminLiveTracking";
 import { fmt } from '@/lib/activeCurrency';
@@ -375,6 +385,16 @@ export function EditBookingDialog({
 
   const estimatedPay = calculateEstimatedPay();
 
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+
+  const attemptSave = () => {
+    if (status === "cancelled" && booking.status !== "cancelled") {
+      setConfirmCancelOpen(true);
+      return;
+    }
+    void handleSave();
+  };
+
   const handleSave = async () => {
     try {
       const scheduledAtIso = date && time ? new Date(`${date}T${time}:00`).toISOString() : booking.scheduled_at;
@@ -592,12 +612,35 @@ export function EditBookingDialog({
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={saving}>
+          <Button type="button" onClick={attemptSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save changes
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this booking? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={async () => {
+                setConfirmCancelOpen(false);
+                await handleSave();
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

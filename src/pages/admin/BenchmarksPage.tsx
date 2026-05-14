@@ -4,7 +4,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { useBenchmarks, type CohortType, type ServiceBucket } from '@/hooks/useBenchmarks';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { Loader2, BarChart3, Lock, Users } from 'lucide-react';
+import { Loader2, Gauge, Lock, Users } from 'lucide-react';
 import { BenchmarkHeadlineCard } from '@/components/admin/benchmarks/BenchmarkHeadlineCard';
 import { BenchmarkInsightsPanel } from '@/components/admin/benchmarks/BenchmarkInsightsPanel';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -106,7 +106,7 @@ export default function BenchmarksPage() {
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className="h-5 w-5 text-primary" />
+            <Gauge className="h-5 w-5 text-primary" />
             <h1 className="text-2xl font-semibold">Benchmarks</h1>
           </div>
           <p className="text-sm text-muted-foreground">

@@ -34,6 +34,7 @@ import {
   Check,
   Bell,
   Navigation as NavigationIcon,
+  Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -91,7 +92,7 @@ const defaultNavigation = [
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
   { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Benchmarks', href: '/dashboard/benchmarks', icon: BarChart3 },
+  { name: 'Benchmarks', href: '/dashboard/benchmarks', icon: Gauge },
   { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
@@ -102,7 +103,7 @@ const defaultNavigation = [
 const iconMap: Record<string, typeof Home> = {
   Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
   Briefcase, UserCircle, CheckSquare, Package, DollarSign, Receipt, BarChart3,
-  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain, Globe, Zap, Camera,
+  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain, Globe, Zap, Camera, Gauge,
 };
 
 interface NavItem {
