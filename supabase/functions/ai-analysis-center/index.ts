@@ -207,7 +207,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { type, messages, organizationId, businessSnapshot } = await req.json();
+    const { type, messages, organizationId, businessSnapshot, prompt, channel } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -492,6 +492,85 @@ For each tip, reference my actual data where relevant. Format each with a bold t
 
       const data = await response.json();
       return new Response(JSON.stringify({ playbook: data.choices?.[0]?.message?.content || "" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── ASK AI CHAT (streaming SSE) ───
+    if (type === "chat") {
+      let ctx: any = null;
+      if (orgId) {
+        try { ctx = await fetchBusinessContext(supabaseAdmin, orgId); } catch (e) { console.error("Context fetch error:", e); }
+      }
+      const snap = ctx || businessSnapshot || {};
+      const systemPrompt = ctx
+        ? buildSystemPrompt(ctx)
+        : `You are TidyWise AI, an expert cleaning business advisor. Use this snapshot: ${JSON.stringify(snap).slice(0, 4000)}`;
+
+      const safeMessages = Array.isArray(messages)
+        ? messages
+            .filter((m: any) => m && typeof m.content === "string" && (m.role === "user" || m.role === "assistant"))
+            .slice(-20)
+            .map((m: any) => ({ role: m.role, content: m.content }))
+        : [];
+
+      const upstream = await aiRequest(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...safeMessages,
+        ],
+      });
+
+      const limited = handleRateLimit(upstream.status);
+      if (limited) return limited;
+
+      if (!upstream.ok || !upstream.body) {
+        const errText = await upstream.text().catch(() => "");
+        console.error("AI gateway chat error:", upstream.status, errText);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(upstream.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
+    // ─── DRAFT MESSAGE (non-streaming) ───
+    if (type === "draft-message") {
+      const ch = channel || "sms";
+      const sys = ch === "email"
+        ? "You write short, warm, professional re-engagement EMAILS for a cleaning business. Output ONLY the email body (no subject line, no signoff metadata). 80–140 words. Use the customer's first name. Include one specific incentive or scheduling CTA."
+        : "You write short, warm, professional re-engagement TEXT MESSAGES (SMS) for a cleaning business. Output ONLY the message body. Max 320 characters. Use the customer's first name. Include one specific incentive or scheduling CTA. No emojis unless natural.";
+      const userPrompt = String(prompt || "");
+
+      const upstream = await aiRequest(LOVABLE_API_KEY, {
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: String(userPrompt || "") },
+        ],
+      });
+
+      const limited = handleRateLimit(upstream.status);
+      if (limited) return limited;
+      if (!upstream.ok) {
+        const errText = await upstream.text().catch(() => "");
+        console.error("AI gateway draft-message error:", upstream.status, errText);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const data = await upstream.json();
+      return new Response(JSON.stringify({ message: data.choices?.[0]?.message?.content?.trim() || "" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

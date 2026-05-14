@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Brain, TrendingUp, AlertTriangle, Flame, Target,
   Send, Sparkles, Calendar, Users, ArrowUpRight,
@@ -180,7 +182,7 @@ export function AIAnalysisCenter() {
     queryKey: ['ai-churn', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data: customers } = await supabase.from('customers').select('id, first_name, last_name, email').eq('organization_id', orgId);
+      const { data: customers } = await supabase.from('customers').select('id, first_name, last_name, email, phone').eq('organization_id', orgId);
       if (!customers?.length) return [];
       const results: any[] = [];
       for (const c of customers) {
@@ -380,6 +382,59 @@ export function AIAnalysisCenter() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMessagesRef = useRef(chatMessages);
   chatMessagesRef.current = chatMessages;
+
+  // ─── Draft Message Modal ───
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftSending, setDraftSending] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [draftTarget, setDraftTarget] = useState<{ name: string; phone?: string | null; email?: string | null; channel: 'sms' | 'email' } | null>(null);
+
+  const openDraftMessage = useCallback(async (
+    target: { name: string; phone?: string | null; email?: string | null },
+    prompt: string,
+    channel: 'sms' | 'email' = 'sms'
+  ) => {
+    setDraftTarget({ ...target, channel });
+    setDraftOpen(true);
+    setDraftText('');
+    setDraftLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
+        body: { type: 'draft-message', prompt, channel, organizationId: orgId },
+      });
+      if (error) throw error;
+      setDraftText((data as any)?.message || '');
+    } catch (e: any) {
+      console.error('Draft message error:', e);
+      toast.error('Could not generate draft message.');
+    } finally {
+      setDraftLoading(false);
+    }
+  }, [orgId]);
+
+  const sendDraftSms = useCallback(async () => {
+    if (!draftTarget?.phone || !draftText.trim()) {
+      toast.error('Missing phone number or message.');
+      return;
+    }
+    setDraftSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+        body: { to: draftTarget.phone, message: draftText.trim(), organizationId: orgId },
+      });
+      if (error) throw error;
+      if ((data as any)?.success === false) throw new Error((data as any)?.error || 'Send failed');
+      toast.success(`Message sent to ${draftTarget.name}`);
+      setDraftOpen(false);
+    } catch (e: any) {
+      console.error('Send SMS error:', e);
+      toast.error(e?.message || 'Could not send SMS. Copy the message instead.');
+    } finally {
+      setDraftSending(false);
+    }
+  }, [draftTarget, draftText, orgId]);
+
 
   const sendChat = useCallback(async (input: string) => {
     if (!input.trim() || !orgId) return;
@@ -628,10 +683,11 @@ export function AIAnalysisCenter() {
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => {
-                        setActiveTab('ask-ai');
-                        setChatInput(`Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`);
-                      }}
+                      onClick={() => openDraftMessage(
+                        { name: lead.name, phone: lead.phone, email: lead.email },
+                        `Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`,
+                        'sms',
+                      )}
                       style={{ background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}30`, fontSize: 12, fontFamily: labelFont }}
                       className="hover:opacity-80"
                     >
@@ -668,10 +724,11 @@ export function AIAnalysisCenter() {
                         <span style={{ fontFamily: monoFont, fontSize: 13, color: barColor }}>{c.daysSince}d</span>
                         <Button
                           size="sm"
-                          onClick={() => {
-                            setActiveTab('ask-ai');
-                            setChatInput(`Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`);
-                          }}
+                          onClick={() => openDraftMessage(
+                            { name: `${c.first_name} ${c.last_name}`, phone: (c as any).phone, email: (c as any).email },
+                            `Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`,
+                            'sms',
+                          )}
                           style={{ background: `${TEAL}18`, color: TEAL, border: `1px solid ${TEAL}30`, fontSize: 12, fontFamily: labelFont }}
                           className="hover:opacity-80"
                         >
@@ -845,6 +902,52 @@ export function AIAnalysisCenter() {
         </TabsContent>
 
       </Tabs>
+
+      <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Draft message{draftTarget?.name ? ` for ${draftTarget.name}` : ''}</DialogTitle>
+            <DialogDescription>
+              AI-generated {draftTarget?.channel === 'email' ? 'email' : 'SMS'}. Edit before sending.
+            </DialogDescription>
+          </DialogHeader>
+          {draftLoading ? (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              <RefreshCw size={16} className="animate-spin mr-2" /> Generating message…
+            </div>
+          ) : (
+            <Textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={8}
+              placeholder="Your message…"
+            />
+          )}
+          {draftTarget?.phone ? (
+            <p className="text-xs text-muted-foreground">Will send to {draftTarget.phone}</p>
+          ) : (
+            <p className="text-xs text-amber-500">No phone on file — copy the message and send manually.</p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(draftText);
+                toast.success('Copied to clipboard');
+              }}
+              disabled={!draftText.trim() || draftLoading}
+            >
+              Copy
+            </Button>
+            <Button
+              onClick={sendDraftSms}
+              disabled={!draftText.trim() || draftLoading || draftSending || !draftTarget?.phone}
+            >
+              {draftSending ? <><RefreshCw size={14} className="animate-spin mr-2" /> Sending…</> : 'Send SMS'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
