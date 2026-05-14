@@ -184,6 +184,46 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
+  // Opted-out customer list
+  const { data: optedOutList = [] } = useQuery({
+    queryKey: ["opted-out-list", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email, opted_out_at, opted_out_method, opted_out_campaign_id, updated_at")
+        .eq("organization_id", orgId)
+        .eq("marketing_status", "opted_out")
+        .order("opted_out_at", { ascending: false, nullsFirst: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Map of campaign id -> name for opt-out attribution
+  const campaignNameMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    campaigns.forEach((c: any) => { m[c.id] = c.name; });
+    return m;
+  }, [campaigns]);
+
+  const setOptOutStatus = useMutation({
+    mutationFn: async ({ customerId, optedOut }: { customerId: string; optedOut: boolean }) => {
+      const update: any = optedOut
+        ? { marketing_status: "opted_out", opted_out_at: new Date().toISOString(), opted_out_method: "manual" }
+        : { marketing_status: "active", opted_out_at: null, opted_out_method: null, opted_out_campaign_id: null };
+      const { error } = await supabase.from("customers").update(update).eq("id", customerId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["opted-out-list"] });
+      queryClient.invalidateQueries({ queryKey: ["opted-out-count"] });
+      toast({ title: vars.optedOut ? "Marked as opted out" : "Opted back in" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   // Campaign link tracking stats (aggregated per campaign)
   const { data: campaignTrackingStats = {} } = useQuery({
     queryKey: ["campaign-tracking-stats", orgId],
