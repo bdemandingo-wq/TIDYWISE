@@ -640,6 +640,48 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
+    // Detect SMS opt-out keywords (STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT, OPTOUT)
+    if (direction === 'inbound' && content) {
+      const normalized = content.trim().toUpperCase().replace(/[^A-Z]/g, '');
+      const OPT_OUT_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT'];
+      if (OPT_OUT_KEYWORDS.includes(normalized)) {
+        try {
+          // Find most recent campaign send to this phone for attribution
+          const { data: lastSend } = await supabase
+            .from('campaign_sms_sends')
+            .select('campaign_id, customer_id')
+            .eq('organization_id', organizationId)
+            .eq('phone_number', customerPhone)
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const { data: convData } = await supabase
+            .from('sms_conversations')
+            .select('customer_id')
+            .eq('id', conversationId)
+            .maybeSingle();
+
+          const customerIdToOptOut = convData?.customer_id || lastSend?.customer_id;
+          if (customerIdToOptOut) {
+            await supabase
+              .from('customers')
+              .update({
+                marketing_status: 'opted_out',
+                opted_out_at: new Date().toISOString(),
+                opted_out_method: 'sms_stop',
+                opted_out_campaign_id: lastSend?.campaign_id || null,
+              })
+              .eq('id', customerIdToOptOut)
+              .eq('organization_id', organizationId);
+            console.log(`[openphone-webhook] Customer ${customerIdToOptOut} opted out via SMS keyword "${normalized}"`);
+          }
+        } catch (optOutErr) {
+          console.error('[openphone-webhook] Error processing opt-out:', optOutErr);
+        }
+      }
+    }
+
     // Trigger AI auto-reply for inbound messages if automation is enabled
     if (direction === 'inbound') {
       try {
