@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   if (!orgId) {
     const { data: orgs, error: orgsErr } = await supabase
       .from("organizations")
-      .select("id");
+      .select("id, business_settings(notify_evening_brief)");
     if (orgsErr) {
       return new Response(JSON.stringify({ error: orgsErr.message }), {
         status: 500,
