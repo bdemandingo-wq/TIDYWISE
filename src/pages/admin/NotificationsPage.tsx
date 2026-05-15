@@ -17,6 +17,8 @@ interface NotificationSettings {
   notify_cancellations: boolean;
   notify_reminders: boolean;
   notify_sms: boolean;
+  notify_evening_brief: boolean;
+  notify_morning_brief: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -24,6 +26,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   notify_cancellations: true,
   notify_reminders: true,
   notify_sms: false,
+  notify_evening_brief: true,
+  notify_morning_brief: true,
 };
 
 const PUSH_CATEGORIES = [
