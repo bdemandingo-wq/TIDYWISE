@@ -286,7 +286,19 @@ export default function NotificationsPage() {
                 Daily email summary of completed jobs, revenue, unpaid invoices, and tomorrow's preview — sent at 7:00 PM Eastern
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Daily Auto-Send</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically email this report every evening
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notify_evening_brief}
+                  onCheckedChange={() => handleToggle('notify_evening_brief')}
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Send End of Day Report Now</Label>
@@ -313,7 +325,19 @@ export default function NotificationsPage() {
                 Daily email summary of today's jobs, open estimates, and new requests — sent at 8:00 AM Eastern
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Daily Auto-Send</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically email this brief every morning
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notify_morning_brief}
+                  onCheckedChange={() => handleToggle('notify_morning_brief')}
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Send Morning Brief Now</Label>
