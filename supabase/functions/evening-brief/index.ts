@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   if (!orgId) {
     const { data: orgs, error: orgsErr } = await supabase
       .from("organizations")
-      .select("id");
+      .select("id, business_settings(notify_evening_brief)");
     if (orgsErr) {
       return new Response(JSON.stringify({ error: orgsErr.message }), {
         status: 500,
@@ -52,6 +52,12 @@ Deno.serve(async (req) => {
     const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
     const results: Array<{ org_id: string; ok: boolean; status: number }> = [];
     for (const o of orgs ?? []) {
+      const bs: any = (o as any).business_settings;
+      const enabled = Array.isArray(bs) ? (bs[0]?.notify_evening_brief ?? true) : (bs?.notify_evening_brief ?? true);
+      if (!enabled) {
+        results.push({ org_id: o.id, ok: true, status: 204 });
+        continue;
+      }
       try {
         const r = await fetch(url, {
           method: "POST",

@@ -1494,6 +1494,8 @@ export type Database = {
           min_clockout_photos: number
           minimum_notice_hours: number | null
           notify_cancellations: boolean | null
+          notify_evening_brief: boolean
+          notify_morning_brief: boolean
           notify_new_booking: boolean | null
           notify_reminders: boolean | null
           notify_sms: boolean | null
@@ -1542,6 +1544,8 @@ export type Database = {
           min_clockout_photos?: number
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
+          notify_evening_brief?: boolean
+          notify_morning_brief?: boolean
           notify_new_booking?: boolean | null
           notify_reminders?: boolean | null
           notify_sms?: boolean | null
@@ -1590,6 +1594,8 @@ export type Database = {
           min_clockout_photos?: number
           minimum_notice_hours?: number | null
           notify_cancellations?: boolean | null
+          notify_evening_brief?: boolean
+          notify_morning_brief?: boolean
           notify_new_booking?: boolean | null
           notify_reminders?: boolean | null
           notify_sms?: boolean | null

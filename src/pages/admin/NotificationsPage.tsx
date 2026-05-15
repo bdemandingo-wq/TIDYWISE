@@ -17,6 +17,8 @@ interface NotificationSettings {
   notify_cancellations: boolean;
   notify_reminders: boolean;
   notify_sms: boolean;
+  notify_evening_brief: boolean;
+  notify_morning_brief: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -24,6 +26,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   notify_cancellations: true,
   notify_reminders: true,
   notify_sms: false,
+  notify_evening_brief: true,
+  notify_morning_brief: true,
 };
 
 const PUSH_CATEGORIES = [
@@ -51,7 +55,7 @@ export default function NotificationsPage() {
       setLoading(true);
       const { data, error } = await supabase
         .from('business_settings')
-        .select('notify_new_booking, notify_cancellations, notify_reminders, notify_sms')
+        .select('notify_new_booking, notify_cancellations, notify_reminders, notify_sms, notify_evening_brief, notify_morning_brief')
         .eq('organization_id', organization.id)
         .maybeSingle();
       if (!error && data) {
@@ -60,6 +64,8 @@ export default function NotificationsPage() {
           notify_cancellations: data.notify_cancellations ?? true,
           notify_reminders: data.notify_reminders ?? true,
           notify_sms: data.notify_sms ?? false,
+          notify_evening_brief: (data as any).notify_evening_brief ?? true,
+          notify_morning_brief: (data as any).notify_morning_brief ?? true,
         });
       }
       setLoading(false);
@@ -81,7 +87,9 @@ export default function NotificationsPage() {
         notify_cancellations: settings.notify_cancellations,
         notify_reminders: settings.notify_reminders,
         notify_sms: settings.notify_sms,
-      })
+        notify_evening_brief: settings.notify_evening_brief,
+        notify_morning_brief: settings.notify_morning_brief,
+      } as any)
       .eq('organization_id', organization.id);
     setSaving(false);
     if (error) {
@@ -278,7 +286,19 @@ export default function NotificationsPage() {
                 Daily email summary of completed jobs, revenue, unpaid invoices, and tomorrow's preview — sent at 7:00 PM Eastern
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Daily Auto-Send</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically email this report every evening
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notify_evening_brief}
+                  onCheckedChange={() => handleToggle('notify_evening_brief')}
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Send End of Day Report Now</Label>
@@ -305,7 +325,19 @@ export default function NotificationsPage() {
                 Daily email summary of today's jobs, open estimates, and new requests — sent at 8:00 AM Eastern
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Daily Auto-Send</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically email this brief every morning
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.notify_morning_brief}
+                  onCheckedChange={() => handleToggle('notify_morning_brief')}
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Send Morning Brief Now</Label>
