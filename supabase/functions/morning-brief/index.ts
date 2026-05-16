@@ -869,6 +869,38 @@ Deno.serve(async (req) => {
   </div>
 </body></html>`;
 
+  // Resolve recipient: the owner of THIS organization
+  let recipientEmail: string | null = null;
+  try {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("owner_id, name")
+      .eq("id", orgId)
+      .maybeSingle();
+    if (org?.owner_id) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", org.owner_id)
+        .maybeSingle();
+      recipientEmail = prof?.email ?? null;
+    }
+    if (!recipientEmail && org?.owner_id) {
+      const { data: u } = await supabase.auth.admin.getUserById(org.owner_id);
+      recipientEmail = u?.user?.email ?? null;
+    }
+  } catch (e) {
+    console.error("Recipient lookup failed:", e);
+  }
+
+  if (!recipientEmail) {
+    console.log(`Skipping org ${orgId}: no owner email found`);
+    return new Response(
+      JSON.stringify({ skipped: true, reason: "no_owner_email", org_id: orgId }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // Send via Resend
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -879,7 +911,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Tidywise <support@tidywisecleaning.com>",
-        to: ["support@tidywisecleaning.com"],
+        to: [recipientEmail],
         subject: subjectLine,
         html,
       }),
