@@ -4,6 +4,8 @@ import { Navigation, Clock, MapPin, Car, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 
 interface TrackingInfo {
   latitude: number;
@@ -75,6 +77,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
+  const orgTimezone = useOrgTimezone();
 
   const isCompleted = bookingStatus === 'completed';
 
@@ -190,7 +193,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   // GPS-based live tracking with map
   if (tracking) {
     const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
-    const startedAt = new Date(tracking.created_at);
+    const startedAtLabel = formatInTimezone(tracking.created_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true });
 
     return (
       <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -215,7 +218,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+            <span>On the way since {startedAtLabel}</span>
           </div>
           {drivingEta && (
             <div className="flex items-center gap-1">
@@ -238,6 +241,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   if (onTheWay) {
     const sentTime = new Date(onTheWay.sent_at);
     const minutesAgo = Math.round((Date.now() - sentTime.getTime()) / 60000);
+    const sentTimeLabel = formatInTimezone(onTheWay.sent_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true });
 
     if (minutesAgo > 120) return null;
 
@@ -268,7 +272,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             <span>
-              On My Way sent at {sentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              On My Way sent at {sentTimeLabel}
               {minutesAgo > 0 && ` (${minutesAgo} min ago)`}
             </span>
           </div>

@@ -18,6 +18,8 @@ import {
   isToday,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock } from 'lucide-react';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
 
 interface Booking {
   id: string;
@@ -43,6 +45,7 @@ interface Props {
 export function CleanerCalendar({ staffId }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const orgTimezone = useOrgTimezone();
 
   // Fetch all bookings for the month
   const { data: bookings = [], isLoading } = useQuery({
@@ -79,18 +82,19 @@ export function CleanerCalendar({ staffId }: Props) {
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
-  // Group bookings by date
+  // Group bookings by date (in org timezone, so a 9pm EST booking doesn't slip
+  // into the previous day for a staff member viewing from PST)
   const bookingsByDate = useMemo(() => {
     const grouped: Record<string, Booking[]> = {};
     bookings.forEach((booking) => {
-      const dateKey = format(new Date(booking.scheduled_at), 'yyyy-MM-dd');
+      const dateKey = getDateInTimezone(booking.scheduled_at, orgTimezone);
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
       grouped[dateKey].push(booking);
     });
     return grouped;
-  }, [bookings]);
+  }, [bookings, orgTimezone]);
 
   // Get bookings for selected date
   const selectedDateBookings = useMemo(() => {
@@ -206,7 +210,7 @@ export function CleanerCalendar({ staffId }: Props) {
                           key={booking.id}
                           className={`text-[10px] truncate px-1 py-0.5 rounded ${getStatusColor(booking.status)} text-white`}
                         >
-                          {format(new Date(booking.scheduled_at), 'h:mm a')}
+                          {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                       ))}
                       {dayBookings.length > 2 && (
@@ -259,7 +263,7 @@ export function CleanerCalendar({ staffId }: Props) {
                       <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {format(new Date(booking.scheduled_at), 'h:mm a')} ({booking.duration} min)
+                          {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })} ({booking.duration} min)
                         </span>
                       </div>
                       {booking.customer && (

@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { format } from 'date-fns';
 import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info } from 'lucide-react';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 import { GpsCheckin } from './GpsCheckin';
@@ -69,6 +70,7 @@ interface Props {
 }
 
 export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Props) {
+  const orgTimezone = useOrgTimezone();
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
@@ -380,12 +382,12 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span>{format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}</span>
+          <span>{formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <Clock className="w-4 h-4 text-muted-foreground" />
           <span>
-            {format(new Date(booking.scheduled_at), 'h:mm a')} ({booking.duration} min)
+            {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })} ({booking.duration} min)
           </span>
         </div>
         {booking.customer && (

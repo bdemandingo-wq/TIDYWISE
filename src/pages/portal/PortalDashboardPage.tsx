@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, isPast, isFuture, isToday, isTomorrow } from "date-fns";
+import { formatInTimezone, getDateInTimezone } from "@/lib/timezoneUtils";
 import {
   CalendarDays,
   Clock,
@@ -182,6 +183,7 @@ export default function PortalDashboardPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [orgTimezone, setOrgTimezone] = useState<string>("America/New_York");
   const { isNative } = usePlatform();
   const pastBookingsRef = useRef<HTMLDivElement | null>(null);
 
@@ -196,6 +198,15 @@ export default function PortalDashboardPage() {
 
     const fetchData = async () => {
       setLoadingData(true);
+
+      if (user.organization_id) {
+        const { data: settings } = await supabase
+          .from("business_settings")
+          .select("timezone")
+          .eq("organization_id", user.organization_id)
+          .maybeSingle();
+        if (settings?.timezone) setOrgTimezone(settings.timezone);
+      }
 
       const { data: bookingsData } = await supabase
         .rpc("get_client_portal_bookings", { p_customer_id: user.customer_id });
@@ -453,10 +464,14 @@ export default function PortalDashboardPage() {
   };
 
   const getDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    if (isToday(d)) return "Today";
-    if (isTomorrow(d)) return "Tomorrow";
-    return format(d, "EEE, MMM d");
+    const bookingDay = getDateInTimezone(dateStr, orgTimezone);
+    const todayStr = getDateInTimezone(new Date(), orgTimezone);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = getDateInTimezone(tomorrow, orgTimezone);
+    if (bookingDay === todayStr) return "Today";
+    if (bookingDay === tomorrowStr) return "Tomorrow";
+    return formatInTimezone(dateStr, orgTimezone, { weekday: "short", month: "short", day: "numeric" });
   };
 
   const nextBooking = upcomingBookings.length > 0
@@ -535,7 +550,7 @@ export default function PortalDashboardPage() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium text-foreground">{getDateLabel(nextBooking.scheduled_at)}</span>
-                    <span>at {format(new Date(nextBooking.scheduled_at), "h:mm a")}</span>
+                    <span>at {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}</span>
                   </div>
                   {nextBooking.address && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -601,7 +616,7 @@ export default function PortalDashboardPage() {
                       <p className="text-sm font-medium">{booking.service?.name || "Service"}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {format(new Date(booking.scheduled_at), "MMM d, yyyy")}
+                        {formatInTimezone(booking.scheduled_at, orgTimezone, { month: "short", day: "numeric", year: "numeric" })}
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
@@ -636,7 +651,7 @@ export default function PortalDashboardPage() {
                   <>
                     Are you sure you want to cancel your{" "}
                     <strong>{bookingToCancel.service?.name || "cleaning"}</strong> scheduled for{" "}
-                    <strong>{format(new Date(bookingToCancel.scheduled_at), "MMM d, yyyy 'at' h:mm a")}</strong>?
+                    <strong>{formatInTimezone(bookingToCancel.scheduled_at, orgTimezone, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}</strong>?
                     <br /><br />
                     <span className="text-muted-foreground text-sm">
                       Note: Same day or next day cancellations (within 48 hours) may incur a fee unless you are a Platinum member.
@@ -724,7 +739,7 @@ export default function PortalDashboardPage() {
                             <p className="font-medium text-sm">{notification.title}</p>
                             <p className="text-xs text-muted-foreground">{notification.message}</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(notification.created_at), "MMM d, h:mm a")}
+                              {formatInTimezone(notification.created_at, orgTimezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
                             </p>
                           </div>
                           {!notification.is_read && (
@@ -756,7 +771,7 @@ export default function PortalDashboardPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4 text-primary" />
                     <span className="font-medium text-foreground">{getDateLabel(nextBooking.scheduled_at)}</span>
-                    <span>at {format(new Date(nextBooking.scheduled_at), "h:mm a")}</span>
+                    <span>at {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}</span>
                   </div>
                   {nextBooking.address && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -878,7 +893,7 @@ export default function PortalDashboardPage() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4 shrink-0" />
-                        {format(new Date(booking.scheduled_at), "h:mm a")}
+                        {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
                       </div>
                       {booking.address && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -937,7 +952,7 @@ export default function PortalDashboardPage() {
                       <p className="font-medium">{request.service_name || "Service Request"}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        Requested: {format(new Date(request.requested_date), "MMM d, yyyy 'at' h:mm a")}
+                        Requested: {formatInTimezone(request.requested_date, orgTimezone, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
                       </div>
                       {request.notes && (
                         <p className="text-sm text-muted-foreground mt-1">{request.notes}</p>
@@ -958,7 +973,7 @@ export default function PortalDashboardPage() {
                         </button>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(request.created_at), "MMM d")}
+                        {formatInTimezone(request.created_at, orgTimezone, { month: "short", day: "numeric" })}
                       </span>
                     </div>
                   </div>
@@ -986,7 +1001,7 @@ export default function PortalDashboardPage() {
                       <p className="font-medium">{booking.service?.name || "Service"}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {format(new Date(booking.scheduled_at), "MMM d, yyyy")}
+                        {formatInTimezone(booking.scheduled_at, orgTimezone, { month: "short", day: "numeric", year: "numeric" })}
                       </div>
                       {booking.address && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1048,7 +1063,7 @@ export default function PortalDashboardPage() {
                       <p className="font-medium">{notification.title}</p>
                       <p className="text-sm text-muted-foreground">{notification.message}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(notification.created_at), "MMM d, h:mm a")}
+                        {formatInTimezone(notification.created_at, orgTimezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1147,7 +1162,7 @@ export default function PortalDashboardPage() {
                     <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg text-sm">
                       <div>
                         <p className="font-medium">{r.referred_email}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground">{formatInTimezone(r.created_at, orgTimezone, { month: "short", day: "numeric", year: "numeric" })}</p>
                       </div>
                       <div className="text-right">
                         <Badge variant={r.status === 'completed' ? 'default' : 'secondary'} className="text-xs mb-1">
@@ -1202,7 +1217,7 @@ export default function PortalDashboardPage() {
                         )}
                         {report.booking && (
                           <p className="text-xs text-muted-foreground">
-                            Booking #{report.booking.booking_number} &middot; {format(new Date(report.booking.scheduled_at), 'MMM d, yyyy')}
+                            Booking #{report.booking.booking_number} &middot; {formatInTimezone(report.booking.scheduled_at, orgTimezone, { month: "short", day: "numeric", year: "numeric" })}
                           </p>
                         )}
                       </CardContent>
@@ -1235,7 +1250,7 @@ export default function PortalDashboardPage() {
                 <>
                   Are you sure you want to cancel your{" "}
                   <strong>{bookingToCancel.service?.name || "cleaning"}</strong> scheduled for{" "}
-                  <strong>{format(new Date(bookingToCancel.scheduled_at), "MMM d, yyyy 'at' h:mm a")}</strong>?
+                  <strong>{formatInTimezone(bookingToCancel.scheduled_at, orgTimezone, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}</strong>?
                   <br /><br />
                   <span className="text-muted-foreground text-sm">
                     Note: Same day or next day cancellations (within 48 hours) may incur a fee unless you are a Platinum member.

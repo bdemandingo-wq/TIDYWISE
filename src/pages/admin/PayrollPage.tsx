@@ -29,7 +29,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { calculateBookingWage } from '@/lib/wageCalculation';
 import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
-import { getCurrentPeriod, getNextPeriod, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
+import { getCurrentPeriod, getNextPeriod, getPeriodStart, getPeriodEnd, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
+import { addDays as addDaysFn } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 import { SEOHead } from '@/components/SEOHead';
 import { fmt } from '@/lib/activeCurrency';
@@ -133,6 +136,7 @@ export default function PayrollPage() {
   const { organizationId } = useOrgId();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const orgTimezone = useOrgTimezone();
 
   const weekStart = format(startOfWeek(dateRange.from, { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
@@ -371,10 +375,18 @@ export default function PayrollPage() {
     };
   }, [organizationId, queryClient]);
 
-  // Payroll period config
+  // Payroll period config — anchor "today" in the org timezone so the period
+  // boundaries don't drift when admin and org are in different timezones.
   const { config: periodConfig } = usePayrollPeriodConfig();
-  const currentPeriod = useMemo(() => getCurrentPeriod(periodConfig), [periodConfig]);
-  const nextPeriod = useMemo(() => getNextPeriod(periodConfig), [periodConfig]);
+  const currentPeriod = useMemo(() => {
+    const todayInOrgTz = getLocalDateInTimezone(new Date(), orgTimezone);
+    const start = getPeriodStart(todayInOrgTz, periodConfig);
+    return { start, end: getPeriodEnd(start, periodConfig) };
+  }, [periodConfig, orgTimezone]);
+  const nextPeriod = useMemo(() => {
+    const nextStart = addDaysFn(currentPeriod.end, 1);
+    return { start: nextStart, end: getPeriodEnd(nextStart, periodConfig) };
+  }, [currentPeriod, periodConfig]);
 
   const currentWeekStart = currentPeriod.start;
   const currentWeekEnd = currentPeriod.end;
@@ -684,13 +696,22 @@ export default function PayrollPage() {
     return { revenueNet, laborTotal, profit, laborPct, bookingCount, missingPay };
   };
 
-  const endOfDay = (d: Date) => { const e = new Date(d); e.setHours(23, 59, 59, 999); return e; };
-  const currentWeekBookings = forecastBookings.filter((b: any) =>
-    new Date(b.scheduled_at) >= currentWeekStart && new Date(b.scheduled_at) <= endOfDay(currentWeekEnd)
-  );
-  const nextWeekBookings = forecastBookings.filter((b: any) =>
-    new Date(b.scheduled_at) >= nextWeekStart && new Date(b.scheduled_at) <= endOfDay(nextWeekEnd)
-  );
+  // Bucket bookings into weeks using the booking's calendar date *in the org timezone*,
+  // not the admin's browser local — otherwise a Sunday-night booking can fall into
+  // the wrong week when admin and org are in different timezones.
+  const toDayStr = (d: Date) => format(d, 'yyyy-MM-dd');
+  const currentWeekStartStr = toDayStr(currentWeekStart);
+  const currentWeekEndStr = toDayStr(currentWeekEnd);
+  const nextWeekStartStr = toDayStr(nextWeekStart);
+  const nextWeekEndStr = toDayStr(nextWeekEnd);
+  const currentWeekBookings = forecastBookings.filter((b: any) => {
+    const day = getDateInTimezone(b.scheduled_at, orgTimezone);
+    return day >= currentWeekStartStr && day <= currentWeekEndStr;
+  });
+  const nextWeekBookings = forecastBookings.filter((b: any) => {
+    const day = getDateInTimezone(b.scheduled_at, orgTimezone);
+    return day >= nextWeekStartStr && day <= nextWeekEndStr;
+  });
 
   const currentWeekForecast = useMemo(() => calcWeekForecast(currentWeekBookings, forecastTeamAssignments), [currentWeekBookings, forecastTeamAssignments, staff]);
   const nextWeekForecast = useMemo(() => calcWeekForecast(nextWeekBookings, forecastTeamAssignments), [nextWeekBookings, forecastTeamAssignments, staff]);
@@ -718,7 +739,7 @@ export default function PayrollPage() {
   const exportDetailedCSV = () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Labor %', 'Profit', 'Margin %'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
+      getDateInTimezone(b.scheduled_at, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2), b.wage_type,
       b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate}`,
@@ -738,7 +759,7 @@ export default function PayrollPage() {
   const exportCleanerCSV = () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Pay'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
+      getDateInTimezone(b.scheduled_at, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2),
       `${fmt(b.calculated_pay)}`,
@@ -1208,7 +1229,7 @@ export default function PayrollPage() {
                   {filteredBookingPayrollDetails.map((b) => (
                     <TableRow key={b.id} className={getRowHighlight(b)}>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(b.scheduled_at), 'MMM d, yyyy')}
+                        {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </TableCell>
                       <TableCell>#{b.booking_number}</TableCell>
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>

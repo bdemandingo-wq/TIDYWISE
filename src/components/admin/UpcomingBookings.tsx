@@ -4,8 +4,9 @@ import { cn } from '@/lib/utils';
 import { Clock, User, ChevronRight, Phone, Loader2, Edit, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
 import { toast } from 'sonner';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import {
@@ -61,19 +62,19 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress, maskAmount } = useTestMode();
   const { organization } = useOrganization();
+  const orgTimezone = useOrgTimezone();
 
   const upcomingBookings = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    const todayStr = getDateInTimezone(new Date(), orgTimezone);
+
     return bookings
       .filter(b => {
-        const bookingDate = new Date(b.scheduled_at);
-        return bookingDate >= today && b.status !== 'cancelled';
+        const bookingDayStr = getDateInTimezone(b.scheduled_at, orgTimezone);
+        return bookingDayStr >= todayStr && b.status !== 'cancelled';
       })
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
       .slice(0, 5);
-  }, [bookings]);
+  }, [bookings, orgTimezone]);
 
   const getServiceAccentClass = (index: number) => {
     return serviceAccentClasses[index % serviceAccentClasses.length];
@@ -128,8 +129,8 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
               customerName,
               customerPhone: booking.customer?.phone || 'Not provided',
               serviceName: booking.service?.name || 'Cleaning Service',
-              appointmentDate: format(new Date(booking.scheduled_at), 'EEEE, MMMM d, yyyy'),
-              appointmentTime: format(new Date(booking.scheduled_at), 'h:mm a'),
+              appointmentDate: formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+              appointmentTime: formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
               address: [booking.address, (booking as any).apt_suite ? `Unit ${(booking as any).apt_suite}` : null, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') || 'Address not provided',
               bookingNumber: booking.booking_number,
               organizationId: organization?.id,
@@ -243,11 +244,11 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                       </button>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
-                        <span>{format(new Date(booking.scheduled_at), 'h:mm a')}</span>
+                        <span>{formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}
+                      {formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
@@ -305,8 +306,8 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">
-                      {format(new Date(selectedBooking.scheduled_at), 'MMMM d, yyyy')} at{' '}
-                      {format(new Date(selectedBooking.scheduled_at), 'h:mm a')}
+                      {formatInTimezone(selectedBooking.scheduled_at, orgTimezone, { month: 'long', day: 'numeric', year: 'numeric' })} at{' '}
+                      {formatInTimezone(selectedBooking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
                     </p>
                     <p className="text-muted-foreground">
                       Duration: {selectedBooking.duration} minutes

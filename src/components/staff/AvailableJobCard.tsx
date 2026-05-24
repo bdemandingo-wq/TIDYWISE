@@ -12,8 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { format } from 'date-fns';
 import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2, FileText } from 'lucide-react';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 
 interface StaffInfo {
   hourly_rate: number | null;
@@ -57,6 +58,7 @@ interface Props {
 }
 
 export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, claimingBookingId }: Props) {
+  const orgTimezone = useOrgTimezone();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;
 
@@ -168,12 +170,12 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
 
           <div className="flex items-center gap-2 text-sm">
             <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span>{format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')}</span>
+            <span>{formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Clock className="w-4 h-4 text-muted-foreground" />
             <span>
-              {format(new Date(booking.scheduled_at), 'h:mm a')} ({booking.duration} min)
+              {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })} ({booking.duration} min)
             </span>
           </div>
           {booking.customer && (
@@ -241,7 +243,7 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
                 </div>
               </div>
               <p className="text-sm">
-                <strong>Date:</strong> {format(new Date(booking.scheduled_at), 'EEE, MMM d, yyyy')} at {format(new Date(booking.scheduled_at), 'h:mm a')}
+                <strong>Date:</strong> {formatInTimezone(booking.scheduled_at, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {formatInTimezone(booking.scheduled_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true })}
               </p>
               {booking.address && (
                 <p className="text-sm">

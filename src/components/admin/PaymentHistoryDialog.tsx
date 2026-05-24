@@ -8,8 +8,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CreditCard, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { fmt } from '@/lib/activeCurrency';
 
 interface PaymentHistoryDialogProps {
@@ -38,6 +39,7 @@ export function PaymentHistoryDialog({
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState({ paid: 0, pending: 0, total: 0 });
   const { organization } = useOrganization();
+  const orgTimezone = useOrgTimezone();
 
   useEffect(() => {
     if (open && customerId && organization?.id) {
@@ -160,7 +162,7 @@ export function PaymentHistoryDialog({
                       <div>
                         <p className="font-medium">{payment.service_name || 'Service'}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(payment.scheduled_at), 'MMM d, yyyy')}
+                          {formatInTimezone(payment.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                     </div>

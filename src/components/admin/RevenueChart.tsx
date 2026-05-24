@@ -10,25 +10,30 @@ import {
 } from 'recharts';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { format, subDays } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
 
 interface RevenueChartProps {
   bookings: BookingWithDetails[];
 }
 
 export function RevenueChart({ bookings }: RevenueChartProps) {
+  const orgTimezone = useOrgTimezone();
+
   const chartData = useMemo(() => {
     const last7Days: { date: string; revenue: number; bookings: number }[] = [];
-    const today = new Date();
+    // "Today" in org tz, so the 7-day window aligns to the org's calendar.
+    const today = getLocalDateInTimezone(new Date(), orgTimezone);
 
     for (let i = 6; i >= 0; i--) {
       const date = subDays(today, i);
       const dateStr = format(date, 'yyyy-MM-dd');
-      
+
       const dayBookings = bookings.filter(b => {
-        const bookingDate = format(new Date(b.scheduled_at), 'yyyy-MM-dd');
+        const bookingDate = getDateInTimezone(b.scheduled_at, orgTimezone);
         return bookingDate === dateStr && b.status !== 'cancelled';
       });
-      
+
       last7Days.push({
         date: format(date, 'EEE'),
         revenue: dayBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
@@ -37,7 +42,7 @@ export function RevenueChart({ bookings }: RevenueChartProps) {
     }
 
     return last7Days;
-  }, [bookings]);
+  }, [bookings, orgTimezone]);
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm p-4">

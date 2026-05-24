@@ -29,9 +29,10 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X, Banknote, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { format, getDay } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone, getDateInTimezone, orgTimeToUTCISO } from '@/lib/timezoneUtils';
 import type { BookingWithDetails } from '@/hooks/useBookings';
 
 interface BulkEditBookingsDialogProps {
@@ -54,6 +55,7 @@ export function BulkEditBookingsDialog({
   services,
 }: BulkEditBookingsDialogProps) {
   const queryClient = useQueryClient();
+  const orgTimezone = useOrgTimezone();
 
   // Filters
   const [filterCustomerId, setFilterCustomerId] = useState<string>('all');
@@ -99,22 +101,23 @@ export function BulkEditBookingsDialog({
       return baseBookings;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = getDateInTimezone(new Date(), orgTimezone);
 
     return baseBookings.filter((b) => {
-      const bookingDate = new Date(b.scheduled_at);
-      if (bookingDate < today) return false;
+      const bookingDayStr = getDateInTimezone(b.scheduled_at, orgTimezone);
+      if (bookingDayStr < todayStr) return false;
 
       if (filterCustomerId !== 'all' && b.customer?.id !== filterCustomerId) return false;
       if (filterDays.size > 0) {
-        const dayOfWeek = getDay(bookingDate);
+        // Day-of-week in org timezone (0=Sun ... 6=Sat) — derive from the day string
+        const [y, m, d] = bookingDayStr.split('-').map(Number);
+        const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
         if (!filterDays.has(dayOfWeek)) return false;
       }
       if (filterServiceId !== 'all' && b.service?.id !== filterServiceId) return false;
       return true;
     });
-  }, [baseBookings, hasExplicitSelection, filterCustomerId, filterDays, filterServiceId]);
+  }, [baseBookings, hasExplicitSelection, filterCustomerId, filterDays, filterServiceId, orgTimezone]);
 
   const toggleDay = (day: number) => {
     setFilterDays((prev) => {
@@ -171,11 +174,13 @@ export function BulkEditBookingsDialog({
           updates.status = editStatus;
         }
         if (editTime) {
-          // Keep same date, change time
-          const existing = new Date(booking.scheduled_at);
+          // Keep the booking's calendar date in the org timezone, change time-of-day.
+          // (Using setHours() would interpret hours/minutes in the admin's local tz,
+          // which is wrong when admin and org are in different timezones.)
+          const dayStr = getDateInTimezone(booking.scheduled_at, orgTimezone);
+          const [year, month, day] = dayStr.split('-').map(Number);
           const [hours, minutes] = editTime.split(':').map(Number);
-          existing.setHours(hours, minutes, 0, 0);
-          updates.scheduled_at = existing.toISOString();
+          updates.scheduled_at = orgTimeToUTCISO(year, month - 1, day, hours, minutes, orgTimezone);
         }
 
         if (Object.keys(updates).length === 0) continue;
@@ -523,7 +528,7 @@ export function BulkEditBookingsDialog({
                       </span>
                     </div>
                     <div className="text-muted-foreground">
-                      {format(new Date(b.scheduled_at), 'EEE, MMM d')}
+                      {formatInTimezone(b.scheduled_at, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric' })}
                     </div>
                   </div>
                 ))}
