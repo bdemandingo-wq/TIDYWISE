@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, ShieldCheck, RefreshCw, History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { PayoutRequirementsChecklist } from './PayoutRequirementsChecklist';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -68,6 +70,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const [searchParams] = useSearchParams();
   const [onboardingUrl, setOnboardingUrl] = useState<string | null>(null);
   const [isCheckingReturn, setIsCheckingReturn] = useState(false);
+  const [country, setCountry] = useState<string>('US');
 
   // Detect return from Stripe onboarding via URL params
   const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
@@ -183,6 +186,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
           staffId,
           organizationId,
           returnUrl: PRODUCTION_BASE,
+          country,
         },
       });
 
