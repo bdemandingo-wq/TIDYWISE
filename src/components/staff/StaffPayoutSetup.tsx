@@ -466,8 +466,6 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                       </p>
                     </div>
                   )}
-                  {false && (
-                    <div>
 
                   <Button
                     className="w-full"
