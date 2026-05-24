@@ -1949,7 +1949,7 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                     <span>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</span>
                     <span>•</span>
-                    <span>{format(scheduledDate, 'MMM d, h:mm a')}</span>
+                    <span>{formatInTimezone(scheduledDate, orgTz, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                   </div>
                   
                   {/* Staff */}
@@ -2099,10 +2099,10 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-2">
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">
-                              {format(scheduledDate, 'MMM d, yyyy')}
+                              {formatInTimezone(scheduledDate, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {format(scheduledDate, 'h:mm a')}
+                              {formatInTimezone(scheduledDate, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true })}
                             </span>
                           </div>
                           {(needsReminder || urgentReminder) && (
