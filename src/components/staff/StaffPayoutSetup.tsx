@@ -450,11 +450,25 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                           <SelectItem value="BR">🇧🇷 Brazil</SelectItem>
                         </SelectContent>
                       </Select>
+                      <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/20">
+                        <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          Pick the country where your bank account is held. Stripe locks the country once setup starts — to change it later you'll need to use <strong>Reset Payout Setup</strong> below.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {isOnboarding && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                       <p className="text-xs text-muted-foreground">
-                        This sets the country of your bank account. It can't be changed later.
+                        Your account was started for a specific country and Stripe locks that selection. If your bank is in a different country, use <strong>Reset Payout Setup</strong> below and start over.
                       </p>
                     </div>
                   )}
+                  {false && (
+                    <div>
+
                   <Button
                     className="w-full"
                     onClick={() => startOnboarding.mutate()}
