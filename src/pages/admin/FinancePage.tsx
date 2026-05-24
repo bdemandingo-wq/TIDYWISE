@@ -59,6 +59,7 @@ interface Transaction {
 export default function FinancePage() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const orgTz = useOrgTimezone();
   
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),

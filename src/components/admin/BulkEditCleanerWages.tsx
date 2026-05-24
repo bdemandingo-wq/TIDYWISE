@@ -51,6 +51,7 @@ interface BookingWithWage {
 export function BulkEditCleanerWages() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const orgTz = useOrgTimezone();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkWageType, setBulkWageType] = useState<string>('');

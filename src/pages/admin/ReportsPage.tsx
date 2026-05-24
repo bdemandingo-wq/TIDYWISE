@@ -73,6 +73,7 @@ const defaultColors = [
 
 export default function ReportsPage() {
   const { organizationId } = useOrgId();
+  const orgTz = useOrgTimezone();
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
