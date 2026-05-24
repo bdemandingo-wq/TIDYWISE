@@ -28,6 +28,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const ScoreSearchPage = lazy(() => import("./pages/score/ScoreSearchPage"));
 const ScoreCityPage = lazy(() => import("./pages/score/ScoreCityPage"));
 const ScoreCompanyPage = lazy(() => import("./pages/score/ScoreCompanyPage"));
+const ScoreGeneratePage = lazy(() => import("./pages/score/ScoreGeneratePage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -320,6 +321,7 @@ const App = () => (
                     <Route path="/review/:token" element={<ReviewPage />} />
                      <Route path="/blog" element={<BlogIndex />} />
                      <Route path="/score/search" element={<ScoreSearchPage />} />
+                     <Route path="/score/generate" element={<ScoreGeneratePage />} />
                      <Route path="/score/city/:citySlug" element={<ScoreCityPage />} />
                      <Route path="/score/c/:slug" element={<ScoreCompanyPage />} />
                     <Route path="/blog/how-to-start-a-cleaning-business" element={<HowToStartCleaningBusiness />} />

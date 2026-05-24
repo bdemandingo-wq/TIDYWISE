@@ -130,7 +130,16 @@ export default function ScoreSearchPage() {
               </ol>
             </Card>
             <div className="mt-6 text-center">
-              <Button variant="ghost" size="sm" onClick={() => navigate("/signup")}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const qs = new URLSearchParams();
+                  if (name) qs.set("name", name);
+                  if (location) qs.set("location", location);
+                  navigate(`/score/generate?${qs.toString()}`);
+                }}
+              >
                 <Sparkles className="h-4 w-4 mr-2" /> Generate a score for your business
               </Button>
             </div>
@@ -139,7 +148,15 @@ export default function ScoreSearchPage() {
           <Card variant="elevated" className="p-10 text-center">
             <p className="text-foreground font-medium mb-2">No cleaning companies scored in this area yet.</p>
             <p className="text-sm text-muted-foreground mb-6">Be the first — generate your free TidyWise Score.</p>
-            <Button variant="premium" onClick={() => navigate("/signup")}>
+            <Button
+              variant="premium"
+              onClick={() => {
+                const qs = new URLSearchParams();
+                if (name) qs.set("name", name);
+                if (location) qs.set("location", location);
+                navigate(`/score/generate?${qs.toString()}`);
+              }}
+            >
               <Sparkles className="h-4 w-4 mr-2" /> Generate your score
             </Button>
           </Card>
