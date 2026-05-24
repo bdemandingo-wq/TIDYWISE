@@ -413,19 +413,52 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
               {/* Step 1: Generate the setup link */}
               {!onboardingUrl && (
-                <Button
-                  className="w-full"
-                  onClick={() => startOnboarding.mutate()}
-                  disabled={startOnboarding.isPending}
-                  size="lg"
-                >
-                  {startOnboarding.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Banknote className="w-4 h-4 mr-2" />
+                <>
+                  {!isOnboarding && (
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-country">Bank account country</Label>
+                      <Select value={country} onValueChange={setCountry}>
+                        <SelectTrigger id="payout-country">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">🇺🇸 United States</SelectItem>
+                          <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                          <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                          <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="NZ">🇳🇿 New Zealand</SelectItem>
+                          <SelectItem value="IE">🇮🇪 Ireland</SelectItem>
+                          <SelectItem value="DE">🇩🇪 Germany</SelectItem>
+                          <SelectItem value="FR">🇫🇷 France</SelectItem>
+                          <SelectItem value="ES">🇪🇸 Spain</SelectItem>
+                          <SelectItem value="IT">🇮🇹 Italy</SelectItem>
+                          <SelectItem value="NL">🇳🇱 Netherlands</SelectItem>
+                          <SelectItem value="SG">🇸🇬 Singapore</SelectItem>
+                          <SelectItem value="HK">🇭🇰 Hong Kong</SelectItem>
+                          <SelectItem value="JP">🇯🇵 Japan</SelectItem>
+                          <SelectItem value="MX">🇲🇽 Mexico</SelectItem>
+                          <SelectItem value="BR">🇧🇷 Brazil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        This sets the country of your bank account. It can't be changed later.
+                      </p>
+                    </div>
                   )}
-                  {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
-                </Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => startOnboarding.mutate()}
+                    disabled={startOnboarding.isPending}
+                    size="lg"
+                  >
+                    {startOnboarding.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Banknote className="w-4 h-4 mr-2" />
+                    )}
+                    {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
+                  </Button>
+                </>
               )}
 
               {/* Step 2: Show prominent redirect button */}
