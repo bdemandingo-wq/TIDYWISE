@@ -50,20 +50,37 @@ async function extractFunctionErrorMessage(error: unknown): Promise<string> {
 }
 
 function mapErrorMessage(raw: string): string {
-  if (raw.includes('org_stripe_not_connected') || raw.includes('Stripe not configured')) {
+  const r = raw.toLowerCase();
+  if (r.includes('org_stripe_not_connected') || r.includes('stripe not configured')) {
     return "Your employer needs to connect their payment account first. Please ask them to go to Settings → Payment Setup.";
   }
-  if (raw.includes('Staff record not found') || raw.includes('access denied')) {
+  if (r.includes('platform payment configuration') || r.includes('platform_stripe_not_configured')) {
+    return "Payouts are temporarily unavailable. Please try again in a few minutes or contact support.";
+  }
+  if (r.includes('staff record not found') || r.includes('access denied')) {
     return "Account verification failed. Please sign out and sign back in.";
   }
-  if (raw.includes('Organization mismatch')) {
+  if (r.includes('organization mismatch')) {
     return "There's an account configuration issue. Please contact your employer.";
   }
-  if (raw.includes('No onboarding link')) {
+  if (r.includes('no onboarding link')) {
     return "Payout setup failed to start. Please try again or contact support.";
+  }
+  if (r.includes('country') && (r.includes('cannot') || r.includes('invalid') || r.includes('not supported'))) {
+    return "We couldn't start setup for that country. Use Reset Payout Setup below and pick the country where your bank is located.";
+  }
+  if (r.includes('email') && r.includes('already')) {
+    return "An account already exists for this email. Use Reset Payout Setup below to start fresh.";
+  }
+  if (r.includes('rate limit') || r.includes('too many requests')) {
+    return "Too many attempts. Please wait a minute and try again.";
+  }
+  if (r.includes('network') || r.includes('failed to fetch') || r.includes('timeout')) {
+    return "Network issue reaching the payment service. Check your connection and try again.";
   }
   return raw;
 }
+
 
 // Best-effort default country from browser locale (Stripe Express supported subset).
 const SUPPORTED_COUNTRIES = ['US','AU','CA','GB','NZ','IE','DE','FR','ES','IT','NL','SG','HK','JP','MX','BR'];

@@ -13,6 +13,8 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { calculateDistanceMiles } from '@/lib/distanceUtils';
 import { format } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 
 interface ActiveTracking {
   id: string;
@@ -204,6 +206,7 @@ export default function TrackingPage() {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgId = organization?.id;
+  const orgTz = useOrgTimezone();
   const [activeJobs, setActiveJobs] = useState<ActiveTracking[]>([]);
   const [historicalJobs, setHistoricalJobs] = useState<HistoricalTracking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -448,8 +451,8 @@ export default function TrackingPage() {
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground text-right">
-                      <p>En route at {format(new Date(job.created_at), 'h:mm a')}</p>
-                      <p>Last update {format(new Date(job.recorded_at), 'h:mm a')}</p>
+                      <p>En route at {formatInTimezone(job.created_at, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                      <p>Last update {formatInTimezone(job.recorded_at, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                     </div>
                   </div>
                 );

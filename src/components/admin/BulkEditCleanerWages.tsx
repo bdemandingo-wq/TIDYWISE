@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Save, Search, DollarSign, Percent } from 'lucide-react';
 import { format } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface BookingWithWage {
@@ -49,6 +51,7 @@ interface BookingWithWage {
 export function BulkEditCleanerWages() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const orgTz = useOrgTimezone();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkWageType, setBulkWageType] = useState<string>('');
@@ -420,7 +423,7 @@ export function BulkEditCleanerWages() {
                           #{booking.booking_number}
                         </span>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(booking.scheduled_at), 'MMM d, yyyy')}
+                          {formatInTimezone(booking.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </TableCell>
                       <TableCell>

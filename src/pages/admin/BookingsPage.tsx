@@ -1488,8 +1488,8 @@ export default function BookingsPage() {
       String(b.booking_number),
       b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
       b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
-      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
-      format(new Date(b.scheduled_at), 'h:mm a'),
+      formatInTimezone(b.scheduled_at, orgTz, { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'),
+      formatInTimezone(b.scheduled_at, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true }),
       b.staff?.name || 'Unassigned',
       statusLabels[b.status] || b.status,
       getPaymentStatusInfo(b).label,
@@ -2563,7 +2563,7 @@ export default function BookingsPage() {
                           #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {booking.service?.name} • {format(new Date(booking.scheduled_at), 'MMM d, yyyy h:mm a')}
+                          {booking.service?.name} • {formatInTimezone(booking.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

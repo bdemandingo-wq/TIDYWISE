@@ -13,6 +13,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { format } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
 
@@ -86,6 +88,7 @@ function SignedVideo({ src, bucket, className }: { src: string; bucket: string; 
 
 export default function BookingPhotosPage() {
   const { organization } = useOrganization();
+  const orgTz = useOrgTimezone();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -330,7 +333,7 @@ export default function BookingPhotosPage() {
                       </p>
                       {photo.created_at && (
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(photo.created_at), 'MMM d, yyyy')}
+                          {formatInTimezone(photo.created_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       )}
                     </CardContent>
@@ -401,13 +404,13 @@ export default function BookingPhotosPage() {
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <span>
                       {selectedPhoto.booking?.scheduled_at
-                        ? format(new Date(selectedPhoto.booking.scheduled_at), 'EEE, MMM d, yyyy')
+                        ? formatInTimezone(selectedPhoto.booking.scheduled_at, orgTz, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
                         : '—'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span>Uploaded: {selectedPhoto.created_at ? format(new Date(selectedPhoto.created_at), 'MMM d, yyyy h:mm a') : '—'}</span>
+                    <span>Uploaded: {selectedPhoto.created_at ? formatInTimezone(selectedPhoto.created_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '—'}</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
