@@ -19,6 +19,8 @@ type Result = {
   source: string;
 };
 
+type LeaderboardRow = Omit<Result, "source">;
+
 export default function ScoreSearchPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -26,16 +28,46 @@ export default function ScoreSearchPage() {
   const location = params.get("location") ?? "";
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<Result[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+  const [locationLabel, setLocationLabel] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setLeaderboard([]);
       const { data, error } = await supabase.functions.invoke("score-lookup", {
         body: { name, location },
       });
+      const rs: Result[] = error ? [] : (data?.results ?? []);
+
+      // If the named lookup matched nothing, show the local leaderboard instead
+      // of forcing the user to claim a profile to see anything.
+      if (!cancelled && rs.length === 0 && location) {
+        const loc = location.trim();
+        const isZip = /^\d{5}$/.test(loc);
+        let q = supabase
+          .from("score_companies")
+          .select("id, slug, name, city, state, score, score_grade, google_rating, google_review_count")
+          .order("score", { ascending: false, nullsFirst: false })
+          .limit(10);
+        q = isZip
+          ? q.eq("zip", loc)
+          : q.or(`city.ilike.%${loc}%,state.ilike.%${loc}%`);
+        const { data: top } = await q;
+        if (!cancelled) {
+          setLeaderboard((top ?? []) as LeaderboardRow[]);
+          const first = (top ?? [])[0];
+          setLocationLabel(
+            first?.city && first?.state
+              ? `${first.city}, ${first.state}`
+              : loc
+          );
+        }
+      }
+
       if (!cancelled) {
-        setResults(error ? [] : (data?.results ?? []));
+        setResults(rs);
         setLoading(false);
       }
     })();
@@ -62,12 +94,53 @@ export default function ScoreSearchPage() {
           <div className="flex items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Searching cleaning companies…
           </div>
+        ) : results.length === 0 && leaderboard.length > 0 ? (
+          <>
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                We haven't scored <span className="font-medium text-foreground">"{name}"</span> yet. Here's how cleaning companies in {locationLabel} rank today.
+              </p>
+            </div>
+            <Card variant="elevated" className="overflow-hidden">
+              <ol>
+                {leaderboard.map((c, i) => (
+                  <li key={c.id} className="border-b border-border/50 last:border-0">
+                    <Link to={`/score/c/${c.slug}`} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
+                      <span className="font-serif text-2xl text-muted-foreground w-10 tabular-nums">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[c.city, c.state].filter(Boolean).join(", ") || "Location unknown"}
+                          {c.google_rating != null && ` · ${c.google_rating}★ (${c.google_review_count})`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {c.score != null ? (
+                          <>
+                            <div className="font-serif text-2xl text-foreground tabular-nums leading-none">{c.score}</div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Grade {c.score_grade}</div>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Pending</span>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+            <div className="mt-6 text-center">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/signup")}>
+                <Sparkles className="h-4 w-4 mr-2" /> Generate a score for your business
+              </Button>
+            </div>
+          </>
         ) : results.length === 0 ? (
           <Card variant="elevated" className="p-10 text-center">
-            <p className="text-foreground font-medium mb-2">We haven't scored your business yet.</p>
-            <p className="text-sm text-muted-foreground mb-6">Claim your free profile and we'll generate your TidyWise Score.</p>
+            <p className="text-foreground font-medium mb-2">No cleaning companies scored in this area yet.</p>
+            <p className="text-sm text-muted-foreground mb-6">Be the first — generate your free TidyWise Score.</p>
             <Button variant="premium" onClick={() => navigate("/signup")}>
-              <Sparkles className="h-4 w-4 mr-2" /> Claim your free profile
+              <Sparkles className="h-4 w-4 mr-2" /> Generate your score
             </Button>
           </Card>
         ) : (
