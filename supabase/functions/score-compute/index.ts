@@ -182,10 +182,36 @@ Deno.serve(async (req) => {
     let count = company.google_review_count ?? 0;
     let reviews: string[] = [];
     let mostRecentDays: number | null = null;
+    let placeId: string | null = company.google_place_id ?? null;
+    let resolvedWebsite: string | null = company.website ?? null;
+    let resolvedPhone: string | null = company.phone ?? null;
 
-    if (PLACES_KEY && company.google_place_id) {
+    // For user-submitted businesses we may not have a google_place_id yet —
+    // do a one-shot Places Text Search to find one before pulling details.
+    if (PLACES_KEY && !placeId) {
+      const text = [company.name, company.city, company.state].filter(Boolean).join(" ");
+      try {
+        const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": PLACES_KEY,
+            "X-Goog-FieldMask": "places.id",
+          },
+          body: JSON.stringify({ textQuery: text, maxResultCount: 1 }),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          placeId = j.places?.[0]?.id ?? null;
+        }
+      } catch (e) {
+        console.warn("places text search failed", e);
+      }
+    }
+
+    if (PLACES_KEY && placeId) {
       const r = await fetch(
-        `https://places.googleapis.com/v1/places/${company.google_place_id}`,
+        `https://places.googleapis.com/v1/places/${placeId}`,
         {
           headers: {
             "X-Goog-Api-Key": PLACES_KEY,
@@ -198,6 +224,8 @@ Deno.serve(async (req) => {
         const j = await r.json();
         rating = j.rating ?? rating;
         count = j.userRatingCount ?? count;
+        if (!resolvedWebsite && j.websiteUri) resolvedWebsite = j.websiteUri;
+        if (!resolvedPhone && j.nationalPhoneNumber) resolvedPhone = j.nationalPhoneNumber;
         const rs = j.reviews ?? [];
         reviews = rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean);
         const newest = rs[0]?.publishTime;
@@ -208,15 +236,40 @@ Deno.serve(async (req) => {
     }
 
     const reviewsScoreVal = reviewsScore(rating, count, mostRecentDays);
-    const web = await checkWebsite(company.website);
-    const ai = await aiAnalyze({
-      name: company.name,
-      rating,
-      count,
-      reviews,
-      website: web,
-      reviewsScore: reviewsScoreVal,
-    });
+    const web = await checkWebsite(resolvedWebsite);
+
+    // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
+    // we still save a partial score from reviews + website so the page isn't blank.
+    let ai: {
+      reliability: number;
+      communication: number;
+      quality: number;
+      value: number;
+      themes: { label: string; sentiment: "positive" | "neutral" | "negative" }[];
+      tips: { title: string; body: string; impact: "high" | "medium" | "low" }[];
+    };
+    let aiFailed = false;
+    try {
+      ai = await aiAnalyze({
+        name: company.name,
+        rating,
+        count,
+        reviews,
+        website: web,
+        reviewsScore: reviewsScoreVal,
+      });
+    } catch (e) {
+      console.error("aiAnalyze failed, using fallback", e);
+      aiFailed = true;
+      ai = {
+        reliability: 60,
+        communication: 60,
+        quality: 60,
+        value: 60,
+        themes: [],
+        tips: [],
+      };
+    }
 
     const sentimentAvg = (ai.reliability + ai.communication + ai.quality + ai.value) / 4;
     const total = Math.round(
@@ -224,15 +277,20 @@ Deno.serve(async (req) => {
     );
     const grade = letterGrade(total);
 
+    const companyUpdate: Record<string, any> = {
+      google_rating: rating,
+      google_review_count: count,
+      score: total,
+      score_grade: grade,
+      last_scored_at: new Date().toISOString(),
+    };
+    if (placeId && placeId !== company.google_place_id) companyUpdate.google_place_id = placeId;
+    if (resolvedWebsite && resolvedWebsite !== company.website) companyUpdate.website = resolvedWebsite;
+    if (resolvedPhone && resolvedPhone !== company.phone) companyUpdate.phone = resolvedPhone;
+
     await supabase
       .from("score_companies")
-      .update({
-        google_rating: rating,
-        google_review_count: count,
-        score: total,
-        score_grade: grade,
-        last_scored_at: new Date().toISOString(),
-      })
+      .update(companyUpdate)
       .eq("id", company_id);
 
     await supabase.from("score_company_metrics").upsert(
