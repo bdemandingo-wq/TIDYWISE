@@ -17,6 +17,8 @@ import {
 } from 'recharts';
 import { useMemo, useState, useEffect } from 'react';
 import { format, subMonths, isAfter, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfitMarginReport } from '@/components/admin/ProfitMarginReport';
 import { CleanerPerformanceDashboard } from '@/components/admin/CleanerPerformanceDashboard';
@@ -534,7 +536,7 @@ export default function ReportsPage() {
                     {totalStats.cancelledList.slice(0, 50).map((b: any) => (
                       <tr key={b.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2.5 whitespace-nowrap">
-                          {format(new Date(b.cancelled_at || b.scheduled_at), 'MMM d, yyyy')}
+                          {formatInTimezone(b.cancelled_at || b.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
                         <td className="py-2.5">
                           {maskName(`${b.customer?.first_name || ''} ${b.customer?.last_name || ''}`.trim() || 'Unknown')}

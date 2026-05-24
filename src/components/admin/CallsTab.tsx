@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import {
   Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail,
   Search, Loader2, RefreshCw, FileText, Mic, Play, Download,
@@ -324,7 +326,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
                 <div className="bg-muted/50 rounded-lg p-3 col-span-2">
                   <p className="text-xs text-muted-foreground">Date & Time</p>
                   <p className="text-sm font-medium mt-1">
-                    {selectedCall.started_at ? format(new Date(selectedCall.started_at), 'MMM d, yyyy h:mm a') : 'N/A'}
+                    {selectedCall.started_at ? formatInTimezone(selectedCall.started_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}
                   </p>
                 </div>
               </div>

@@ -17,6 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { 
   CalendarIcon, 
   Download, 
@@ -408,7 +410,7 @@ export default function FinancePage() {
         )}
         {stripeData?.synced_at && (
           <span className="text-xs text-muted-foreground">
-            Last synced: {format(new Date(stripeData.synced_at), 'MMM d, h:mm a')}
+            Last synced: {formatInTimezone(stripeData.synced_at, orgTz, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
           </span>
         )}
       </div>
@@ -604,7 +606,7 @@ export default function FinancePage() {
                   {transactions.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(t.scheduled_at), 'MMM d, yyyy')}
+                        {formatInTimezone(t.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </TableCell>
                       <TableCell>#{t.booking_number}</TableCell>
                       <TableCell>{maskName(t.customer_name)}</TableCell>

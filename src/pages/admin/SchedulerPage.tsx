@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { formatInTimezone } from '@/lib/timezoneUtils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { SEOHead } from '@/components/SEOHead';
 
@@ -48,8 +50,8 @@ export default function SchedulerPage() {
       String(b.booking_number),
       b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
       b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
-      format(new Date(b.scheduled_at), 'yyyy-MM-dd'),
-      format(new Date(b.scheduled_at), 'h:mm a'),
+      formatInTimezone(b.scheduled_at, orgTz, { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'),
+      formatInTimezone(b.scheduled_at, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true }),
       b.staff?.name || 'Unassigned',
       b.status,
       `$${b.total_amount}`
