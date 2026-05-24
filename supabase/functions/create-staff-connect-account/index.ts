@@ -50,7 +50,12 @@ serve(async (req: Request) => {
       });
     }
 
-    const { staffId, organizationId, returnUrl } = await req.json();
+    const { staffId, organizationId, returnUrl, country: countryRaw } = await req.json();
+    // Supported Stripe Express countries (common subset). Default US.
+    const SUPPORTED_COUNTRIES = ["US","AU","GB","CA","NZ","IE","FR","DE","ES","IT","NL","BE","AT","PT","FI","SE","DK","NO","CH","SG","HK","JP","MX","BR"];
+    const country = (typeof countryRaw === "string" && SUPPORTED_COUNTRIES.includes(countryRaw.toUpperCase()))
+      ? countryRaw.toUpperCase()
+      : "US";
     console.log("[create-staff-connect-account] Request:", { staffId, organizationId, userId: userData.user.id });
 
     if (!staffId || !organizationId) {
@@ -114,6 +119,7 @@ serve(async (req: Request) => {
       // Create a new Stripe Connect Express account
       const account = await stripe.accounts.create({
         type: "express",
+        country,
         email: staffRecord.email,
         metadata: {
           staff_id: staffId,

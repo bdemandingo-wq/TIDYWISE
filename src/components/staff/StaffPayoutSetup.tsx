@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Banknote, ExternalLink, CheckCircle2, Clock, AlertCircle, ShieldCheck, RefreshCw, History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { PayoutRequirementsChecklist } from './PayoutRequirementsChecklist';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -68,6 +70,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const [searchParams] = useSearchParams();
   const [onboardingUrl, setOnboardingUrl] = useState<string | null>(null);
   const [isCheckingReturn, setIsCheckingReturn] = useState(false);
+  const [country, setCountry] = useState<string>('US');
 
   // Detect return from Stripe onboarding via URL params
   const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
@@ -183,6 +186,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
           staffId,
           organizationId,
           returnUrl: PRODUCTION_BASE,
+          country,
         },
       });
 
@@ -409,19 +413,52 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
 
               {/* Step 1: Generate the setup link */}
               {!onboardingUrl && (
-                <Button
-                  className="w-full"
-                  onClick={() => startOnboarding.mutate()}
-                  disabled={startOnboarding.isPending}
-                  size="lg"
-                >
-                  {startOnboarding.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Banknote className="w-4 h-4 mr-2" />
+                <>
+                  {!isOnboarding && (
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-country">Bank account country</Label>
+                      <Select value={country} onValueChange={setCountry}>
+                        <SelectTrigger id="payout-country">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">🇺🇸 United States</SelectItem>
+                          <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                          <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                          <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="NZ">🇳🇿 New Zealand</SelectItem>
+                          <SelectItem value="IE">🇮🇪 Ireland</SelectItem>
+                          <SelectItem value="DE">🇩🇪 Germany</SelectItem>
+                          <SelectItem value="FR">🇫🇷 France</SelectItem>
+                          <SelectItem value="ES">🇪🇸 Spain</SelectItem>
+                          <SelectItem value="IT">🇮🇹 Italy</SelectItem>
+                          <SelectItem value="NL">🇳🇱 Netherlands</SelectItem>
+                          <SelectItem value="SG">🇸🇬 Singapore</SelectItem>
+                          <SelectItem value="HK">🇭🇰 Hong Kong</SelectItem>
+                          <SelectItem value="JP">🇯🇵 Japan</SelectItem>
+                          <SelectItem value="MX">🇲🇽 Mexico</SelectItem>
+                          <SelectItem value="BR">🇧🇷 Brazil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        This sets the country of your bank account. It can't be changed later.
+                      </p>
+                    </div>
                   )}
-                  {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
-                </Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => startOnboarding.mutate()}
+                    disabled={startOnboarding.isPending}
+                    size="lg"
+                  >
+                    {startOnboarding.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Banknote className="w-4 h-4 mr-2" />
+                    )}
+                    {isOnboarding ? 'Continue Payout Setup' : 'Set Up Payouts'}
+                  </Button>
+                </>
               )}
 
               {/* Step 2: Show prominent redirect button */}
