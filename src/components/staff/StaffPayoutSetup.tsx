@@ -65,12 +65,22 @@ function mapErrorMessage(raw: string): string {
   return raw;
 }
 
+// Best-effort default country from browser locale (Stripe Express supported subset).
+const SUPPORTED_COUNTRIES = ['US','AU','CA','GB','NZ','IE','DE','FR','ES','IT','NL','SG','HK','JP','MX','BR'];
+function detectDefaultCountry(): string {
+  try {
+    const region = new Intl.Locale(navigator.language).maximize().region;
+    if (region && SUPPORTED_COUNTRIES.includes(region)) return region;
+  } catch {}
+  return 'US';
+}
+
 export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupProps) {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [onboardingUrl, setOnboardingUrl] = useState<string | null>(null);
   const [isCheckingReturn, setIsCheckingReturn] = useState(false);
-  const [country, setCountry] = useState<string>('US');
+  const [country, setCountry] = useState<string>(() => detectDefaultCountry());
 
   // Detect return from Stripe onboarding via URL params
   const setupComplete = searchParams.get('setup') === 'complete' || searchParams.get('payout') === 'success';
