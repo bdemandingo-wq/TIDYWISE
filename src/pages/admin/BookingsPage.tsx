@@ -165,6 +165,7 @@ export default function BookingsPage() {
   const [bulkDraftDeleteOpen, setBulkDraftDeleteOpen] = useState(false);
   const [bulkDraftDeleting, setBulkDraftDeleting] = useState(false);
   const isMobile = useIsMobile();
+  const orgTz = useOrgTimezone();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
