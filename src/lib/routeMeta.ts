@@ -23,6 +23,13 @@ export type RouteMeta = {
    * Path-only (e.g. "/login"); the prerender prepends the base URL.
    */
   canonicalPath?: string;
+  /**
+   * Optional extra HTML to inject into the prerendered <body> inside a
+   * <noscript> block. Use to surface internal links to non-JS crawlers
+   * on pages that gate their navigation behind React-rendered components.
+   * Keep escaped/trusted only — value is inlined verbatim.
+   */
+  noscriptBody?: string;
 };
 
 const BRAND = "TidyWise";
@@ -52,6 +59,17 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Reach the TidyWise team for sales, support, or partnership questions. We reply to most messages within one business day.",
     h1: "Contact our team",
+    noscriptBody: `
+      <nav aria-label="Related pages">
+        <ul>
+          <li><a href="/">TidyWise home</a></li>
+          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="/demo">Book a demo</a></li>
+          <li><a href="/blog">Cleaning business blog</a></li>
+          <li><a href="/cleaning-business-software">Cleaning software by state</a></li>
+          <li><a href="/privacy-policy">Privacy policy</a></li>
+        </ul>
+      </nav>`,
   },
   "/login": {
     title: "Log In to TidyWise | Cleaning Business Software",
@@ -102,6 +120,7 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Cleaning business software tailored to every US state — local wage rules, market context, and pricing. Find your state's TidyWise guide.",
     h1: "Cleaning business software in every US state",
+    // State grid built at prerender time below — see buildStateGridNoscript().
   },
   "/staff/login": {
     title: "Staff Login — TidyWise Cleaner App",

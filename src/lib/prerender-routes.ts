@@ -34,6 +34,22 @@ function escapeHtml(s: string): string {
  * Replace tags by attribute selector. Targets the *existing* tag in
  * index.html so the order in <head> is preserved (Encited cares about order).
  */
+function buildStateGridNoscript(): string {
+  const items = Object.entries(locationData)
+    .filter(([, loc]) => loc.type === "state")
+    .map(
+      ([slug, loc]) =>
+        `<li><a href="/cleaning-business-software/${slug}">Cleaning business software in ${loc.name}</a></li>`
+    )
+    .join("");
+  return `<nav aria-label="Cleaning business software by state"><ul>${items}</ul></nav>`;
+}
+
+function noscriptBodyFor(route: string, meta: RouteMeta): string | undefined {
+  if (route === "/cleaning-business-software") return buildStateGridNoscript();
+  return meta.noscriptBody;
+}
+
 function patchHead(html: string, route: string, meta: RouteMeta): string {
   const canonicalRoute = meta.canonicalPath ?? (route === "/" ? "/" : route);
   const canonical = `${BASE_URL}${canonicalRoute}`;
@@ -96,9 +112,15 @@ function patchHead(html: string, route: string, meta: RouteMeta): string {
   const h1 = `<h1 style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">${escapeHtml(
     meta.h1
   )}</h1>`;
+
+  // Optional <noscript> body content (internal-link grids etc). Non-JS
+  // crawlers see it; users with JS never do.
+  const extraBody = noscriptBodyFor(route, meta);
+  const noscriptBlock = extraBody ? `<noscript>${extraBody}</noscript>` : "";
+
   out = out.replace(
     /<div\s+id="root"\s*>\s*<\/div>/i,
-    `<div id="root">${h1}</div>`
+    `<div id="root">${h1}</div>${noscriptBlock}`
   );
 
   return out;
