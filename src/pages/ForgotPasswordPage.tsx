@@ -44,9 +44,17 @@ export default function ForgotPasswordPage() {
       }
 
       toast.success('If an account exists for that email, a reset code is on its way.');
-      navigate('/reset-password', {
-        state: { email: parsed.data.email },
-      });
+      // Skip the auto-navigation for headless / prerender browsers — otherwise
+      // Lovable's prerender for /reset-password ends up capturing this page's
+      // HTML at that URL, leaving /reset-password with ForgotPasswordPage tags.
+      const isHeadless =
+        typeof navigator !== 'undefined' &&
+        (navigator.webdriver === true || /HeadlessChrome|Prerender/i.test(navigator.userAgent));
+      if (!isHeadless) {
+        navigate('/reset-password', {
+          state: { email: parsed.data.email },
+        });
+      }
     } finally {
       setLoading(false);
     }
