@@ -298,6 +298,31 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
+
+      <section aria-labelledby="contact-related-heading" className="py-12 px-4 border-t border-border">
+        <div className="max-w-4xl mx-auto">
+          <h2 id="contact-related-heading" className="text-lg font-semibold text-foreground mb-4">
+            More from TidyWise
+          </h2>
+          <ul className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-6 text-sm">
+            <li><Link to="/" className="text-primary hover:underline">Home</Link></li>
+            <li><Link to="/pricing" className="text-primary hover:underline">Pricing</Link></li>
+            <li><Link to="/demo" className="text-primary hover:underline">Book a demo</Link></li>
+            <li><Link to="/blog" className="text-primary hover:underline">Cleaning business blog</Link></li>
+            <li><Link to="/cleaning-business-software" className="text-primary hover:underline">Software by state</Link></li>
+            <li><Link to="/features/scheduling-software" className="text-primary hover:underline">Scheduling features</Link></li>
+            <li><Link to="/features/payroll-software" className="text-primary hover:underline">Payroll features</Link></li>
+            <li><Link to="/features/crm" className="text-primary hover:underline">CRM features</Link></li>
+            <li><Link to="/features/route-optimization" className="text-primary hover:underline">GPS &amp; routing</Link></li>
+            <li><Link to="/compare/jobber" className="text-primary hover:underline">TidyWise vs Jobber</Link></li>
+            <li><Link to="/compare/housecall-pro" className="text-primary hover:underline">vs Housecall Pro</Link></li>
+            <li><Link to="/compare/zenmaid" className="text-primary hover:underline">vs ZenMaid</Link></li>
+            <li><Link to="/score/search" className="text-primary hover:underline">TidyWise Score directory</Link></li>
+            <li><Link to="/score/generate" className="text-primary hover:underline">Generate your score</Link></li>
+            <li><Link to="/privacy-policy" className="text-primary hover:underline">Privacy policy</Link></li>
+          </ul>
+        </div>
+      </section>
     </div>
   );
 }

@@ -159,13 +159,13 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background flex flex-col">
       <SEOHead
-        title="Set new password | TidyWise"
-        description="Enter your reset code and set a new password for your TidyWise cleaning business account. Codes expire after a short time for security."
+        title="Enter Reset Code & New Password | TidyWise"
+        description="Confirm your TidyWise reset code and choose a new password. Codes expire after a short window for account security on your cleaning business dashboard."
         canonical="/reset-password"
-        noIndex
       />
+      <div className="flex-1 flex items-center justify-center p-4 w-full">
       <h1 className="sr-only">Set a new password for your TidyWise account</h1>
       <div className="w-full max-w-md">
         <Link
@@ -303,6 +303,87 @@ export default function ResetPasswordPage() {
           </CardContent>
         </Card>
       </div>
+      </div>
+
+      <section aria-labelledby="reset-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 id="reset-info-heading" className="text-2xl font-bold text-foreground">
+            About setting a new TidyWise password
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            This page is the second step of the TidyWise password recovery flow. You should
+            already have an 8-digit reset code in your inbox — it was sent the moment you
+            submitted the email lookup form. Codes expire after 15 minutes and are single-
+            use, so if you wait too long or try to reuse one, you'll need to request a
+            fresh one from the previous step.
+          </p>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Password requirements
+            </h3>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li>At least 8 characters long</li>
+              <li>Includes at least one letter</li>
+              <li>Includes at least one number</li>
+              <li>Different from any password you've used in the last 90 days</li>
+            </ul>
+            <p className="text-muted-foreground leading-relaxed mt-3">
+              We recommend a password manager — TidyWise auto-fills cleanly on iOS,
+              Android, and every major desktop browser. Avoid reusing the same password
+              across multiple services; cleaning businesses handle sensitive customer
+              addresses, payment data, and staff records, so a single leaked password
+              elsewhere shouldn't compromise your operations here.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              After you set a new password
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              You'll be signed into your TidyWise dashboard automatically and your old
+              password stops working everywhere. Other devices that were signed in stay
+              signed in — they trust the existing session token. If you suspect another
+              device shouldn't have access, head to{" "}
+              <Link to="/login" className="text-primary hover:underline">login</Link>{" "}
+              then Settings → Active Sessions to revoke them, or contact{" "}
+              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
+              and we'll force-sign-out everything for you.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Didn't request a reset?
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              If a code arrived unexpectedly, no action is needed — codes expire on their
+              own and an unused code does not change your password. If this happens
+              repeatedly, someone may have your email address; consider rotating the
+              password from inside your dashboard once you're back in. Report suspicious
+              activity to{" "}
+              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Related TidyWise pages
+            </h3>
+            <ul className="grid sm:grid-cols-2 gap-2 text-sm">
+              <li><Link to="/login" className="text-primary hover:underline">Back to sign in →</Link></li>
+              <li><Link to="/forgot-password" className="text-primary hover:underline">Request a new reset code →</Link></li>
+              <li><Link to="/signup" className="text-primary hover:underline">Create a TidyWise account →</Link></li>
+              <li><Link to="/staff/login" className="text-primary hover:underline">Staff portal login →</Link></li>
+              <li><Link to="/portal/login" className="text-primary hover:underline">Client portal login →</Link></li>
+              <li><Link to="/pricing" className="text-primary hover:underline">TidyWise pricing →</Link></li>
+              <li><Link to="/contact" className="text-primary hover:underline">Contact support →</Link></li>
+              <li><Link to="/privacy-policy" className="text-primary hover:underline">Privacy policy →</Link></li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

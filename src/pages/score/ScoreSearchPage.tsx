@@ -192,6 +192,54 @@ export default function ScoreSearchPage() {
             </ol>
           </Card>
         )}
+
+        {/* Always-rendered context so empty searches still give visitors useful info
+            and the page meets minimum word/internal-link thresholds for crawlers. */}
+        <section className="mt-12 space-y-6">
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">About the TidyWise Score directory</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              The TidyWise Score is a free, public grade (0–100) for cleaning businesses
+              in every US city. Search any business name and ZIP above and we'll show
+              what we have on file — Google reviews, AI sentiment, website quality, and
+              an overall score. If we don't have a profile yet, you can generate one in
+              under a minute, no signup required.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">What we measure</h2>
+            <ul className="space-y-2 text-muted-foreground list-disc pl-5">
+              <li><strong className="text-foreground">Reviews:</strong> average rating, total volume, and how recently reviews are coming in.</li>
+              <li><strong className="text-foreground">AI sentiment:</strong> we grade the text of recent reviews across reliability, communication, quality, and value.</li>
+              <li><strong className="text-foreground">Website signals:</strong> HTTPS, mobile-friendly viewport, online booking presence, and load time.</li>
+              <li><strong className="text-foreground">Local rank:</strong> where the business sits among scored cleaners in the same city.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">Who this is for</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Homeowners use the directory to vet cleaners before hiring — a high
+              TidyWise Score means the cleaner answers their phone, shows up on time,
+              and has a real online presence. Cleaning business owners use it to see how
+              they stack up against the competition, find quick wins to improve, and
+              earn a public badge they can put on their website.
+            </p>
+          </div>
+
+          <div className="border-t pt-6">
+            <h2 className="font-serif text-2xl text-foreground mb-3">Explore more</h2>
+            <ul className="grid sm:grid-cols-2 gap-2 text-sm">
+              <li><Link to="/score/generate" className="text-primary hover:underline">Generate your own free score →</Link></li>
+              <li><Link to="/cleaning-business-software" className="text-primary hover:underline">Cleaning software by state →</Link></li>
+              <li><Link to="/blog" className="text-primary hover:underline">Cleaning business blog →</Link></li>
+              <li><Link to="/pricing" className="text-primary hover:underline">TidyWise pricing →</Link></li>
+              <li><Link to="/demo" className="text-primary hover:underline">Book a demo →</Link></li>
+              <li><Link to="/contact" className="text-primary hover:underline">Contact our team →</Link></li>
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -92,16 +92,16 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     canonicalPath: "/login",
   },
   "/forgot-password": {
-    title: "Forgot Password — TidyWise",
+    title: "Reset Your TidyWise Password | Account Recovery",
     description:
-      "Reset your TidyWise password. We'll email a secure reset link so you can get back to running your cleaning business in minutes.",
-    h1: "Reset your password",
+      "Forgot your TidyWise password? Enter your email and we'll send a one-time reset code so you can get back into your cleaning business dashboard in minutes.",
+    h1: "Reset your TidyWise password",
   },
   "/reset-password": {
-    title: "Reset Password — TidyWise",
+    title: "Enter Reset Code & New Password | TidyWise",
     description:
-      "Choose a new password for your TidyWise cleaning business account. Use a strong password to keep your team and customer data secure.",
-    h1: "Set a new password",
+      "Confirm your TidyWise reset code and choose a new password. Codes expire after a short window for account security on your cleaning business dashboard.",
+    h1: "Set a new password for your TidyWise account",
   },
   "/privacy-policy": {
     title: "Privacy Policy | TidyWise",

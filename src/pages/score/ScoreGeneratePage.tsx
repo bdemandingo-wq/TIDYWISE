@@ -166,6 +166,65 @@ export default function ScoreGeneratePage() {
             </p>
           </form>
         </Card>
+
+        {/* Always-rendered context so the page has real substance for crawlers and visitors. */}
+        <section className="mt-12 space-y-6">
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">What is the TidyWise Score?</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              The TidyWise Score is a free, public 0–100 grade for cleaning businesses in
+              the United States. It blends signals homeowners already use when picking a
+              cleaner — Google reviews, review recency, AI sentiment across reliability,
+              communication, quality, and value, plus website signals like HTTPS, mobile
+              friendliness, and whether the business offers online booking.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">Why generate yours</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Getting a TidyWise Score takes under a minute and creates a public profile
+              for your business that ranks against competitors in your city. A high score
+              becomes a trust signal you can link to from your website, share on social,
+              and use in proposals. A low score points out exactly which signals to
+              improve first — usually review recency or a missing online booking flow.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">How it works</h2>
+            <ol className="space-y-2 text-muted-foreground list-decimal pl-5">
+              <li>Submit your business name, city/state, and website.</li>
+              <li>We pull your public Google Places listing and recent reviews.</li>
+              <li>Our AI grades sentiment across reliability, communication, quality, and value.</li>
+              <li>We probe your website for HTTPS, mobile viewport, load time, and online booking.</li>
+              <li>Everything weights into a single 0–100 score and a letter grade (A–F).</li>
+              <li>Your profile goes live at a clean URL you can share or claim.</li>
+            </ol>
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl text-foreground mb-3">Privacy &amp; data</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              We only use publicly available information about your business — nothing
+              behind a login. You can request edits or take-down at any time by claiming
+              your profile after it's generated, or by emailing us. No credit card. No
+              forced signup. No data sale.
+            </p>
+          </div>
+
+          <div className="border-t pt-6">
+            <h2 className="font-serif text-2xl text-foreground mb-3">Explore TidyWise</h2>
+            <ul className="grid sm:grid-cols-2 gap-2 text-sm">
+              <li><Link to="/score/search" className="text-primary hover:underline">Search any cleaning company →</Link></li>
+              <li><Link to="/cleaning-business-software" className="text-primary hover:underline">Cleaning software by state →</Link></li>
+              <li><Link to="/pricing" className="text-primary hover:underline">TidyWise pricing →</Link></li>
+              <li><Link to="/demo" className="text-primary hover:underline">Book a product demo →</Link></li>
+              <li><Link to="/blog" className="text-primary hover:underline">Cleaning business blog →</Link></li>
+              <li><Link to="/contact" className="text-primary hover:underline">Contact our team →</Link></li>
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );
