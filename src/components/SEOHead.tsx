@@ -1,5 +1,10 @@
-import { useEffect } from "react";
+import { useLayoutEffect, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
+
+// useLayoutEffect runs synchronously after DOM mutations but before paint, so
+// the per-route head tags are set before any prerender snapshot captures the
+// page. Falls back to useEffect during SSR (where useLayoutEffect warns).
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const PRODUCTION_DOMAIN = "https://www.jointidywise.com";
 const DEFAULT_OG_IMAGE = `${PRODUCTION_DOMAIN}/images/tidywise-og.png`;
@@ -38,7 +43,9 @@ export function SEOHead({
 
   // Keep the static canonical and OG/Twitter tags from index.html in sync so there's
   // exactly one of each in <head>, even before Helmet hydrates / for non-JS crawlers.
-  useEffect(() => {
+  // Using a layout effect so the update happens before paint — important for
+  // prerender snapshots that capture the DOM at first paint.
+  useIsoLayoutEffect(() => {
     const setLinkHref = (selector: string, href: string) => {
       const tag = document.querySelector<HTMLLinkElement>(selector);
       if (tag) tag.href = href;
