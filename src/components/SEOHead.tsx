@@ -50,9 +50,19 @@ export function SEOHead({
 
     setLinkHref('link[rel="canonical"]', canonicalUrl);
 
+    // Update the static <title> in index.html (also updates the browser tab).
+    if (typeof document !== "undefined") {
+      document.title = title;
+    }
+
     // Sync the static description meta in index.html so non-JS crawlers and
     // SEO scorers that read the initial HTML see the correct, per-route copy.
     setMetaContent('meta[name="description"]', description);
+
+    setMetaContent(
+      'meta[name="robots"]',
+      noIndex ? "noindex, nofollow" : "index, follow"
+    );
 
     setMetaContent('meta[property="og:title"]', title);
     setMetaContent('meta[property="og:description"]', description);
@@ -62,7 +72,7 @@ export function SEOHead({
     setMetaContent('meta[name="twitter:title"]', title);
     setMetaContent('meta[name="twitter:description"]', description);
     setMetaContent('meta[name="twitter:image"]', imageUrl);
-  }, [canonicalUrl, title, description, imageUrl]);
+  }, [canonicalUrl, title, description, imageUrl, noIndex]);
 
   const jsonLdPayload = schemaJson
     ? Array.isArray(schemaJson)
@@ -70,16 +80,12 @@ export function SEOHead({
       : JSON.stringify({ "@context": "https://schema.org", ...schemaJson })
     : undefined;
 
+  // All conventional head tags (title, description, robots, canonical, OG,
+  // Twitter) are managed by the useEffect above — it mutates the existing
+  // static tags from index.html in place. Helmet is used only for JSON-LD
+  // because there's no static schema tag to update.
   return (
     <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <meta name="robots" content={noIndex ? "noindex, nofollow" : "index, follow"} />
-
-      {/* Canonical and OG/Twitter tags are managed via useEffect on the static tags
-          in index.html to keep them at the top of <head> and avoid duplicates. */}
-
-      {/* JSON-LD */}
       {jsonLdPayload && (
         <script type="application/ld+json">{jsonLdPayload}</script>
       )}
