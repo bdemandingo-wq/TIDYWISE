@@ -124,7 +124,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Contact TidyWise CRM | Cleaning Business Software Support"
-        description="Get in touch with the TidyWise team. We help cleaning business owners every day. Email support@tidywisecleaning.com or send a message — we reply within 24 hours."
+        description="Reach the TidyWise team for sales, support, or partnership questions. We reply to most messages within one business day."
         canonical="/contact"
         schemaJson={contactSchema}
       />

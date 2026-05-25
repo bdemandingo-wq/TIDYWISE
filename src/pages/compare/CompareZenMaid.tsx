@@ -72,7 +72,7 @@ export default function CompareZenMaid() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="TidyWise vs ZenMaid 2026: Better Cleaning Software?"
-        description="TIDYWISE vs ZenMaid: side-by-side comparison of pricing, features, payroll, and reporting for cleaning businesses. See why growing maid services choose TIDYWISE."
+        description="Compare TidyWise and ZenMaid on pricing, scheduling, CRM, payroll, and mobile app polish. See which one your team will actually use daily."
         canonical="/compare/zenmaid"
         ogImage="/images/tidywise-og.png"
       />

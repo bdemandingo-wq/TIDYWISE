@@ -70,7 +70,7 @@ export default function CompareServiceTitan() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="TIDYWISE vs ServiceTitan for Cleaning Businesses (2026)"
-        description="ServiceTitan is built for HVAC and plumbing enterprises. TIDYWISE is built for cleaning. Compare pricing, setup time, and features — and see why cleaning businesses choose TIDYWISE."
+        description="ServiceTitan targets large home-service companies. See where TidyWise fits cleaning businesses better at a fraction of the cost."
         canonical="/compare/servicetitan"
         ogImage="/images/tidywise-og.png"
       />
