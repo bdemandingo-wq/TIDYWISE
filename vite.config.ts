@@ -24,6 +24,27 @@ function sitemapPlugin(): Plugin {
   };
 }
 
+// Emits per-route static HTML (dist/<route>/index.html) with correct title /
+// description / canonical / og / twitter / h1 tags so non-JS crawlers see real
+// per-page SEO instead of the homepage placeholder served to the SPA shell.
+function prerenderPlugin(): Plugin {
+  return {
+    name: "tidywise-prerender",
+    apply: "build",
+    closeBundle() {
+      try {
+        const output = execSync("npx tsx src/lib/prerender-routes.ts", {
+          stdio: ["ignore", "pipe", "pipe"],
+        }).toString().trim();
+        if (output) this.info(output);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.warn(`prerender failed: ${message}`);
+      }
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -34,6 +55,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     sitemapPlugin(),
+    prerenderPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {

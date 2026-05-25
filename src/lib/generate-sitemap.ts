@@ -162,6 +162,18 @@ export async function generateSitemap(): Promise<{ count: number; outputPath: st
     uniquePaths.add(`/blog/post/${slug}`);
   }
 
+  // Add concrete location pages (states + cities). The /:locationSlug dynamic
+  // route is excluded above; expand it here so each location URL is crawlable
+  // and not flagged as an orphan page.
+  try {
+    const { locationData } = await import("../data/locationData");
+    for (const slug of Object.keys(locationData)) {
+      uniquePaths.add(`/cleaning-business-software/${slug}`);
+    }
+  } catch (err) {
+    console.warn(`[sitemap] could not load locationData:`, err);
+  }
+
   const xml = buildSitemap([...uniquePaths]);
   writeFileSync(outputPath, xml, "utf8");
 
