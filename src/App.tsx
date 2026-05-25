@@ -197,7 +197,10 @@ const App = () => (
                          <Route path="/login" element={<LoginPage />} />
                          {/* App Store Guideline 3.1.1: No signup/registration on native */}
                          <Route path="/signup" element={<Navigate to="/login" replace />} />
-                          <Route path="/auth" element={<Navigate to="/login" replace />} />
+                          {/* /auth renders LoginPage directly (not a redirect) so its
+                              unique title/description from LoginPage's isAuthPath logic
+                              can actually take effect. Canonical still points to /login. */}
+                          <Route path="/auth" element={<LoginPage />} />
                          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                          <Route path="/reset-password" element={<Navigate to="/login" replace />} />
                          <Route path="/contact" element={<ContactPage />} />
@@ -301,7 +304,10 @@ const App = () => (
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/cleaning-business-software" element={<CleaningBusinessSoftware />} />
                     <Route path="/cleaning-business-software/:locationSlug" element={<LocationSoftwarePage />} />
-                    <Route path="/auth" element={<Navigate to="/login" replace />} />
+                    {/* /auth renders LoginPage directly (not a redirect) so its
+                        unique title/description from LoginPage's isAuthPath logic
+                        can actually take effect. Canonical still points to /login. */}
+                    <Route path="/auth" element={<LoginPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />

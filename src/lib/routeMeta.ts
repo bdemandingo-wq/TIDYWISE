@@ -47,9 +47,9 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     h1: "Contact our team",
   },
   "/login": {
-    title: "Log In to TidyWise",
+    title: "Log In to TidyWise | Cleaning Business Software",
     description:
-      "Sign in to your TidyWise account to manage bookings, staff, payroll, invoices, and customer communication for your cleaning business.",
+      "Sign in to TidyWise to manage cleaning jobs, schedules, invoices, payroll, and your team from one dashboard.",
     h1: "Log in to TidyWise",
   },
   "/signup": {
@@ -59,10 +59,10 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     h1: "Create your free TidyWise account",
   },
   "/auth": {
-    title: "TidyWise Account Access",
+    title: "Sign In or Create Your TidyWise Account",
     description:
-      "Securely access your TidyWise cleaning business account. Sign in or recover your password to manage bookings, staff, and payments.",
-    h1: "Access your TidyWise account",
+      "Access your TidyWise account to run your cleaning business — bookings, scheduling, invoicing, payroll, GPS, and team dispatch from one dashboard.",
+    h1: "Sign in or create your TidyWise account",
   },
   "/forgot-password": {
     title: "Forgot Password — TidyWise",
