@@ -16,6 +16,13 @@ export type RouteMeta = {
   title: string;
   description: string;
   h1: string;
+  /**
+   * Override the canonical URL. Use when this route is a duplicate of
+   * another (e.g. /auth is a duplicate of /login) and search engines
+   * should consolidate ranking on the preferred URL.
+   * Path-only (e.g. "/login"); the prerender prepends the base URL.
+   */
+  canonicalPath?: string;
 };
 
 const BRAND = "TidyWise";
@@ -63,6 +70,8 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Access your TidyWise account to run your cleaning business — bookings, scheduling, invoicing, payroll, GPS, and team dispatch from one dashboard.",
     h1: "Sign in or create your TidyWise account",
+    // Same underlying page as /login — consolidate ranking on /login.
+    canonicalPath: "/login",
   },
   "/forgot-password": {
     title: "Forgot Password — TidyWise",

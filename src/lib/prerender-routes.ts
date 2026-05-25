@@ -35,7 +35,8 @@ function escapeHtml(s: string): string {
  * index.html so the order in <head> is preserved (Encited cares about order).
  */
 function patchHead(html: string, route: string, meta: RouteMeta): string {
-  const canonical = `${BASE_URL}${route === "/" ? "/" : route}`;
+  const canonicalRoute = meta.canonicalPath ?? (route === "/" ? "/" : route);
+  const canonical = `${BASE_URL}${canonicalRoute}`;
   const title = escapeHtml(meta.title);
   const description = escapeHtml(meta.description);
   const ogImage = `${BASE_URL}/images/tidywise-og.png`;
