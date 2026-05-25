@@ -94,6 +94,24 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
       "Cleaning business software tailored to every US state — local wage rules, market context, and pricing. Find your state's TidyWise guide.",
     h1: "Cleaning business software in every US state",
   },
+  "/staff/login": {
+    title: "Staff Login — TidyWise Cleaner App",
+    description:
+      "Sign in to the TidyWise staff app to view your schedule, check in to jobs, upload photos, and track your pay across all assigned cleanings.",
+    h1: "Cleaner staff login",
+  },
+  "/portal/login": {
+    title: "Client Portal Login | TidyWise",
+    description:
+      "Log in to your TidyWise client portal to view upcoming cleanings, request changes, manage payments, and message your cleaning team.",
+    h1: "Client portal login",
+  },
+  "/score/search": {
+    title: "TidyWise Score — Search Cleaning Companies",
+    description:
+      "Look up the TidyWise Score for any US cleaning business. Free, AI-graded ranking of reviews, reputation, and online presence — no signup needed.",
+    h1: "Search the TidyWise Score directory",
+  },
 
   // Blog
   "/blog": {
