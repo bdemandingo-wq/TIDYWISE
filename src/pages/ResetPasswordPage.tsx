@@ -54,10 +54,18 @@ export default function ResetPasswordPage() {
   const [errors, setErrors] = useState<{ code?: string; password?: string; confirm?: string }>({});
   const codeInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Redirect to /forgot-password if we have no email at all.
+  // Redirect to /forgot-password if we have no email at all — but skip for
+  // headless / prerender browsers so the snapshot of /reset-password actually
+  // captures THIS page (instead of redirecting and snapshotting
+  // ForgotPasswordPage at the /reset-password URL).
   useEffect(() => {
     if (!email) {
-      navigate('/forgot-password', { replace: true });
+      const isHeadless =
+        typeof navigator !== 'undefined' &&
+        (navigator.webdriver === true || /HeadlessChrome|Prerender/i.test(navigator.userAgent));
+      if (!isHeadless) {
+        navigate('/forgot-password', { replace: true });
+      }
     }
   }, [email, navigate]);
 
