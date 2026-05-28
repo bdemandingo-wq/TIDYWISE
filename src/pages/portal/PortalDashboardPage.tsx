@@ -111,9 +111,15 @@ function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }:
 }) {
   const [loading, setLoading] = useState(false);
   const [redeemed, setRedeemed] = useState(false);
+  // Synchronous in-flight guard: React state updates batch, so a very fast
+  // double-tap can fire handleRedeem twice before disabled={loading} takes
+  // effect. The ref short-circuits the second call immediately.
+  const inFlightRef = useRef(false);
 
   const handleRedeem = async () => {
     if (!customerId || !organizationId) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('redeem-loyalty-points', {
@@ -127,6 +133,7 @@ function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }:
       toast.error(e.message || 'Redemption failed');
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   };
 
