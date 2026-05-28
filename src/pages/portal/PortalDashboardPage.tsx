@@ -442,13 +442,21 @@ export default function PortalDashboardPage() {
 
   const sendInvite = async () => {
     if (!user || !inviteEmail.trim()) return;
+    // Cheap client-side format check so we don't waste an RPC + edge-function
+    // round trip on obviously malformed input. The server still validates.
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmed = inviteEmail.trim();
+    if (!emailPattern.test(trimmed)) {
+      toast.error("That doesn't look like a valid email address");
+      return;
+    }
     setSendingInvite(true);
     try {
       const { data: rpcResult, error: rpcError } = await supabase.rpc(
         'create_client_portal_referral' as any,
         {
           p_portal_user_id: user.id,
-          p_referred_email: inviteEmail.trim(),
+          p_referred_email: trimmed,
           p_referred_name: inviteName.trim() || null,
         }
       );
