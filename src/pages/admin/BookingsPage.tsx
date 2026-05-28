@@ -2105,7 +2105,7 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-2 md:gap-3">
                           <div className="w-7 h-7 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                             <span className="text-xs md:text-sm font-semibold text-primary">
-                              {isTestMode ? 'J' : (booking.customer?.first_name?.[0] || '?')}
+                              {isTestMode ? 'J' : (booking.customer?.first_name?.trim()?.[0]?.toUpperCase() || '?')}
                             </span>
                           </div>
                           <div>
