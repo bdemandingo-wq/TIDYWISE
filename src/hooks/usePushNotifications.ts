@@ -169,7 +169,9 @@ export function usePushNotifications(staffId?: string) {
         }
       });
 
-      console.log('Push registration success, token:', nativeToken);
+      // Don't log the raw token — it's a credential that can be used to send
+      // arbitrary push notifications to this device until it rotates.
+      console.log('Push registration success');
       setToken(nativeToken);
       setIsRegistered(true);
 
@@ -188,7 +190,9 @@ export function usePushNotifications(staffId?: string) {
       }
 
       if (staffId) {
-        console.log('Would save push token for staff:', staffId, nativeToken);
+        // Dev placeholder until staff-token persistence is wired up. Never log
+        // the actual token alongside the staff id — that's a deanonymizing pair.
+        console.log('Push token ready for staff registration');
       }
 
       return true;
