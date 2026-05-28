@@ -208,6 +208,23 @@ export default function PortalDashboardPage() {
         if (settings?.timezone) setOrgTimezone(settings.timezone);
       }
 
+      // If the portal user has no customer_id linked, get_client_portal_bookings
+      // returns an empty array with no error — the user would just see "No
+      // upcoming bookings" forever with no way to debug. Surface it instead.
+      if (!user.customer_id) {
+        console.warn("[PortalDashboard] portal user has no customer_id linked", { userId: user.id });
+        toast.error(
+          "Your portal account isn't linked to a customer profile yet. Please contact support so we can connect it.",
+          { duration: 10000 }
+        );
+        setBookings([]);
+        setRequests([]);
+        setNotifications([]);
+        setInspectionReports([]);
+        setLoadingData(false);
+        return;
+      }
+
       const { data: bookingsData } = await supabase
         .rpc("get_client_portal_bookings", { p_customer_id: user.customer_id });
 
