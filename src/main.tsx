@@ -3,6 +3,12 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { setupDeepLinkListener } from "@/lib/nativeOAuth";
+import { initSentry, Sentry } from "@/lib/sentry";
+
+// Initialize observability before anything renders — earlier init means
+// the bootstrap error path (e.g. the chunk-load recovery below) is also
+// captured. No-op when VITE_SENTRY_DSN is unset.
+initSentry();
 
 // Auto-recover from stale-deploy chunk load failures.
 // When index.html is cached but references hashed JS files that no longer
@@ -65,7 +71,46 @@ window.addEventListener('load', () => {
 setupDeepLinkListener();
 
 createRoot(document.getElementById("root")!).render(
-  <HelmetProvider>
-    <App />
-  </HelmetProvider>
+  <Sentry.ErrorBoundary
+    fallback={({ resetError }) => (
+      <div
+        role="alert"
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: "1rem",
+          padding: "2rem",
+          textAlign: "center",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Something went wrong.</h1>
+        <p style={{ color: "#666", margin: 0, maxWidth: "32rem" }}>
+          We've been notified and are looking into it. Refresh the page to try again.
+        </p>
+        <button
+          onClick={() => {
+            resetError();
+            window.location.reload();
+          }}
+          style={{
+            padding: "0.5rem 1rem",
+            border: "1px solid #ddd",
+            borderRadius: "0.5rem",
+            background: "white",
+            cursor: "pointer",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+    )}
+  >
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
+  </Sentry.ErrorBoundary>
 );
