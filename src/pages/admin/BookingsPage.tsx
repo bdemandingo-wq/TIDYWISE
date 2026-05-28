@@ -935,16 +935,18 @@ export default function BookingsPage() {
       if (error) throw error;
 
       if (data.success) {
-        toast({ 
-          title: "Payment Successful", 
-          description: data.message 
+        // charge-card-directly already wrote payment_status='paid' and
+        // payment_intent_id to the booking via service role inside the same
+        // request as the Stripe capture. Calling updateBooking() here again
+        // would race: a transient client-side failure could leave the user
+        // staring at "Payment Successful" while the cache still reflects the
+        // pre-charge state, then a manual retry would attempt a second charge.
+        // Just refetch from the source of truth.
+        toast({
+          title: "Payment Successful",
+          description: data.message,
         });
-        
-        await updateBooking.mutateAsync({ 
-          id: booking.id, 
-          payment_status: 'paid' as any,
-          payment_intent_id: data.paymentIntentId || null,
-        });
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
       } else {
         showChargeFailureToastLegacy({
           failureReason: extractFailureReason(data),
