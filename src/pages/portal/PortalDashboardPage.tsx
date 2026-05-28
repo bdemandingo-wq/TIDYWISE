@@ -264,7 +264,11 @@ export default function PortalDashboardPage() {
           .eq('photo_type', 'inspection')
           .order('created_at', { ascending: false });
 
-        setInspectionReports((inspectionData || []) as InspectionReport[]);
+        // Filter out reports whose booking row was deleted (cascade left the
+        // join nulled). The badge count would otherwise overcount, and the
+        // expanded card showed no useful context for these orphans.
+        const validReports = ((inspectionData || []) as InspectionReport[]).filter(r => r.booking);
+        setInspectionReports(validReports);
       }
 
       // Fetch referrals and the customer's personal referral code
