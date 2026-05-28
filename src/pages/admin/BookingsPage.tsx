@@ -587,7 +587,15 @@ export default function BookingsPage() {
       return;
     }
 
-    if (refundType === 'partial' && (!refundAmount || parseFloat(refundAmount) <= 0)) {
+    // Parse once, round to whole cents to avoid IEEE-754 surprises
+    // (0.1 + 0.2 problem) propagating into Stripe API calls and the DB.
+    // Doing this at the entry point means every downstream comparison /
+    // subtraction stays consistent.
+    const parsedRefundAmount = refundType === 'partial'
+      ? Math.round(parseFloat(refundAmount) * 100) / 100
+      : 0;
+
+    if (refundType === 'partial' && (!refundAmount || !Number.isFinite(parsedRefundAmount) || parsedRefundAmount <= 0)) {
       toast({ title: "Error", description: "Please enter a valid refund amount", variant: "destructive" });
       return;
     }
@@ -600,10 +608,10 @@ export default function BookingsPage() {
         const newStatus = refundType === 'full' ? 'refunded' : 'partial';
         const manualRefundAmount = refundType === 'full'
           ? (booking.total_amount || 0)
-          : parseFloat(refundAmount);
+          : parsedRefundAmount;
         const nextTotalAmount = refundType === 'full'
           ? 0
-          : Math.max(0, (booking.total_amount || 0) - manualRefundAmount);
+          : Math.max(0, Math.round(((booking.total_amount || 0) - manualRefundAmount) * 100) / 100);
 
         await updateBooking.mutateAsync({
           id: booking.id,
@@ -614,7 +622,7 @@ export default function BookingsPage() {
           title: "Refund Recorded (Manual)",
           description: refundType === 'full'
             ? `Full refund of ${fmt(booking.total_amount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
-            : `Partial refund of ${fmt(parseFloat(refundAmount))} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
+            : `Partial refund of ${fmt(parsedRefundAmount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
         setRefundType('full');
@@ -627,17 +635,17 @@ export default function BookingsPage() {
           paymentIntentId,
           organizationId: organization.id,
           refundType,
-          amount: refundType === 'partial' ? parseFloat(refundAmount) : undefined,
+          amount: refundType === 'partial' ? parsedRefundAmount : undefined,
         }
       });
 
       if (error) throw error;
 
       if (data.success) {
-        const refundedAmount = Number(data.amount || 0);
+        const refundedAmount = Math.round(Number(data.amount || 0) * 100) / 100;
         const nextTotalAmount = data.isFullRefund
           ? 0
-          : Math.max(0, (booking.total_amount || 0) - refundedAmount);
+          : Math.max(0, Math.round(((booking.total_amount || 0) - refundedAmount) * 100) / 100);
 
         toast({
           title: "Refund Processed",
