@@ -54,7 +54,15 @@ export function useCopilotEnabled(): boolean | null {
           if (typeof next === 'boolean') setEnabled(next);
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Without this, a CHANNEL_ERROR (transient network blip, server
+        // restart, expired auth) leaves the hook silently stuck on whatever
+        // value was last set — admin toggles copilot off in settings, but
+        // every open tab keeps showing it on until reload.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn('[copilot] realtime channel state', status, err);
+        }
+      });
 
     return () => {
       cancelled = true;
