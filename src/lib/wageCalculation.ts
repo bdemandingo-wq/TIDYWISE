@@ -128,6 +128,18 @@ export function calculateBookingWage(booking: WageBooking, staff?: WageStaff | n
 
   // 3. Fallback: compute from defaults (no pay snapshot exists)
   const fallback = computePayFromDefaults(booking, staff);
+
+  // If everything fell through to zero — no booking-level wage, no staff
+  // default — surface a console warning so admin notices instead of just
+  // seeing $0 next to the cleaner's name in payroll. Helps catch missing
+  // staff config before it shows up as a complaint.
+  if (fallback.wageRate === 0 && fallback.pay === 0) {
+    console.warn(
+      "[wageCalculation] No wage configured — pay computed as $0. " +
+      "Set cleaner_wage on the booking or base_wage/hourly_rate on the staff record."
+    );
+  }
+
   return {
     calculatedPay: fallback.pay,
     hoursWorked,
