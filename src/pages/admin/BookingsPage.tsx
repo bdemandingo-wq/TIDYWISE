@@ -2654,13 +2654,37 @@ export default function BookingsPage() {
                   e.preventDefault();
                   setBulkDraftDeleting(true);
                   try {
-                    const count = selectedDrafts.size;
+                    // Re-verify each selection is still a draft against current
+                    // booking state. Between the user opening this dialog and
+                    // confirming, another admin (or a webhook) may have moved
+                    // some of these out of draft state — deleting them would
+                    // silently destroy real booking data.
+                    const draftIds = new Set(draftBookings.map(b => b.id));
+                    const stillDraft: string[] = [];
+                    const noLongerDraft: string[] = [];
                     for (const id of selectedDrafts) {
+                      if (draftIds.has(id)) stillDraft.push(id);
+                      else noLongerDraft.push(id);
+                    }
+
+                    for (const id of stillDraft) {
                       await deleteBooking.mutateAsync(id);
                     }
                     setSelectedDrafts(new Set());
                     setBulkDraftDeleteOpen(false);
-                    toast({ title: "Deleted", description: `${count} draft${count > 1 ? 's' : ''} deleted successfully` });
+
+                    if (noLongerDraft.length > 0) {
+                      toast({
+                        title: stillDraft.length > 0 ? "Partially deleted" : "Nothing deleted",
+                        description: `${stillDraft.length} deleted. ${noLongerDraft.length} skipped — they're no longer drafts.`,
+                        variant: noLongerDraft.length > stillDraft.length ? "destructive" : "default",
+                      });
+                    } else {
+                      toast({
+                        title: "Deleted",
+                        description: `${stillDraft.length} draft${stillDraft.length === 1 ? '' : 's'} deleted successfully`,
+                      });
+                    }
                   } catch (error) {
                     toast({ title: "Error", description: "Failed to delete some drafts", variant: "destructive" });
                   } finally {
