@@ -263,14 +263,19 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     }
   }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount AND on page-close. Previously only the interval was
+  // cleared, which orphaned the cleaner_location_tracking row with
+  // is_active=true forever. Now stopTracking is called on unmount so the row
+  // is deactivated cleanly when the cleaner navigates away. For tab close /
+  // app kill, sendBeacon is best-effort; the server may still need a
+  // periodic stale-session sweep.
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      // Don't await — unmount is synchronous. stopTracking fires the request
+      // and React keeps rendering; the DB write completes on its own.
+      void stopTracking();
     };
-  }, []);
+  }, [stopTracking]);
 
   return { startTracking, stopTracking, isTracking };
 }
