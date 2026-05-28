@@ -1187,8 +1187,8 @@ export default function BookingsPage() {
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
-              cleanerName: booking.staff!.name,
-              cleanerPhone: booking.staff!.phone,
+              cleanerName: booking.staff?.name || 'Cleaner',
+              cleanerPhone: booking.staff?.phone || '',
               customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
               customerPhone: booking.customer?.phone || 'N/A',
               serviceName: booking.service?.name || 'Cleaning Service',
@@ -1389,8 +1389,8 @@ export default function BookingsPage() {
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
-              cleanerName: booking.staff!.name,
-              cleanerPhone: booking.staff!.phone,
+              cleanerName: booking.staff?.name || 'Cleaner',
+              cleanerPhone: booking.staff?.phone || '',
               customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
               customerPhone: booking.customer?.phone || 'N/A',
               serviceName: booking.service?.name || 'Cleaning Service',
