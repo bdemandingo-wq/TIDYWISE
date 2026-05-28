@@ -147,19 +147,24 @@ export function usePricing() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Refresh from localStorage (useful when pricing is updated in same tab)
+  // Refresh from localStorage (useful when pricing is updated in same tab).
+  // Each parse is isolated so one corrupt key doesn't kill the rest of the
+  // pricing config (which would silently break the booking flow).
   const refresh = useCallback(() => {
-    const savedServices = localStorage.getItem(STORAGE_KEYS.services);
-    const savedExtras = localStorage.getItem(STORAGE_KEYS.extras);
-    const savedBedroomPricing = localStorage.getItem(STORAGE_KEYS.bedroomPricing);
-    const savedPetOptions = localStorage.getItem(STORAGE_KEYS.petOptions);
-    const savedHomeConditionOptions = localStorage.getItem(STORAGE_KEYS.homeConditionOptions);
-    
-    if (savedServices) setServices(JSON.parse(savedServices));
-    if (savedExtras) setExtras(JSON.parse(savedExtras));
-    if (savedBedroomPricing) setBedroomPricing(JSON.parse(savedBedroomPricing));
-    if (savedPetOptions) setPetOptions(JSON.parse(savedPetOptions));
-    if (savedHomeConditionOptions) setHomeConditionOptions(JSON.parse(savedHomeConditionOptions));
+    const safeParseAndApply = <T,>(key: string, apply: (value: T) => void) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      try {
+        apply(JSON.parse(raw) as T);
+      } catch (err) {
+        console.warn(`[usePricing] corrupt localStorage at ${key}, keeping current state`, err);
+      }
+    };
+    safeParseAndApply(STORAGE_KEYS.services, setServices);
+    safeParseAndApply(STORAGE_KEYS.extras, setExtras);
+    safeParseAndApply(STORAGE_KEYS.bedroomPricing, setBedroomPricing);
+    safeParseAndApply(STORAGE_KEYS.petOptions, setPetOptions);
+    safeParseAndApply(STORAGE_KEYS.homeConditionOptions, setHomeConditionOptions);
   }, []);
 
   // Utility functions

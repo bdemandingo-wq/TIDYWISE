@@ -107,10 +107,22 @@ export function PortalProfileTab() {
       });
 
       if (!error && data) {
-        const tiersData = (data as any[]).map((t) => ({
-          ...t,
-          benefits: typeof t.benefits === "string" ? JSON.parse(t.benefits) : t.benefits || [],
-        }));
+        const tiersData = (data as any[]).map((t) => {
+          // benefits is stored as either jsonb (already an array) or a stringified
+          // JSON array. Bad data shouldn't crash the entire profile tab.
+          let benefits: unknown[] = [];
+          if (Array.isArray(t.benefits)) {
+            benefits = t.benefits;
+          } else if (typeof t.benefits === "string") {
+            try {
+              benefits = JSON.parse(t.benefits);
+            } catch (err) {
+              console.warn(`[PortalProfileTab] corrupt benefits for tier ${t.id ?? "(no id)"}`, err);
+              benefits = [];
+            }
+          }
+          return { ...t, benefits };
+        });
         setTiers(tiersData);
       }
       setLoadingTiers(false);
