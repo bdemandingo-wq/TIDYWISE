@@ -96,10 +96,14 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<{ durationMinutes: number; distanceMiles: number } | null>(null);
-  const booking = Array.isArray(tracking.booking) ? tracking.booking[0] : tracking.booking;
-  const staff = Array.isArray(tracking.staff) ? tracking.staff[0] : tracking.staff;
-  const customer = booking?.customer ? (Array.isArray(booking.customer) ? booking.customer[0] : booking.customer) : null;
-  const service = booking?.service ? (Array.isArray(booking.service) ? booking.service[0] : booking.service) : null;
+  // Supabase joins surface as either an object or a 1-element array depending
+  // on the relation type — the original code did `array[0]` but Array.isArray
+  // is true for empty arrays too (e.g. left-joins with no match), so [0] was
+  // undefined while the ternary thought it had a value.
+  const booking = Array.isArray(tracking.booking) ? (tracking.booking[0] ?? null) : (tracking.booking ?? null);
+  const staff = Array.isArray(tracking.staff) ? (tracking.staff[0] ?? null) : (tracking.staff ?? null);
+  const customer = booking?.customer ? (Array.isArray(booking.customer) ? (booking.customer[0] ?? null) : booking.customer) : null;
+  const service = booking?.service ? (Array.isArray(booking.service) ? (booking.service[0] ?? null) : booking.service) : null;
 
   const addr = booking ? [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') : '';
   const startedAt = new Date(tracking.created_at);
