@@ -593,8 +593,28 @@ export default function MessagesPage() {
       if (file.size > 10 * 1024 * 1024) { toast.error(`File "${file.name}" is too large (max 10MB)`); return; }
       const reader = new FileReader();
       reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
+        const result = reader.result;
+        // readAsDataURL produces "data:<mime>;base64,<payload>". Bail safely if
+        // the result is missing, a different shape, or has no comma (rare but
+        // possible on corrupt files / certain MIME edge cases).
+        if (typeof result !== "string") {
+          toast.error(`Couldn't read "${file.name}"`);
+          return;
+        }
+        const commaIdx = result.indexOf(",");
+        if (commaIdx === -1) {
+          toast.error(`Couldn't decode "${file.name}"`);
+          return;
+        }
+        const base64 = result.slice(commaIdx + 1);
+        if (!base64) {
+          toast.error(`"${file.name}" is empty`);
+          return;
+        }
         setEmailAttachments(prev => [...prev, { name: file.name, content: base64, type: file.type }]);
+      };
+      reader.onerror = () => {
+        toast.error(`Couldn't read "${file.name}"`);
       };
       reader.readAsDataURL(file);
     });
