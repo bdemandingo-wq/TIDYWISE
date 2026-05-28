@@ -1,0 +1,24 @@
+# gitleaks fingerprints for known false positives.
+# Format: <commit>:<file>:<ruleId>:<startLine>
+# Run `gitleaks detect --no-banner` to regenerate after rotating secrets.
+#
+# All Supabase entries below are the PUBLISHABLE (anon) key — designed to be
+# embedded in client-side code; security is enforced via Row Level Security.
+# See https://supabase.com/docs/guides/api/api-keys
+
+# .env publishable + url (anon key, safe in browser)
+.env:jwt:1
+.env:jwt:2
+
+# Supabase client modules read VITE_SUPABASE_PUBLISHABLE_KEY at build time
+src/lib/supabase.ts:jwt:13
+src/integrations/supabase/client.ts:jwt:7
+src/lib/generate-sitemap.ts:jwt:53
+
+# facebook-lead/index.ts:12 — TIDYWISE_ORG_ID is a UUID, not a secret
+supabase/functions/facebook-lead/index.ts:generic-api-key:12
+
+# Stripe.ts comments reference "publishable key" wording; no actual key
+# is hardcoded — see the file header explaining org-scoped resolution.
+src/lib/stripe.ts:generic-api-key:4
+src/lib/stripe.ts:generic-api-key:6
