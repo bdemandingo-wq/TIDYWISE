@@ -40,14 +40,33 @@ export interface WageResult {
 /**
  * Get actual hours worked from check-in/out timestamps,
  * falling back to override → default hours → booking duration.
+ *
+ * Guards against bad input (invalid timestamps, checkout before checkin)
+ * by falling through to the override/default path rather than returning
+ * NaN or a negative number that would cascade into negative wages.
  */
 export function getActualHours(booking: WageBooking, staff?: WageStaff | null): number {
+  const fallback = booking.cleaner_override_hours || staff?.default_hours || (booking.duration / 60);
+
   if (booking.cleaner_checkin_at && booking.cleaner_checkout_at) {
     const checkin = new Date(booking.cleaner_checkin_at).getTime();
     const checkout = new Date(booking.cleaner_checkout_at).getTime();
+
+    // Reject invalid Date.parse results (yields NaN) and reversed pairs
+    // (checkout earlier than checkin — usually data-entry error or clock
+    // drift on the staff app). Either would otherwise be silently turned
+    // into negative or NaN pay.
+    if (!Number.isFinite(checkin) || !Number.isFinite(checkout) || checkout <= checkin) {
+      console.warn(
+        `[wageCalculation] Invalid check-in/out pair (checkin=${booking.cleaner_checkin_at}, ` +
+        `checkout=${booking.cleaner_checkout_at}). Falling back to override/default hours.`
+      );
+      return fallback;
+    }
+
     return (checkout - checkin) / (1000 * 60 * 60);
   }
-  return booking.cleaner_override_hours || staff?.default_hours || (booking.duration / 60);
+  return fallback;
 }
 
 /**
