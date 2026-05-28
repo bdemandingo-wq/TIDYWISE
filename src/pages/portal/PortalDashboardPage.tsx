@@ -308,10 +308,15 @@ export default function PortalDashboardPage() {
 
   const markNotificationRead = async (id: string) => {
     if (!user) return;
-    await supabase.rpc("mark_client_notification_read", {
+    const { error } = await supabase.rpc("mark_client_notification_read", {
       p_notification_id: id,
       p_client_user_id: user.id,
     });
+    if (error) {
+      console.error("[portal] markNotificationRead failed", error);
+      toast.error("Couldn't mark as read. Please try again.");
+      return;
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
@@ -321,17 +326,29 @@ export default function PortalDashboardPage() {
     e.stopPropagation();
     if (!user) return;
     // Mark as read first so the unread count is correct regardless of DB delete outcome
-    await supabase.rpc("mark_client_notification_read", {
+    const { error: markError } = await supabase.rpc("mark_client_notification_read", {
       p_notification_id: id,
       p_client_user_id: user.id,
     });
-    const { data } = await supabase.rpc("delete_client_portal_notification", {
+    if (markError) {
+      console.error("[portal] mark-as-read step of delete failed", markError);
+    }
+    const { data, error: deleteError } = await supabase.rpc("delete_client_portal_notification", {
       p_notification_id: id,
       p_client_user_id: user.id,
     });
+    if (deleteError) {
+      console.error("[portal] deleteNotification failed", deleteError);
+      toast.error("Couldn't delete that notification. Please try again.");
+      return;
+    }
     if (data) {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       toast.success("Notification deleted");
+    } else {
+      // RPC succeeded but returned falsy — likely a permission denial that
+      // didn't throw. Don't optimistically remove from UI.
+      toast.error("That notification couldn't be deleted.");
     }
   };
 
