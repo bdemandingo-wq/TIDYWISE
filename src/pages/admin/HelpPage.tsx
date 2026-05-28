@@ -91,18 +91,23 @@ export default function HelpPage() {
     if (url.includes('loom.com/share/')) {
       return url.replace('loom.com/share/', 'loom.com/embed/');
     }
-    // Convert YouTube URLs to embed URLs
+    // Convert YouTube URLs to embed URLs. Fall through to the original URL if
+    // the id can't be parsed — otherwise we'd render <iframe src=".../embed/undefined">,
+    // which is a silent white frame with no clue what went wrong.
     if (url.includes('youtube.com/watch?v=')) {
       const videoId = url.split('v=')[1]?.split('&')[0];
+      if (!videoId) return url;
       return `https://www.youtube.com/embed/${videoId}`;
     }
     if (url.includes('youtu.be/')) {
       const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      if (!videoId) return url;
       return `https://www.youtube.com/embed/${videoId}`;
     }
     // Convert Vimeo URLs to embed URLs
     if (url.includes('vimeo.com/') && !url.includes('player.vimeo.com')) {
       const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
+      if (!videoId) return url;
       return `https://player.vimeo.com/video/${videoId}`;
     }
     return url;
