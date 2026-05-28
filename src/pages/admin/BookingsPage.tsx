@@ -95,7 +95,7 @@ import {
 import { useBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, addDays } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
-import { formatInTimezone } from '@/lib/timezoneUtils';
+import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
 import { PaymentHistoryLogDialog } from '@/components/admin/PaymentHistoryLogDialog';
@@ -248,14 +248,13 @@ export default function BookingsPage() {
   // Sort bookings: today's active bookings pinned to top, then reverse chronological
   // On mobile: additionally pin uncompleted/unpaid bookings above fully-done ones
   const sortedBookings = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
-
+    // "Today" needs to be evaluated in the org's timezone so admins in other
+    // timezones (or on a DST boundary day) see the same set of jobs pinned
+    // to the top as their team in the field would.
+    const todayInOrgTz = getDateInTimezone(new Date(), orgTz);
     const isTodayActive = (b: typeof bookings[0]) => {
-      const d = new Date(b.scheduled_at);
-      return d >= todayStart && d < todayEnd && b.status !== 'completed' && b.status !== 'cancelled';
+      if (b.status === 'completed' || b.status === 'cancelled') return false;
+      return getDateInTimezone(b.scheduled_at, orgTz) === todayInOrgTz;
     };
 
     return [...bookings].sort((a, b) => {
@@ -280,7 +279,7 @@ export default function BookingsPage() {
       // Within completed: most recent first
       return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
     });
-  }, [bookings, isMobile, isFullyDone]);
+  }, [bookings, isMobile, isFullyDone, orgTz]);
 
   // Filter for drafts (pending status with is_draft flag or pending payment)
   const draftBookings = sortedBookings.filter((booking) => 
