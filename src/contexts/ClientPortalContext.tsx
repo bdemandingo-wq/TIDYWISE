@@ -77,9 +77,21 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   const saveSession = (userData: ClientPortalUser, customerData: CustomerInfo, loyaltyData: LoyaltyInfo | null) => {
     // Expire sessions after 30 days to limit PII sitting in localStorage indefinitely
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    // Strip the most sensitive PII (email, phone) from what we persist. These
+    // are reloaded on next sign-in or via refreshData(). Keeps localStorage
+    // useful for fast-rendering the greeting + sidebar without leaving
+    // contact details sitting in plaintext under the user's browser profile.
+    const safeCustomer = {
+      id: customerData.id,
+      first_name: customerData.first_name,
+      last_name: customerData.last_name,
+      email: '',
+      phone: null,
+      property_type: customerData.property_type,
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       user: userData,
-      customer: customerData,
+      customer: safeCustomer,
       loyalty: loyaltyData,
       expiresAt,
     }));
