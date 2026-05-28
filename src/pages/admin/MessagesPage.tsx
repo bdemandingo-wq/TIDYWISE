@@ -77,8 +77,23 @@ const normalizePhone = (phone: string): string => {
 };
 
 const getInitials = (name: string | null, phone: string) => {
-  if (name) return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  return phone.slice(-2);
+  // Old impl: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  // — broke on multi-space ("Jane  Doe" → "J?"), leading whitespace
+  // ("  Jane Doe" → ""), and single-character names ("J" → "J" but with
+  // crash risk if n is empty).
+  const trimmed = name?.trim();
+  if (trimmed) {
+    const initials = trimmed
+      .split(/\s+/)
+      .map(n => n[0])
+      .filter(Boolean)
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+    if (initials) return initials;
+  }
+  // Fall back to last two digits of phone — also guard against short numbers.
+  return (phone || '').slice(-2) || '?';
 };
 
 const formatConversationTime = (dateStr: string) => {
