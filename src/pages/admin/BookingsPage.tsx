@@ -352,7 +352,14 @@ export default function BookingsPage() {
     if (newStatus === 'confirmed' && booking && organization?.id) {
       supabase.functions.invoke('post-booking-upsell', {
         body: { bookingId, organizationId: organization.id },
-      }).catch(() => {}); // fire-and-forget
+      }).then(({ error }) => {
+        // Don't toast — upsell is best-effort & not admin-visible — but do
+        // surface the error to the console so it shows up in observability
+        // tools instead of vanishing.
+        if (error) console.error('[post-booking-upsell] failed', error);
+      }).catch((err) => {
+        console.error('[post-booking-upsell] threw', err);
+      });
     }
 
     // Send cancellation SMS notification if status changed to cancelled
@@ -381,11 +388,23 @@ export default function BookingsPage() {
           organizationId: organization.id,
         }
       }).then(({ error }) => {
+        // Admin actively cancelled — they should know if the customer
+        // wasn't actually notified by SMS.
         if (error) {
-          console.log('Cancellation SMS notification skipped (SMS may not be configured)');
+          console.error('[cancellation-sms] edge function returned error', error);
+          toast({
+            title: "Cancellation SMS didn't send",
+            description: "The booking was cancelled, but we couldn't send the customer an SMS. Reach out to them directly.",
+            variant: "destructive",
+          });
         }
       }).catch((err) => {
-        console.log('Cancellation SMS notification failed:', err);
+        console.error('[cancellation-sms] threw', err);
+        toast({
+          title: "Cancellation SMS didn't send",
+          description: "The booking was cancelled, but we couldn't send the customer an SMS. Reach out to them directly.",
+          variant: "destructive",
+        });
       });
     }
   };
