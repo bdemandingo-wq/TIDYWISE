@@ -405,7 +405,11 @@ export default function PayrollPage() {
         .eq('organization_id', organizationId)
         .neq('status', 'cancelled')
         .gte('scheduled_at', currentWeekStart.toISOString())
-        .lte('scheduled_at', nwEnd.toISOString());
+        .lte('scheduled_at', nwEnd.toISOString())
+        // Sanity cap — the date range is already 2 weeks but a high-volume
+        // org (1000+ bookings/week) without this would silently hit
+        // supabase-js's 1000-row default and forecast totals would underreport.
+        .limit(2000);
       if (error) throw error;
       return data || [];
     },
