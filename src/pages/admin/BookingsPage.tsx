@@ -2637,7 +2637,16 @@ export default function BookingsPage() {
         </TabsContent>
 
         {/* Bulk Draft Delete Confirmation */}
-        <AlertDialog open={bulkDraftDeleteOpen} onOpenChange={setBulkDraftDeleteOpen}>
+        <AlertDialog
+          open={bulkDraftDeleteOpen}
+          onOpenChange={(open) => {
+            // Don't let an outside-click dismiss the dialog while the bulk
+            // delete loop is running — the dialog would re-open mid-iteration
+            // if the user clicked again, queueing a second pass.
+            if (bulkDraftDeleting && !open) return;
+            setBulkDraftDeleteOpen(open);
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete {selectedDrafts.size} Draft{selectedDrafts.size > 1 ? 's' : ''}?</AlertDialogTitle>
