@@ -381,12 +381,25 @@ export default function PortalDashboardPage() {
         toast.error("Failed to cancel booking");
         return;
       }
-      const result = data as { success: boolean; error?: string; within_48_hours?: boolean } | null;
-      if (!result?.success) {
-        if (result?.within_48_hours) {
+      // Guard against the RPC returning an unexpected shape (data=null,
+      // missing keys, non-object). The previous code accessed result.success
+      // and result.within_48_hours optimistically, which would render
+      // misleading text like "Unable to cancel booking" even when the RPC
+      // simply hadn't returned a normal payload.
+      const result = (data && typeof data === 'object' ? data : null) as {
+        success?: boolean;
+        error?: string;
+        within_48_hours?: boolean;
+      } | null;
+      if (!result) {
+        toast.error("Couldn't complete the cancellation — please contact us directly.");
+        return;
+      }
+      if (!result.success) {
+        if (result.within_48_hours) {
           toast.error(result.error || "Same day or next day cancellations may incur a fee. Please contact us directly.", { duration: 6000 });
         } else {
-          toast.error(result?.error || "Unable to cancel booking");
+          toast.error(result.error || "Unable to cancel booking");
         }
         return;
       }
