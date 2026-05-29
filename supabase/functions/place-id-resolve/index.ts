@@ -38,11 +38,15 @@ async function followRedirects(input: string): Promise<string> {
     const res = await fetch(current, {
       method: "GET",
       redirect: "manual",
-      // Google's short-link service expects a normal browser UA; without
-      // one it sometimes returns a degraded HTML page with no redirect.
+      // IMPORTANT: use a crawler-style UA. Modern browser UAs cause
+      // maps.app.goo.gl to return a JS-only "Durable Deep Link" page
+      // with NO Location header — there's nothing to follow. With a
+      // crawler UA Google server-side renders a clean 302 to the
+      // canonical /maps/place/... URL that contains the FTID we need.
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+          "Googlebot/2.1 (+http://www.google.com/bot.html)",
+        "Accept-Language": "en-US,en;q=0.9",
       },
     });
     const loc = res.headers.get("location");
