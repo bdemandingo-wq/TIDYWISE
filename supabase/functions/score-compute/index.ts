@@ -123,7 +123,7 @@ async function checkWebsite(url: string | null) {
       const aggregate = extractAggregateRatingFromWebsite(html);
       inferredGoogleRating = aggregate.rating;
       inferredGoogleReviewCount = aggregate.count;
-      booking = /(book\s+now|book\s+online|booking\s+available|get\s+my\s+instant\s+quote|get\s+a\s+quote|instant\s+quote|start\s+my\s+booking|href=["']#booking["'])/i.test(html);
+      booking = /(book\s+now|book\s+online|online\s+booking|book\s+today|booking\s+available|get\s+my\s+instant\s+quote|get\s+a\s+quote|instant\s+quote|start\s+my\s+booking|href=["']#booking["'])/i.test(html);
       if (booking) score += 20;
       if (loadMs < 1500) score += 10;
       else if (loadMs < 3500) score += 5;
@@ -288,7 +288,11 @@ Deno.serve(async (req) => {
             "X-Goog-Api-Key": PLACES_KEY,
             "X-Goog-FieldMask": "places.id",
           },
-          body: JSON.stringify({ textQuery: text, maxResultCount: 1 }),
+          body: JSON.stringify({
+            textQuery: text,
+            maxResultCount: 1,
+            includePureServiceAreaBusinesses: true,
+          }),
         });
         if (r.ok) {
           const j = await r.json();
