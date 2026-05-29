@@ -15,17 +15,25 @@
 import * as Sentry from "@sentry/react";
 import { Capacitor } from "@capacitor/core";
 
+// Public-by-design fallbacks. Sentry DSNs are explicitly safe to embed
+// in client-side code — see https://docs.sentry.io/concepts/key-terms/dsn-explainer/#dsn-utilization
+// Same model as the Supabase anon key. The env-var path stays so we can
+// rotate or env-switch without redeploying source.
+const DEFAULT_DSN =
+  "https://e85be9b65b51cacaffdf8b2d3ea85499@o4511473522442240.ingest.us.sentry.io/4511473550753792";
+
 let initialized = false;
 
 export function initSentry(): void {
   if (initialized) return;
-  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+  const dsn =
+    (import.meta.env.VITE_SENTRY_DSN as string | undefined) || DEFAULT_DSN;
   if (!dsn) {
-    // No DSN configured → silently skip. Keep the rest of the app working
-    // (Sentry.ErrorBoundary still renders its fallback even when no
-    // events are being sent).
+    // Should be unreachable now that DEFAULT_DSN is set, but kept as a
+    // safety net — if someone explicitly sets VITE_SENTRY_DSN to "" to
+    // disable Sentry, we still bail out cleanly.
     if (import.meta.env.DEV) {
-      console.info("[sentry] VITE_SENTRY_DSN not set — observability disabled");
+      console.info("[sentry] DSN unset — observability disabled");
     }
     return;
   }
