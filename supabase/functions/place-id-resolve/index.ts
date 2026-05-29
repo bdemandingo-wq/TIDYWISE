@@ -216,6 +216,7 @@ Deno.serve(async (req) => {
 
     // Step 1: canonicalize via redirects.
     const finalUrl = await followRedirects(raw);
+    console.log("[place-id-resolve] finalUrl=", finalUrl);
     let u: URL;
     try {
       u = new URL(finalUrl);
