@@ -97,6 +97,13 @@ export function initSentry(): void {
 
   Sentry.init(initConfig);
   initialized = true;
+
+  // Expose on window for ad-hoc dev-tools verification and on-call
+  // debugging. Sentry's SDK doesn't do this by default. Safe to ship —
+  // the SDK surface area is read-only from a security standpoint.
+  if (typeof window !== "undefined") {
+    (window as unknown as { Sentry: typeof Sentry }).Sentry = Sentry;
+  }
 }
 
 export { Sentry };
