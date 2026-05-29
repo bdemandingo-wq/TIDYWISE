@@ -66,6 +66,7 @@ export default function ScoreGeneratePage() {
   const [resolving, setResolving] = useState(false);
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [resolvedName, setResolvedName] = useState<string | null>(null);
+  const [manualEntryHint, setManualEntryHint] = useState<string | null>(null);
   const [name, setName] = useState(prefName);
   const [city, setCity] = useState(initialCity);
   const [state, setState] = useState(initialState);
@@ -85,6 +86,7 @@ export default function ScoreGeneratePage() {
     if (!url) {
       setPlaceId(null);
       setResolvedName(null);
+      setManualEntryHint(null);
       return;
     }
     setResolving(true);
@@ -92,7 +94,21 @@ export default function ScoreGeneratePage() {
       const { data, error } = await supabase.functions.invoke("place-id-resolve", {
         body: { url },
       });
+      if (data?.requiresManualInput) {
+        setPlaceId(null);
+        setResolvedName(null);
+        setManualEntryHint(data.error ?? null);
+        if (data.name && !name.trim()) setName(data.name);
+        toast({
+          title: "Google profile not available yet",
+          description:
+            data.error ??
+            "We couldn't match a public Google profile, but you can continue by filling out the form manually.",
+        });
+        return;
+      }
       if (error || !data?.place_id) {
+        setManualEntryHint(null);
         toast({
           title: "Couldn't read that link",
           description:
@@ -107,6 +123,7 @@ export default function ScoreGeneratePage() {
       }
       setPlaceId(data.place_id);
       setResolvedName(data.name ?? null);
+      setManualEntryHint(null);
       if (data.name && !name.trim()) setName(data.name);
       const parts = parseAddressParts(data.formatted_address);
       if (parts.city && !city.trim()) setCity(parts.city);
@@ -183,6 +200,7 @@ export default function ScoreGeneratePage() {
                       setPlaceId(null);
                       setResolvedName(null);
                     }
+                    if (manualEntryHint) setManualEntryHint(null);
                   }}
                   onBlur={(e) => handleResolveMaps(e.target.value)}
                   placeholder="https://maps.app.goo.gl/…  or  https://share.google/…"
@@ -197,6 +215,8 @@ export default function ScoreGeneratePage() {
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <Check className="h-3 w-3" /> Matched: {resolvedName}
                 </p>
+              ) : manualEntryHint ? (
+                <p className="text-xs text-muted-foreground">{manualEntryHint}</p>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Most accurate. We use your Google profile to grade reviews against the right business.

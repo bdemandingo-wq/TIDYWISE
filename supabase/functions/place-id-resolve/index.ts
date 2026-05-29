@@ -290,11 +290,23 @@ Deno.serve(async (req) => {
 
 
 
+    if (name) {
+      return new Response(
+        JSON.stringify({
+          requiresManualInput: true,
+          name,
+          error: `We found "${name}" in your link, but Google's Places API doesn't return a public profile for it (this happens with brand-new listings and service-area businesses that don't have a fixed address). Fill out the fields below manually and we'll score it from your website + reviews.`,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({
-        error: name
-          ? `We found "${name}" in your link, but Google's Places API doesn't return a public profile for it (this happens with brand-new listings and service-area businesses that don't have a fixed address). Fill out the fields below manually and we'll score it from your website + reviews.`
-          : "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile, or fill out the fields below manually.",
+        error:
+          "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile, or fill out the fields below manually.",
       }),
       {
         status: 422,
