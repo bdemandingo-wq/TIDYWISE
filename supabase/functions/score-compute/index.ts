@@ -40,6 +40,21 @@ function reviewsScore(rating: number | null, count: number, mostRecentDays: numb
   return Math.round(Math.max(0, Math.min(100, ratingPart + volumePart + recencyPart)));
 }
 
+function extractPlaceIdFromWebsite(html: string): string | null {
+  const patterns = [
+    /search\.google\.com\/local\/reviews\?placeid=([A-Za-z0-9_-]+)/i,
+    /[?&]placeid=([A-Za-z0-9_-]{10,})/i,
+    /!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
 async function checkWebsite(url: string | null) {
   if (!url) {
     return {
@@ -48,6 +63,7 @@ async function checkWebsite(url: string | null) {
       website_mobile_friendly: false,
       website_has_booking: false,
       website_load_ms: null as number | null,
+      inferred_place_id: null as string | null,
     };
   }
   let score = 0;
@@ -56,6 +72,7 @@ async function checkWebsite(url: string | null) {
   let mobile = false;
   let booking = false;
   let loadMs: number | null = null;
+  let inferredPlaceId: string | null = null;
   try {
     const start = Date.now();
     const ctrl = new AbortController();
@@ -68,6 +85,7 @@ async function checkWebsite(url: string | null) {
       const html = (await res.text()).toLowerCase();
       mobile = /viewport[^>]*width=device-width/.test(html);
       if (mobile) score += 25;
+      inferredPlaceId = extractPlaceIdFromWebsite(html);
       booking = /(book\s+now|book\s+online|schedule\s+(a\s+)?clean|get\s+a\s+quote|instant\s+quote)/.test(
         html
       );
@@ -84,6 +102,7 @@ async function checkWebsite(url: string | null) {
     website_mobile_friendly: mobile,
     website_has_booking: booking,
     website_load_ms: loadMs,
+    inferred_place_id: inferredPlaceId,
   };
 }
 
@@ -238,6 +257,9 @@ Deno.serve(async (req) => {
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
     const web = await checkWebsite(resolvedWebsite);
+    if (!placeId && web.inferred_place_id) {
+      placeId = web.inferred_place_id;
+    }
 
     // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
     // we still save a partial score from reviews + website so the page isn't blank.
