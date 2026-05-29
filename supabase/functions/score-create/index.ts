@@ -41,6 +41,11 @@ function randomSuffix() {
   return Math.random().toString(36).slice(2, 8);
 }
 
+function normalizePlaceId(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -53,6 +58,7 @@ Deno.serve(async (req) => {
       );
     }
     let { name, city, state, zip, website, phone, google_place_id } = parsed.data;
+    google_place_id = normalizePlaceId(google_place_id);
 
     // Light normalization
     state = (state ?? "").toUpperCase().slice(0, 2) || null;
@@ -93,6 +99,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
+      if (google_place_id) {
+        await supabase
+          .from("score_companies")
+          .update({ google_place_id, source: "user_submitted_place_id" })
+          .eq("id", existing.id)
+          .is("google_place_id", null);
+      }
       return new Response(
         JSON.stringify({ id: existing.id, slug: existing.slug, existed: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
