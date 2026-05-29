@@ -335,6 +335,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    if ((!rating || !count) && web.inferred_google_rating && web.inferred_google_review_count) {
+      rating = web.inferred_google_rating;
+      count = web.inferred_google_review_count;
+    }
+
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
 
