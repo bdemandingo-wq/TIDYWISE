@@ -104,8 +104,8 @@ Deno.serve(async (req) => {
       .insert({
         slug,
         name,
-        city,
-        state,
+        city: city,
+        state: state,
         zip: zip || null,
         city_slug: citySlug,
         website: website || null,
