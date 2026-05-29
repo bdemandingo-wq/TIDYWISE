@@ -235,7 +235,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const reviewsScoreVal = reviewsScore(rating, count, mostRecentDays);
+    const hasReviewData = !!(rating && count);
+    const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
     const web = await checkWebsite(resolvedWebsite);
 
     // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
@@ -256,7 +257,7 @@ Deno.serve(async (req) => {
         count,
         reviews,
         website: web,
-        reviewsScore: reviewsScoreVal,
+        reviewsScore: reviewsScoreVal ?? 0,
       });
     } catch (e) {
       console.error("aiAnalyze failed, using fallback", e);
@@ -272,9 +273,13 @@ Deno.serve(async (req) => {
     }
 
     const sentimentAvg = (ai.reliability + ai.communication + ai.quality + ai.value) / 4;
-    const total = Math.round(
-      reviewsScoreVal * 0.45 + sentimentAvg * 0.3 + web.website_score * 0.25
-    );
+    // When Google Places returns no listing for this business, don't punish them
+    // with a fabricated reviews score — re-weight using only sentiment + website.
+    const total = hasReviewData
+      ? Math.round(
+          (reviewsScoreVal ?? 0) * 0.45 + sentimentAvg * 0.3 + web.website_score * 0.25
+        )
+      : Math.round(sentimentAvg * 0.45 + web.website_score * 0.55);
     const grade = letterGrade(total);
 
     const companyUpdate: Record<string, any> = {
