@@ -38,11 +38,15 @@ async function followRedirects(input: string): Promise<string> {
     const res = await fetch(current, {
       method: "GET",
       redirect: "manual",
-      // Google's short-link service expects a normal browser UA; without
-      // one it sometimes returns a degraded HTML page with no redirect.
+      // IMPORTANT: use a crawler-style UA. Modern browser UAs cause
+      // maps.app.goo.gl to return a JS-only "Durable Deep Link" page
+      // with NO Location header — there's nothing to follow. With a
+      // crawler UA Google server-side renders a clean 302 to the
+      // canonical /maps/place/... URL that contains the FTID we need.
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+          "Googlebot/2.1 (+http://www.google.com/bot.html)",
+        "Accept-Language": "en-US,en;q=0.9",
       },
     });
     const loc = res.headers.get("location");
@@ -212,6 +216,7 @@ Deno.serve(async (req) => {
 
     // Step 1: canonicalize via redirects.
     const finalUrl = await followRedirects(raw);
+    console.log("[place-id-resolve] finalUrl=", finalUrl);
     let u: URL;
     try {
       u = new URL(finalUrl);
@@ -234,11 +239,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 3: FTID — feed to Text Search; the v1 API accepts the FTID
-    // as a query string and returns the canonical place_id for it.
+    // Step 3: FTID. Try Places Details directly (the v1 API will
+    // resolve `0x...:0x...` to its canonical Place ID). Fall back to
+    // a Text Search using the FTID with the lat/lng bias.
     const ftid = parseFtid(u);
+    const bias = parseLatLng(u);
+    const name = parsePlaceNameFromPath(u);
+    console.log(
+      "[place-id-resolve] ftid=",
+      ftid,
+      "name=",
+      name,
+      "bias=",
+      bias
+    );
     if (ftid) {
-      const bias = parseLatLng(u);
+      try {
+        const details = await placeDetails(ftid);
+        return new Response(JSON.stringify(details), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        console.log("[place-id-resolve] FTID details failed:", err);
+      }
       const hit = await searchByTextWithLocation(ftid, bias);
       if (hit) {
         return new Response(JSON.stringify(hit), {
@@ -247,28 +270,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 4: business name from the path + lat/lng bias.
-    const name = parsePlaceNameFromPath(u);
-    const bias = parseLatLng(u);
+    // Step 4: business name from the path. Try with the lat/lng bias
+    // first, but fall back to an unbiased global search — Maps share
+    // links for service-area businesses (no fixed address) put a
+    // generic regional centroid in the @lat,lng tag that often lands
+    // in the ocean or a neighboring county, which kills the biased
+    // query even when the business is clearly indexable by name.
     if (name) {
-      const hit = await searchByTextWithLocation(name, bias);
-      if (hit) {
-        return new Response(JSON.stringify(hit), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      for (const attempt of bias ? [bias, null] : [null]) {
+        const hit = await searchByTextWithLocation(name, attempt);
+        if (hit) {
+          return new Response(JSON.stringify(hit), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     }
 
+
+
+
     return new Response(
       JSON.stringify({
-        error:
-          "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile.",
+        error: name
+          ? `We found "${name}" in your link, but Google's Places API doesn't return a public profile for it (this happens with brand-new listings and service-area businesses that don't have a fixed address). Fill out the fields below manually and we'll score it from your website + reviews.`
+          : "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile, or fill out the fields below manually.",
       }),
       {
         status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+
   } catch (e) {
     console.error("place-id-resolve error", e);
     return new Response(
