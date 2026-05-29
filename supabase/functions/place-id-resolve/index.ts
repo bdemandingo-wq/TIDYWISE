@@ -239,13 +239,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 3: FTID — feed to Text Search; the v1 API accepts the FTID
-    // as a query string and returns the canonical place_id for it.
+    // Step 3: FTID. Try Places Details directly (the v1 API will
+    // resolve `0x...:0x...` to its canonical Place ID). Fall back to
+    // a Text Search using the FTID with the lat/lng bias.
     const ftid = parseFtid(u);
     const bias = parseLatLng(u);
     const name = parsePlaceNameFromPath(u);
-    console.log("[place-id-resolve] ftid=", ftid, "name=", name, "bias=", bias);
+    console.log(
+      "[place-id-resolve] ftid=",
+      ftid,
+      "name=",
+      name,
+      "bias=",
+      bias
+    );
     if (ftid) {
+      try {
+        const details = await placeDetails(ftid);
+        return new Response(JSON.stringify(details), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        console.log("[place-id-resolve] FTID details failed:", err);
+      }
       const hit = await searchByTextWithLocation(ftid, bias);
       if (hit) {
         return new Response(JSON.stringify(hit), {
@@ -263,6 +279,7 @@ Deno.serve(async (req) => {
         });
       }
     }
+
 
 
     return new Response(
