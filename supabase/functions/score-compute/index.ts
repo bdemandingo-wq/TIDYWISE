@@ -55,6 +55,29 @@ function extractPlaceIdFromWebsite(html: string): string | null {
   return null;
 }
 
+function extractAggregateRatingFromWebsite(html: string): {
+  rating: number | null;
+  count: number;
+} {
+  const aggregateJson = html.match(/"aggregateRating"\s*:\s*\{[\s\S]{0,400}?"ratingValue"\s*:\s*"?([0-9.]+)"?[\s\S]{0,200}?"reviewCount"\s*:\s*"?(\d+)"?/i);
+  if (aggregateJson?.[1] && aggregateJson?.[2]) {
+    return {
+      rating: Number(aggregateJson[1]) || null,
+      count: Number(aggregateJson[2]) || 0,
+    };
+  }
+
+  const plainText = html.match(/([0-9](?:\.[0-9])?)\s*(?:stars?|★)[^\n<]{0,40}?(\d{1,5})\+?\s+reviews?/i);
+  if (plainText?.[1] && plainText?.[2]) {
+    return {
+      rating: Number(plainText[1]) || null,
+      count: Number(plainText[2]) || 0,
+    };
+  }
+
+  return { rating: null, count: 0 };
+}
+
 async function checkWebsite(url: string | null) {
   if (!url) {
     return {
@@ -64,6 +87,8 @@ async function checkWebsite(url: string | null) {
       website_has_booking: false,
       website_load_ms: null as number | null,
       inferred_place_id: null as string | null,
+      inferred_google_rating: null as number | null,
+      inferred_google_review_count: 0,
     };
   }
   let score = 0;
@@ -73,6 +98,8 @@ async function checkWebsite(url: string | null) {
   let booking = false;
   let loadMs: number | null = null;
   let inferredPlaceId: string | null = null;
+  let inferredGoogleRating: number | null = null;
+  let inferredGoogleReviewCount = 0;
   try {
     const start = Date.now();
     const ctrl = new AbortController();
@@ -93,6 +120,9 @@ async function checkWebsite(url: string | null) {
       mobile = /viewport[^>]*width=device-width/i.test(html);
       if (mobile) score += 25;
       inferredPlaceId = extractPlaceIdFromWebsite(html);
+      const aggregate = extractAggregateRatingFromWebsite(html);
+      inferredGoogleRating = aggregate.rating;
+      inferredGoogleReviewCount = aggregate.count;
       booking = /(book\s+now|book\s+online|booking\s+available|get\s+my\s+instant\s+quote|get\s+a\s+quote|instant\s+quote|start\s+my\s+booking|href=["']#booking["'])/i.test(html);
       if (booking) score += 20;
       if (loadMs < 1500) score += 10;
@@ -108,6 +138,8 @@ async function checkWebsite(url: string | null) {
     website_has_booking: booking,
     website_load_ms: loadMs,
     inferred_place_id: inferredPlaceId,
+    inferred_google_rating: inferredGoogleRating,
+    inferred_google_review_count: inferredGoogleReviewCount,
   };
 }
 
