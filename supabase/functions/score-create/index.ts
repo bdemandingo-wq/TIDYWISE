@@ -10,19 +10,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const Body = z.object({
-  name: z.string().trim().min(1).max(120),
-  city: z.string().trim().min(1).max(80),
-  state: z.string().trim().min(1).max(40),
-  zip: z.string().trim().max(20).optional().nullable(),
-  website: z.string().trim().max(255).optional().nullable(),
-  phone: z.string().trim().max(40).optional().nullable(),
-  // Optional canonical Google Place ID. When set, score-compute skips
-  // its name-based Places lookup (which is brittle for businesses with
-  // common names, multiple locations, or no Google indexing under the
-  // submitted name) and pulls reviews directly from this ID.
-  google_place_id: z.string().trim().min(1).max(255).optional().nullable(),
-});
+const Body = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    city: z.string().trim().max(80).optional().nullable(),
+    state: z.string().trim().max(40).optional().nullable(),
+    zip: z.string().trim().max(20).optional().nullable(),
+    website: z.string().trim().max(255).optional().nullable(),
+    phone: z.string().trim().max(40).optional().nullable(),
+    // Optional canonical Google Place ID. When set, score-compute skips
+    // its name-based Places lookup (which is brittle for businesses with
+    // common names, multiple locations, or no Google indexing under the
+    // submitted name) and pulls reviews directly from this ID.
+    google_place_id: z.string().trim().min(1).max(255).optional().nullable(),
+  })
+  .refine(
+    (b) => (!!b.city && !!b.state) || /^\d{5}$/.test((b.zip ?? "").trim()),
+    { message: "Provide city + state, or a 5-digit ZIP." }
+  );
 
 function slugify(s: string) {
   return s
