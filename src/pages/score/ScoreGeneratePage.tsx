@@ -75,7 +75,13 @@ export default function ScoreGeneratePage() {
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = name.trim() && city.trim() && state.trim() && !submitting;
+  // Allow submission with either city+state OR a 5-digit ZIP — score-create
+  // can reverse-geocode the ZIP server-side. Prevents the button from
+  // looking permanently disabled when the user landed here from a search
+  // that only carried a ZIP (e.g. /score/generate?location=33442).
+  const hasLocation =
+    (city.trim() && state.trim()) || /^\d{5}$/.test(zip.trim());
+  const canSubmit = !!name.trim() && !!hasLocation && !submitting;
 
   // Resolve a Google Maps link → Place ID and autofill the rest of the
   // form from the canonical Places record. Idempotent; safe to call on
