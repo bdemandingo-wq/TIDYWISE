@@ -270,15 +270,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 4: business name from the path + lat/lng bias.
+    // Step 4: business name from the path. Try with the lat/lng bias
+    // first, but fall back to an unbiased global search — Maps share
+    // links for service-area businesses (no fixed address) put a
+    // generic regional centroid in the @lat,lng tag that often lands
+    // in the ocean or a neighboring county, which kills the biased
+    // query even when the business is clearly indexable by name.
     if (name) {
-      const hit = await searchByTextWithLocation(name, bias);
-      if (hit) {
-        return new Response(JSON.stringify(hit), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      for (const attempt of bias ? [bias, null] : [null]) {
+        const hit = await searchByTextWithLocation(name, attempt);
+        if (hit) {
+          return new Response(JSON.stringify(hit), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     }
+
 
 
 
