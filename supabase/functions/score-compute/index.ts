@@ -263,37 +263,43 @@ Deno.serve(async (req) => {
     }
 
     if (PLACES_KEY && placeId) {
-      const r = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}`,
-        {
-          headers: {
-            "X-Goog-Api-Key": PLACES_KEY,
-            "X-Goog-FieldMask":
-              "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
-          },
-        }
-      );
-      if (r.ok) {
-        const j = await r.json();
-        rating = j.rating ?? rating;
-        count = j.userRatingCount ?? count;
-        if (!resolvedWebsite && j.websiteUri) resolvedWebsite = j.websiteUri;
-        if (!resolvedPhone && j.nationalPhoneNumber) resolvedPhone = j.nationalPhoneNumber;
-        const rs = j.reviews ?? [];
-        reviews = rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean);
-        const newest = rs[0]?.publishTime;
-        if (newest) {
-          mostRecentDays = Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000));
-        }
+      const fresh = await fetchPlaceSignals(placeId, {
+        rating,
+        count,
+        resolvedWebsite,
+        resolvedPhone,
+      });
+      if (fresh) {
+        rating = fresh.rating;
+        count = fresh.count;
+        resolvedWebsite = fresh.resolvedWebsite;
+        resolvedPhone = fresh.resolvedPhone;
+        reviews = fresh.reviews;
+        mostRecentDays = fresh.mostRecentDays;
+      }
+    }
+
+    const web = await checkWebsite(resolvedWebsite);
+    if (!placeId && web.inferred_place_id) {
+      placeId = web.inferred_place_id;
+      const fresh = await fetchPlaceSignals(placeId, {
+        rating,
+        count,
+        resolvedWebsite,
+        resolvedPhone,
+      });
+      if (fresh) {
+        rating = fresh.rating;
+        count = fresh.count;
+        resolvedWebsite = fresh.resolvedWebsite;
+        resolvedPhone = fresh.resolvedPhone;
+        reviews = fresh.reviews;
+        mostRecentDays = fresh.mostRecentDays;
       }
     }
 
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
-    const web = await checkWebsite(resolvedWebsite);
-    if (!placeId && web.inferred_place_id) {
-      placeId = web.inferred_place_id;
-    }
 
     // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
     // we still save a partial score from reviews + website so the page isn't blank.
