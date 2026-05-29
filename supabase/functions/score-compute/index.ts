@@ -77,18 +77,23 @@ async function checkWebsite(url: string | null) {
     const start = Date.now();
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(url, { signal: ctrl.signal, redirect: "follow" });
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TidyWiseScoreBot/1.0; +https://lovable.dev)",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
     clearTimeout(t);
     loadMs = Date.now() - start;
     if (res.ok) {
       score += 20;
-      const html = (await res.text()).toLowerCase();
-      mobile = /viewport[^>]*width=device-width/.test(html);
+      const html = await res.text();
+      mobile = /viewport[^>]*width=device-width/i.test(html);
       if (mobile) score += 25;
       inferredPlaceId = extractPlaceIdFromWebsite(html);
-      booking = /(book\s+now|book\s+online|schedule\s+(a\s+)?clean|get\s+a\s+quote|instant\s+quote)/.test(
-        html
-      );
+      booking = /(book\s+now|book\s+online|booking\s+available|get\s+my\s+instant\s+quote|get\s+a\s+quote|instant\s+quote|start\s+my\s+booking|href=["']#booking["'])/i.test(html);
       if (booking) score += 20;
       if (loadMs < 1500) score += 10;
       else if (loadMs < 3500) score += 5;
