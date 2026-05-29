@@ -106,6 +106,40 @@ async function checkWebsite(url: string | null) {
   };
 }
 
+async function fetchPlaceSignals(
+  placeId: string,
+  current: {
+    rating: number | null;
+    count: number;
+    resolvedWebsite: string | null;
+    resolvedPhone: string | null;
+  }
+) {
+  const r = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+    headers: {
+      "X-Goog-Api-Key": PLACES_KEY,
+      "X-Goog-FieldMask":
+        "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
+    },
+  });
+  if (!r.ok) return null;
+
+  const j = await r.json();
+  const rs = j.reviews ?? [];
+  const newest = rs[0]?.publishTime;
+
+  return {
+    rating: j.rating ?? current.rating,
+    count: j.userRatingCount ?? current.count,
+    resolvedWebsite: current.resolvedWebsite ?? j.websiteUri ?? null,
+    resolvedPhone: current.resolvedPhone ?? j.nationalPhoneNumber ?? null,
+    reviews: rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean),
+    mostRecentDays: newest
+      ? Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000))
+      : null,
+  };
+}
+
 const InsightsSchema = z.object({
   reliability: z.number().min(0).max(100),
   communication: z.number().min(0).max(100),
