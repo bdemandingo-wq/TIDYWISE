@@ -55,10 +55,12 @@ Deno.serve(async (req) => {
     let { name, city, state, zip, website, phone, google_place_id } = parsed.data;
 
     // Light normalization
-    state = state.toUpperCase().slice(0, 2);
+    state = (state ?? "").toUpperCase().slice(0, 2) || null;
+    city = (city ?? "").trim() || null;
     if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
 
-    const citySlug = slugify(`${city}-${state}`);
+    const citySlug =
+      city && state ? slugify(`${city}-${state}`) : zip ? `zip-${zip}` : slugify(name);
     const baseSlug = slugify(name);
     const slug = `${baseSlug}-${randomSuffix()}`;
 
