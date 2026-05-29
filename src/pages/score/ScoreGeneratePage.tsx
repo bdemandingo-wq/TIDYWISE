@@ -4,10 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, MapPin, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/SEOHead";
 import { toast } from "@/hooks/use-toast";
+
+// Extract city + 2-letter state from a Places "formatted_address". Google
+// returns strings like "123 Main St, Pompano Beach, FL 33442, USA". We
+// take the second-to-last comma-segment for "<state> <zip>" and the one
+// before it for the city. Defensive against missing segments.
+function parseAddressParts(formatted: string | null | undefined): {
+  city: string;
+  state: string;
+  zip: string;
+} {
+  if (!formatted) return { city: "", state: "", zip: "" };
+  const parts = formatted.split(",").map((s) => s.trim()).filter(Boolean);
+  // Drop trailing country if present
+  const tail = parts[parts.length - 1]?.toUpperCase();
+  const trimmed = tail === "USA" || tail === "US" ? parts.slice(0, -1) : parts;
+  const stateChunk = trimmed[trimmed.length - 1] ?? "";
+  const cityChunk = trimmed[trimmed.length - 2] ?? "";
+  const m = stateChunk.match(/\b([A-Z]{2})\b(?:\s+(\d{5}))?/);
+  return {
+    city: cityChunk,
+    state: m?.[1] ?? "",
+    zip: m?.[2] ?? "",
+  };
+}
 
 // Pull a state code out of the user's "location" search param if they
 // typed something like "Pompano Beach, FL" or just "FL".
@@ -38,6 +62,10 @@ export default function ScoreGeneratePage() {
     [prefLocation]
   );
 
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [resolving, setResolving] = useState(false);
+  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
   const [name, setName] = useState(prefName);
   const [city, setCity] = useState(initialCity);
   const [state, setState] = useState(initialState);
@@ -47,6 +75,53 @@ export default function ScoreGeneratePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = name.trim() && city.trim() && state.trim() && !submitting;
+
+  // Resolve a Google Maps link → Place ID and autofill the rest of the
+  // form from the canonical Places record. Idempotent; safe to call on
+  // every blur. Failures are surfaced as toasts so the user can fall
+  // back to manual entry without the form looking broken.
+  const handleResolveMaps = async (rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) {
+      setPlaceId(null);
+      setResolvedName(null);
+      return;
+    }
+    setResolving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("place-id-resolve", {
+        body: { url },
+      });
+      if (error || !data?.place_id) {
+        toast({
+          title: "Couldn't read that link",
+          description:
+            data?.error ??
+            error?.message ??
+            "Paste a Google Maps link that points at your business profile, or fill out the fields below manually.",
+          variant: "destructive",
+        });
+        setPlaceId(null);
+        setResolvedName(null);
+        return;
+      }
+      setPlaceId(data.place_id);
+      setResolvedName(data.name ?? null);
+      if (data.name && !name.trim()) setName(data.name);
+      const parts = parseAddressParts(data.formatted_address);
+      if (parts.city && !city.trim()) setCity(parts.city);
+      if (parts.state && !state.trim()) setState(parts.state);
+      if (parts.zip && !zip.trim()) setZip(parts.zip);
+    } catch (e) {
+      toast({
+        title: "Lookup failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +135,10 @@ export default function ScoreGeneratePage() {
         zip: zip.trim() || null,
         website: website.trim() || null,
         phone: phone.trim() || null,
+        // Sending the resolved Place ID lets score-compute skip its
+        // name-based Places lookup, which is brittle for businesses
+        // that aren't indexed under the submitted name.
+        google_place_id: placeId,
       },
     });
     if (error || !data?.slug) {
@@ -89,6 +168,41 @@ export default function ScoreGeneratePage() {
 
         <Card variant="elevated" className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="biz-maps" className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                Google Maps link <span className="text-muted-foreground font-normal">(recommended)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="biz-maps"
+                  value={mapsUrl}
+                  onChange={(e) => {
+                    setMapsUrl(e.target.value);
+                    if (placeId) {
+                      setPlaceId(null);
+                      setResolvedName(null);
+                    }
+                  }}
+                  onBlur={(e) => handleResolveMaps(e.target.value)}
+                  placeholder="https://maps.app.goo.gl/…  or  https://share.google/…"
+                  inputMode="url"
+                  disabled={resolving}
+                />
+                {resolving && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {placeId && resolvedName ? (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Matched: {resolvedName}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Most accurate. We use your Google profile to grade reviews against the right business.
+                </p>
+              )}
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="biz-name">Business name *</Label>
               <Input
@@ -194,7 +308,7 @@ export default function ScoreGeneratePage() {
           <div>
             <h2 className="font-serif text-2xl text-foreground mb-3">How it works</h2>
             <ol className="space-y-2 text-muted-foreground list-decimal pl-5">
-              <li>Submit your business name, city/state, and website.</li>
+              <li>Paste your Google Maps link (most accurate) or type your business name and city/state.</li>
               <li>We pull your public Google Places listing and recent reviews.</li>
               <li>Our AI grades sentiment across reliability, communication, quality, and value.</li>
               <li>We probe your website for HTTPS, mobile viewport, load time, and online booking.</li>

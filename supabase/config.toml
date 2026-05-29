@@ -190,3 +190,6 @@ verify_jwt = true
 
   [functions.score-create]
     verify_jwt = false
+
+  [functions.place-id-resolve]
+    verify_jwt = false

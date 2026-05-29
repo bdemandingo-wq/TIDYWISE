@@ -17,6 +17,11 @@ const Body = z.object({
   zip: z.string().trim().max(20).optional().nullable(),
   website: z.string().trim().max(255).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
+  // Optional canonical Google Place ID. When set, score-compute skips
+  // its name-based Places lookup (which is brittle for businesses with
+  // common names, multiple locations, or no Google indexing under the
+  // submitted name) and pulls reviews directly from this ID.
+  google_place_id: z.string().trim().min(1).max(255).optional().nullable(),
 });
 
 function slugify(s: string) {
@@ -42,7 +47,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    let { name, city, state, zip, website, phone } = parsed.data;
+    let { name, city, state, zip, website, phone, google_place_id } = parsed.data;
 
     // Light normalization
     state = state.toUpperCase().slice(0, 2);
@@ -57,7 +62,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // If a row already exists for the same name+city, return it instead of duplicating.
+    // Dedupe: prefer canonical Place ID (globally unique) when one was
+    // submitted, then fall back to name+city for legacy/no-place-id rows.
+    if (google_place_id) {
+      const { data: byPid } = await supabase
+        .from("score_companies")
+        .select("id, slug")
+        .eq("google_place_id", google_place_id)
+        .maybeSingle();
+      if (byPid) {
+        return new Response(
+          JSON.stringify({ id: byPid.id, slug: byPid.slug, existed: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { data: existing } = await supabase
       .from("score_companies")
       .select("id, slug")
@@ -83,7 +103,8 @@ Deno.serve(async (req) => {
         city_slug: citySlug,
         website: website || null,
         phone: phone || null,
-        source: "user_submitted",
+        google_place_id: google_place_id || null,
+        source: google_place_id ? "user_submitted_place_id" : "user_submitted",
       })
       .select("id, slug")
       .single();
