@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { lovable } from '@/integrations/lovable/index';
 import { Capacitor } from '@capacitor/core';
 import { signInWithOAuthNative } from '@/lib/nativeOAuth';
+import { Sentry } from '@/lib/sentry';
 
 // Re-export for backward compatibility
 export const supabaseNoSession = supabase;
@@ -101,6 +102,18 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [initialCleanupDone]);
+
+  // Tag Sentry events with the authenticated user so production errors
+  // can be traced to a specific account. Clears on sign-out. Reacts to
+  // any `user` change, so we don't need to thread setUser through every
+  // sign-in / sign-out / token-refresh code path.
+  useEffect(() => {
+    if (user) {
+      Sentry.setUser({ id: user.id, email: user.email ?? undefined });
+    } else {
+      Sentry.setUser(null);
+    }
+  }, [user]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
