@@ -292,14 +292,16 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        error:
-          "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile.",
+        error: name
+          ? `We found "${name}" in your link, but Google's Places API doesn't return a public profile for it (this happens with brand-new listings and service-area businesses that don't have a fixed address). Fill out the fields below manually and we'll score it from your website + reviews.`
+          : "Could not resolve a Place ID from that link. Make sure it's a Google Maps link pointing at your business profile, or fill out the fields below manually.",
       }),
       {
         status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+
   } catch (e) {
     console.error("place-id-resolve error", e);
     return new Response(
