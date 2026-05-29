@@ -30,6 +30,7 @@
     "src"
   ],
   "exclude": [
-    "src/lib/generate-sitemap.ts"
+    "src/lib/generate-sitemap.ts",
+    "src/lib/prerender-routes.ts"
   ]
 }
