@@ -40,6 +40,44 @@ function reviewsScore(rating: number | null, count: number, mostRecentDays: numb
   return Math.round(Math.max(0, Math.min(100, ratingPart + volumePart + recencyPart)));
 }
 
+function extractPlaceIdFromWebsite(html: string): string | null {
+  const patterns = [
+    /search\.google\.com\/local\/reviews\?placeid=([A-Za-z0-9_-]+)/i,
+    /[?&]placeid=([A-Za-z0-9_-]{10,})/i,
+    /!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
+function extractAggregateRatingFromWebsite(html: string): {
+  rating: number | null;
+  count: number;
+} {
+  const aggregateJson = html.match(/"aggregateRating"\s*:\s*\{[\s\S]{0,400}?"ratingValue"\s*:\s*"?([0-9.]+)"?[\s\S]{0,200}?"reviewCount"\s*:\s*"?(\d+)"?/i);
+  if (aggregateJson?.[1] && aggregateJson?.[2]) {
+    return {
+      rating: Number(aggregateJson[1]) || null,
+      count: Number(aggregateJson[2]) || 0,
+    };
+  }
+
+  const plainText = html.match(/([0-9](?:\.[0-9])?)\s*(?:stars?|★)[^\n<]{0,40}?(\d{1,5})\+?\s+reviews?/i);
+  if (plainText?.[1] && plainText?.[2]) {
+    return {
+      rating: Number(plainText[1]) || null,
+      count: Number(plainText[2]) || 0,
+    };
+  }
+
+  return { rating: null, count: 0 };
+}
+
 async function checkWebsite(url: string | null) {
   if (!url) {
     return {
@@ -48,6 +86,9 @@ async function checkWebsite(url: string | null) {
       website_mobile_friendly: false,
       website_has_booking: false,
       website_load_ms: null as number | null,
+      inferred_place_id: null as string | null,
+      inferred_google_rating: null as number | null,
+      inferred_google_review_count: 0,
     };
   }
   let score = 0;
@@ -56,21 +97,33 @@ async function checkWebsite(url: string | null) {
   let mobile = false;
   let booking = false;
   let loadMs: number | null = null;
+  let inferredPlaceId: string | null = null;
+  let inferredGoogleRating: number | null = null;
+  let inferredGoogleReviewCount = 0;
   try {
     const start = Date.now();
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(url, { signal: ctrl.signal, redirect: "follow" });
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TidyWiseScoreBot/1.0; +https://lovable.dev)",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
     clearTimeout(t);
     loadMs = Date.now() - start;
     if (res.ok) {
       score += 20;
-      const html = (await res.text()).toLowerCase();
-      mobile = /viewport[^>]*width=device-width/.test(html);
+      const html = await res.text();
+      mobile = /viewport[^>]*width=device-width/i.test(html);
       if (mobile) score += 25;
-      booking = /(book\s+now|book\s+online|schedule\s+(a\s+)?clean|get\s+a\s+quote|instant\s+quote)/.test(
-        html
-      );
+      inferredPlaceId = extractPlaceIdFromWebsite(html);
+      const aggregate = extractAggregateRatingFromWebsite(html);
+      inferredGoogleRating = aggregate.rating;
+      inferredGoogleReviewCount = aggregate.count;
+      booking = /(book\s+now|book\s+online|online\s+booking|book\s+today|booking\s+available|get\s+my\s+instant\s+quote|get\s+a\s+quote|instant\s+quote|start\s+my\s+booking|href=["']#booking["'])/i.test(html);
       if (booking) score += 20;
       if (loadMs < 1500) score += 10;
       else if (loadMs < 3500) score += 5;
@@ -84,6 +137,43 @@ async function checkWebsite(url: string | null) {
     website_mobile_friendly: mobile,
     website_has_booking: booking,
     website_load_ms: loadMs,
+    inferred_place_id: inferredPlaceId,
+    inferred_google_rating: inferredGoogleRating,
+    inferred_google_review_count: inferredGoogleReviewCount,
+  };
+}
+
+async function fetchPlaceSignals(
+  placeId: string,
+  current: {
+    rating: number | null;
+    count: number;
+    resolvedWebsite: string | null;
+    resolvedPhone: string | null;
+  }
+) {
+  const r = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+    headers: {
+      "X-Goog-Api-Key": PLACES_KEY,
+      "X-Goog-FieldMask":
+        "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
+    },
+  });
+  if (!r.ok) return null;
+
+  const j = await r.json();
+  const rs = j.reviews ?? [];
+  const newest = rs[0]?.publishTime;
+
+  return {
+    rating: j.rating ?? current.rating,
+    count: j.userRatingCount ?? current.count,
+    resolvedWebsite: current.resolvedWebsite ?? j.websiteUri ?? null,
+    resolvedPhone: current.resolvedPhone ?? j.nationalPhoneNumber ?? null,
+    reviews: rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean),
+    mostRecentDays: newest
+      ? Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000))
+      : null,
   };
 }
 
@@ -198,7 +288,11 @@ Deno.serve(async (req) => {
             "X-Goog-Api-Key": PLACES_KEY,
             "X-Goog-FieldMask": "places.id",
           },
-          body: JSON.stringify({ textQuery: text, maxResultCount: 1 }),
+          body: JSON.stringify({
+            textQuery: text,
+            maxResultCount: 1,
+            includePureServiceAreaBusinesses: true,
+          }),
         });
         if (r.ok) {
           const j = await r.json();
@@ -210,34 +304,48 @@ Deno.serve(async (req) => {
     }
 
     if (PLACES_KEY && placeId) {
-      const r = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}`,
-        {
-          headers: {
-            "X-Goog-Api-Key": PLACES_KEY,
-            "X-Goog-FieldMask":
-              "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
-          },
-        }
-      );
-      if (r.ok) {
-        const j = await r.json();
-        rating = j.rating ?? rating;
-        count = j.userRatingCount ?? count;
-        if (!resolvedWebsite && j.websiteUri) resolvedWebsite = j.websiteUri;
-        if (!resolvedPhone && j.nationalPhoneNumber) resolvedPhone = j.nationalPhoneNumber;
-        const rs = j.reviews ?? [];
-        reviews = rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean);
-        const newest = rs[0]?.publishTime;
-        if (newest) {
-          mostRecentDays = Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000));
-        }
+      const fresh = await fetchPlaceSignals(placeId, {
+        rating,
+        count,
+        resolvedWebsite,
+        resolvedPhone,
+      });
+      if (fresh) {
+        rating = fresh.rating;
+        count = fresh.count;
+        resolvedWebsite = fresh.resolvedWebsite;
+        resolvedPhone = fresh.resolvedPhone;
+        reviews = fresh.reviews;
+        mostRecentDays = fresh.mostRecentDays;
       }
+    }
+
+    const web = await checkWebsite(resolvedWebsite);
+    if (!placeId && web.inferred_place_id) {
+      placeId = web.inferred_place_id;
+      const fresh = await fetchPlaceSignals(placeId, {
+        rating,
+        count,
+        resolvedWebsite,
+        resolvedPhone,
+      });
+      if (fresh) {
+        rating = fresh.rating;
+        count = fresh.count;
+        resolvedWebsite = fresh.resolvedWebsite;
+        resolvedPhone = fresh.resolvedPhone;
+        reviews = fresh.reviews;
+        mostRecentDays = fresh.mostRecentDays;
+      }
+    }
+
+    if ((!rating || !count) && web.inferred_google_rating && web.inferred_google_review_count) {
+      rating = web.inferred_google_rating;
+      count = web.inferred_google_review_count;
     }
 
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
-    const web = await checkWebsite(resolvedWebsite);
 
     // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
     // we still save a partial score from reviews + website so the page isn't blank.
