@@ -169,8 +169,8 @@ export default function ScoreCompanyPage() {
         <div className="grid md:grid-cols-3 gap-4 mb-10">
           <SignalCard
             title="Google Reviews"
-            value={metrics?.reviews_score}
-            sub={company.google_rating != null ? `${company.google_rating}★ · ${company.google_review_count} reviews` : "No reviews found"}
+            value={metrics?.reviews_score ?? null}
+            sub={company.google_rating != null ? `${company.google_rating}★ · ${company.google_review_count} reviews` : "Not listed on Google Maps yet"}
             icon={<Star className="h-4 w-4" />}
           />
           <SignalCard
