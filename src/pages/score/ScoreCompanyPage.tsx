@@ -209,11 +209,50 @@ export default function ScoreCompanyPage() {
   const grade = company.score_grade ?? "—";
   const score = company.score ?? null;
 
+  const locationLabel = [company.city, company.state].filter(Boolean).join(", ");
+  const seoTitle = `${company.name} — Reputation Score & Review Analysis | TidyWise`;
+  const seoDescription = score != null
+    ? `See ${company.name}'s reputation score (${score}/100)${locationLabel ? ` in ${locationLabel}` : ""} — analyzed from ${company.google_review_count ?? 0} Google reviews across reliability, communication, quality, and value.`
+    : `See ${company.name}'s reputation analysis${locationLabel ? ` in ${locationLabel}` : ""} — TidyWise scores reliability, communication, quality, and value from Google reviews.`;
+
+  const schemaJson: Record<string, unknown>[] = [
+    {
+      "@type": "LocalBusiness",
+      name: company.name,
+      ...(company.formatted_address || company.city ? {
+        address: {
+          "@type": "PostalAddress",
+          ...(company.formatted_address ? { streetAddress: company.formatted_address } : {}),
+          ...(company.city ? { addressLocality: company.city } : {}),
+          ...(company.state ? { addressRegion: company.state } : {}),
+          ...(company.zip ? { postalCode: company.zip } : {}),
+          addressCountry: "US",
+        },
+      } : {}),
+      ...(company.website ? { url: company.website } : {}),
+      ...(company.phone ? { telephone: company.phone } : {}),
+      ...(company.latitude && company.longitude ? {
+        geo: { "@type": "GeoCoordinates", latitude: company.latitude, longitude: company.longitude },
+      } : {}),
+      ...(company.google_rating && company.google_review_count ? {
+        aggregateRating: {
+          "@type": "AggregateRating",
+          ratingValue: company.google_rating,
+          reviewCount: company.google_review_count,
+          bestRating: 5,
+          worstRating: 1,
+        },
+      } : {}),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title={`${company.name} — TidyWise Score${company.city ? ` (${company.city}, ${company.state})` : ""}`}
-        description={`See the TidyWise Score for ${company.name}: AI-graded reviews, reputation, and online presence breakdown.`}
+        title={seoTitle}
+        description={seoDescription}
+        canonical={`/score/c/${company.slug}`}
+        schemaJson={schemaJson}
       />
       <div className="max-w-4xl mx-auto px-4 py-10">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8">

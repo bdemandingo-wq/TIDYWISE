@@ -79,6 +79,36 @@ async function fetchPublishedBlogSlugs(): Promise<string[]> {
   }
 }
 
+async function fetchScoreCompanies(): Promise<Array<{ slug: string; lastmod?: string }>> {
+  const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+  const ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_companies?select=slug,last_scored_at,updated_at&limit=5000`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[sitemap] score_companies fetch failed: ${res.status}`);
+      return [];
+    }
+    const rows = (await res.json()) as Array<{
+      slug: string;
+      last_scored_at: string | null;
+      updated_at: string | null;
+    }>;
+    return rows
+      .filter((r) => r.slug)
+      .map((r) => ({
+        slug: r.slug,
+        lastmod: (r.last_scored_at ?? r.updated_at ?? undefined)?.slice(0, 10),
+      }));
+  } catch (err) {
+    console.warn(`[sitemap] score_companies fetch error:`, err);
+    return [];
+  }
+}
+
 function extractRoutePaths(source: string): string[] {
   const ast = parse(source, {
     sourceType: "module",
@@ -112,22 +142,26 @@ function extractRoutePaths(source: string): string[] {
   return [...paths];
 }
 
-function buildSitemap(paths: string[]): string {
+type SitemapEntry = { path: string; lastmod?: string };
+
+function buildSitemap(entries: SitemapEntry[]): string {
   const today = new Date().toISOString().slice(0, 10);
-  const sorted = [...paths].sort((a, b) => {
-    if (a === "/") return -1;
-    if (b === "/") return 1;
-    return a.localeCompare(b);
+  const sorted = [...entries].sort((a, b) => {
+    if (a.path === "/") return -1;
+    if (b.path === "/") return 1;
+    return a.path.localeCompare(b.path);
   });
 
   const urls = sorted
-    .map((p) => {
+    .map((e) => {
+      const p = e.path;
       const loc = p === "/" ? `${BASE_URL}/` : `${BASE_URL}${p}`;
       const priority = p === "/" ? "1.0" : "0.8";
       const changefreq = p === "/" ? "weekly" : "monthly";
+      const lastmod = e.lastmod ?? today;
       return `  <url>
     <loc>${loc}</loc>
-    <lastmod>${today}</lastmod>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
@@ -154,30 +188,38 @@ export async function generateSitemap(): Promise<{ count: number; outputPath: st
   const includedPaths = rawPaths.filter((p) => !shouldExclude(p));
 
   // Dedupe (HashRouter + BrowserRouter branches in App.tsx share most routes).
-  const uniquePaths = new Set(includedPaths);
+  const entryMap = new Map<string, SitemapEntry>();
+  for (const p of includedPaths) entryMap.set(p, { path: p });
 
   // Add dynamic published blog post URLs from the database.
   const blogSlugs = await fetchPublishedBlogSlugs();
   for (const slug of blogSlugs) {
-    uniquePaths.add(`/blog/post/${slug}`);
+    const p = `/blog/post/${slug}`;
+    entryMap.set(p, { path: p });
   }
 
-  // Add concrete location pages (states + cities). The /:locationSlug dynamic
-  // route is excluded above; expand it here so each location URL is crawlable
-  // and not flagged as an orphan page.
+  // Add concrete location pages (states + cities).
   try {
     const { locationData } = await import("../data/locationData");
     for (const slug of Object.keys(locationData)) {
-      uniquePaths.add(`/cleaning-business-software/${slug}`);
+      const p = `/cleaning-business-software/${slug}`;
+      entryMap.set(p, { path: p });
     }
   } catch (err) {
     console.warn(`[sitemap] could not load locationData:`, err);
   }
 
-  const xml = buildSitemap([...uniquePaths]);
+  // Add /score/c/{slug} pages with per-row lastmod from last_scored_at.
+  const scoreCompanies = await fetchScoreCompanies();
+  for (const c of scoreCompanies) {
+    const p = `/score/c/${c.slug}`;
+    entryMap.set(p, { path: p, lastmod: c.lastmod });
+  }
+
+  const xml = buildSitemap([...entryMap.values()]);
   writeFileSync(outputPath, xml, "utf8");
 
-  return { count: uniquePaths.size, outputPath };
+  return { count: entryMap.size, outputPath };
 }
 
 // Allow direct execution: `tsx src/lib/generate-sitemap.ts`

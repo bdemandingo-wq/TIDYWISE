@@ -16,8 +16,35 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { STATIC_ROUTE_META, locationRouteMeta, type RouteMeta } from "./routeMeta";
+import {
+  STATIC_ROUTE_META,
+  locationRouteMeta,
+  scoreCompanyRouteMeta,
+  type RouteMeta,
+  type ScoreCompanyForMeta,
+} from "./routeMeta";
 import { locationData } from "../data/locationData";
+
+const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+
+async function fetchScoreCompanies(): Promise<ScoreCompanyForMeta[]> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_companies?select=slug,name,city,state,zip,formatted_address,latitude,longitude,website,phone,score,google_rating,google_review_count&limit=5000`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[prerender] score_companies fetch failed: ${res.status}`);
+      return [];
+    }
+    return (await res.json()) as ScoreCompanyForMeta[];
+  } catch (err) {
+    console.warn(`[prerender] score_companies fetch error:`, err);
+    return [];
+  }
+}
 
 const BASE_URL = "https://www.jointidywise.com";
 
@@ -123,24 +150,43 @@ function patchHead(html: string, route: string, meta: RouteMeta): string {
     `<div id="root">${h1}</div>${noscriptBlock}`
   );
 
+  // Optional JSON-LD structured data, inserted before </head>.
+  if (meta.jsonLd) {
+    const payload = Array.isArray(meta.jsonLd)
+      ? { "@context": "https://schema.org", "@graph": meta.jsonLd }
+      : { "@context": "https://schema.org", ...meta.jsonLd };
+    // Escape </script> sequences to avoid breaking out of the script tag.
+    const json = JSON.stringify(payload).replace(/<\/script/gi, "<\\/script");
+    const tag = `<script type="application/ld+json">${json}</script>`;
+    out = out.replace(/<\/head>/i, `${tag}</head>`);
+  }
+
   return out;
 }
 
-function allRoutes(): string[] {
+function allRoutes(scoreCompanies: ScoreCompanyForMeta[]): string[] {
   const routes = new Set<string>(Object.keys(STATIC_ROUTE_META));
   for (const slug of Object.keys(locationData)) {
     routes.add(`/cleaning-business-software/${slug}`);
   }
+  for (const c of scoreCompanies) {
+    if (c.slug) routes.add(`/score/c/${c.slug}`);
+  }
   return [...routes];
 }
 
-function metaFor(route: string): RouteMeta {
+function metaFor(route: string, scoreBySlug: Map<string, ScoreCompanyForMeta>): RouteMeta {
   if (STATIC_ROUTE_META[route]) return STATIC_ROUTE_META[route];
   const locMatch = route.match(/^\/cleaning-business-software\/([a-z0-9-]+)$/);
   if (locMatch) {
     const slug = locMatch[1];
     const loc = locationData[slug];
     if (loc) return locationRouteMeta(slug, loc);
+  }
+  const scoreMatch = route.match(/^\/score\/c\/([a-z0-9-]+)$/i);
+  if (scoreMatch) {
+    const c = scoreBySlug.get(scoreMatch[1]);
+    if (c) return scoreCompanyRouteMeta(c);
   }
   return STATIC_ROUTE_META["/"];
 }
@@ -152,18 +198,23 @@ function routeToFile(distDir: string, route: string): string {
   return join(distDir, rel, "index.html");
 }
 
-export function prerenderRoutes(distDir: string): { written: number; skipped: number } {
+export async function prerenderRoutes(
+  distDir: string
+): Promise<{ written: number; skipped: number }> {
   const sourceHtmlPath = join(distDir, "index.html");
   if (!existsSync(sourceHtmlPath)) {
     throw new Error(`prerender: ${sourceHtmlPath} not found — has vite build run?`);
   }
   const sourceHtml = readFileSync(sourceHtmlPath, "utf8");
 
+  const scoreCompanies = await fetchScoreCompanies();
+  const scoreBySlug = new Map(scoreCompanies.map((c) => [c.slug, c]));
+
   let written = 0;
   let skipped = 0;
-  for (const route of allRoutes()) {
+  for (const route of allRoutes(scoreCompanies)) {
     try {
-      const meta = metaFor(route);
+      const meta = metaFor(route, scoreBySlug);
       const patched = patchHead(sourceHtml, route, meta);
       const dest = routeToFile(distDir, route);
       mkdirSync(dirname(dest), { recursive: true });
@@ -185,6 +236,12 @@ const isDirectInvocation =
 
 if (isDirectInvocation) {
   const distDir = resolve(process.cwd(), "dist");
-  const { written, skipped } = prerenderRoutes(distDir);
-  console.log(`[prerender] wrote ${written} routes, skipped ${skipped}`);
+  prerenderRoutes(distDir)
+    .then(({ written, skipped }) => {
+      console.log(`[prerender] wrote ${written} routes, skipped ${skipped}`);
+    })
+    .catch((err) => {
+      console.error(`[prerender] failed:`, err);
+      process.exit(1);
+    });
 }
