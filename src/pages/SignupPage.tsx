@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
