@@ -124,7 +124,7 @@ serve(async (req) => {
         account_id: user.id,
         email: user.email,
       },
-      success_url: `${origin}/dashboard?lifetime=success`,
+      success_url: `${origin}/checkout/success?plan=lifetime`,
       cancel_url: `${origin}/pricing?lifetime=cancelled`,
     });
 
