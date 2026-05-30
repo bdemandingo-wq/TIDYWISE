@@ -122,6 +122,41 @@ export default function ScoreCompanyPage() {
     }
     setComputing(false);
   };
+  const startClaim = async () => {
+    if (!company) return;
+    const { data: sessionRes } = await supabase.auth.getSession();
+    if (sessionRes?.session) {
+      // Already signed in — claim directly.
+      const { data: claimRes, error: claimErr } = await supabase.functions.invoke(
+        "score-claim-self",
+        { body: { slug: company.slug } }
+      );
+      if (claimErr || (claimRes as any)?.error) {
+        const reason = (claimRes as any)?.error ?? "";
+        if (reason === "already_claimed") {
+          toast({
+            title: "This profile has already been claimed",
+            description: "Contact support if you believe this is a mistake.",
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Couldn't claim this profile", variant: "destructive" });
+        }
+        return;
+      }
+      toast({ title: "Profile claimed", description: "Your full breakdown is unlocked." });
+      const { data: c2 } = await supabase
+        .from("score_companies")
+        .select("*")
+        .eq("id", company.id)
+        .maybeSingle();
+      if (c2) setCompany(c2);
+      return;
+    }
+    // Not signed in — send through free signup, then auto-claim on return.
+    navigate(`/signup?claim=${encodeURIComponent(company.slug)}`);
+  };
+
 
   const submitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
