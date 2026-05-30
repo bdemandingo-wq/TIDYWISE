@@ -271,6 +271,7 @@ const App = () => (
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/platform-analytics" element={<AdminRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/disputes" element={<AdminRoute><ErrorBoundary featureName="Disputes"><DisputesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/client-portal" element={<AdminRoute><ErrorBoundary featureName="Client Portal"><ClientPortalAdminPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
