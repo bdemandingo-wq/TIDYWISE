@@ -45,14 +45,14 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   "/": {
     title: "TidyWise — Cleaning Business Software & CRM",
     description:
-      "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Free forever for cleaning teams.",
+      "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Plans from $49/mo, or a one-time Lifetime spot at $300.",
     h1: "Run your cleaning business on one platform",
   },
   "/pricing": {
-    title: "Pricing — Free Forever Plan | TidyWise",
+    title: "Pricing — From $49/mo | TidyWise",
     description:
-      "Simple cleaning business software pricing. Free forever for solo cleaners. Paid plans scale with team size — no per-job fees, no contracts.",
-    h1: "Simple pricing for growing cleaning businesses",
+      "Four plans for cleaning businesses: Basic $49/mo, Pro $97/mo, Custom $197/mo, or a one-time Lifetime founding offer at $300 (50 spots only). Yearly = 2 months free.",
+    h1: "Pick the plan that fits your business",
   },
   "/demo": {
     title: "Book a Demo — TidyWise Cleaning Software",

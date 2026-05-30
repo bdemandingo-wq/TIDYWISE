@@ -120,7 +120,7 @@ export const allArticles: RelatedArticle[] = [
   },
   {
     slug: "/features/payroll-software",
-    title: "Payroll Software for Cleaning Businesses — Free Forever",
+    title: "Payroll Software for Cleaning Businesses — In Every Pro Plan",
     category: "Features",
   },
   {

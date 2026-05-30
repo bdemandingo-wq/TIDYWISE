@@ -57,9 +57,9 @@ const pricingPlans = [
   {
     name: "TIDYWISE",
     tagline: "Built for cleaning businesses",
-    price: "Free",
-    priceNote: "forever",
-    subtitle: "No credit card required",
+    price: "$49",
+    priceNote: "/month",
+    subtitle: "Pro $97 · Lifetime $300 (50 spots)",
     highlight: true,
   },
   {
@@ -143,7 +143,7 @@ export function CompetitorComparison() {
                 <Button
                   variant="secondary"
                   className="w-full mt-6"
-                  onClick={() => navigate("/signup")}
+                  onClick={() => navigate("/pricing")}
                 >
                   See Plans
                 </Button>
@@ -189,8 +189,8 @@ export function CompetitorComparison() {
         </div>
 
         <div className="text-center mt-12">
-          <Button size="lg" onClick={() => navigate("/auth?mode=signup")}>
-            Try TIDYWISE Free — No Credit Card Required
+          <Button size="lg" onClick={() => navigate("/pricing")}>
+            See TIDYWISE Plans — From $49/mo
           </Button>
           <p className="text-sm text-muted-foreground mt-3">
             Trusted by cleaning businesses using TIDYWISE

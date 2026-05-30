@@ -202,21 +202,25 @@ export default function LandingPage() {
     };
   }, [mobileMenuOpen]);
 
+  // The hero/CTA "See Plans" buttons should go to the pricing page so
+  // visitors can compare tiers before signing up. Previously these both
+  // routed to /signup, which surprised people clicking "See Plans" and
+  // landing in the signup form instead of a pricing comparison.
   const handleGetStarted = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
-    navigate("/signup");
+    navigate("/pricing");
   };
 
   const handleStartFree = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
-    navigate("/signup");
+    navigate("/pricing");
   };
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
-        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever — get started today."
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -237,7 +241,7 @@ export default function LandingPage() {
               "price": "0",
               "priceCurrency": "USD"
             },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever."
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Plans from $49/mo."
           },
           {
             "@type": "FAQPage",
@@ -720,7 +724,7 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: 'Free', label: 'Forever', delay: '0.1s' },
+                   { value: '$49', label: 'Plans start here', delay: '0.1s' },
                    { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
                    { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
@@ -874,7 +878,7 @@ export default function LandingPage() {
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-lg font-medium">Free forever — no credit card</span>
+              <span className="text-lg font-medium">Plans from $49/mo · Cancel any time</span>
             </div>
           </div>
         </div>

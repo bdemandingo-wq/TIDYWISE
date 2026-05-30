@@ -7,7 +7,7 @@ export function InteractiveDemo() {
 
   const handleStartFree = () => {
     sessionStorage.setItem("selectedIndustry", "Home Cleaning");
-    navigate("/signup");
+    navigate("/pricing");
   };
 
   return (
@@ -45,7 +45,7 @@ export function InteractiveDemo() {
             See Plans <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <p className="text-sm text-muted-foreground mt-2">
-            No credit card required. Free forever.
+            Plans from $49/mo · Cancel any time
           </p>
         </div>
       </div>

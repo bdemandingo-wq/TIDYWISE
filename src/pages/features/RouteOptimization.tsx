@@ -75,7 +75,7 @@ export default function RouteOptimization() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="Route Optimization Software for Cleaning Businesses"
-        description="AI-powered route optimization for cleaning businesses. Cut drive time 30%, reduce fuel costs 25%, and fit more jobs per day. Free forever."
+        description="AI-powered route optimization for cleaning businesses. Cut drive time 30%, reduce fuel costs 25%, and fit more jobs per day. Included with the TIDYWISE Pro plan."
         canonical="/features/route-optimization"
       />
 

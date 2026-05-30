@@ -81,7 +81,7 @@ export default function PayrollSoftware() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Payroll Software for Cleaning Companies"
-        description="Automate cleaner wages, tips, mileage & tax docs. Built for cleaning businesses — per-job pay, hourly, or % of service price. Free forever with TIDYWISE."
+        description="Automate cleaner wages, tips, mileage & tax docs. Built for cleaning businesses — per-job pay, hourly, or % of service price. Included with the TIDYWISE Pro plan ($97/mo)."
         canonical="/features/payroll-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
@@ -90,7 +90,7 @@ export default function PayrollSoftware() {
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web, iOS, Android",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-          "description": "Payroll software for cleaning businesses. Automate wages, tips, mileage reimbursements, and generate W-2/1099 documentation. Free forever."
+          "description": "Payroll software for cleaning businesses. Automate wages, tips, mileage reimbursements, and generate W-2/1099 documentation. Included with the TIDYWISE Pro plan."
         }}
       />
 
@@ -137,7 +137,7 @@ export default function PayrollSoftware() {
             <span className="text-primary">Cleaning Businesses</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Stop spending hours on payroll every two weeks. TidyWise automatically calculates wages from completed jobs — flat rates, hourly, or percentage of service price. Tips, mileage, and deductions handled too. <strong>Free forever.</strong>
+            Stop spending hours on payroll every two weeks. TidyWise automatically calculates wages from completed jobs — flat rates, hourly, or percentage of service price. Tips, mileage, and deductions handled too. <strong>Included with the Pro plan ($97/mo).</strong>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>

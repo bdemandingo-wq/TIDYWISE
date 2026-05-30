@@ -243,7 +243,7 @@ export default function CleaningBusinessSoftware() {
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web, iOS, Android",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Free forever."
+            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Plans from $49/mo."
           },
           {
             "@type": "FAQPage",
