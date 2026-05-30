@@ -194,8 +194,13 @@ export default function ScoreCompanyPage() {
 
         {metrics && (
           <Card variant="elevated" className="p-6 mb-10">
-            <h2 className="font-serif text-2xl text-foreground mb-4">Sentiment breakdown</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-serif text-2xl text-foreground">Sentiment breakdown</h2>
+              {aiConfidence === "low" && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground">Low confidence</span>
+              )}
+            </div>
+            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${aiConfidence === "low" ? "opacity-50" : ""}`}>
               {[
                 ["Reliability", metrics.sentiment_reliability],
                 ["Communication", metrics.sentiment_communication],
