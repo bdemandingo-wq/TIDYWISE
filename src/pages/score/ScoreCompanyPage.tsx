@@ -72,6 +72,7 @@ export default function ScoreCompanyPage() {
     if (!error && data) {
       setCompany(data.company);
       setMetrics(data.metrics);
+      setAiConfidence(data.aiConfidence ?? null);
       toast({ title: "Score refreshed" });
     } else {
       toast({ title: "Couldn't refresh score", variant: "destructive" });
