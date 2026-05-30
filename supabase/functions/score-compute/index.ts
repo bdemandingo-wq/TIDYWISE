@@ -189,10 +189,6 @@ async function fetchPlaceSignals(
 }
 
 const InsightsSchema = z.object({
-  reliability: z.number().min(0).max(100),
-  communication: z.number().min(0).max(100),
-  quality: z.number().min(0).max(100),
-  value: z.number().min(0).max(100),
   themes: z.array(z.object({ label: z.string(), sentiment: z.enum(["positive", "neutral", "negative"]) })).max(8),
   tips: z
     .array(
@@ -206,7 +202,50 @@ const InsightsSchema = z.object({
     .max(8),
 });
 
-async function aiAnalyze(opts: {
+const PerReviewSentimentSchema = z.object({
+  reliability: z.number().min(0).max(100),
+  communication: z.number().min(0).max(100),
+  quality: z.number().min(0).max(100),
+  value: z.number().min(0).max(100),
+});
+
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.warn(`${label} attempt 1 failed, retrying:`, e instanceof Error ? e.message : e);
+    return await fn();
+  }
+}
+
+async function scoreReviewSentiment(review: RichReview) {
+  const prompt = `Score this single review of a US cleaning company on 4 dimensions, each 0-100.
+Definitions:
+- reliability: showed up on time, did what was promised, no cancellations
+- communication: responsive, clear, professional updates
+- quality: cleanliness, thoroughness, attention to detail
+- value: fair price for the work performed
+
+Rules:
+- If a dimension isn't mentioned, score it as a neutral 60 (do NOT default 0).
+- A glowing review without complaints should score 85+ on mentioned dimensions.
+- A 1-star angry review should score under 30 on mentioned dimensions.
+- Reviewer's star rating (if any): ${review.rating ?? "n/a"}.
+
+Return only the JSON object.
+
+Review text:
+"""${review.text.slice(0, 2000)}"""`;
+
+  const { object } = await generateObject({
+    model: gateway("google/gemini-3-flash-preview"),
+    prompt,
+    schema: PerReviewSentimentSchema,
+  });
+  return object;
+}
+
+async function aiAnalyzeInsights(opts: {
   name: string;
   rating: number | null;
   count: number;
@@ -226,9 +265,8 @@ Recent reviews:
 ${reviewBlock || "(no review text available)"}
 
 Tasks:
-1. Score 0-100 four sub-dimensions from the review text (or use 60 default if no reviews): reliability, communication, quality, value.
-2. Extract up to 6 review themes (short labels, 1-3 words each) with sentiment.
-3. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
+1. Extract up to 6 review themes (short labels, 1-3 words each) with sentiment.
+2. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
 
   const { object } = await generateObject({
     model: gateway("google/gemini-3-flash-preview"),
