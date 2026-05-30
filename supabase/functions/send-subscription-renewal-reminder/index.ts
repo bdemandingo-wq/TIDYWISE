@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const APP_URL = Deno.env.get("APP_URL") || "https://jointidywise.com";
@@ -15,9 +16,17 @@ const corsHeaders = {
  * Daily cron: emails every TidyWise subscriber whose next renewal is in
  * ~3 days. Recognizable, branded reminders are the single best way to
  * prevent "I didn't recognize this charge" disputes.
+ *
+ * Auth: pg_cron job sends x-cron-secret; the function is listed in
+ * config.toml with verify_jwt = false so no JWT is required. Without
+ * that pair the cron used to 401 on every run — reminders were never
+ * actually being sent.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   if (!stripeKey || !RESEND_API_KEY) {

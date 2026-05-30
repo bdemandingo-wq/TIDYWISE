@@ -193,3 +193,6 @@ verify_jwt = true
 
   [functions.place-id-resolve]
     verify_jwt = false
+
+  [functions.send-subscription-renewal-reminder]
+    verify_jwt = false
