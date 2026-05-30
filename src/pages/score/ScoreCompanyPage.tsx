@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Sparkles, Loader2, Lock, CheckCircle2, Globe, Smartphone, Calendar, Star } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Lock, CheckCircle2, Globe, Smartphone, Calendar, Star, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/SEOHead";
 import { toast } from "@/hooks/use-toast";
