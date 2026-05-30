@@ -92,7 +92,7 @@ export default function LocationSoftwarePage() {
         "@type": "Offer",
         price: "0",
         priceCurrency: "USD",
-        description: "Free forever plan with premium upgrade at $50/month",
+        description: "Plans from $49/mo with premium upgrade at $50/month",
       },
     },
     {
@@ -199,7 +199,7 @@ export default function LocationSoftwarePage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              Free forever plan · Premium at $50/month flat (unlimited users) · 2-month free trial
+              Plans from $49/mo · Premium at $50/month flat (unlimited users) · money-back within 30 days
             </p>
           </div>
         </section>
@@ -367,7 +367,7 @@ export default function LocationSoftwarePage() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-6">
-              2-month free trial of Premium. No credit card required.
+              14-day money-back guarantee on annual plans. Cancel any time.
             </p>
           </div>
         </section>

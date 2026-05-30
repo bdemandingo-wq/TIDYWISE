@@ -136,7 +136,7 @@ export default function CompareServiceTitan() {
                 <span className="font-bold text-foreground text-lg">TIDYWISE</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$50/month flat — all users included", "Built specifically for cleaning businesses", "Operational in hours, not weeks", "2-month free trial, no credit card", "Square footage and room-based pricing", "Automated payroll included"].map(p => (
+                {["$50/month flat — all users included", "Built specifically for cleaning businesses", "Operational in hours, not weeks", "money-back within 30 days, no credit card", "Square footage and room-based pricing", "Automated payroll included"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -256,7 +256,7 @@ export default function CompareServiceTitan() {
           {/* CTA */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">TIDYWISE — Built for Cleaning Businesses</h2>
-            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Try it free for 2 months. No credit card required, no implementation fee, no per-user pricing. Running in hours, not weeks.</p>
+            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Try it free for 2 months. Cancel any time, no implementation fee, no per-user pricing. Running in hours, not weeks.</p>
             <Button size="lg" onClick={handleStartFreeTrial}>Start Free Trial →</Button>
           </div>
 

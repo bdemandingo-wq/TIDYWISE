@@ -115,7 +115,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               <strong>TIDYWISE wins</strong> for cleaning businesses looking for the best value. At $50/month (vs $197-$349 for competitors), you get more features including P&L reports, inventory tracking, and offline mode—features neither Booking Koala nor Jobber offer.
             </p>
             <Button asChild>
-              <Link to="/auth">Try TIDYWISE Free for 2 Months <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              <Link to="/auth">See TIDYWISE Plans <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
 
@@ -247,7 +247,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               Ready to try the best cleaning business software?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
-              Try TIDYWISE for your cleaning business. Start your 2-month free trial today—no credit card required.
+              Try TIDYWISE for your cleaning business. Start your money-back within 30 days today—no credit card required.
             </p>
             <Button size="lg" asChild>
               <Link to="/auth">Start Free Trial <ArrowRight className="ml-2 h-4 w-4" /></Link>

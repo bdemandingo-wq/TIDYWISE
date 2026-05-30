@@ -134,7 +134,7 @@ export default function CompareHousecallPro() {
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">No credit card required • Cancel anytime</p>
+          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
         </div>
       </section>
 
@@ -281,7 +281,7 @@ export default function CompareHousecallPro() {
             Ready to Switch from Housecall Pro?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Start your 2-month free trial today. No credit card required. Get software actually built for cleaning.
+            Start your money-back within 30 days today. Cancel any time. Get software actually built for cleaning.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />

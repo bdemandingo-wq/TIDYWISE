@@ -134,7 +134,7 @@ export default function CompareBookingKoala() {
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">No credit card required • Cancel anytime</p>
+          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
         </div>
       </section>
 
@@ -281,7 +281,7 @@ export default function CompareBookingKoala() {
             Ready to Switch from BookingKoala?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Start your 2-month free trial today. No credit card required. We'll help you migrate.
+            Start your money-back within 30 days today. Cancel any time. We'll help you migrate.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />

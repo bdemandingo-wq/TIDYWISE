@@ -139,7 +139,7 @@ export default function CompareJobber() {
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">No credit card required • Cancel anytime</p>
+          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
         </div>
       </section>
 
@@ -286,7 +286,7 @@ export default function CompareJobber() {
             Ready to Switch from Jobber?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Start your 2-month free trial today. No credit card required. Import your Jobber data in minutes.
+            Start your money-back within 30 days today. Cancel any time. Import your Jobber data in minutes.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />

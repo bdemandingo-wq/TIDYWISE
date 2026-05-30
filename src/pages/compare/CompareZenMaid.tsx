@@ -138,7 +138,7 @@ export default function CompareZenMaid() {
                 <span className="font-bold text-foreground text-lg">TIDYWISE</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$50/month flat — doesn't increase with bookings", "Automated payroll built-in", "P&L reporting and profit per job", "AI revenue and pricing tools", "Inventory tracking", "2-month free trial"].map(p => (
+                {["$50/month flat — doesn't increase with bookings", "Automated payroll built-in", "P&L reporting and profit per job", "AI revenue and pricing tools", "Inventory tracking", "money-back within 30 days"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -178,7 +178,7 @@ export default function CompareZenMaid() {
                 </thead>
                 <tbody>
                   {[
-                    { plan: "Starter", tw: "Free forever", zm: "$23/month" },
+                    { plan: "Starter", tw: "Plans from $49/mo", zm: "$23/month" },
                     { plan: "Growing business", tw: "$50/month flat", zm: "$49/month (up to 75 bookings)" },
                     { plan: "Scaling business", tw: "$50/month flat", zm: "$100/month (up to 200 bookings)" },
                     { plan: "Payroll included", tw: "Yes", zm: "No" },
@@ -289,8 +289,8 @@ export default function CompareZenMaid() {
 
           {/* CTA */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
-            <h2 className="text-2xl font-bold text-foreground mb-3">Try TIDYWISE Free for 2 Months</h2>
-            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">No credit card required. Full access to scheduling, payroll, invoicing, GPS tracking, and P&L reports from day one.</p>
+            <h2 className="text-2xl font-bold text-foreground mb-3">See TIDYWISE Plans</h2>
+            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Cancel any time. Full access to scheduling, payroll, invoicing, GPS tracking, and P&L reports from day one.</p>
             <Button size="lg" onClick={handleStartFreeTrial}>Start Free Trial →</Button>
           </div>
 

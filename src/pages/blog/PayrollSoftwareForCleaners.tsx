@@ -103,7 +103,7 @@ export default function PayrollSoftwareForCleaners() {
             </p>
             <p className="text-muted-foreground">
               <strong className="text-foreground">Best for:</strong> Cleaning businesses that want payroll, scheduling, CRM, and invoicing in one place.<br />
-              <strong className="text-foreground">Price:</strong> Free forever.
+              <strong className="text-foreground">Price:</strong> Plans from $49/mo.
             </p>
 
             <h3 className="text-xl font-semibold mt-6">2. Gusto — Best for Full-Service Payroll</h3>
@@ -168,7 +168,7 @@ export default function PayrollSoftwareForCleaners() {
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
               <h3 className="text-lg font-semibold text-foreground mb-2">Try TIDYWISE Payroll for Free</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Built-in payroll, scheduling, CRM, and invoicing — all in one platform designed for cleaning businesses. No credit card required.
+                Built-in payroll, scheduling, CRM, and invoicing — all in one platform designed for cleaning businesses. Cancel any time.
               </p>
               <Button onClick={() => navigate("/signup")}>Get Started Free →</Button>
             </div>

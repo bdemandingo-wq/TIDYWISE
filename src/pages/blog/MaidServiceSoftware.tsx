@@ -136,7 +136,7 @@ export default function MaidServiceSoftware() {
               Maid service software pricing varies widely:
             </p>
             <ul className="space-y-2 text-muted-foreground list-disc list-inside">
-              <li><strong className="text-foreground">TIDYWISE:</strong> Free forever (no booking limits), with premium features available</li>
+              <li><strong className="text-foreground">TIDYWISE:</strong> Plans from $49/mo with unlimited bookings on every tier</li>
               <li><strong className="text-foreground">ZenMaid:</strong> $23–$100/month depending on booking volume</li>
               <li><strong className="text-foreground">Launch27:</strong> $47–$97/month</li>
               <li><strong className="text-foreground">Jobber:</strong> $69–$349/month (not cleaning-specific)</li>
@@ -160,7 +160,7 @@ export default function MaidServiceSoftware() {
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
               <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE — Built for Maid Services</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Online booking, scheduling, invoicing, payroll, GPS tracking, and client management — free forever. Built specifically for residential cleaning businesses, not adapted from a general tool.
+                Online booking, scheduling, invoicing, payroll, GPS tracking, and client management — plans from $49/mo. Built specifically for residential cleaning businesses, not adapted from a general tool.
               </p>
               <Button asChild><Link to="/signup">Start Free →</Link></Button>
               <p className="text-sm text-muted-foreground mt-3">

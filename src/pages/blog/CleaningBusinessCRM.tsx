@@ -243,7 +243,7 @@ export default function CleaningBusinessCRM() {
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild size="lg">
-                    <Link to="/auth">Try TIDYWISE Free for 60 Days <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                    <Link to="/auth">See TIDYWISE Plans <ArrowRight className="ml-2 h-4 w-4" /></Link>
                   </Button>
                   <Button variant="outline" asChild>
                     <Link to="/compare/jobber">Compare to Jobber</Link>
@@ -577,7 +577,7 @@ export default function CleaningBusinessCRM() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              ✓ No credit card required &nbsp;•&nbsp; ✓ Cancel anytime &nbsp;•&nbsp; ✓ Free data migration
+              ✓ Cancel any time &nbsp;•&nbsp; ✓ Cancel anytime &nbsp;•&nbsp; ✓ Free data migration
             </p>
           </section>
         </div>
