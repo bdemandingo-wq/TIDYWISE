@@ -393,20 +393,29 @@ export default function PricingPage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 pb-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div
+            role="list"
+            aria-label="Subscription plans"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
             {TIERS.map((tier) => {
               const price = priceFor(tier, interval);
               const isBusy = checkoutBusy === tier.id;
+              const isHighlighted = highlightedPlan === tier.id;
+              const cardLabel = `${tier.name} plan, ${price.display}${price.sub}${tier.highlight ? ', most popular' : ''}${isHighlighted ? ', selected' : ''}`;
               return (
                 <Card
                   key={tier.id}
                   ref={(el) => { tierRefs.current[tier.id] = el; }}
-                  className={`p-7 flex flex-col transition-shadow ${
+                  role="listitem"
+                  aria-label={cardLabel}
+                  aria-current={isHighlighted ? 'true' : undefined}
+                  className={`p-7 flex flex-col transition-shadow focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background ${
                     tier.highlight
                       ? 'border-primary/60 shadow-lg shadow-primary/10 relative'
                       : ''
                   } ${
-                    highlightedPlan === tier.id
+                    isHighlighted
                       ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
                       : ''
                   }`}
@@ -420,11 +429,11 @@ export default function PricingPage() {
 
                   <div className="flex items-center gap-2 mb-1">
                     {tier.id === 'basic' && (
-                      <Sparkles className="h-4 w-4 text-muted-foreground" />
+                      <Sparkles aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
                     )}
-                    {tier.id === 'pro' && <Zap className="h-4 w-4 text-primary" />}
+                    {tier.id === 'pro' && <Zap aria-hidden="true" className="h-4 w-4 text-primary" />}
                     {tier.id === 'custom' && (
-                      <SettingsIcon className="h-4 w-4 text-foreground" />
+                      <SettingsIcon aria-hidden="true" className="h-4 w-4 text-foreground" />
                     )}
                     <h3 className="font-serif text-2xl">{tier.name}</h3>
                   </div>
@@ -445,9 +454,11 @@ export default function PricingPage() {
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
                     className="w-full mb-6"
+                    aria-label={`${user ? 'Choose' : 'Start'} ${tier.name} plan, ${interval === 'yearly' ? 'billed yearly' : 'billed monthly'}`}
+                    aria-busy={isBusy}
                   >
                     {isBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                     ) : user ? (
                       `Choose ${tier.name}`
                     ) : (
@@ -462,7 +473,7 @@ export default function PricingPage() {
                           <span className="text-muted-foreground pl-4">{feature}</span>
                         ) : (
                           <>
-                            <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <Check aria-hidden="true" className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                             <span>{feature}</span>
                           </>
                         )}
@@ -473,6 +484,7 @@ export default function PricingPage() {
               );
             })}
           </div>
+
         </section>
 
         <section className="max-w-5xl mx-auto px-4 py-16">
