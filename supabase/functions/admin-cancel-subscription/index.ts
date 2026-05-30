@@ -7,7 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PLATFORM_ADMIN_EMAIL = "support@tidywisecleaning.com";
 
 const log = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -23,13 +22,10 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    // Verify the user is the platform admin
+    // Verify the user is a platform admin via the canonical RPC.
+    // Hardcoding a single email here previously locked out the second
+    // platform admin (is_platform_admin() in SQL allows two emails;
+    // this function only allowed one).
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -37,21 +33,36 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: udata } = await userClient.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (!udata?.user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userEmail = claimsData.claims.email as string | undefined;
-    if (!userEmail || userEmail.toLowerCase() !== PLATFORM_ADMIN_EMAIL) {
+    const { data: isAdmin, error: adminErr } = await userClient.rpc(
+      "is_platform_admin",
+    );
+    if (adminErr || !isAdmin) {
       return new Response(JSON.stringify({ error: "Platform admin access only" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Service-role client for the privileged DB writes the gate authorized.
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
 
     const body = await req.json().catch(() => ({}));
     let { subscriptionId, customerEmail, immediate } = body as {

@@ -235,7 +235,7 @@ export default function LandingPage() {
             "@type": "SoftwareApplication",
             "name": "TIDYWISE",
             "applicationCategory": "BusinessApplication",
-            "operatingSystem": "Web, iOS, Android",
+            "operatingSystem": "Web (mobile-friendly)",
             "offers": {
               "@type": "Offer",
               "price": "0",
@@ -259,7 +259,7 @@ export default function LandingPage() {
                 "name": "What does TidyWise do for cleaning businesses?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is an all-in-one platform for cleaning businesses. It handles online booking, team scheduling, client CRM, automated invoicing, payroll calculation, GPS tracking, route optimization, and staff management — all from one dashboard and mobile app."
+                  "text": "TidyWise is an all-in-one platform for cleaning businesses. It handles online booking, team scheduling, client CRM, automated invoicing, payroll calculation, GPS tracking, route optimization, and staff management — all from one mobile-friendly dashboard."
                 }
               },
               {
@@ -296,10 +296,10 @@ export default function LandingPage() {
               },
               {
                 "@type": "Question",
-                "name": "Does TidyWise have a mobile app?",
+                "name": "Can I use TidyWise on my phone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. TidyWise has a mobile app for both iOS and Android. Staff can see their schedules, check in via GPS, document jobs with photos, and send on-my-way texts. Business owners can manage bookings, view reports, and communicate with clients from the app."
+                  "text": "Yes. TidyWise is a mobile-friendly web app that works on any phone or tablet (iPhone, Android, iPad) — staff can see their schedules, document jobs with photos, and send updates right from the browser. Native iOS and Android apps are on the roadmap."
                 }
               }
             ]
@@ -831,8 +831,8 @@ export default function LandingPage() {
                 a: "Yes. TidyWise automatically calculates wages from completed jobs — flat per-job rates, hourly, or a percentage of the service price. Tips, mileage reimbursements, and pay period summaries are all handled inside the platform."
               },
               {
-                q: "Is there a mobile app?",
-                a: "Yes, for iOS and Android. Staff see their schedules, check in via GPS, document jobs with photos, and send on-my-way texts. Owners can manage bookings, view reports, and message clients from the app."
+                q: "Can I use TidyWise on my phone?",
+                a: "Yes — TidyWise is mobile-friendly and works on any phone or tablet through the browser. Staff see schedules, document jobs with photos, and send updates from their phone. Native iOS and Android apps are on the roadmap."
               },
             ].map((item, i) => (
               <details key={i} className="group bg-card border border-border rounded-xl">

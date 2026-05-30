@@ -51,8 +51,8 @@ const features = [
   },
   {
     icon: Smartphone,
-    title: "Staff Mobile App",
-    description: "iOS and Android app for cleaners. GPS check-ins, photo documentation, on-my-way texts, and job instructions."
+    title: "Mobile-Friendly Web App",
+    description: "Cleaners use TIDYWISE from any phone browser. GPS check-ins, photo documentation, on-my-way texts, and job instructions — no app store needed."
   },
   {
     icon: Bell,
@@ -241,7 +241,7 @@ export default function CleaningBusinessSoftware() {
             "@type": "SoftwareApplication",
             "name": "TIDYWISE Cleaning Business Software",
             "applicationCategory": "BusinessApplication",
-            "operatingSystem": "Web, iOS, Android",
+            "operatingSystem": "Web (mobile-friendly)",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
             "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Plans from $49/mo."
           },
@@ -326,8 +326,8 @@ export default function CleaningBusinessSoftware() {
               <p className="text-sm text-muted-foreground">Setup time</p>
             </div>
             <div>
-              <div className="text-3xl font-bold text-primary">iOS + Android</div>
-              <p className="text-sm text-muted-foreground">Staff mobile app</p>
+              <div className="text-3xl font-bold text-primary">Web app</div>
+              <p className="text-sm text-muted-foreground">Works on any phone</p>
             </div>
           </div>
         </div>

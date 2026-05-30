@@ -47,7 +47,7 @@ const TIERS: Tier[] = [
       'Recurring bookings + jobs',
       'Staff management',
       'In-app messaging',
-      'iOS & Android apps',
+      'Works on any phone (web)',
       'Email support',
     ],
   },
@@ -221,8 +221,8 @@ export default function PricingPage() {
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Built for cleaning operators — solo, growing, or scaling. Switch any time.
-            No setup fees. Every plan includes mobile apps, Stripe payments, and real
-            human support.
+            No setup fees. Every plan includes Stripe payments, mobile-friendly web access,
+            and real human support.
           </p>
 
           <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
@@ -424,7 +424,7 @@ export default function PricingPage() {
                   'Every Pro feature, forever',
                   'All future features included free',
                   'No recurring bill — ever',
-                  'iOS + Android + web access',
+                  'Works on any device (web)',
                   'Email support',
                   'Excludes the Custom plan done-for-you requests',
                 ].map((f) => (

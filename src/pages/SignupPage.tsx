@@ -225,10 +225,41 @@ export default function SignupPage() {
       return;
     }
 
-    // Plan-pre-selection flow: the visitor came from /pricing wanting
-    // to subscribe. Now that signup is done and the session is live,
-    // hand them off directly to Stripe Checkout for the requested plan.
-    // Errors fall through to the dashboard so they're never stuck.
+    // No plan picked → straight to dashboard.
+    if (!selectedPlan) {
+      navigate('/dashboard');
+      return;
+    }
+
+    // Plan-pre-selection flow: hand off to Stripe Checkout. The
+    // Bearer token has to be live for the edge function to authorize
+    // the caller. After signUp, the session may or may not be ready:
+    //   - Supabase auto-signs-in when email confirmation is OFF
+    //   - When email confirmation is ON, getSession() returns null
+    //     until the user clicks the email link
+    // Confirm the session before invoking — otherwise the edge call
+    // 401s and the error surfaces as a confusing "edge function error".
+    const { data: sessionData } = await supabaseNoSession.auth.getSession();
+    if (!sessionData?.session) {
+      // No session yet — most likely Supabase requires email confirmation.
+      // Persist the plan choice so the user can resume checkout after
+      // they confirm and log in.
+      try {
+        sessionStorage.setItem(
+          'tw_pending_plan',
+          JSON.stringify({ plan: selectedPlan, interval: selectedInterval }),
+        );
+      } catch {
+        // sessionStorage unavailable (private mode, storage full) — fall
+        // through. We'll just send them to login without resume context.
+      }
+      toast.info(
+        "Check your email to confirm your account, then sign in to finish checkout.",
+      );
+      navigate(`/login?plan=${selectedPlan}&interval=${selectedInterval}`);
+      return;
+    }
+
     if (selectedPlan === 'lifetime') {
       try {
         const { data, error } = await supabaseNoSession.functions.invoke('buy-lifetime', { body: {} });
@@ -243,14 +274,14 @@ export default function SignupPage() {
         toast.error(
           err instanceof Error
             ? `Couldn't open lifetime checkout: ${err.message}`
-            : "Couldn't open lifetime checkout — you can try again from the pricing page.",
+            : "Couldn't open lifetime checkout — try again from /pricing.",
         );
         navigate('/dashboard');
         return;
       }
     }
 
-    if (selectedPlan && (selectedPlan === 'basic' || selectedPlan === 'pro' || selectedPlan === 'custom')) {
+    if (selectedPlan === 'basic' || selectedPlan === 'pro' || selectedPlan === 'custom') {
       try {
         const { data, error } = await supabaseNoSession.functions.invoke('create-subscription', {
           body: { plan: selectedPlan, interval: selectedInterval },
@@ -266,7 +297,7 @@ export default function SignupPage() {
         toast.error(
           err instanceof Error
             ? `Couldn't open checkout: ${err.message}`
-            : "Couldn't open checkout — you can try again from your subscription page.",
+            : "Couldn't open checkout — try again from /dashboard/subscription.",
         );
         navigate('/dashboard');
         return;
