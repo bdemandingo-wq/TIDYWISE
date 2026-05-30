@@ -249,21 +249,69 @@ export default function PricingPage() {
     }
 
     setCheckoutBusy(planId);
+    // Hard timeout — if the edge function or redirect never resolves
+    // within 20s, surface an error instead of leaving the button
+    // spinning forever (the bug the user reported on Basic).
+    const timeoutId = window.setTimeout(() => {
+      setCheckoutBusy((current) => {
+        if (current === planId) {
+          toast.error('Checkout is taking longer than expected. Please try again.');
+          return null;
+        }
+        return current;
+      });
+    }, 20000);
+
     try {
+      console.log('[pricing] starting checkout', { plan: planId, interval });
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: { plan: planId, interval },
       });
       if (error) throw error;
-      const url = (data as { url?: string })?.url;
-      if (!url) throw new Error('Checkout URL missing');
+      const payload = data as { url?: string; error?: string } | null;
+      if (payload?.error) throw new Error(payload.error);
+      const url = payload?.url;
+      if (!url) throw new Error('Checkout URL missing — please try again.');
       goToCheckout(url);
+      // Always release the spinner shortly after attempting the redirect.
+      // In iframed previews (or popup-blocked contexts) the top-level
+      // navigation can silently fail; without this the button would
+      // spin forever and look broken.
+      window.setTimeout(() => {
+        setCheckoutBusy((current) => (current === planId ? null : current));
+      }, 1500);
     } catch (err) {
+      console.error('[pricing] create-subscription failed', err);
       toast.error(
         err instanceof Error ? err.message : 'Could not start checkout. Try again.',
       );
       setCheckoutBusy(null);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }
+
+  // Auto-resume checkout after a signup round-trip. When the user clicks
+  // a plan while logged out, we send them to /signup with ?plan=…; if
+  // they land back on /pricing already authenticated (with the pending
+  // marker still set), fire the checkout for that plan automatically
+  // instead of leaving them to click again.
+  const autoResumedRef = useRef(false);
+  useEffect(() => {
+    if (autoResumedRef.current) return;
+    if (!user) return;
+    const urlPlan = searchParams.get('plan');
+    const validPlan = urlPlan === 'basic' || urlPlan === 'pro' || urlPlan === 'custom';
+    if (!validPlan) return;
+    let pending = false;
+    try {
+      pending = !!sessionStorage.getItem('tw_pending_plan');
+    } catch { /* no-op */ }
+    if (!pending) return;
+    autoResumedRef.current = true;
+    startSubscriptionCheckout(urlPlan as Tier['id']);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
 
 
   async function startLifetimeCheckout() {
