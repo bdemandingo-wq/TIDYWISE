@@ -101,24 +101,26 @@ Deno.serve(async (req) => {
     }
 
 
-    // Audit log (best effort).
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-      req.headers.get("cf-connecting-ip") ||
-      null;
-    const ua = req.headers.get("user-agent") || null;
-    await admin
-      .from("score_claim_audit")
-      .insert({
-        company_id: company.id,
-        company_slug: company.slug,
-        user_id: user.id,
-        email: user.email ?? null,
-        ip_address: ip,
-        user_agent: ua,
-        source: "self_serve_signup",
-      })
-      .then((r) => r.error && console.warn("audit insert failed", r.error));
+    // Audit log only when this caller actually won the race (no rows for re-claims).
+    if (wonRace) {
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+        req.headers.get("cf-connecting-ip") ||
+        null;
+      const ua = req.headers.get("user-agent") || null;
+      await admin
+        .from("score_claim_audit")
+        .insert({
+          company_id: company.id,
+          company_slug: company.slug,
+          user_id: user.id,
+          email: user.email ?? null,
+          ip_address: ip,
+          user_agent: ua,
+          source: "self_serve_signup",
+        })
+        .then((r) => r.error && console.warn("audit insert failed", r.error));
+    }
 
     // If sentiment evidence missing, kick a recompute (best effort, fire-and-forget).
     try {
