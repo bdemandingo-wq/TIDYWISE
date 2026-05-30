@@ -1748,6 +1748,60 @@ export type Database = {
           },
         ]
       }
+      cancellation_feedback: {
+        Row: {
+          canceled_at: string
+          competitor_name: string | null
+          created_at: string
+          eligible_for_winback: boolean
+          feedback_text: string | null
+          id: string
+          missing_feature: string | null
+          organization_id: string | null
+          period_end_date: string | null
+          plan: string | null
+          reason: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          canceled_at?: string
+          competitor_name?: string | null
+          created_at?: string
+          eligible_for_winback?: boolean
+          feedback_text?: string | null
+          id?: string
+          missing_feature?: string | null
+          organization_id?: string | null
+          period_end_date?: string | null
+          plan?: string | null
+          reason: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          canceled_at?: string
+          competitor_name?: string | null
+          created_at?: string
+          eligible_for_winback?: boolean
+          feedback_text?: string | null
+          id?: string
+          missing_feature?: string | null
+          organization_id?: string | null
+          period_end_date?: string | null
+          plan?: string | null
+          reason?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       charge_audit_log: {
         Row: {
           amount_cents: number | null
@@ -5897,6 +5951,24 @@ export type Database = {
           },
         ]
       }
+      platform_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       pnl_settings: {
         Row: {
           annual_revenue_goal: number | null
@@ -7930,6 +8002,51 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_pauses: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string | null
+          pause_months: number
+          paused_at: string
+          reminder_sent_at: string | null
+          resume_date: string
+          resumed_at: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          pause_months: number
+          paused_at?: string
+          reminder_sent_at?: string | null
+          resume_date: string
+          resumed_at?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          pause_months?: number
+          paused_at?: string
+          reminder_sent_at?: string | null
+          resume_date?: string
+          resumed_at?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -8327,6 +8444,51 @@ export type Database = {
           session_start?: string
           updated_at?: string
           user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      winback_offers: {
+        Row: {
+          claimed_at: string | null
+          coupon_id: string | null
+          created_at: string
+          declined_at: string | null
+          id: string
+          offer_type: string
+          organization_id: string | null
+          shown_at: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          declined_at?: string | null
+          id?: string
+          offer_type: string
+          organization_id?: string | null
+          shown_at?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          declined_at?: string | null
+          id?: string
+          offer_type?: string
+          organization_id?: string | null
+          shown_at?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           user_id?: string
         }
         Relationships: []
