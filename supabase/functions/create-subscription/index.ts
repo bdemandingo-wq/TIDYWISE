@@ -169,14 +169,10 @@ serve(async (req) => {
       metadata: evidenceMetadata,
       subscription_data: {
         metadata: evidenceMetadata,
-        // Carry 3DS request to recurring renewal invoices. Without this,
-        // only the initial Checkout charge would request authentication;
-        // monthly renewals would skip the issuer auth step.
-        payment_settings: {
-          payment_method_options: {
-            card: { request_three_d_secure: "automatic" },
-          },
-        },
+        // Note: Checkout Sessions don't accept subscription_data.payment_settings.
+        // 3DS on renewal invoices is enforced via Stripe Radar rules / the
+        // payment method's stored authentication; the initial charge above
+        // already requests 3DS, which shifts liability for the saved card.
       },
       payment_intent_data: undefined, // not allowed in subscription mode
       success_url: `${origin}/dashboard?subscription=success`,
