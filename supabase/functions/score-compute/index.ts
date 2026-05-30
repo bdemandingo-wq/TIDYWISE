@@ -143,6 +143,8 @@ async function checkWebsite(url: string | null) {
   };
 }
 
+type RichReview = { text: string; rating: number | null; publishTime: string | null };
+
 async function fetchPlaceSignals(
   placeId: string,
   current: {
@@ -156,7 +158,7 @@ async function fetchPlaceSignals(
     headers: {
       "X-Goog-Api-Key": PLACES_KEY,
       "X-Goog-FieldMask":
-        "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
+        "id,displayName,rating,userRatingCount,reviews.text,reviews.originalText,reviews.rating,reviews.publishTime,websiteUri,nationalPhoneNumber",
     },
   });
   if (!r.ok) return null;
@@ -165,12 +167,21 @@ async function fetchPlaceSignals(
   const rs = j.reviews ?? [];
   const newest = rs[0]?.publishTime;
 
+  const richReviews: RichReview[] = rs
+    .map((x: any) => ({
+      text: x.text?.text ?? x.originalText?.text ?? "",
+      rating: typeof x.rating === "number" ? x.rating : null,
+      publishTime: x.publishTime ?? null,
+    }))
+    .filter((r: RichReview) => r.text.length > 0);
+
   return {
     rating: j.rating ?? current.rating,
     count: j.userRatingCount ?? current.count,
     resolvedWebsite: current.resolvedWebsite ?? j.websiteUri ?? null,
     resolvedPhone: current.resolvedPhone ?? j.nationalPhoneNumber ?? null,
-    reviews: rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean),
+    reviews: richReviews.map((r) => r.text),
+    richReviews,
     mostRecentDays: newest
       ? Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000))
       : null,
@@ -178,10 +189,6 @@ async function fetchPlaceSignals(
 }
 
 const InsightsSchema = z.object({
-  reliability: z.number().min(0).max(100),
-  communication: z.number().min(0).max(100),
-  quality: z.number().min(0).max(100),
-  value: z.number().min(0).max(100),
   themes: z.array(z.object({ label: z.string(), sentiment: z.enum(["positive", "neutral", "negative"]) })).max(8),
   tips: z
     .array(
@@ -195,7 +202,50 @@ const InsightsSchema = z.object({
     .max(8),
 });
 
-async function aiAnalyze(opts: {
+const PerReviewSentimentSchema = z.object({
+  reliability: z.number().min(0).max(100),
+  communication: z.number().min(0).max(100),
+  quality: z.number().min(0).max(100),
+  value: z.number().min(0).max(100),
+});
+
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.warn(`${label} attempt 1 failed, retrying:`, e instanceof Error ? e.message : e);
+    return await fn();
+  }
+}
+
+async function scoreReviewSentiment(review: RichReview) {
+  const prompt = `Score this single review of a US cleaning company on 4 dimensions, each 0-100.
+Definitions:
+- reliability: showed up on time, did what was promised, no cancellations
+- communication: responsive, clear, professional updates
+- quality: cleanliness, thoroughness, attention to detail
+- value: fair price for the work performed
+
+Rules:
+- If a dimension isn't mentioned, score it as a neutral 60 (do NOT default 0).
+- A glowing review without complaints should score 85+ on mentioned dimensions.
+- A 1-star angry review should score under 30 on mentioned dimensions.
+- Reviewer's star rating (if any): ${review.rating ?? "n/a"}.
+
+Return only the JSON object.
+
+Review text:
+"""${review.text.slice(0, 2000)}"""`;
+
+  const { object } = await generateObject({
+    model: gateway("google/gemini-3-flash-preview"),
+    prompt,
+    schema: PerReviewSentimentSchema,
+  });
+  return object;
+}
+
+async function aiAnalyzeInsights(opts: {
   name: string;
   rating: number | null;
   count: number;
@@ -215,9 +265,8 @@ Recent reviews:
 ${reviewBlock || "(no review text available)"}
 
 Tasks:
-1. Score 0-100 four sub-dimensions from the review text (or use 60 default if no reviews): reliability, communication, quality, value.
-2. Extract up to 6 review themes (short labels, 1-3 words each) with sentiment.
-3. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
+1. Extract up to 6 review themes (short labels, 1-3 words each) with sentiment.
+2. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
 
   const { object } = await generateObject({
     model: gateway("google/gemini-3-flash-preview"),
@@ -271,6 +320,7 @@ Deno.serve(async (req) => {
     let rating = company.google_rating;
     let count = company.google_review_count ?? 0;
     let reviews: string[] = [];
+    let richReviews: RichReview[] = [];
     let mostRecentDays: number | null = null;
     let placeId: string | null = company.google_place_id ?? null;
     let resolvedWebsite: string | null = company.website ?? null;
@@ -316,6 +366,7 @@ Deno.serve(async (req) => {
         resolvedWebsite = fresh.resolvedWebsite;
         resolvedPhone = fresh.resolvedPhone;
         reviews = fresh.reviews;
+        richReviews = fresh.richReviews;
         mostRecentDays = fresh.mostRecentDays;
       }
     }
@@ -335,6 +386,7 @@ Deno.serve(async (req) => {
         resolvedWebsite = fresh.resolvedWebsite;
         resolvedPhone = fresh.resolvedPhone;
         reviews = fresh.reviews;
+        richReviews = fresh.richReviews;
         mostRecentDays = fresh.mostRecentDays;
       }
     }
@@ -347,37 +399,90 @@ Deno.serve(async (req) => {
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
 
-    // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
-    // we still save a partial score from reviews + website so the page isn't blank.
-    let ai: {
+    // ---- AI Sentiment: per-review scoring with recency weighting ----
+    const ai: {
       reliability: number;
       communication: number;
       quality: number;
       value: number;
       themes: { label: string; sentiment: "positive" | "neutral" | "negative" }[];
       tips: { title: string; body: string; impact: "high" | "medium" | "low" }[];
+    } = {
+      reliability: 60,
+      communication: 60,
+      quality: 60,
+      value: 60,
+      themes: [],
+      tips: [],
     };
     let aiFailed = false;
+    const reviewsWithText = richReviews.filter((r) => r.text.trim().length > 0);
+    const aiConfidence: "low" | "high" = reviewsWithText.length < 5 ? "low" : "high";
+
+    // 1) Per-review sentiment with retry, weighted by recency
+    if (reviewsWithText.length > 0) {
+      const results = await Promise.allSettled(
+        reviewsWithText.slice(0, 25).map((rev) =>
+          withRetry(() => scoreReviewSentiment(rev), "scoreReviewSentiment").then((s) => ({
+            scores: s,
+            publishTime: rev.publishTime,
+          }))
+        )
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").map((r: any) => r.value);
+
+      if (ok.length === 0) {
+        aiFailed = true;
+        const r = rating ?? 3;
+        const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (r - 3) * 30)));
+        console.error("All per-review sentiment calls failed, using rating-based fallback", fallbackScore);
+        ai.reliability = ai.communication = ai.quality = ai.value = fallbackScore;
+      } else {
+        const now = Date.now();
+        let wSum = 0;
+        const dims = { reliability: 0, communication: 0, quality: 0, value: 0 };
+        for (const entry of ok) {
+          const ageDays = entry.publishTime
+            ? Math.max(0, (now - new Date(entry.publishTime).getTime()) / (24 * 3600 * 1000))
+            : 365;
+          // Recency weight: review from today = 1.0, ~1 year ago ≈ 0.5, 2+ years ≈ 0.33
+          const w = 1 / (1 + ageDays / 365);
+          wSum += w;
+          dims.reliability += entry.scores.reliability * w;
+          dims.communication += entry.scores.communication * w;
+          dims.quality += entry.scores.quality * w;
+          dims.value += entry.scores.value * w;
+        }
+        ai.reliability = Math.round(dims.reliability / wSum);
+        ai.communication = Math.round(dims.communication / wSum);
+        ai.quality = Math.round(dims.quality / wSum);
+        ai.value = Math.round(dims.value / wSum);
+      }
+    } else if (rating) {
+      // No review text but we know the star rating — derive a fallback so we don't show flat 60.
+      const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (rating - 3) * 30)));
+      ai.reliability = ai.communication = ai.quality = ai.value = fallbackScore;
+    }
+
+    // 2) Themes + tips (separate call, also with one retry + smart fallback)
     try {
-      ai = await aiAnalyze({
-        name: company.name,
-        rating,
-        count,
-        reviews,
-        website: web,
-        reviewsScore: reviewsScoreVal ?? 0,
-      });
+      const insights = await withRetry(
+        () =>
+          aiAnalyzeInsights({
+            name: company.name,
+            rating,
+            count,
+            reviews,
+            website: web,
+            reviewsScore: reviewsScoreVal ?? 0,
+          }),
+        "aiAnalyzeInsights"
+      );
+      ai.themes = insights.themes;
+      ai.tips = insights.tips;
     } catch (e) {
-      console.error("aiAnalyze failed, using fallback", e);
+      console.error("aiAnalyzeInsights failed after retry", e);
       aiFailed = true;
-      ai = {
-        reliability: 60,
-        communication: 60,
-        quality: 60,
-        value: 60,
-        themes: [],
-        tips: [],
-      };
     }
 
     const sentimentAvg = (ai.reliability + ai.communication + ai.quality + ai.value) / 4;
@@ -453,7 +558,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     return new Response(
-      JSON.stringify({ company: refreshed, metrics, cached: false }),
+      JSON.stringify({ company: refreshed, metrics, cached: false, aiConfidence, aiFailed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
