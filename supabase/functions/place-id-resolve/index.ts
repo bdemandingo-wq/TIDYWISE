@@ -32,9 +32,50 @@ const Body = z.object({
 // hop forever.
 const MAX_REDIRECTS = 5;
 
+// Hosts the resolver is willing to fetch. Limits SSRF surface: the
+// function is verify_jwt=false (anonymous callers can hit it) and
+// without a whitelist any caller could supply an arbitrary URL and
+// have the function fetch it from TidyWise's edge egress. Deno Deploy
+// already blocks private-network ranges, but the broader concern is
+// open-relay usage and redirect-target extraction on arbitrary hosts.
+const ALLOWED_HOSTS = new Set([
+  "share.google",
+  "maps.app.goo.gl",
+  "goo.gl",
+  "google.com",
+  "www.google.com",
+  "maps.google.com",
+  // International Maps domains (exact host match, not suffix — keeps
+  // sites.google.com / docs.google.com etc. out of scope).
+  "google.com.br",
+  "google.co.uk",
+  "google.com.au",
+  "google.de",
+  "google.fr",
+  "google.ca",
+  "google.es",
+  "google.it",
+  "google.com.mx",
+]);
+
+function hostAllowed(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    return ALLOWED_HOSTS.has(u.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 async function followRedirects(input: string): Promise<string> {
   let current = input;
   for (let i = 0; i < MAX_REDIRECTS; i++) {
+    // Re-check on every hop — a Google short link is allowed to
+    // redirect to maps.google.com, but not off-whitelist.
+    if (!hostAllowed(current)) {
+      throw new Error(`refusing to fetch off-whitelist host: ${new URL(current).hostname}`);
+    }
     const res = await fetch(current, {
       method: "GET",
       redirect: "manual",
@@ -213,6 +254,16 @@ Deno.serve(async (req) => {
 
     let raw = parsed.data.url;
     if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+
+    if (!hostAllowed(raw)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Only Google Maps share links are supported. Paste a link from your Google Maps profile (share.google, maps.app.goo.gl, or maps.google.com).",
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Step 1: canonicalize via redirects.
     const finalUrl = await followRedirects(raw);
