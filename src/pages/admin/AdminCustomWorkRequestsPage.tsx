@@ -69,7 +69,7 @@ export default function AdminCustomWorkRequestsPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   async function load() {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('custom_work_requests')
       .select('*, organization:organizations(name)')
       .order('submitted_at', { ascending: false })
