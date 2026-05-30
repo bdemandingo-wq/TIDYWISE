@@ -105,8 +105,12 @@ export default function LoginPage() {
     }
   };
 
-  // Handle splash screen completion - navigate to dashboard
+  // Handle splash screen completion - navigate based on context
   const handleSplashComplete = () => {
+    if (claimSlug) {
+      navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
+      return;
+    }
     navigate('/dashboard');
   };
 
