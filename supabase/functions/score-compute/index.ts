@@ -320,6 +320,7 @@ Deno.serve(async (req) => {
     let rating = company.google_rating;
     let count = company.google_review_count ?? 0;
     let reviews: string[] = [];
+    let richReviews: RichReview[] = [];
     let mostRecentDays: number | null = null;
     let placeId: string | null = company.google_place_id ?? null;
     let resolvedWebsite: string | null = company.website ?? null;
