@@ -428,19 +428,32 @@ Deno.serve(async (req) => {
     const reviewsWithText = richReviews.filter((r) => r.text.trim().length > 0);
     const aiConfidence: "low" | "high" = reviewsWithText.length < 5 ? "low" : "high";
 
+    type ScoredReview = {
+      review: RichReview;
+      scores: { reliability: number; communication: number; quality: number; value: number };
+      topDimension: "reliability" | "communication" | "quality" | "value";
+      topReason: string;
+    };
+    let scoredReviews: ScoredReview[] = [];
+
     // 1) Per-review sentiment with retry, weighted by recency
     if (reviewsWithText.length > 0) {
+      const slice = reviewsWithText.slice(0, 25);
       const results = await Promise.allSettled(
-        reviewsWithText.slice(0, 25).map((rev) =>
+        slice.map((rev) =>
           withRetry(() => scoreReviewSentiment(rev), "scoreReviewSentiment").then((s) => ({
-            scores: s,
-            publishTime: rev.publishTime,
+            review: rev,
+            scores: { reliability: s.reliability, communication: s.communication, quality: s.quality, value: s.value },
+            topDimension: s.topDimension,
+            topReason: s.topReason,
           }))
         )
       );
-      const ok = results.filter((r) => r.status === "fulfilled").map((r: any) => r.value);
+      scoredReviews = results
+        .filter((r) => r.status === "fulfilled")
+        .map((r: any) => r.value as ScoredReview);
 
-      if (ok.length === 0) {
+      if (scoredReviews.length === 0) {
         aiFailed = true;
         const r = rating ?? 3;
         const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (r - 3) * 30)));
@@ -450,9 +463,9 @@ Deno.serve(async (req) => {
         const now = Date.now();
         let wSum = 0;
         const dims = { reliability: 0, communication: 0, quality: 0, value: 0 };
-        for (const entry of ok) {
-          const ageDays = entry.publishTime
-            ? Math.max(0, (now - new Date(entry.publishTime).getTime()) / (24 * 3600 * 1000))
+        for (const entry of scoredReviews) {
+          const ageDays = entry.review.publishTime
+            ? Math.max(0, (now - new Date(entry.review.publishTime).getTime()) / (24 * 3600 * 1000))
             : 365;
           // Recency weight: review from today = 1.0, ~1 year ago ≈ 0.5, 2+ years ≈ 0.33
           const w = 1 / (1 + ageDays / 365);
@@ -472,6 +485,66 @@ Deno.serve(async (req) => {
       const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (rating - 3) * 30)));
       ai.reliability = ai.communication = ai.quality = ai.value = fallbackScore;
     }
+
+    // Build per-dimension supporting evidence (max 2 snippets per dim, ~120 chars each).
+    const truncate = (s: string, n = 120) => {
+      const t = s.replace(/\s+/g, " ").trim();
+      return t.length <= n ? t : t.slice(0, n - 1).trimEnd() + "…";
+    };
+    const firstName = (full: string | null) => {
+      if (!full) return "Anonymous";
+      const first = full.trim().split(/\s+/)[0];
+      return first || "Anonymous";
+    };
+    const relativeDate = (iso: string | null) => {
+      if (!iso) return "";
+      const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 3600 * 1000)));
+      if (days < 7) return days <= 1 ? "1 day ago" : `${days} days ago`;
+      if (days < 30) {
+        const w = Math.floor(days / 7);
+        return w === 1 ? "1 week ago" : `${w} weeks ago`;
+      }
+      if (days < 365) {
+        const m = Math.floor(days / 30);
+        return m === 1 ? "1 month ago" : `${m} months ago`;
+      }
+      const y = Math.floor(days / 365);
+      return y === 1 ? "1 year ago" : `${y} years ago`;
+    };
+    const dimensions: Array<"reliability" | "communication" | "quality" | "value"> = [
+      "reliability",
+      "communication",
+      "quality",
+      "value",
+    ];
+    const sentimentEvidence: Record<string, Array<{ snippet: string; author: string; date: string }>> = {
+      reliability: [], communication: [], quality: [], value: [],
+    };
+    const usedTexts = new Set<string>();
+    for (const dim of dimensions) {
+      const candidates = scoredReviews
+        .filter((r) => r.scores[dim] >= 70)
+        .sort((a, b) => {
+          // Prefer reviews whose topDimension matches this dim, then by score desc.
+          const aBoost = a.topDimension === dim ? 5 : 0;
+          const bBoost = b.topDimension === dim ? 5 : 0;
+          return (b.scores[dim] + bBoost) - (a.scores[dim] + aBoost);
+        });
+      for (const c of candidates) {
+        if (sentimentEvidence[dim].length >= 2) break;
+        const key = c.review.text.slice(0, 40);
+        if (usedTexts.has(key)) continue;
+        // Prefer the model's topReason if it points at this dim, else snippet from review text.
+        const raw = c.topDimension === dim && c.topReason ? c.topReason : c.review.text;
+        sentimentEvidence[dim].push({
+          snippet: truncate(raw, 120),
+          author: firstName(c.review.author),
+          date: relativeDate(c.review.publishTime),
+        });
+        usedTexts.add(key);
+      }
+    }
+
 
     // 2) Themes + tips (separate call, also with one retry + smart fallback)
     try {
