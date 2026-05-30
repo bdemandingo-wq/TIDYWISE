@@ -98,11 +98,16 @@ serve(async (req) => {
 
     const cfg = await getOfferConfig(supabase);
 
-    // Has this user been shown an offer before?
+    // Look up the user's most recent offer. The schema now allows
+    // multiple historical rows per user (one active + accumulated
+    // claimed/declined history); we care about the latest one for the
+    // current action's eligibility decision.
     const { data: existing } = await supabase
       .from("winback_offers")
       .select("*")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (action === "show") {
