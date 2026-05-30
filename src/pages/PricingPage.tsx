@@ -326,12 +326,18 @@ export default function PricingPage() {
               return (
                 <Card
                   key={tier.id}
-                  className={`p-7 flex flex-col ${
+                  ref={(el) => { tierRefs.current[tier.id] = el; }}
+                  className={`p-7 flex flex-col transition-shadow ${
                     tier.highlight
                       ? 'border-primary/60 shadow-lg shadow-primary/10 relative'
                       : ''
+                  } ${
+                    highlightedPlan === tier.id
+                      ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                      : ''
                   }`}
                 >
+
                   {tier.highlight && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 uppercase tracking-wider text-[10px]">
                       Most popular
