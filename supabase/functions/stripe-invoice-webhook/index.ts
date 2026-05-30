@@ -470,6 +470,144 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ── DISPUTE / CHARGEBACK HANDLING (Visa CE 3.0, reason 10.4) ────────────
+    if (event.type === "charge.dispute.created" || event.type === "charge.dispute.updated") {
+      try {
+        const dispute = event.data.object as Stripe.Dispute;
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+          apiVersion: "2025-08-27.basil",
+        });
+
+        const charge = await stripe.charges.retrieve(dispute.charge as string);
+        const paymentIntentId = (charge.payment_intent as string) || null;
+        const customerId = (charge.customer as string) || null;
+        const customerEmail = charge.billing_details?.email || charge.receipt_email || null;
+        const disputeCreatedSec = dispute.created;
+
+        // Look up the disputed charge's stored evidence
+        const { data: disputedEvidence } = await supabase
+          .from("payment_evidence")
+          .select("*")
+          .eq("stripe_payment_intent_id", paymentIntentId || "")
+          .maybeSingle();
+
+        // Prior undisputed successful charges for this customer
+        const { data: priors } = await supabase
+          .from("payment_evidence")
+          .select("*")
+          .eq("stripe_customer_id", customerId || "")
+          .neq("stripe_payment_intent_id", paymentIntentId || "__none__")
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        // CE 3.0 window: 120-365 days BEFORE the dispute
+        const disputeMs = disputeCreatedSec * 1000;
+        const minMs = disputeMs - 365 * 24 * 60 * 60 * 1000;
+        const maxMs = disputeMs - 120 * 24 * 60 * 60 * 1000;
+
+        const matchElements = (a: any, b: any) => {
+          const m: string[] = [];
+          if (a?.email && b?.email && a.email === b.email) m.push("email");
+          if (a?.ip_address && b?.ip_address && a.ip_address === b.ip_address) m.push("ip_address");
+          if (a?.user_agent && b?.user_agent && a.user_agent === b.user_agent) m.push("device");
+          if (a?.user_id && b?.user_id && a.user_id === b.user_id) m.push("account_id");
+          if (a?.device_fingerprint && b?.device_fingerprint && a.device_fingerprint === b.device_fingerprint) m.push("device_fingerprint");
+          return m;
+        };
+
+        const qualifying = (priors || [])
+          .map((p: any) => {
+            const createdMs = new Date(p.created_at).getTime();
+            const inWindow = createdMs >= minMs && createdMs <= maxMs;
+            const matched = matchElements(p, disputedEvidence || {});
+            return { row: p, inWindow, matched };
+          })
+          .filter((x) => x.inWindow && x.matched.length >= 2);
+
+        const qualifiesForCe3 = qualifying.length >= 2;
+
+        // Tos record
+        let tos: any = null;
+        if (disputedEvidence?.user_id) {
+          const { data: tosRow } = await supabase
+            .from("tos_acceptances")
+            .select("accepted, tos_version, accepted_at, ip_address, user_agent")
+            .eq("user_id", disputedEvidence.user_id)
+            .order("accepted_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          tos = tosRow;
+        }
+
+        // Compose draft evidence mapped to Stripe dispute evidence fields
+        const fmt = (ts?: string | null) =>
+          ts ? new Date(ts).toISOString().slice(0, 10) : "unknown";
+        const matchSummary = qualifying
+          .map((q) => `${fmt(q.row.created_at)} (matches: ${q.matched.join(", ")})`)
+          .join("; ");
+
+        const ce3Argument = qualifiesForCe3
+          ? `Visa Compelling Evidence 3.0: cardholder completed ${qualifying.length} prior undisputed transactions on ${matchSummary}, each sharing 2+ matching elements with the disputed charge (account_id ${disputedEvidence?.user_id || "n/a"}, email ${disputedEvidence?.email || "n/a"}, IP ${disputedEvidence?.ip_address || "n/a"}). Account active since ${fmt(disputedEvidence?.signup_date)}.${tos?.accepted ? ` Terms of Service v${tos.tos_version} accepted on ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}.` : ""} This satisfies the CE 3.0 standard for fraud reason 10.4; liability should remain with the issuer.`
+          : `CE 3.0 NOT QUALIFYING: only ${qualifying.length} prior undisputed transaction(s) within the 120-365 day window share 2+ matching elements with the disputed charge. Dispute likely unwinnable on CE 3.0 grounds — consider accepting.`;
+
+        const draftedEvidence = {
+          product_description:
+            "TidyWise SaaS subscription — cleaning business management software (CRM, scheduling, invoicing, payroll). Recurring monthly billing, cancellable any time from the in-app subscription page.",
+          customer_email_address: customerEmail || disputedEvidence?.email || null,
+          customer_purchase_ip: disputedEvidence?.ip_address || null,
+          customer_signature: tos?.accepted
+            ? `Terms of Service v${tos.tos_version} accepted ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}, user-agent: ${tos.user_agent || "unknown"}.`
+            : null,
+          billing_address: charge.billing_details?.address
+            ? JSON.stringify(charge.billing_details.address)
+            : null,
+          access_activity_log: JSON.stringify(
+            (priors || []).slice(0, 10).map((p: any) => ({
+              date: p.created_at,
+              ip: p.ip_address,
+              email: p.email,
+              amount_cents: p.amount_cents,
+              payment_intent: p.stripe_payment_intent_id,
+            })),
+          ),
+          uncategorized_text: ce3Argument,
+        };
+
+        await supabase
+          .from("disputes")
+          .upsert(
+            {
+              stripe_dispute_id: dispute.id,
+              stripe_payment_intent_id: paymentIntentId,
+              stripe_charge_id: dispute.charge as string,
+              stripe_customer_id: customerId,
+              customer_email: customerEmail,
+              amount_cents: dispute.amount,
+              currency: dispute.currency,
+              reason: dispute.reason,
+              status: dispute.status,
+              qualifies_for_ce3: qualifiesForCe3,
+              matching_prior_count: qualifying.length,
+              drafted_evidence: draftedEvidence,
+              raw_event: event.data.object,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "stripe_dispute_id" },
+          );
+
+        // Alert platform admin on creation
+        if (event.type === "charge.dispute.created") {
+          const amount = (dispute.amount / 100).toFixed(2);
+          await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+            organizationName: "DISPUTE / CHARGEBACK",
+            ownerEmail: customerEmail || "unknown",
+            subscriptionType: `Dispute ${dispute.id} • $${amount} ${dispute.currency.toUpperCase()} • reason: ${dispute.reason} • CE3.0 qualifying: ${qualifiesForCe3 ? "YES" : "NO"} (${qualifying.length} priors). Review at /dashboard/disputes`,
+          }).catch((e) => console.error("[stripe-invoice-webhook] dispute alert failed", e));
+        }
+      } catch (e) {
+        console.error("[stripe-invoice-webhook] dispute handling error:", e);
+      }
+    }
 
 
     // Log organization context if available
