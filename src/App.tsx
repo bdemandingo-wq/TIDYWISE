@@ -84,6 +84,7 @@ const SubscriptionPage = lazy(() =>
 const HelpPage = lazy(() => import("./pages/admin/HelpPage"));
 const DiscountsPage = lazy(() => import("./pages/admin/DiscountsPage"));
 const PlatformAnalyticsPage = lazy(() => import("./pages/admin/PlatformAnalyticsPage"));
+const DisputesPage = lazy(() => import("./pages/admin/DisputesPage"));
 const MessagesPage = lazy(() => import("./pages/admin/MessagesPage"));
 const TasksPage = lazy(() => import("./pages/admin/TasksPage"));
 const AIIntelligencePage = lazy(() => import("./pages/admin/AIIntelligencePage"));
