@@ -6638,6 +6638,7 @@ export type Database = {
           review_themes: Json | null
           reviews_score: number | null
           sentiment_communication: number | null
+          sentiment_evidence: Json
           sentiment_quality: number | null
           sentiment_reliability: number | null
           sentiment_value: number | null
@@ -6655,6 +6656,7 @@ export type Database = {
           review_themes?: Json | null
           reviews_score?: number | null
           sentiment_communication?: number | null
+          sentiment_evidence?: Json
           sentiment_quality?: number | null
           sentiment_reliability?: number | null
           sentiment_value?: number | null
@@ -6672,6 +6674,7 @@ export type Database = {
           review_themes?: Json | null
           reviews_score?: number | null
           sentiment_communication?: number | null
+          sentiment_evidence?: Json
           sentiment_quality?: number | null
           sentiment_reliability?: number | null
           sentiment_value?: number | null
