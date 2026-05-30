@@ -63,6 +63,17 @@ serve(async (req) => {
       });
     }
 
+    // Refuse to pause an already-paused subscription. Without this guard
+    // a second call would push resumes_at further into the future and
+    // insert a second subscription_pauses row, skewing churn analytics
+    // and confusing the resume flow about which row to mark resumed.
+    if ((active as any).pause_collection != null) {
+      return new Response(
+        JSON.stringify({ error: "Subscription is already paused" }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const resumeDate = new Date();
     resumeDate.setMonth(resumeDate.getMonth() + months);
     const resumesAtSec = Math.floor(resumeDate.getTime() / 1000);
