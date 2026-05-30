@@ -377,9 +377,15 @@ export function scoreCompanyRouteMeta(c: ScoreCompanyForMeta): RouteMeta {
       : `See ${c.name}'s reputation analysis${location ? ` in ${location}` : ""} — TidyWise scores reliability, communication, quality, and value from Google reviews.`;
   const h1 = `${c.name} — Reputation Score${location ? ` · ${location}` : ""}`;
 
+  const pageUrl = `https://www.jointidywise.com/score/c/${c.slug}`;
+  const fallbackImage = "https://www.jointidywise.com/images/tidywise-og.png";
+
   const business: Record<string, unknown> = {
     "@type": "LocalBusiness",
+    "@id": pageUrl,
     name: c.name,
+    url: c.website || pageUrl,
+    image: fallbackImage,
   };
   if (c.formatted_address || c.city || c.state) {
     business.address = {
@@ -391,7 +397,6 @@ export function scoreCompanyRouteMeta(c: ScoreCompanyForMeta): RouteMeta {
       addressCountry: "US",
     };
   }
-  if (c.website) business.url = c.website;
   if (c.phone) business.telephone = c.phone;
   if (c.latitude && c.longitude) {
     business.geo = {
@@ -400,10 +405,10 @@ export function scoreCompanyRouteMeta(c: ScoreCompanyForMeta): RouteMeta {
       longitude: c.longitude,
     };
   }
-  if (c.google_rating && c.google_review_count) {
+  if (c.google_rating && c.google_review_count && c.google_review_count > 0) {
     business.aggregateRating = {
       "@type": "AggregateRating",
-      ratingValue: c.google_rating,
+      ratingValue: Number(c.google_rating),
       reviewCount: c.google_review_count,
       bestRating: 5,
       worstRating: 1,
