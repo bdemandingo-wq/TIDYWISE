@@ -143,7 +143,7 @@ async function checkWebsite(url: string | null) {
   };
 }
 
-type RichReview = { text: string; rating: number | null; publishTime: string | null };
+type RichReview = { text: string; rating: number | null; publishTime: string | null; author: string | null };
 
 async function fetchPlaceSignals(
   placeId: string,
@@ -158,7 +158,7 @@ async function fetchPlaceSignals(
     headers: {
       "X-Goog-Api-Key": PLACES_KEY,
       "X-Goog-FieldMask":
-        "id,displayName,rating,userRatingCount,reviews.text,reviews.originalText,reviews.rating,reviews.publishTime,websiteUri,nationalPhoneNumber",
+        "id,displayName,rating,userRatingCount,reviews.text,reviews.originalText,reviews.rating,reviews.publishTime,reviews.authorAttribution,websiteUri,nationalPhoneNumber",
     },
   });
   if (!r.ok) return null;
@@ -172,8 +172,10 @@ async function fetchPlaceSignals(
       text: x.text?.text ?? x.originalText?.text ?? "",
       rating: typeof x.rating === "number" ? x.rating : null,
       publishTime: x.publishTime ?? null,
+      author: x.authorAttribution?.displayName ?? null,
     }))
     .filter((r: RichReview) => r.text.length > 0);
+
 
   return {
     rating: j.rating ?? current.rating,
