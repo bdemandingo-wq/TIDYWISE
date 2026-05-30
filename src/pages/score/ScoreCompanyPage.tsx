@@ -251,7 +251,7 @@ export default function ScoreCompanyPage() {
                 ))}
               </div>
             )}
-            {!company.claimed && (
+            {!company.claimed ? (
               <div className="mt-6 relative rounded-lg border border-border bg-muted/30 p-5 overflow-hidden">
                 <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
                   <Lock className="h-4 w-4" />
@@ -271,8 +271,58 @@ export default function ScoreCompanyPage() {
                   </Button>
                 </div>
               </div>
+            ) : (
+              <div className="mt-8">
+                <h3 className="font-serif text-lg text-foreground mb-3">Why these scores</h3>
+                <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
+                  {([
+                    ["reliability", "Reliability"],
+                    ["communication", "Communication"],
+                    ["quality", "Quality"],
+                    ["value", "Value"],
+                  ] as const).map(([key, label]) => {
+                    const evidence: Array<{ snippet: string; author: string; date: string }> =
+                      (metrics.sentiment_evidence?.[key] as any[]) ?? [];
+                    const open = expandedDim === key;
+                    return (
+                      <div key={key}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedDim(open ? null : key)}
+                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                            <span className="text-sm font-medium text-foreground">{label}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {evidence.length > 0 ? `${evidence.length} quote${evidence.length === 1 ? "" : "s"}` : "—"}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className="px-4 pb-4 pt-1 bg-muted/20">
+                            {evidence.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic">Not enough review signal yet</p>
+                            ) : (
+                              <ul className="space-y-3">
+                                {evidence.map((e, i) => (
+                                  <li key={i} className="text-sm text-foreground">
+                                    <span className="italic">“{e.snippet}”</span>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      — {e.author}{e.date ? `, ${e.date}` : ""}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-            {/* TODO: when company.claimed, render full per-review breakdown once per-review data is surfaced */}
           </Card>
         )}
 
