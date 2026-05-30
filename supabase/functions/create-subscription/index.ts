@@ -203,7 +203,9 @@ serve(async (req) => {
       },
       payment_intent_data: undefined, // not allowed in subscription mode
       success_url: `${origin}/checkout/success?plan=${encodeURIComponent(requestedPlan ?? '')}&interval=${encodeURIComponent(requestedInterval ?? 'monthly')}`,
-      cancel_url: `${origin}/pricing`,
+      // Preserve plan + interval on cancel so the tier highlight survives
+      // a Stripe back-button or "back to merchant" after a card decline.
+      cancel_url: `${origin}/pricing?plan=${encodeURIComponent(requestedPlan ?? '')}&interval=${encodeURIComponent(requestedInterval ?? 'monthly')}&canceled=1`,
     });
 
     logStep("Checkout session created", { sessionId: session.id });
