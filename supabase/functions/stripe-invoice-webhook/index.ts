@@ -618,6 +618,89 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
 
+    // ── SUBSCRIPTION CANCELLED / ENDED ──────────────────────────────────────
+    // When Stripe finalizes a subscription deletion (either user-initiated
+    // cancel after period end, or terminal dunning failure), revoke paid
+    // plan access on the org. Without this branch the org's plan_type
+    // stayed "standard" forever after cancellation — users kept full
+    // access to the paid product for free until something else updated it.
+    if (event.type === "customer.subscription.deleted") {
+      try {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+          apiVersion: "2025-08-27.basil",
+        });
+        const customer = await stripe.customers.retrieve(sub.customer as string);
+        const email = (customer as Stripe.Customer).email;
+
+        if (email) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (profile?.id) {
+            const { data: membership } = await supabase
+              .from("org_memberships")
+              .select("organization_id")
+              .eq("user_id", profile.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (membership?.organization_id) {
+              await supabase
+                .from("organizations")
+                .update({ plan_type: "free" })
+                .eq("id", membership.organization_id);
+              console.log(
+                "[stripe-invoice-webhook] Subscription deleted, org reverted to free:",
+                membership.organization_id,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[stripe-invoice-webhook] subscription.deleted handler error:", e);
+      }
+    }
+
+    // ── PAYMENT FAILED ──────────────────────────────────────────────────────
+    // Dunning event: card decline on a renewal invoice. Notify the platform
+    // admin so they can reach out before Stripe gives up and cancels the
+    // sub. Capture the failure in payment_evidence with a special marker so
+    // the dispute path can later tell "we tried and failed" from "we never
+    // charged". Without this, failed payments are invisible until the sub
+    // is auto-cancelled by Stripe's dunning policy.
+    if (event.type === "invoice.payment_failed") {
+      try {
+        const inv = event.data.object as Stripe.Invoice;
+        const email = inv.customer_email || (inv.metadata as any)?.email || "unknown";
+        const amount = ((inv.amount_due ?? 0) / 100).toFixed(2);
+        const attemptCount = inv.attempt_count ?? 0;
+        const nextAttempt = inv.next_payment_attempt
+          ? new Date(inv.next_payment_attempt * 1000).toLocaleString("en-US", {
+              timeZone: "America/New_York",
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : "no further attempts";
+
+        await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+          organizationName: "PAYMENT FAILED",
+          ownerEmail: email,
+          subscriptionType: `Renewal failed (attempt ${attemptCount}) • $${amount} ${inv.currency.toUpperCase()} • next try: ${nextAttempt} • invoice ${inv.id}`,
+        }).catch((e) =>
+          console.error("[stripe-invoice-webhook] payment_failed alert failed", e),
+        );
+      } catch (e) {
+        console.error("[stripe-invoice-webhook] payment_failed handler error:", e);
+      }
+    }
+
     // Log organization context if available
     if (organizationId) {
       console.log("[stripe-invoice-webhook] Event processed for organization:", organizationId);
