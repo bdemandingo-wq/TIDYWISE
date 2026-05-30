@@ -3306,6 +3306,72 @@ export type Database = {
           },
         ]
       }
+      disputes: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          customer_email: string | null
+          drafted_evidence: Json | null
+          id: string
+          matching_prior_count: number | null
+          outcome: string | null
+          qualifies_for_ce3: boolean | null
+          raw_event: Json | null
+          reason: string | null
+          status: string | null
+          stripe_charge_id: string | null
+          stripe_customer_id: string | null
+          stripe_dispute_id: string
+          stripe_payment_intent_id: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          drafted_evidence?: Json | null
+          id?: string
+          matching_prior_count?: number | null
+          outcome?: string | null
+          qualifies_for_ce3?: boolean | null
+          raw_event?: Json | null
+          reason?: string | null
+          status?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_dispute_id: string
+          stripe_payment_intent_id?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          drafted_evidence?: Json | null
+          id?: string
+          matching_prior_count?: number | null
+          outcome?: string | null
+          qualifies_for_ce3?: boolean | null
+          raw_event?: Json | null
+          reason?: string | null
+          status?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_dispute_id?: string
+          stripe_payment_intent_id?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_failures: {
         Row: {
           attempted_at: string
