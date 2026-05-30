@@ -116,6 +116,28 @@ export default function PricingPage() {
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const spotsLeft = lifetime.spotsLeft;
 
+  // Iframe-safe navigation to Stripe Checkout. Stripe sends
+  // X-Frame-Options: DENY, so a plain `window.location.href` inside an
+  // embedded preview (Lovable iframe, in-app webview, etc.) blanks the
+  // frame instead of navigating. Always try to break out to top first.
+  function goToCheckout(url: string) {
+    try {
+      if (window.top && window.top !== window.self) {
+        window.top.location.href = url;
+        return;
+      }
+    } catch {
+      // Cross-origin top access blocked — fall through.
+    }
+    try {
+      window.open(url, '_top');
+      return;
+    } catch {
+      // ignore
+    }
+    window.location.href = url;
+  }
+
   async function startSubscriptionCheckout(planId: Tier['id']) {
     if (!user) {
       navigate(`/signup?plan=${planId}&interval=${interval}`);
@@ -129,7 +151,7 @@ export default function PricingPage() {
       if (error) throw error;
       const url = (data as { url?: string })?.url;
       if (!url) throw new Error('Checkout URL missing');
-      window.location.href = url;
+      goToCheckout(url);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Could not start checkout. Try again.',
@@ -151,7 +173,7 @@ export default function PricingPage() {
       if (error) throw error;
       const url = (data as { url?: string })?.url;
       if (!url) throw new Error('Checkout URL missing');
-      window.location.href = url;
+      goToCheckout(url);
     } catch (err) {
       toast.error(
         err instanceof Error
