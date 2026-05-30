@@ -49,22 +49,29 @@ serve(async (req) => {
 
   // Page through active subscriptions
   for await (const sub of stripe.subscriptions.list({ status: "active", limit: 100 }) as any) {
-    const renewAt = (sub as Stripe.Subscription).current_period_end;
+    // Stripe Basil moved current_period_end onto items.data[i]. The
+    // top-level field still works for single-item subs but goes null
+    // the moment a second item is added — fall back to it for
+    // resilience while preferring the canonical item-level value.
+    const subAny = sub as Stripe.Subscription;
+    const renewAt =
+      subAny.items.data[0]?.current_period_end ?? (subAny as any).current_period_end;
     if (!renewAt || renewAt < minSec || renewAt > maxSec) { skipped++; continue; }
-    if ((sub as Stripe.Subscription).cancel_at_period_end) { skipped++; continue; }
+    if (subAny.cancel_at_period_end) { skipped++; continue; }
 
     try {
       const cust = await stripe.customers.retrieve(sub.customer as string);
       const email = (cust as Stripe.Customer).email;
       if (!email) { skipped++; continue; }
 
-      // Idempotency: skip if we've already logged a reminder for this period
-      const periodKey = `${sub.id}:${renewAt}`;
+      // Idempotency: skip if we've already logged a reminder for this
+      // (sub, period_end) tuple. Lives in its own table so the dispute
+      // pipeline's payment_evidence dataset stays clean.
       const { data: exists } = await supabase
-        .from("payment_evidence")
+        .from("subscription_reminder_log")
         .select("id")
         .eq("stripe_subscription_id", sub.id)
-        .contains("metadata", { renewal_reminder_for: periodKey })
+        .eq("period_end_sec", renewAt)
         .maybeSingle();
       if (exists) { skipped++; continue; }
 
@@ -102,12 +109,14 @@ serve(async (req) => {
 
       if (r.ok) {
         sent++;
-        // Log reminder so we don't double-send this cycle
-        await supabase.from("payment_evidence").insert({
+        // Log reminder so we don't double-send this cycle. Unique index
+        // on (stripe_subscription_id, period_end_sec) is the hard guard
+        // — the .maybeSingle() check above is a fast path.
+        await supabase.from("subscription_reminder_log").insert({
           email,
           stripe_customer_id: sub.customer as string,
           stripe_subscription_id: sub.id,
-          metadata: { renewal_reminder_for: periodKey, kind: "reminder" },
+          period_end_sec: renewAt,
         });
       } else {
         console.error("[renewal-reminder] resend error", r.status, await r.text());
