@@ -169,6 +169,17 @@ export default function PricingPage() {
   }
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
+    // Persist the choice so that if the user cancels at Stripe or
+    // bounces off /signup, the next /pricing render restores their
+    // selection (interval + scroll-into-view of the same tier).
+    try {
+      sessionStorage.setItem(
+        'tw_pending_plan',
+        JSON.stringify({ plan: planId, interval }),
+      );
+    } catch {
+      // sessionStorage unavailable — silent no-op.
+    }
     if (!user) {
       navigate(`/signup?plan=${planId}&interval=${interval}`);
       return;
@@ -189,6 +200,7 @@ export default function PricingPage() {
       setCheckoutBusy(null);
     }
   }
+
 
   async function startLifetimeCheckout() {
     if (!user) {
