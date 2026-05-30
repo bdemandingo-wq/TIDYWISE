@@ -84,13 +84,23 @@ export default function SignupPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated.
+  // Special case: if they came back here from Stripe Checkout with a
+  // ?plan=… in the URL (browser-back during signup→checkout handoff),
+  // do NOT bounce them through the splash→dashboard flow — that's the
+  // "signup direct loop" users complained about. Send them back to
+  // /pricing so they can re-launch checkout cleanly.
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
     if (user) {
+      if (selectedPlan) {
+        navigate(`/pricing`, { replace: true });
+        return;
+      }
       setShowSplash(true);
     }
-  }, [user, authLoading, initialCleanupDone]);
+  }, [user, authLoading, initialCleanupDone, selectedPlan, navigate]);
+
 
   const validateForm = (): boolean => {
     try {
