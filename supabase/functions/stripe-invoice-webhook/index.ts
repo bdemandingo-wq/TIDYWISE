@@ -399,8 +399,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     // ── FRAUD-DEFENSE EVIDENCE CAPTURE (Visa CE 3.0 / reason 10.4) ──────────
     // For successful subscription charges, persist auth evidence and send a
-    // branded receipt so the charge is recognizable.
-    if (event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") {
+    // branded receipt so the charge is recognizable. Gated on invoice.paid
+    // only: Stripe sends both invoice.payment_succeeded AND invoice.paid
+    // for the same renewal, with different event IDs. The webhook
+    // idempotency check upstream is keyed on event_id so both events
+    // pass through, which previously meant two evidence-capture passes,
+    // two PI/charge retrieves, and two receipt emails per renewal.
+    // invoice.paid is Stripe's recommended event for "this invoice is
+    // confirmed paid"; invoice.payment_succeeded fires earlier and can
+    // briefly precede a refund/dispute.
+    if (event.type === "invoice.paid") {
       const inv = event.data.object as Stripe.Invoice;
       const meta = (inv.metadata || {}) as Record<string, string>;
       const subMeta = ((inv.subscription_details?.metadata as any) || {}) as Record<string, string>;
