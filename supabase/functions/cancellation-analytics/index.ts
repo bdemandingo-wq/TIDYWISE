@@ -9,18 +9,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const PLATFORM_ADMIN_EMAIL = "support@tidywisecleaning.com";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -28,16 +20,42 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { data: userData } = await supabase.auth.getUser(
+
+    // User-scoped client with the Bearer header attached globally so the
+    // is_platform_admin() RPC can read auth.uid() and evaluate the
+    // canonical admin allow-list. Using a hardcoded email here drifted
+    // from is_platform_admin() (one email here vs two in SQL) and locked
+    // a real admin out of the churn dashboard.
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: udata } = await userClient.auth.getUser(
       authHeader.replace("Bearer ", ""),
     );
-    const email = userData?.user?.email?.toLowerCase();
-    if (email !== PLATFORM_ADMIN_EMAIL) {
+    if (!udata?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isAdmin, error: adminErr } = await userClient.rpc(
+      "is_platform_admin",
+    );
+    if (adminErr || !isAdmin) {
       return new Response(JSON.stringify({ error: "Platform admin only" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Service-role client for the cross-tenant analytics queries.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
 
     const body = await req.json().catch(() => ({}));
     const days = Number(body?.days ?? 90);
