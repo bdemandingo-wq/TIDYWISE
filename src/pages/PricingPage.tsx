@@ -507,36 +507,67 @@ export default function PricingPage() {
                   name: 'Google Search Ads',
                   body:
                     'Capture "house cleaner near me" searches in your zip code. We build the campaign, write the ads, monitor performance.',
+                  guarantee: null,
                 },
                 {
                   name: 'Google Local Services Ads',
                   body:
                     'Top of Google with the green checkmark. We handle license verification, lead scoring, and weekly optimization.',
+                  guarantee: null,
                 },
                 {
                   name: 'Facebook Ads',
                   body:
                     'Retargeting and lookalike audiences from your customer list. We write the copy, design the creative, run the campaign.',
+                  guarantee: '10 leads in 30 days',
                 },
               ].map((p) => (
-                <div key={p.name} className="rounded-lg bg-background p-5 border">
+                <div
+                  key={p.name}
+                  className={`rounded-lg bg-background p-5 border relative ${
+                    p.guarantee ? 'border-emerald-500/50 shadow-sm shadow-emerald-500/10' : ''
+                  }`}
+                >
+                  {p.guarantee && (
+                    <Badge className="absolute -top-3 left-4 bg-emerald-600 text-white border-0 uppercase tracking-wider text-[10px]">
+                      Guaranteed
+                    </Badge>
+                  )}
                   <h3 className="font-medium mb-2">{p.name}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{p.body}</p>
-                  <p className="text-2xl font-semibold">
+                  <p className="text-2xl font-semibold mb-2">
                     $400
                     <span className="text-sm font-normal text-muted-foreground">
                       /mo
                     </span>
                   </p>
+                  {p.guarantee && (
+                    <div className="mt-3 pt-3 border-t border-emerald-500/20">
+                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-start gap-1.5">
+                        <Check className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          <strong>{p.guarantee}</strong> — or your next month is on us.
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground mt-6">
-              Auto-cancels if you cancel your TidyWise subscription. Ad spend (what
-              you pay Google/Facebook) is separate and billed to your card on file
-              with them.
-            </p>
+            <div className="mt-6 space-y-2 text-xs text-muted-foreground">
+              <p>
+                <strong className="text-foreground">About the Facebook guarantee:</strong>{' '}
+                A "lead" = a form fill, phone call, or direct message from someone in your
+                service area. Requires a minimum $500/mo ad budget paid to Facebook on your
+                card. If we don't deliver 10 in your first 30 days, your second month of
+                ad management is free while we tune.
+              </p>
+              <p>
+                Auto-cancels if you cancel your TidyWise subscription. Ad spend (what you
+                pay Google/Facebook) is separate and billed to your card on file with them.
+              </p>
+            </div>
           </Card>
         </section>
 
