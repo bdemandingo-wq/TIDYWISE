@@ -166,7 +166,7 @@ export default function PricingPage() {
     e.preventDefault();
     if (!waitlistEmail.trim()) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('lifetime_waitlist')
         .insert({ email: waitlistEmail.trim().toLowerCase() });
       if (error && !error.message.toLowerCase().includes('duplicate')) {
