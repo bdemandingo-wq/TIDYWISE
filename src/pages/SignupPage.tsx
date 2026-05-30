@@ -186,8 +186,13 @@ export default function SignupPage() {
     }
   };
 
-  // Handle splash screen completion - navigate to dashboard
+  // Handle splash screen completion - navigate based on context
   const handleSplashComplete = () => {
+    if (claimSlug) {
+      // Send back to score page with ?claim=1 — page will auto-claim using fresh session.
+      navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
+      return;
+    }
     navigate('/dashboard');
   };
 
