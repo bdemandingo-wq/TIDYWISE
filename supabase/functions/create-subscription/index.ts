@@ -7,8 +7,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// TIDYWISE Standard plan price ID - $97/month
-const PRICE_ID = Deno.env.get("STRIPE_STANDARD_PRICE_ID") || "price_1SihrVJv857o86noT8NIIfrq";
+// TIDYWISE Standard plan price ID - $97/month (legacy single-tier fallback;
+// used when the body doesn't specify plan+interval, e.g. older clients
+// pre-launch).
+const LEGACY_PRICE_ID =
+  Deno.env.get("STRIPE_STANDARD_PRICE_ID") || "price_1SihrVJv857o86noT8NIIfrq";
+
+// Tier-aware price ID lookup. Each tier has a monthly and a yearly
+// Stripe Price; the env-var names are what the operator pastes into
+// Supabase Edge Function secrets after creating the prices in Stripe
+// Dashboard. Missing values fall back to the legacy price so a
+// half-configured deploy doesn't 500.
+const PRICE_IDS: Record<string, Record<string, string | undefined>> = {
+  basic: {
+    monthly: Deno.env.get("STRIPE_BASIC_MONTHLY_PRICE_ID"),
+    yearly: Deno.env.get("STRIPE_BASIC_YEARLY_PRICE_ID"),
+  },
+  pro: {
+    monthly: Deno.env.get("STRIPE_PRO_MONTHLY_PRICE_ID"),
+    yearly: Deno.env.get("STRIPE_PRO_YEARLY_PRICE_ID"),
+  },
+  custom: {
+    monthly: Deno.env.get("STRIPE_CUSTOM_MONTHLY_PRICE_ID"),
+    yearly: Deno.env.get("STRIPE_CUSTOM_YEARLY_PRICE_ID"),
+  },
+};
+
+function resolvePriceId(plan: string | undefined, interval: string | undefined): string {
+  if (!plan) return LEGACY_PRICE_ID;
+  const resolved = PRICE_IDS[plan]?.[interval ?? "monthly"];
+  if (!resolved) {
+    console.warn(
+      `[CREATE-SUBSCRIPTION] No price ID configured for ${plan}/${interval}, falling back to LEGACY_PRICE_ID`,
+    );
+    return LEGACY_PRICE_ID;
+  }
+  return resolved;
+}
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -61,6 +96,24 @@ serve(async (req) => {
     const userAgent = req.headers.get("user-agent") || null;
     const deviceFingerprint = bodyData?.deviceFingerprint || null;
 
+    // Tier + interval (e.g. plan="pro", interval="yearly"). When absent
+    // we fall back to the legacy single-tier price.
+    const requestedPlan: string | undefined = bodyData?.plan;
+    const requestedInterval: string | undefined = bodyData?.interval;
+    if (requestedPlan && !["basic", "pro", "custom"].includes(requestedPlan)) {
+      return new Response(JSON.stringify({ error: "Invalid plan" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    if (requestedInterval && !["monthly", "yearly"].includes(requestedInterval)) {
+      return new Response(JSON.stringify({ error: "Invalid interval" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    const priceId = resolvePriceId(requestedPlan, requestedInterval);
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Check for existing Stripe customer
@@ -85,7 +138,9 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
 
-    // Fraud-evidence metadata travels with every charge in Stripe
+    // Fraud-evidence metadata travels with every charge in Stripe.
+    // Includes plan + interval so the webhook + downstream reporting
+    // can tell which tier this charge belongs to.
     const evidenceMetadata: Record<string, string> = {
       account_id: user.id,
       email: user.email,
@@ -94,12 +149,14 @@ serve(async (req) => {
       device: (userAgent || "").slice(0, 480),
       device_fingerprint: deviceFingerprint || "",
       purpose: "tidywise_saas_subscription",
+      tidywise_plan: requestedPlan ?? "legacy",
+      tidywise_interval: requestedInterval ?? "monthly",
     };
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       // Request 3D Secure on the initial checkout charge when the issuer
       // supports it — shifts fraud liability to the issuer for Visa
