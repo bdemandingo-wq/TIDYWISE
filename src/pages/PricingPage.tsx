@@ -243,11 +243,9 @@ export default function PricingPage() {
     next.set('interval', interval);
     setSearchParams(next, { replace: true });
 
-    if (!user) {
-      navigate(`/signup?plan=${planId}&interval=${interval}`);
-      return;
-    }
-
+    // Checkout-first flow: every click goes straight to Stripe. The
+    // webhook creates the account from session.customer_details.email
+    // after payment. No more signup detour, no more loop.
     setCheckoutBusy(planId);
     // Hard timeout — if the edge function or redirect never resolves
     // within 20s, surface an error instead of leaving the button
@@ -291,43 +289,29 @@ export default function PricingPage() {
     }
   }
 
-  // Auto-resume checkout after a signup round-trip. When the user clicks
-  // a plan while logged out, we send them to /signup with ?plan=…; if
-  // they land back on /pricing already authenticated (with the pending
-  // marker still set), fire the checkout for that plan automatically
-  // instead of leaving them to click again.
-  const autoResumedRef = useRef(false);
-  useEffect(() => {
-    if (autoResumedRef.current) return;
-    if (!user) return;
-    const urlPlan = searchParams.get('plan');
-    const validPlan = urlPlan === 'basic' || urlPlan === 'pro' || urlPlan === 'custom';
-    if (!validPlan) return;
-    let pending = false;
-    try {
-      pending = !!sessionStorage.getItem('tw_pending_plan');
-    } catch { /* no-op */ }
-    if (!pending) return;
-    autoResumedRef.current = true;
-    startSubscriptionCheckout(urlPlan as Tier['id']);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, searchParams]);
-
+  // Auto-resume after the cancel_url round-trip. If the user clicks a
+  // plan, lands on Stripe, then clicks cancel and returns to /pricing,
+  // they still have ?plan=…&interval=… in the URL and a sessionStorage
+  // marker. We could fire checkout immediately on return, but that
+  // would feel pushy after they explicitly cancelled — instead we keep
+  // the tier highlighted (via the existing effect) so a one-click
+  // retry is right there. No auto-resume.
 
   async function startLifetimeCheckout() {
-    if (!user) {
-      navigate('/signup?plan=lifetime');
-      return;
-    }
     setCheckoutBusy('lifetime');
     try {
       const { data, error } = await supabase.functions.invoke('buy-lifetime', {
         body: {},
       });
       if (error) throw error;
-      const url = (data as { url?: string })?.url;
+      const payload = data as { url?: string; error?: string } | null;
+      if (payload?.error) throw new Error(payload.error);
+      const url = payload?.url;
       if (!url) throw new Error('Checkout URL missing');
       goToCheckout(url);
+      window.setTimeout(() => {
+        setCheckoutBusy((current) => (current === 'lifetime' ? null : current));
+      }, 1500);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -507,8 +491,6 @@ export default function PricingPage() {
                   >
                     {isBusy ? (
                       <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                    ) : user ? (
-                      `Choose ${tier.name}`
                     ) : (
                       `Start ${tier.name}`
                     )}

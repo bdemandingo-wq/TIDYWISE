@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SEOHead } from '@/components/SEOHead';
 import { useAuth } from '@/hooks/useAuth';
-import { CheckCircle2, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, LayoutDashboard, Mail } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, string> = {
   basic: 'Basic',
@@ -43,11 +43,19 @@ const PLAN_LABELS: Record<string, string> = {
 export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { checkSubscription } = useAuth();
+  const { user, checkSubscription } = useAuth();
   const plan = searchParams.get('plan') ?? '';
   const interval = searchParams.get('interval');
   const planLabel = PLAN_LABELS[plan] ?? null;
   const intervalLabel = interval === 'yearly' ? 'yearly' : interval === 'monthly' ? 'monthly' : null;
+  // Anonymous-checkout: the visitor paid without logging in. The webhook
+  // emailed them a Supabase invite link to set their password. Until
+  // they click that link and authenticate, useAuth().user is null and
+  // we show "check your email" copy instead of the "go to dashboard"
+  // CTA. The from_invite=1 marker is set on the Supabase invite link's
+  // redirectTo URL — by the time they land here from THAT, their
+  // session is live and `user` is truthy.
+  const isAnonymousCheckout = !user;
 
   useEffect(() => {
     // Persisted "pending" plan choice exists only to bring users back to
@@ -74,17 +82,21 @@ export default function CheckoutSuccessPage() {
 
     // Stripe's success redirect can race the invoice webhook by a
     // second or two. Poll a few times so the dashboard's subscription
-    // gate updates without a manual refresh.
+    // gate updates without a manual refresh. Skip when the visitor
+    // isn't authenticated yet (anonymous checkout) — they won't have a
+    // session to refresh until they click their password-setup email.
     let cancelled = false;
-    const delays = [0, 1500, 4000, 8000];
-    delays.forEach((ms) => {
-      window.setTimeout(() => {
-        if (cancelled) return;
-        checkSubscription().catch(() => {
-          /* network errors are non-fatal; periodic check covers it */
-        });
-      }, ms);
-    });
+    if (user) {
+      const delays = [0, 1500, 4000, 8000];
+      delays.forEach((ms) => {
+        window.setTimeout(() => {
+          if (cancelled) return;
+          checkSubscription().catch(() => {
+            /* network errors are non-fatal; periodic check covers it */
+          });
+        }, ms);
+      });
+    }
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -116,41 +128,87 @@ export default function CheckoutSuccessPage() {
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
 
-          <h1 id={headingId} className="font-serif text-3xl mb-2">You're in.</h1>
+          <h1 id={headingId} className="font-serif text-3xl mb-2">
+            {isAnonymousCheckout ? 'Payment confirmed.' : "You're in."}
+          </h1>
           <p className="text-muted-foreground mb-6">
-            {planLabel
-              ? `Welcome to TidyWise ${planLabel}${
-                  intervalLabel ? ` (${intervalLabel})` : ''
-                }. Your subscription is active${
-                  intervalLabel === 'yearly'
-                    ? ' — a receipt with your next billing date is on its way to your inbox.'
-                    : ' and a receipt has been emailed to you.'
-                }`
-              : 'Your TidyWise subscription is active. Welcome aboard.'}
+            {isAnonymousCheckout
+              ? planLabel
+                ? `Welcome to TidyWise ${planLabel}${
+                    intervalLabel ? ` (${intervalLabel})` : ''
+                  }. We just emailed you a link to set your password and access your account.`
+                : "Your TidyWise subscription is active. We just emailed you a link to set your password."
+              : planLabel
+                ? `Welcome to TidyWise ${planLabel}${
+                    intervalLabel ? ` (${intervalLabel})` : ''
+                  }. Your subscription is active${
+                    intervalLabel === 'yearly'
+                      ? ' — a receipt with your next billing date is on its way to your inbox.'
+                      : ' and a receipt has been emailed to you.'
+                  }`
+                : 'Your TidyWise subscription is active. Welcome aboard.'}
           </p>
 
-          <div className="space-y-2">
-            <Button
-              size="lg"
-              className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              onClick={() => navigate('/dashboard')}
-              aria-label="Go to your dashboard"
-            >
-              <LayoutDashboard aria-hidden="true" className="h-4 w-4 mr-2" />
-              Go to dashboard
-            </Button>
+          {isAnonymousCheckout && (
+            <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-4 mb-6 flex items-start gap-3 text-left">
+              <Mail aria-hidden="true" className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium mb-0.5">Check your email</p>
+                <p className="text-muted-foreground">
+                  Look for "Welcome to TidyWise — set your password". Can't find
+                  it? Check spam or use the link below once your account is ready.
+                </p>
+              </div>
+            </div>
+          )}
 
-            <Button
-              asChild
-              variant="ghost"
-              size="lg"
-              className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              <Link to="/pricing" aria-label="Back to pricing plans">
-                <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
-                Back to plans
-              </Link>
-            </Button>
+          <div className="space-y-2">
+            {isAnonymousCheckout ? (
+              <>
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Link to="/login" aria-label="I already set my password">
+                    I already set my password
+                  </Link>
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Need help?{' '}
+                  <a
+                    href="mailto:support@tidywisecleaning.com"
+                    className="underline hover:text-foreground"
+                  >
+                    support@tidywisecleaning.com
+                  </a>
+                </p>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="lg"
+                  className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  onClick={() => navigate('/dashboard')}
+                  aria-label="Go to your dashboard"
+                >
+                  <LayoutDashboard aria-hidden="true" className="h-4 w-4 mr-2" />
+                  Go to dashboard
+                </Button>
+
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="lg"
+                  className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Link to="/pricing" aria-label="Back to pricing plans">
+                    <ArrowLeft aria-hidden="true" className="h-4 w-4 mr-2" />
+                    Back to plans
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </Card>
       </main>

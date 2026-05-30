@@ -294,8 +294,82 @@ const handler = async (req: Request): Promise<Response> => {
       
       // ── Lifetime access purchase ──────────────────────────────────────────
       if (session.mode === "payment" && session.metadata?.plan === "lifetime") {
-        const email = (session.customer_email || session.metadata?.email || "").toLowerCase();
-        const userId = session.metadata?.user_id || session.metadata?.account_id || null;
+        const email = (
+          session.customer_details?.email ||
+          session.customer_email ||
+          (session.metadata?.email as string | undefined) ||
+          ""
+        ).toLowerCase();
+        let userId: string | null =
+          (session.metadata?.user_id as string | undefined) ||
+          (session.metadata?.account_id as string | undefined) ||
+          null;
+
+        // Anonymous-checkout flow: no user_id in metadata (visitor wasn't
+        // logged in). Look up by email; provision the account if it
+        // doesn't exist yet.
+        const lifetimeSignupFlow =
+          (session.metadata?.signup_flow as string | undefined) || "legacy";
+        if (!userId && email) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", email)
+            .maybeSingle();
+          if (profile?.id) {
+            userId = profile.id;
+          } else if (lifetimeSignupFlow === "anonymous_checkout") {
+            try {
+              const fullName = session.customer_details?.name ?? null;
+              const inviteUrl = `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/checkout/success?from_invite=1`;
+              const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
+                email,
+                {
+                  redirectTo: inviteUrl,
+                  data: fullName ? { full_name: fullName } : undefined,
+                },
+              );
+              if (inviteErr) {
+                console.error("[stripe-invoice-webhook] lifetime invite failed:", inviteErr);
+              } else if (invited?.user?.id) {
+                userId = invited.user.id;
+                await supabase.from("profiles").insert({
+                  id: userId,
+                  email,
+                  full_name: fullName,
+                });
+                // Lifetime customers get grandfathered_lifetime=true so
+                // they bypass all future feature gates — the "lifetime
+                // = lifetime, forever" promise applies to paying
+                // customers too, not just launch grandfathers.
+                const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
+                const { data: newOrg } = await supabase
+                  .from("organizations")
+                  .insert({
+                    name: orgName,
+                    plan_type: "lifetime",
+                    grandfathered_lifetime: true,
+                    grandfathered_at: new Date().toISOString(),
+                  })
+                  .select("id")
+                  .single();
+                if (newOrg?.id) {
+                  await supabase.from("org_memberships").insert({
+                    organization_id: newOrg.id,
+                    user_id: userId,
+                    role: "owner",
+                  });
+                  console.log(
+                    "[stripe-invoice-webhook] Provisioned new lifetime account",
+                    { userId, orgId: newOrg.id },
+                  );
+                }
+              }
+            } catch (inviteOuter) {
+              console.error("[stripe-invoice-webhook] lifetime provisioning error:", inviteOuter);
+            }
+          }
+        }
 
         console.log("[stripe-invoice-webhook] Lifetime purchase confirmed:", { email, userId });
 
@@ -408,30 +482,119 @@ const handler = async (req: Request): Promise<Response> => {
           });
         }
       }
-      // ── Standard subscription checkout ────────────────────────────────────
+      // ── Subscription checkout: anonymous (checkout-first) OR upgrade ──────
       else if (session.mode === "subscription" && session.subscription) {
-        // Update plan_type to 'standard' on the org
-        const customerEmail = session.customer_email || session.metadata?.email || "";
-        if (customerEmail) {
+        // /pricing flow goes straight to Stripe with no prior auth. The
+        // visitor's email is collected by Stripe Checkout and stored on
+        // session.customer_details.email. We provision (or upgrade) the
+        // TidyWise account from this email here, after payment is
+        // confirmed.
+        const signupFlow = (session.metadata?.signup_flow as string | undefined) || "legacy";
+        const planFromMetadata = (session.metadata?.tidywise_plan as string | undefined);
+        const targetPlanType =
+          planFromMetadata && ["basic", "pro", "custom"].includes(planFromMetadata)
+            ? planFromMetadata
+            : "standard";
+
+        const checkoutEmail =
+          (session.customer_details?.email || session.customer_email || (session.metadata?.email as string | undefined) || "")
+            .toLowerCase();
+
+        if (!checkoutEmail) {
+          console.error("[stripe-invoice-webhook] Subscription checkout completed with no email");
+        } else {
+          let userId: string | null = null;
           const { data: profile } = await supabase
             .from("profiles")
             .select("id")
-            .eq("email", customerEmail)
+            .eq("email", checkoutEmail)
             .maybeSingle();
-
           if (profile?.id) {
+            userId = profile.id;
+          } else {
+            try {
+              const { data: listed } = await supabase.auth.admin.listUsers({
+                page: 1,
+                perPage: 200,
+              });
+              const found = listed?.users?.find(
+                (u) => u.email?.toLowerCase() === checkoutEmail,
+              );
+              if (found) userId = found.id;
+            } catch (listErr) {
+              console.error("[stripe-invoice-webhook] auth.admin.listUsers failed:", listErr);
+            }
+          }
+
+          let isNewAccount = false;
+          if (!userId && signupFlow === "anonymous_checkout") {
+            // Brand new account from a /pricing → Stripe → here flow.
+            // Invite the user — Supabase creates the user record with
+            // no password and sends an email with a magic link that
+            // routes to /checkout/success?from_invite=1 for password setup.
+            try {
+              const fullName = session.customer_details?.name ?? null;
+              const inviteUrl = `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/checkout/success?from_invite=1`;
+              const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
+                checkoutEmail,
+                {
+                  redirectTo: inviteUrl,
+                  data: fullName ? { full_name: fullName } : undefined,
+                },
+              );
+              if (inviteErr) {
+                console.error("[stripe-invoice-webhook] inviteUserByEmail failed:", inviteErr);
+              } else if (invited?.user?.id) {
+                userId = invited.user.id;
+                isNewAccount = true;
+
+                await supabase.from("profiles").insert({
+                  id: userId,
+                  email: checkoutEmail,
+                  full_name: fullName,
+                });
+
+                const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
+                const { data: newOrg, error: orgErr } = await supabase
+                  .from("organizations")
+                  .insert({ name: orgName, plan_type: targetPlanType })
+                  .select("id")
+                  .single();
+                if (orgErr) {
+                  console.error("[stripe-invoice-webhook] org insert failed:", orgErr);
+                } else if (newOrg?.id) {
+                  await supabase.from("org_memberships").insert({
+                    organization_id: newOrg.id,
+                    user_id: userId,
+                    role: "owner",
+                  });
+                  console.log(
+                    "[stripe-invoice-webhook] Provisioned new account from checkout",
+                    { userId, orgId: newOrg.id, plan: targetPlanType },
+                  );
+                }
+              }
+            } catch (inviteOuter) {
+              console.error("[stripe-invoice-webhook] account provisioning error:", inviteOuter);
+            }
+          }
+
+          if (userId && !isNewAccount) {
             const { data: membership } = await supabase
               .from("org_memberships")
               .select("organization_id")
-              .eq("user_id", profile.id)
+              .eq("user_id", userId)
               .limit(1)
               .maybeSingle();
-
             if (membership?.organization_id) {
               await supabase
                 .from("organizations")
-                .update({ plan_type: "standard" })
+                .update({ plan_type: targetPlanType })
                 .eq("id", membership.organization_id);
+              console.log(
+                "[stripe-invoice-webhook] Existing org plan updated",
+                { orgId: membership.organization_id, plan: targetPlanType },
+              );
             }
           }
         }

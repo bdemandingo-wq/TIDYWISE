@@ -1,3 +1,25 @@
+// Tier-aware subscription checkout. Supports two flows:
+//
+//   1) Anonymous (checkout-first):
+//      - Caller is NOT authenticated. Stripe Checkout collects the email
+//        and creates a Customer. The completed-session webhook reads
+//        customer_details.email and provisions the TidyWise account
+//        from there.
+//      - This is the default /pricing flow: visitor clicks "Start Pro",
+//        goes straight to Stripe, pays, and lands on /welcome where
+//        the webhook (already running) has emailed them a link to set
+//        their password.
+//
+//   2) Authenticated (in-app upgrade):
+//      - Caller is logged in (Bearer token present). We look up their
+//        existing Stripe customer + check for grandfathered-lifetime
+//        before opening Checkout. Used when a logged-in Basic user
+//        clicks /pricing → "Choose Pro" to upgrade their plan.
+//
+// The function distinguishes via the presence/validity of the Bearer
+// token. verify_jwt = false in config.toml so anonymous callers reach
+// us; the function still gates the authenticated branch via getUser().
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -7,17 +29,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// TIDYWISE Standard plan price ID - $97/month (legacy single-tier fallback;
-// used when the body doesn't specify plan+interval, e.g. older clients
-// pre-launch).
-const LEGACY_PRICE_ID =
-  Deno.env.get("STRIPE_STANDARD_PRICE_ID") || "price_1SihrVJv857o86noT8NIIfrq";
-
-// Tier-aware price ID lookup. Each tier has a monthly and a yearly
-// Stripe Price; the env-var names are what the operator pastes into
-// Supabase Edge Function secrets after creating the prices in Stripe
-// Dashboard. Missing values fall back to the legacy price so a
-// half-configured deploy doesn't 500.
 const PRICE_IDS: Record<string, Record<string, string | undefined>> = {
   basic: {
     monthly: Deno.env.get("STRIPE_BASIC_MONTHLY_PRICE_ID"),
@@ -33,24 +44,8 @@ const PRICE_IDS: Record<string, Record<string, string | undefined>> = {
   },
 };
 
-function resolvePriceId(plan: string | undefined, interval: string | undefined): string {
-  if (!plan) {
-    console.log(`[CREATE-SUBSCRIPTION] No plan supplied, using LEGACY_PRICE_ID=${LEGACY_PRICE_ID}`);
-    return LEGACY_PRICE_ID;
-  }
-  const resolved = PRICE_IDS[plan]?.[interval ?? "monthly"];
-  if (!resolved) {
-    console.warn(
-      `[CREATE-SUBSCRIPTION] No price ID configured for ${plan}/${interval}, falling back to LEGACY_PRICE_ID=${LEGACY_PRICE_ID}`,
-    );
-    return LEGACY_PRICE_ID;
-  }
-  console.log(`[CREATE-SUBSCRIPTION] Resolved price ID for ${plan}/${interval}: ${resolved}`);
-  return resolved;
-}
-
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+const logStep = (step: string, details?: unknown) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CREATE-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
@@ -59,160 +54,173 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
   try {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    let bodyData: Record<string, unknown> = {};
+    try {
+      bodyData = (await req.json()) as Record<string, unknown>;
+    } catch {
+      // no body
+    }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    const requestedPlan =
+      typeof bodyData?.plan === "string" ? (bodyData.plan as string) : undefined;
+    const requestedInterval =
+      bodyData?.interval === "yearly" ? "yearly" : "monthly";
 
-    // Refuse if the caller already has lifetime access (paid OR
-    // grandfathered). Without this guard, an existing-customer mis-click
-    // on /pricing would charge them on top of their free forever access.
-    // We resolve their org via service-role since the user-scoped client
-    // here is the legacy single-tier client (anon key only).
-    const accessAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-    const { data: existingOrg } = await accessAdmin
-      .from("org_memberships")
-      .select("organizations(plan_type, grandfathered_lifetime)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    const org = (existingOrg as any)?.organizations;
-    if (org?.grandfathered_lifetime || org?.plan_type === "lifetime") {
+    if (!requestedPlan || !["basic", "pro", "custom"].includes(requestedPlan)) {
       return new Response(
-        JSON.stringify({
-          error: "You already have lifetime access — no need to subscribe.",
-          alreadyLifetime: true,
-        }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Invalid plan — must be basic, pro, or custom." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
       );
     }
 
-    // Optional client-supplied fraud-evidence fields. NOTE: ip and userAgent
-    // MUST come from request headers, not from the body — anything the
-    // client controls can be spoofed, and the dispute path at
-    // stripe-invoice-webhook later treats matching ip / user_agent on
-    // prior charges as "same user" evidence under Visa CE 3.0. A
-    // fraudster who can set their own ip header could mimic a legitimate
-    // returning customer and qualify their charge as CE-eligible — the
-    // exact attack the fraud stack was built to prevent. deviceFingerprint
-    // stays client-supplied because it has no equivalent header and is
-    // used only as a soft signal; the strong signals (ip, ua, email,
-    // account_id) all derive from the server.
-    let bodyData: any = {};
-    try { bodyData = await req.json(); } catch { /* no body */ }
+    // Fail fast if the price ID for the chosen tier isn't configured.
+    // Better than silently falling back to a legacy price (which was
+    // billing $50 "Pro Subscription" when Basic was clicked).
+    const priceId = PRICE_IDS[requestedPlan]?.[requestedInterval];
+    if (!priceId) {
+      logStep("Missing price ID config", {
+        plan: requestedPlan,
+        interval: requestedInterval,
+      });
+      return new Response(
+        JSON.stringify({
+          error: `Stripe price for ${requestedPlan} ${requestedInterval} is not configured on the server yet. The operator needs to set STRIPE_${requestedPlan.toUpperCase()}_${requestedInterval.toUpperCase()}_PRICE_ID in Supabase secrets.`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 503 },
+      );
+    }
+
+    // ── Detect flow: anonymous vs authenticated ───────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    let user: { id: string; email: string; created_at?: string } | null = null;
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      );
+      const { data } = await supabaseClient.auth.getUser(token);
+      if (data.user?.email) {
+        user = {
+          id: data.user.id,
+          email: data.user.email,
+          created_at: data.user.created_at,
+        };
+        logStep("Authenticated flow", { userId: user.id, email: user.email });
+      } else {
+        logStep("Bearer present but invalid — falling through to anonymous flow");
+      }
+    } else {
+      logStep("Anonymous flow (no Bearer header)");
+    }
+
+    let customerId: string | undefined;
+    if (user) {
+      const accessAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } },
+      );
+      const { data: existingOrg } = await accessAdmin
+        .from("org_memberships")
+        .select("organizations(plan_type, grandfathered_lifetime)")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      const org = (existingOrg as { organizations?: { plan_type?: string; grandfathered_lifetime?: boolean } } | null)?.organizations;
+      if (org?.grandfathered_lifetime || org?.plan_type === "lifetime") {
+        return new Response(
+          JSON.stringify({
+            error: "You already have lifetime access — no need to subscribe.",
+            alreadyLifetime: true,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const stripeForLookup = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+      const customers = await stripeForLookup.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found existing Stripe customer", { customerId });
+
+        const existingSubs = await stripeForLookup.subscriptions.list({
+          customer: customerId,
+          status: "active",
+          limit: 1,
+        });
+        if (existingSubs.data.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "You already have an active subscription." }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 400,
+            },
+          );
+        }
+      }
+    }
+
     const clientIp =
       req.headers.get("cf-connecting-ip") ||
       req.headers.get("x-real-ip") ||
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       null;
     const userAgent = req.headers.get("user-agent") || null;
-    const deviceFingerprint = bodyData?.deviceFingerprint || null;
+    const deviceFingerprint =
+      typeof bodyData?.deviceFingerprint === "string"
+        ? (bodyData.deviceFingerprint as string)
+        : null;
 
-    // Tier + interval (e.g. plan="pro", interval="yearly"). When absent
-    // we fall back to the legacy single-tier price.
-    const requestedPlan: string | undefined = bodyData?.plan;
-    const requestedInterval: string | undefined = bodyData?.interval;
-    if (requestedPlan && !["basic", "pro", "custom"].includes(requestedPlan)) {
-      return new Response(JSON.stringify({ error: "Invalid plan" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-    if (requestedInterval && !["monthly", "yearly"].includes(requestedInterval)) {
-      return new Response(JSON.stringify({ error: "Invalid interval" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-    const priceId = resolvePriceId(requestedPlan, requestedInterval);
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    // Check for existing Stripe customer
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId: string | undefined;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Found existing Stripe customer", { customerId });
-
-      const existingSubs = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "active",
-        limit: 1,
-      });
-      if (existingSubs.data.length > 0) {
-        return new Response(JSON.stringify({ error: "You already have an active subscription." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        });
-      }
-    }
-
-    const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
-
-    // Fraud-evidence metadata travels with every charge in Stripe.
-    // Includes plan + interval so the webhook + downstream reporting
-    // can tell which tier this charge belongs to.
     const evidenceMetadata: Record<string, string> = {
-      account_id: user.id,
-      email: user.email,
-      signup_date: user.created_at || new Date().toISOString(),
       ip: clientIp || "",
       device: (userAgent || "").slice(0, 480),
       device_fingerprint: deviceFingerprint || "",
       purpose: "tidywise_saas_subscription",
-      tidywise_plan: requestedPlan ?? "legacy",
-      tidywise_interval: requestedInterval ?? "monthly",
+      tidywise_plan: requestedPlan,
+      tidywise_interval: requestedInterval,
+      signup_flow: user ? "in_app_upgrade" : "anonymous_checkout",
     };
+    if (user) {
+      evidenceMetadata.account_id = user.id;
+      evidenceMetadata.email = user.email;
+      evidenceMetadata.signup_date = user.created_at || new Date().toISOString();
+    }
+
+    const origin =
+      req.headers.get("origin") ||
+      Deno.env.get("APP_URL") ||
+      "https://jointidywise.com";
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : user.email,
+      customer_email: customerId ? undefined : user?.email,
+      ...(user ? {} : { customer_creation: "always" as const }),
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      // Request 3D Secure on the initial checkout charge when the issuer
-      // supports it — shifts fraud liability to the issuer for Visa
-      // reason code 10.4 chargebacks (free alternative to Adaptive 3DS).
       payment_method_options: {
         card: { request_three_d_secure: "automatic" },
       },
-      // Metadata on the Checkout Session, the Subscription, and every
-      // generated Invoice / PaymentIntent — so evidence stays with the charge.
       metadata: evidenceMetadata,
-      subscription_data: {
-        metadata: evidenceMetadata,
-        // Note: Checkout Sessions don't accept subscription_data.payment_settings.
-        // 3DS on renewal invoices is enforced via Stripe Radar rules / the
-        // payment method's stored authentication; the initial charge above
-        // already requests 3DS, which shifts liability for the saved card.
-      },
-      payment_intent_data: undefined, // not allowed in subscription mode
-      success_url: `${origin}/checkout/success?plan=${encodeURIComponent(requestedPlan ?? '')}&interval=${encodeURIComponent(requestedInterval ?? 'monthly')}`,
-      // Preserve plan + interval on cancel so the tier highlight survives
-      // a Stripe back-button or "back to merchant" after a card decline.
-      cancel_url: `${origin}/pricing?plan=${encodeURIComponent(requestedPlan ?? '')}&interval=${encodeURIComponent(requestedInterval ?? 'monthly')}&canceled=1`,
+      subscription_data: { metadata: evidenceMetadata },
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&plan=${requestedPlan}&interval=${requestedInterval}`,
+      cancel_url: `${origin}/pricing?canceled=true`,
     });
 
-    logStep("Checkout session created", { sessionId: session.id });
+    logStep("Checkout session created", {
+      sessionId: session.id,
+      flow: user ? "authenticated" : "anonymous",
+    });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

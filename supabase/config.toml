@@ -196,3 +196,12 @@ verify_jwt = true
 
   [functions.send-subscription-renewal-reminder]
     verify_jwt = false
+
+  # Public checkout endpoints — anonymous /pricing visitors hit these.
+  # The functions still detect a Bearer token if present (in-app
+  # upgrade) and run the grandfathered-lifetime guard for those.
+  [functions.create-subscription]
+    verify_jwt = false
+
+  [functions.buy-lifetime]
+    verify_jwt = false
