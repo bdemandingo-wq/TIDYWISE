@@ -50,12 +50,26 @@ export default function CheckoutSuccessPage() {
   const intervalLabel = interval === 'yearly' ? 'yearly' : interval === 'monthly' ? 'monthly' : null;
 
   useEffect(() => {
-    // Persisted plan choice exists only to bring users back to the same
-    // tier if they cancel/return mid-flow. Checkout completed → clear.
+    // Persisted "pending" plan choice exists only to bring users back to
+    // the same tier if they cancel/return mid-flow. Checkout completed → clear.
     try {
       sessionStorage.removeItem('tw_pending_plan');
     } catch {
       /* no-op */
+    }
+
+    // Persist the "active" plan metadata so the dashboard banner can
+    // render plan + interval immediately after webhook completion,
+    // without needing extra fields on the subscription endpoint.
+    if (plan || interval) {
+      try {
+        localStorage.setItem(
+          'tw_active_plan',
+          JSON.stringify({ plan: plan || null, interval: interval || null }),
+        );
+      } catch {
+        /* no-op */
+      }
     }
 
     // Stripe's success redirect can race the invoice webhook by a
