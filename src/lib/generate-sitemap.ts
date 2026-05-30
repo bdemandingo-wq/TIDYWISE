@@ -79,6 +79,36 @@ async function fetchPublishedBlogSlugs(): Promise<string[]> {
   }
 }
 
+async function fetchScoreCompanies(): Promise<Array<{ slug: string; lastmod?: string }>> {
+  const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+  const ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_companies?select=slug,last_scored_at,updated_at&limit=5000`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[sitemap] score_companies fetch failed: ${res.status}`);
+      return [];
+    }
+    const rows = (await res.json()) as Array<{
+      slug: string;
+      last_scored_at: string | null;
+      updated_at: string | null;
+    }>;
+    return rows
+      .filter((r) => r.slug)
+      .map((r) => ({
+        slug: r.slug,
+        lastmod: (r.last_scored_at ?? r.updated_at ?? undefined)?.slice(0, 10),
+      }));
+  } catch (err) {
+    console.warn(`[sitemap] score_companies fetch error:`, err);
+    return [];
+  }
+}
+
 function extractRoutePaths(source: string): string[] {
   const ast = parse(source, {
     sourceType: "module",
