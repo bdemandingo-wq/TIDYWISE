@@ -24,6 +24,7 @@ export default function ScoreCompanyPage() {
   const [claiming, setClaiming] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<"low" | "high" | null>(null);
   const [showMethodology, setShowMethodology] = useState(false);
+  const [expandedDim, setExpandedDim] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
