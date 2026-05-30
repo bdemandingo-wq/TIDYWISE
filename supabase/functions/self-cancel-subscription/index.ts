@@ -103,6 +103,29 @@ serve(async (req) => {
       });
     }
 
+    // Idempotency: if the user already cancelled (cancel_at_period_end
+    // is set), short-circuit and return success without writing another
+    // cancellation_feedback row. The cancel button on the dashboard is
+    // not disabled aggressively, so double-clicks and the resubmit-on-
+    // back-button case were inserting duplicate rows and skewing churn
+    // counts in cancellation-analytics.
+    if (active.cancel_at_period_end) {
+      const existingPeriodEnd =
+        active.items.data[0]?.current_period_end ?? (active as any).current_period_end;
+      return new Response(
+        JSON.stringify({
+          success: true,
+          subscription_id: active.id,
+          cancel_at_period_end: true,
+          period_end: existingPeriodEnd
+            ? new Date(existingPeriodEnd * 1000).toISOString()
+            : null,
+          already_cancelled: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Period-end cancellation — never instant.
     const result = await stripe.subscriptions.update(active.id, {
       cancel_at_period_end: true,
@@ -110,8 +133,14 @@ serve(async (req) => {
     });
     log("Cancelled at period end", { sub: active.id, by: userEmail });
 
-    const periodEnd = (result as any).current_period_end
-      ? new Date((result as any).current_period_end * 1000).toISOString()
+    // Stripe Basil moved current_period_end onto subscription.items.data[i].
+    // The top-level field still works for single-item subs today but goes
+    // null the moment a second item is added. Prefer the item-level value
+    // and fall back to the legacy top-level for resilience.
+    const periodEndSec =
+      result.items.data[0]?.current_period_end ?? (result as any).current_period_end;
+    const periodEnd = periodEndSec
+      ? new Date(periodEndSec * 1000).toISOString()
       : null;
 
     // Save feedback (RLS allows the user to insert their own row)
