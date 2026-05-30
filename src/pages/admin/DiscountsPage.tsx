@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,7 +143,7 @@ export default function DiscountsPage() {
       subtitle="Create and manage promotional codes for your customers"
     >
       <SEOHead title="Discounts | TidyWise" description="Manage promotional codes and discounts" noIndex />
-      <SubscriptionGate feature="Discounts & Coupons">
+      <PlanFeatureGate feature="discounts_advanced">
         {settings?.demo_mode_enabled && (
           <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2">
             <Tag className="w-5 h-5 text-yellow-600" />
@@ -366,7 +366,7 @@ export default function DiscountsPage() {
             )}
           </CardContent>
         </Card>
-      </SubscriptionGate>
+      </PlanFeatureGate>
     </AdminLayout>
   );
 }

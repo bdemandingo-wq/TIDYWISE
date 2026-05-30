@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -311,7 +311,7 @@ export default function InventoryPage() {
         </div>
       }
     >
-      <SubscriptionGate feature="Inventory">
+      <PlanFeatureGate feature="inventory">
         {/* Filter Tabs + Search */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <div className="flex flex-wrap gap-1.5">
@@ -576,7 +576,7 @@ export default function InventoryPage() {
           categories={customCategories}
           organizationId={organization?.id || ''}
         />
-      </SubscriptionGate>
+      </PlanFeatureGate>
     </AdminLayout>
   );
 }

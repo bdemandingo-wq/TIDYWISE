@@ -1,5 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientPortalUsersManager } from '@/components/admin/ClientPortalUsersManager';
 import { ClientBookingRequestsManager } from '@/components/admin/ClientBookingRequestsManager';
@@ -36,7 +36,7 @@ export default function ClientPortalPage() {
       subtitle="Manage customer portal access and booking requests"
     >
       <SEOHead title="Client Portal | TidyWise" description="Manage your client portal settings and users" noIndex />
-      <SubscriptionGate feature="Client Portal">
+      <PlanFeatureGate feature="client_portal">
       <Tabs defaultValue="requests" className="w-full">
         <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="requests" className="gap-2">
@@ -70,7 +70,7 @@ export default function ClientPortalPage() {
           <LoyaltyProgramSettings />
         </TabsContent>
       </Tabs>
-      </SubscriptionGate>
+      </PlanFeatureGate>
     </AdminLayout>
   );
 }

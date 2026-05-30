@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -218,7 +218,7 @@ export default function BookingPhotosPage() {
   return (
     <AdminLayout title="Booking Media">
       <SEOHead title="Booking Media | TidyWise" description="View and manage photos and videos from your cleaning bookings" noIndex />
-      <SubscriptionGate feature="Booking Photos">
+      <PlanFeatureGate feature="booking_photos">
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold">Booking Media</h1>
@@ -438,7 +438,7 @@ export default function BookingPhotosPage() {
             )}
           </DialogContent>
         </Dialog>
-      </SubscriptionGate>
+      </PlanFeatureGate>
     </AdminLayout>
   );
 }

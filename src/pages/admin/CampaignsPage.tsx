@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { SubscriptionGate } from "@/components/admin/SubscriptionGate";
+import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -598,7 +598,7 @@ export default function CampaignsPage() {
         </Button>
       }
     >
-      <SubscriptionGate feature="Campaigns">
+      <PlanFeatureGate feature="campaigns">
         <div className="space-y-6">
           {/* Channel Toggle */}
           <Tabs value={channelFilter} onValueChange={(v) => setChannelFilter(v as ChannelFilter)}>
@@ -908,7 +908,7 @@ export default function CampaignsPage() {
           )}
 
         </div>
-      </SubscriptionGate>
+      </PlanFeatureGate>
 
       {/* Referral Dashboard */}
       <div className="mt-8">

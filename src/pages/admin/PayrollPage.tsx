@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -844,7 +844,7 @@ export default function PayrollPage() {
         </Button>
       }
     >
-      <SubscriptionGate feature="Payroll">
+      <PlanFeatureGate feature="payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
         <Popover>
@@ -1299,7 +1299,7 @@ export default function PayrollPage() {
           <PayrollPeriodSettings />
         </TabsContent>
       </Tabs>
-      </SubscriptionGate>
+      </PlanFeatureGate>
 
       {/* Payout Dialog */}
       <Dialog open={payoutDialog.open} onOpenChange={(open) => setPayoutDialog(prev => ({ ...prev, open }))}>

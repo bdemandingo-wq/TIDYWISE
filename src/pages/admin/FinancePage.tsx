@@ -35,7 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
+import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { PnLCalendar } from '@/components/admin/PnLCalendar';
 import { SEOHead } from '@/components/SEOHead';
 import { toast } from 'sonner';
@@ -387,7 +387,7 @@ export default function FinancePage() {
       subtitle="Profit & loss, transactions, and tax exports"
     >
       <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
-      <SubscriptionGate feature="Finance & Tax reports">
+      <PlanFeatureGate feature="reports">
       {/* Stripe Sync Header */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button
@@ -736,7 +736,7 @@ export default function FinancePage() {
           </Card>
         </TabsContent>
       </Tabs>
-      </SubscriptionGate>
+      </PlanFeatureGate>
     </AdminLayout>
   );
 }
