@@ -47,8 +47,11 @@ serve(async (req) => {
       });
     }
 
+    // Stripe rejects "" for pause_collection — only null clears the pause.
+    // Passing "" returned a 400 for every user clicking "Resume now",
+    // leaving them stuck in the paused state until pause_collection.resumes_at.
     const updated = await stripe.subscriptions.update(paused.id, {
-      pause_collection: "" as any, // clearing pause
+      pause_collection: null,
     });
 
     // Mark the active pause row as resumed
