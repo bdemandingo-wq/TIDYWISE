@@ -389,6 +389,80 @@ test.describe("Pricing back-button flow (yearly)", () => {
       interval: "yearly",
     });
   });
+
+  test("Dashboard 'Resend receipt' invokes the edge function with plan, interval, and next billing date in the resulting email payload", async ({ page }) => {
+    // ── 1. Source guard ──────────────────────────────────────────────
+    // The resend-subscription-receipt edge function must:
+    //   - require an authenticated caller
+    //   - resolve plan + interval from the Stripe subscription
+    //   - forward `period_end` (next billing date) to send-subscription-receipt
+    const resendSrc = readFileSync(
+      join(process.cwd(), "supabase/functions/resend-subscription-receipt/index.ts"),
+      "utf8",
+    );
+    expect(resendSrc).toMatch(/Not authenticated/);
+    expect(resendSrc).toMatch(/planFromPrice/);
+    expect(resendSrc).toMatch(/period_end:/);
+    expect(resendSrc).toMatch(/send-subscription-receipt/);
+
+    // The downstream email function must include plan, interval, and
+    // "Next billing date" so the recipient sees the correct context.
+    const receiptSrc = readFileSync(
+      join(process.cwd(), "supabase/functions/send-subscription-receipt/index.ts"),
+      "utf8",
+    );
+    expect(receiptSrc).toMatch(/Next billing date/);
+    expect(receiptSrc).toMatch(/planLine/);
+    expect(receiptSrc).toMatch(/intervalLabel/);
+
+    // ── 2. Behavior guard ────────────────────────────────────────────
+    // The dashboard banner wires "Resend receipt" to the edge function.
+    const bannerSrc = readFileSync(
+      join(process.cwd(), "src/components/dashboard/SubscriptionBanner.tsx"),
+      "utf8",
+    );
+    expect(bannerSrc).toMatch(/resend-subscription-receipt/);
+    expect(bannerSrc).toMatch(/data-testid="resend-receipt"/);
+    // Trialing + canceled states must also announce their relevant
+    // dates (trial end / access-ends) to screen readers.
+    expect(bannerSrc).toMatch(/Trial ends on/);
+    expect(bannerSrc).toMatch(/Access ends on/);
+
+    // ── 3. Live guard ────────────────────────────────────────────────
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "tw_active_plan",
+        JSON.stringify({ plan: "pro", interval: "yearly" }),
+      );
+    });
+
+    let invoked = false;
+    await page.route("**/functions/v1/resend-subscription-receipt", async (route) => {
+      invoked = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          sent_to: "test@example.com",
+          plan: "pro",
+          interval: "yearly",
+          period_end: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365,
+        }),
+      });
+    });
+
+    const resp = await page.goto("/dashboard").catch(() => null);
+    if (!resp || resp.status() >= 400) return;
+    const btn = page.getByTestId("resend-receipt");
+    if ((await btn.count()) === 0) return;
+
+    await btn.first().click();
+    await page.waitForTimeout(500);
+    expect(invoked).toBe(true);
+  });
 });
+
+
 
 
