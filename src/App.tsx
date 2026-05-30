@@ -90,6 +90,8 @@ const TasksPage = lazy(() => import("./pages/admin/TasksPage"));
 const AIIntelligencePage = lazy(() => import("./pages/admin/AIIntelligencePage"));
 const ClientPortalAdminPage = lazy(() => import("./pages/admin/ClientPortalPage"));
 const AutomationCenterPage = lazy(() => import("./pages/admin/AutomationCenterPage"));
+const CustomWorkRequestPage = lazy(() => import("./pages/admin/CustomWorkRequestPage"));
+const AdminCustomWorkRequestsPage = lazy(() => import("./pages/admin/AdminCustomWorkRequestsPage"));
 const DataImportPage = lazy(() => import("./pages/admin/DataImportPage"));
 const BookingPhotosPage = lazy(() => import("./pages/admin/BookingPhotosPage"));
 const StaffPortal = lazy(() => import("./pages/staff/StaffPortal"));
@@ -275,6 +277,8 @@ const App = () => (
                       <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/client-portal" element={<AdminRoute><ErrorBoundary featureName="Client Portal"><ClientPortalAdminPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/custom-work" element={<AdminRoute><ErrorBoundary featureName="Custom Work"><CustomWorkRequestPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/admin/custom-work" element={<PlatformAdminRoute><ErrorBoundary featureName="Custom Work Admin"><AdminCustomWorkRequestsPage /></ErrorBoundary></PlatformAdminRoute>} />
                        <Route path="/dashboard/import" element={<AdminRoute><ErrorBoundary featureName="Data Import"><DataImportPage /></ErrorBoundary></AdminRoute>} />
                        <Route path="/dashboard/booking-photos" element={<AdminRoute><ErrorBoundary featureName="Booking Photos"><BookingPhotosPage /></ErrorBoundary></AdminRoute>} />
                        <Route path="/dashboard/benchmarks" element={<AdminRoute><ErrorBoundary featureName="Benchmarks"><BenchmarksPage /></ErrorBoundary></AdminRoute>} />
