@@ -40,14 +40,25 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Optional client-supplied fraud-evidence fields
+    // Optional client-supplied fraud-evidence fields. NOTE: ip and userAgent
+    // MUST come from request headers, not from the body — anything the
+    // client controls can be spoofed, and the dispute path at
+    // stripe-invoice-webhook later treats matching ip / user_agent on
+    // prior charges as "same user" evidence under Visa CE 3.0. A
+    // fraudster who can set their own ip header could mimic a legitimate
+    // returning customer and qualify their charge as CE-eligible — the
+    // exact attack the fraud stack was built to prevent. deviceFingerprint
+    // stays client-supplied because it has no equivalent header and is
+    // used only as a soft signal; the strong signals (ip, ua, email,
+    // account_id) all derive from the server.
     let bodyData: any = {};
     try { bodyData = await req.json(); } catch { /* no body */ }
     const clientIp =
       req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-real-ip") ||
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      bodyData?.ip || null;
-    const userAgent = bodyData?.userAgent || req.headers.get("user-agent") || null;
+      null;
+    const userAgent = req.headers.get("user-agent") || null;
     const deviceFingerprint = bodyData?.deviceFingerprint || null;
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
