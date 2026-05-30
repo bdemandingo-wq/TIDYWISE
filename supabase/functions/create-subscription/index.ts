@@ -203,7 +203,7 @@ serve(async (req) => {
       },
       payment_intent_data: undefined, // not allowed in subscription mode
       success_url: `${origin}/dashboard?subscription=success`,
-      cancel_url: `${origin}/dashboard/subscription?canceled=true`,
+      cancel_url: `${origin}/pricing`,
     });
 
     logStep("Checkout session created", { sessionId: session.id });
