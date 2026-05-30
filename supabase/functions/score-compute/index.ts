@@ -558,7 +558,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     return new Response(
-      JSON.stringify({ company: refreshed, metrics, cached: false }),
+      JSON.stringify({ company: refreshed, metrics, cached: false, aiConfidence, aiFailed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
