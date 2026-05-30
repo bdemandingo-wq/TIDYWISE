@@ -33,7 +33,7 @@ export function useLifetimeCounter(): LifetimeState {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from('lifetime_offer_state')
           .select('total_spots, sold_spots, sold_out_at')
           .eq('id', 1)
