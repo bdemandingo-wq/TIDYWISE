@@ -111,7 +111,7 @@ export default function CustomWorkRequestPage() {
   const [submitting, setSubmitting] = useState(false);
 
   async function loadRequests() {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('custom_work_requests')
       .select('*')
       .order('submitted_at', { ascending: false })
