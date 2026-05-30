@@ -134,17 +134,16 @@ export default function SignupPage() {
           console.error('Error creating profile:', profileError);
         }
 
-        // Log TOS acceptance
+        // Log TOS acceptance via a server-side edge function. The
+        // function captures IP and user-agent from request headers
+        // instead of having the browser hit ipify.org — ipify leaked
+        // every signup to a third party and was blocked by a meaningful
+        // share of users (Nord Threat Protection, uBlock, Brave Shields)
+        // which left ip_address NULL on the resulting tos_acceptances
+        // row, degrading its value as Visa CE 3.0 evidence.
         try {
-          const ipRes = await fetch('https://api.ipify.org?format=json').catch(() => null);
-          const ipData = ipRes ? await ipRes.json().catch(() => ({})) : {};
-          await supabaseNoSession.from('tos_acceptances').insert({
-            user_id: data.user.id,
-            email: formData.email,
-            ip_address: ipData?.ip || null,
-            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-            accepted: true,
-            tos_version: '2025-02-01',
+          await supabaseNoSession.functions.invoke('record-tos-acceptance', {
+            body: { tos_version: '2025-02-01' },
           });
         } catch (tosErr) {
           console.error('TOS acceptance logging failed (non-critical):', tosErr);
