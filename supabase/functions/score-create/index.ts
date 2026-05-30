@@ -38,7 +38,14 @@ function slugify(s: string) {
 }
 
 function randomSuffix() {
-  return Math.random().toString(36).slice(2, 8);
+  // crypto.randomUUID() is the right entropy source for a slug
+  // disambiguator. Math.random()'s 6 base36 chars (~2 billion possibilities)
+  // had real birthday-collision risk at the scale the leaderboard is
+  // headed for, and the UNIQUE constraint on score_companies.slug would
+  // start surfacing those as insert failures. UUIDs are universally
+  // available in Deno; we take the first 8 hex chars for a short
+  // human-friendly URL while keeping ~16 billion possibilities.
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
 }
 
 function normalizePlaceId(value: string | null | undefined) {
