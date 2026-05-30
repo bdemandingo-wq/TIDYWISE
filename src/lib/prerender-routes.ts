@@ -16,8 +16,35 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { STATIC_ROUTE_META, locationRouteMeta, type RouteMeta } from "./routeMeta";
+import {
+  STATIC_ROUTE_META,
+  locationRouteMeta,
+  scoreCompanyRouteMeta,
+  type RouteMeta,
+  type ScoreCompanyForMeta,
+} from "./routeMeta";
 import { locationData } from "../data/locationData";
+
+const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+
+async function fetchScoreCompanies(): Promise<ScoreCompanyForMeta[]> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_companies?select=slug,name,city,state,zip,formatted_address,latitude,longitude,website,phone,score,google_rating,google_review_count&limit=5000`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[prerender] score_companies fetch failed: ${res.status}`);
+      return [];
+    }
+    return (await res.json()) as ScoreCompanyForMeta[];
+  } catch (err) {
+    console.warn(`[prerender] score_companies fetch error:`, err);
+    return [];
+  }
+}
 
 const BASE_URL = "https://www.jointidywise.com";
 
