@@ -114,7 +114,37 @@ export default function PricingPage() {
   const lifetime = useLifetimeCounter();
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
+  const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const spotsLeft = lifetime.spotsLeft;
+
+  // Restore selected plan + interval after a return trip to Stripe
+  // Checkout (cancel) or from /signup. We persist this in sessionStorage
+  // so the user lands back on the same plan they were considering rather
+  // than starting over from monthly/Basic.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('tw_pending_plan');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
+      if (parsed.interval === 'yearly' || parsed.interval === 'monthly') {
+        setInterval(parsed.interval);
+      }
+      if (parsed.plan && ['basic', 'pro', 'custom'].includes(parsed.plan)) {
+        const id = parsed.plan as Tier['id'];
+        setHighlightedPlan(id);
+        // Scroll the tier into view + clear the highlight after a moment.
+        requestAnimationFrame(() => {
+          tierRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        window.setTimeout(() => setHighlightedPlan(null), 2400);
+      }
+      sessionStorage.removeItem('tw_pending_plan');
+    } catch {
+      // sessionStorage unavailable — silent no-op.
+    }
+  }, []);
+
 
   // Iframe-safe navigation to Stripe Checkout. Stripe sends
   // X-Frame-Options: DENY, so a plain `window.location.href` inside an
