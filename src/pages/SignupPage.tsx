@@ -35,6 +35,8 @@ const signupSchema = z.object({
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const claimSlug = searchParams.get('claim');
   const { 
     user, 
     loading: authLoading, 
