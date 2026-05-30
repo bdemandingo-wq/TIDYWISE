@@ -198,18 +198,23 @@ function routeToFile(distDir: string, route: string): string {
   return join(distDir, rel, "index.html");
 }
 
-export function prerenderRoutes(distDir: string): { written: number; skipped: number } {
+export async function prerenderRoutes(
+  distDir: string
+): Promise<{ written: number; skipped: number }> {
   const sourceHtmlPath = join(distDir, "index.html");
   if (!existsSync(sourceHtmlPath)) {
     throw new Error(`prerender: ${sourceHtmlPath} not found — has vite build run?`);
   }
   const sourceHtml = readFileSync(sourceHtmlPath, "utf8");
 
+  const scoreCompanies = await fetchScoreCompanies();
+  const scoreBySlug = new Map(scoreCompanies.map((c) => [c.slug, c]));
+
   let written = 0;
   let skipped = 0;
-  for (const route of allRoutes()) {
+  for (const route of allRoutes(scoreCompanies)) {
     try {
-      const meta = metaFor(route);
+      const meta = metaFor(route, scoreBySlug);
       const patched = patchHead(sourceHtml, route, meta);
       const dest = routeToFile(distDir, route);
       mkdirSync(dirname(dest), { recursive: true });
@@ -231,6 +236,12 @@ const isDirectInvocation =
 
 if (isDirectInvocation) {
   const distDir = resolve(process.cwd(), "dist");
-  const { written, skipped } = prerenderRoutes(distDir);
-  console.log(`[prerender] wrote ${written} routes, skipped ${skipped}`);
+  prerenderRoutes(distDir)
+    .then(({ written, skipped }) => {
+      console.log(`[prerender] wrote ${written} routes, skipped ${skipped}`);
+    })
+    .catch((err) => {
+      console.error(`[prerender] failed:`, err);
+      process.exit(1);
+    });
 }
