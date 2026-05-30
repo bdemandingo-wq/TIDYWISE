@@ -16,7 +16,19 @@ interface ReceiptReq {
   invoice_id: string;
   hosted_invoice_url?: string | null;
   period_end?: number | null;
+  // Tier metadata passed through from the invoice/subscription so the
+  // receipt clearly states what the customer just bought — particularly
+  // important for yearly plans where "next billing date" is a year out.
+  plan?: string | null;
+  interval?: string | null;
 }
+
+const PLAN_LABELS: Record<string, string> = {
+  basic: "Basic",
+  pro: "Pro",
+  custom: "Custom",
+  lifetime: "Lifetime",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -27,8 +39,10 @@ serve(async (req) => {
   }
 
   try {
-    const { email, amount_cents, currency, invoice_id, hosted_invoice_url, period_end } =
-      (await req.json()) as ReceiptReq;
+    const {
+      email, amount_cents, currency, invoice_id, hosted_invoice_url, period_end,
+      plan, interval,
+    } = (await req.json()) as ReceiptReq;
     if (!email) throw new Error("email required");
 
     const amount = (amount_cents / 100).toLocaleString("en-US", {
@@ -40,11 +54,23 @@ serve(async (req) => {
         })
       : null;
 
+    const planLabel = plan && PLAN_LABELS[plan] ? PLAN_LABELS[plan] : null;
+    const intervalLabel = interval === "yearly"
+      ? "Yearly"
+      : interval === "monthly"
+        ? "Monthly"
+        : null;
+    const planLine = planLabel
+      ? `TidyWise ${planLabel}${intervalLabel ? ` · ${intervalLabel}` : ""}`
+      : null;
+    const subjectPlan = planLine ? ` (${planLine})` : "";
+
     const html = `
 <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
   <h1 style="font-size:22px;margin:0 0 12px">TidyWise receipt</h1>
   <p style="color:#475569;margin:0 0 24px">Thanks — your TidyWise subscription payment was successful.</p>
   <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px">
+    ${planLine ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Plan</span><strong>${planLine}</strong></div>` : ""}
     <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Amount paid</span><strong>${amount}</strong></div>
     <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Invoice</span><span>${invoice_id}</span></div>
     ${nextDate ? `<div style="display:flex;justify-content:space-between"><span>Next billing date</span><span>${nextDate}</span></div>` : ""}
@@ -68,7 +94,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from: "TidyWise <billing@jointidywise.com>",
         to: [email],
-        subject: `TidyWise receipt — ${amount} paid`,
+        subject: `TidyWise receipt — ${amount} paid${subjectPlan}`,
         html,
       }),
     });

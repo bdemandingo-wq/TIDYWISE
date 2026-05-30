@@ -108,15 +108,18 @@ test.describe("Pricing back-button flow (yearly)", () => {
     expect(after).toBeNull();
   });
 
-  test("Stripe cancel_url and success_url point at the in-app /pricing and /checkout/success routes", () => {
+  test("Stripe cancel_url and success_url point at the in-app /pricing and /checkout/success routes, and cancel preserves plan + interval", () => {
     // Static guard: every Stripe-side exit (cancel button, browser back
-    // from the Checkout form, declined payment "back to merchant" link)
-    // routes to whatever cancel_url we hand Stripe. Lock that to /pricing.
+    // from the Checkout form, declined-payment "back to merchant" link)
+    // routes to whatever cancel_url we hand Stripe. Lock that to
+    // /pricing AND require the plan + interval params, so the tier
+    // highlight is restorable from URL alone after any Stripe exit.
     const sub = readFileSync(
       join(process.cwd(), "supabase/functions/create-subscription/index.ts"),
       "utf8",
     );
-    expect(sub).toMatch(/cancel_url:\s*`\$\{origin\}\/pricing`/);
+    expect(sub).toMatch(/cancel_url:\s*`\$\{origin\}\/pricing\?plan=/);
+    expect(sub).toMatch(/cancel_url:[^`]*interval=\$\{encodeURIComponent/);
     expect(sub).toMatch(/success_url:\s*`\$\{origin\}\/checkout\/success/);
 
     const lifetime = readFileSync(
@@ -127,7 +130,71 @@ test.describe("Pricing back-button flow (yearly)", () => {
     expect(lifetime).toMatch(/success_url:\s*`\$\{origin\}\/checkout\/success/);
   });
 
-  test("/checkout/success renders with a clear Back to plans link and clears storage", async ({ page }) => {
+  test("URL params restore the tier highlight after a full refresh during checkout (Stripe embedded cancel path)", async ({ page }) => {
+    // Simulates the embedded-checkout cancel_url landing: Stripe sends
+    // the user back to /pricing?plan=pro&interval=yearly&canceled=1.
+    // Even with NO sessionStorage (cleared by browser refresh, hard
+    // reload, or a different tab), the URL params alone must restore
+    // the yearly toggle and the Pro tier highlight.
+    await page.goto("/pricing");
+    await page.evaluate(() => sessionStorage.clear());
+    await page.goto("/pricing?plan=pro&interval=yearly&canceled=1");
+
+    const yearlyBtn = page.getByRole("radio", { name: /Yearly/i });
+    await expect(yearlyBtn).toHaveAttribute("aria-checked", "true");
+
+    const proCard = page
+      .locator("text=Pro")
+      .first()
+      .locator(
+        'xpath=ancestor::*[contains(@class, "p-7") and contains(@class, "flex-col")][1]',
+      );
+    await expect(proCard).toHaveClass(/ring-2/);
+    await expect(proCard).toHaveAttribute("aria-current", "true");
+  });
+
+  test("Card-decline retry: Stripe cancel_url restores plan highlight so the user can re-attempt without re-picking", async ({ page }) => {
+    // After a card decline, Stripe's "Back to merchant" link uses
+    // cancel_url. Our cancel_url includes plan + interval, so the
+    // returning user lands with the same tier preselected and can hit
+    // the same "Choose Pro" button immediately.
+    await page.goto("/pricing?plan=pro&interval=yearly&canceled=1");
+
+    const proCard = page
+      .locator("text=Pro")
+      .first()
+      .locator(
+        'xpath=ancestor::*[contains(@class, "p-7") and contains(@class, "flex-col")][1]',
+      );
+    await expect(proCard).toHaveClass(/ring-2/);
+
+    // The retry button is still the same, labeled with an SR-friendly
+    // aria-label describing plan + billing interval.
+    const retry = proCard
+      .getByRole("button", { name: /Pro plan, billed yearly/i })
+      .first();
+    await expect(retry).toBeVisible();
+  });
+
+  test("/pricing tier cards expose accessible names and the billing toggle uses radio semantics", async ({ page }) => {
+    await page.goto("/pricing");
+
+    // Billing interval toggle is a radio group.
+    const group = page.getByRole("group", { name: /Billing interval/i });
+    await expect(group).toBeVisible();
+    await expect(page.getByRole("radio", { name: /Monthly/i })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    // Each tier renders as a listitem with a descriptive aria-label.
+    const planList = page.getByRole("list", { name: /Subscription plans/i });
+    await expect(planList).toBeVisible();
+    const items = planList.getByRole("listitem");
+    await expect(items).toHaveCount(3);
+  });
+
+  test("/checkout/success renders an aria-live success message, a clear Back to plans link, and clears storage", async ({ page }) => {
     // Pre-seed a stale persisted plan from a previous visit.
     await page.goto("/pricing");
     await page.evaluate(() => {
@@ -139,9 +206,16 @@ test.describe("Pricing back-button flow (yearly)", () => {
 
     await page.goto("/checkout/success?plan=pro&interval=yearly");
 
+    // Screen-reader-friendly status region announces the success.
+    const status = page.getByRole("status");
+    await expect(status).toBeVisible();
+    await expect(status).toContainText(/You're in/);
+    // Yearly receipt copy explicitly mentions the next billing date.
+    await expect(status).toContainText(/next billing date/i);
+
     await expect(page.getByRole("heading", { name: /You're in/ })).toBeVisible();
 
-    const backLink = page.getByRole("link", { name: /Back to plans/i });
+    const backLink = page.getByRole("link", { name: /Back to pricing plans|Back to plans/i });
     await expect(backLink).toBeVisible();
     await expect(backLink).toHaveAttribute("href", "/pricing");
 
@@ -152,3 +226,4 @@ test.describe("Pricing back-button flow (yearly)", () => {
     expect(after).toBeNull();
   });
 });
+

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,7 @@ function priceFor(tier: Tier, interval: Interval): { display: string; sub: strin
 export default function PricingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [interval, setInterval] = useState<Interval>('monthly');
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
   const lifetime = useLifetimeCounter();
@@ -118,31 +119,53 @@ export default function PricingPage() {
   const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const spotsLeft = lifetime.spotsLeft;
 
-  // Restore selected plan + interval after a return trip to Stripe
-  // Checkout (cancel) or from /signup. We persist this in sessionStorage
-  // so the user lands back on the same plan they were considering rather
-  // than starting over from monthly/Basic.
+  // Restore selected plan + interval after a return trip to Stripe.
+  // Priority order:
+  //   1. URL search params (?plan=pro&interval=yearly) — survives a
+  //      full page refresh during checkout, deep links, and shared URLs.
+  //   2. sessionStorage `tw_pending_plan` — survives the cancel_url
+  //      round-trip when params aren't echoed back.
+  // URL wins because it's the authoritative source the user can see.
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem('tw_pending_plan');
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
-      if (parsed.interval === 'yearly' || parsed.interval === 'monthly') {
-        setInterval(parsed.interval);
+    const validPlan = (v: string | null): v is Tier['id'] =>
+      v === 'basic' || v === 'pro' || v === 'custom';
+    const validInterval = (v: string | null): v is Interval =>
+      v === 'monthly' || v === 'yearly';
+
+    let plan: Tier['id'] | null = null;
+    let intv: Interval | null = null;
+
+    const urlPlan = searchParams.get('plan');
+    const urlInterval = searchParams.get('interval');
+    if (validPlan(urlPlan)) plan = urlPlan;
+    if (validInterval(urlInterval)) intv = urlInterval;
+
+    if (!plan || !intv) {
+      try {
+        const raw = sessionStorage.getItem('tw_pending_plan');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
+          if (!plan && validPlan(parsed.plan ?? null)) plan = parsed.plan as Tier['id'];
+          if (!intv && validInterval(parsed.interval ?? null)) intv = parsed.interval as Interval;
+        }
+      } catch {
+        /* sessionStorage unavailable */
       }
-      if (parsed.plan && ['basic', 'pro', 'custom'].includes(parsed.plan)) {
-        const id = parsed.plan as Tier['id'];
-        setHighlightedPlan(id);
-        // Scroll the tier into view + clear the highlight after a moment.
-        requestAnimationFrame(() => {
-          tierRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-        window.setTimeout(() => setHighlightedPlan(null), 2400);
-      }
-      sessionStorage.removeItem('tw_pending_plan');
-    } catch {
-      // sessionStorage unavailable — silent no-op.
     }
+
+    if (intv) setInterval(intv);
+    if (plan) {
+      setHighlightedPlan(plan);
+      requestAnimationFrame(() => {
+        tierRefs.current[plan!]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      window.setTimeout(() => setHighlightedPlan(null), 2400);
+    }
+    // Persisted entry has done its job — clear so a future fresh visit
+    // doesn't re-highlight stale state. URL params stay (the user can
+    // see them; clearing would feel surprising).
+    try { sessionStorage.removeItem('tw_pending_plan'); } catch { /* no-op */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cleanup: if the user leaves /pricing for somewhere that isn't part
@@ -163,6 +186,20 @@ export default function PricingPage() {
       }
     };
   }, []);
+
+  // Mirror the interval toggle into the URL so a refresh keeps the
+  // user's current view. We only sync interval here — plan only goes
+  // into the URL when the user actively starts checkout.
+  useEffect(() => {
+    const current = searchParams.get('interval');
+    if (current === interval) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('interval', interval);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interval]);
+
+
 
 
 
@@ -189,9 +226,10 @@ export default function PricingPage() {
   }
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
-    // Persist the choice so that if the user cancels at Stripe or
-    // bounces off /signup, the next /pricing render restores their
-    // selection (interval + scroll-into-view of the same tier).
+    // Persist the choice in BOTH places:
+    //   - sessionStorage for the Stripe cancel_url round-trip
+    //   - URL params so a full refresh during checkout (or a deep
+    //     link share) still restores the same tier highlight.
     try {
       sessionStorage.setItem(
         'tw_pending_plan',
@@ -200,10 +238,16 @@ export default function PricingPage() {
     } catch {
       // sessionStorage unavailable — silent no-op.
     }
+    const next = new URLSearchParams(searchParams);
+    next.set('plan', planId);
+    next.set('interval', interval);
+    setSearchParams(next, { replace: true });
+
     if (!user) {
       navigate(`/signup?plan=${planId}&interval=${interval}`);
       return;
     }
+
     setCheckoutBusy(planId);
     try {
       const { data, error } = await supabase.functions.invoke('create-subscription', {
@@ -309,11 +353,17 @@ export default function PricingPage() {
             and real human support.
           </p>
 
-          <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
+          <div
+            role="group"
+            aria-label="Billing interval"
+            className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={interval === 'monthly'}
               onClick={() => setInterval('monthly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 interval === 'monthly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -323,36 +373,49 @@ export default function PricingPage() {
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={interval === 'yearly'}
+              aria-label="Yearly billing, two months free"
               onClick={() => setInterval('yearly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 interval === 'yearly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Yearly
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+              <span aria-hidden="true" className="text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded-full px-2 py-0.5">
                 2 mo free
               </span>
             </button>
           </div>
+
         </section>
 
         <section className="max-w-7xl mx-auto px-4 pb-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div
+            role="list"
+            aria-label="Subscription plans"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
             {TIERS.map((tier) => {
               const price = priceFor(tier, interval);
               const isBusy = checkoutBusy === tier.id;
+              const isHighlighted = highlightedPlan === tier.id;
+              const cardLabel = `${tier.name} plan, ${price.display}${price.sub}${tier.highlight ? ', most popular' : ''}${isHighlighted ? ', selected' : ''}`;
               return (
                 <Card
                   key={tier.id}
                   ref={(el) => { tierRefs.current[tier.id] = el; }}
-                  className={`p-7 flex flex-col transition-shadow ${
+                  role="listitem"
+                  aria-label={cardLabel}
+                  aria-current={isHighlighted ? 'true' : undefined}
+                  className={`p-7 flex flex-col transition-shadow focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background ${
                     tier.highlight
                       ? 'border-primary/60 shadow-lg shadow-primary/10 relative'
                       : ''
                   } ${
-                    highlightedPlan === tier.id
+                    isHighlighted
                       ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
                       : ''
                   }`}
@@ -366,11 +429,11 @@ export default function PricingPage() {
 
                   <div className="flex items-center gap-2 mb-1">
                     {tier.id === 'basic' && (
-                      <Sparkles className="h-4 w-4 text-muted-foreground" />
+                      <Sparkles aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
                     )}
-                    {tier.id === 'pro' && <Zap className="h-4 w-4 text-primary" />}
+                    {tier.id === 'pro' && <Zap aria-hidden="true" className="h-4 w-4 text-primary" />}
                     {tier.id === 'custom' && (
-                      <SettingsIcon className="h-4 w-4 text-foreground" />
+                      <SettingsIcon aria-hidden="true" className="h-4 w-4 text-foreground" />
                     )}
                     <h3 className="font-serif text-2xl">{tier.name}</h3>
                   </div>
@@ -391,9 +454,11 @@ export default function PricingPage() {
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
                     className="w-full mb-6"
+                    aria-label={`${user ? 'Choose' : 'Start'} ${tier.name} plan, ${interval === 'yearly' ? 'billed yearly' : 'billed monthly'}`}
+                    aria-busy={isBusy}
                   >
                     {isBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                     ) : user ? (
                       `Choose ${tier.name}`
                     ) : (
@@ -408,7 +473,7 @@ export default function PricingPage() {
                           <span className="text-muted-foreground pl-4">{feature}</span>
                         ) : (
                           <>
-                            <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <Check aria-hidden="true" className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                             <span>{feature}</span>
                           </>
                         )}
@@ -419,6 +484,7 @@ export default function PricingPage() {
               );
             })}
           </div>
+
         </section>
 
         <section className="max-w-5xl mx-auto px-4 py-16">
