@@ -399,37 +399,90 @@ Deno.serve(async (req) => {
     const hasReviewData = !!(rating && count);
     const reviewsScoreVal = hasReviewData ? reviewsScore(rating, count, mostRecentDays) : null;
 
-    // AI is best-effort. If it fails (missing key, bad model, schema mismatch),
-    // we still save a partial score from reviews + website so the page isn't blank.
-    let ai: {
+    // ---- AI Sentiment: per-review scoring with recency weighting ----
+    const ai: {
       reliability: number;
       communication: number;
       quality: number;
       value: number;
       themes: { label: string; sentiment: "positive" | "neutral" | "negative" }[];
       tips: { title: string; body: string; impact: "high" | "medium" | "low" }[];
+    } = {
+      reliability: 60,
+      communication: 60,
+      quality: 60,
+      value: 60,
+      themes: [],
+      tips: [],
     };
     let aiFailed = false;
+    const reviewsWithText = richReviews.filter((r) => r.text.trim().length > 0);
+    const aiConfidence: "low" | "high" = reviewsWithText.length < 5 ? "low" : "high";
+
+    // 1) Per-review sentiment with retry, weighted by recency
+    if (reviewsWithText.length > 0) {
+      const results = await Promise.allSettled(
+        reviewsWithText.slice(0, 25).map((rev) =>
+          withRetry(() => scoreReviewSentiment(rev), "scoreReviewSentiment").then((s) => ({
+            scores: s,
+            publishTime: rev.publishTime,
+          }))
+        )
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").map((r: any) => r.value);
+
+      if (ok.length === 0) {
+        aiFailed = true;
+        const r = rating ?? 3;
+        const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (r - 3) * 30)));
+        console.error("All per-review sentiment calls failed, using rating-based fallback", fallbackScore);
+        ai.reliability = ai.communication = ai.quality = ai.value = fallbackScore;
+      } else {
+        const now = Date.now();
+        let wSum = 0;
+        const dims = { reliability: 0, communication: 0, quality: 0, value: 0 };
+        for (const entry of ok) {
+          const ageDays = entry.publishTime
+            ? Math.max(0, (now - new Date(entry.publishTime).getTime()) / (24 * 3600 * 1000))
+            : 365;
+          // Recency weight: review from today = 1.0, ~1 year ago ≈ 0.5, 2+ years ≈ 0.33
+          const w = 1 / (1 + ageDays / 365);
+          wSum += w;
+          dims.reliability += entry.scores.reliability * w;
+          dims.communication += entry.scores.communication * w;
+          dims.quality += entry.scores.quality * w;
+          dims.value += entry.scores.value * w;
+        }
+        ai.reliability = Math.round(dims.reliability / wSum);
+        ai.communication = Math.round(dims.communication / wSum);
+        ai.quality = Math.round(dims.quality / wSum);
+        ai.value = Math.round(dims.value / wSum);
+      }
+    } else if (rating) {
+      // No review text but we know the star rating — derive a fallback so we don't show flat 60.
+      const fallbackScore = Math.max(0, Math.min(100, Math.round(40 + (rating - 3) * 30)));
+      ai.reliability = ai.communication = ai.quality = ai.value = fallbackScore;
+    }
+
+    // 2) Themes + tips (separate call, also with one retry + smart fallback)
     try {
-      ai = await aiAnalyze({
-        name: company.name,
-        rating,
-        count,
-        reviews,
-        website: web,
-        reviewsScore: reviewsScoreVal ?? 0,
-      });
+      const insights = await withRetry(
+        () =>
+          aiAnalyzeInsights({
+            name: company.name,
+            rating,
+            count,
+            reviews,
+            website: web,
+            reviewsScore: reviewsScoreVal ?? 0,
+          }),
+        "aiAnalyzeInsights"
+      );
+      ai.themes = insights.themes;
+      ai.tips = insights.tips;
     } catch (e) {
-      console.error("aiAnalyze failed, using fallback", e);
+      console.error("aiAnalyzeInsights failed after retry", e);
       aiFailed = true;
-      ai = {
-        reliability: 60,
-        communication: 60,
-        quality: 60,
-        value: 60,
-        themes: [],
-        tips: [],
-      };
     }
 
     const sentimentAvg = (ai.reliability + ai.communication + ai.quality + ai.value) / 4;
