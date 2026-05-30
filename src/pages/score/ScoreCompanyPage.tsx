@@ -22,6 +22,7 @@ export default function ScoreCompanyPage() {
   const [showClaim, setShowClaim] = useState(false);
   const [claim, setClaim] = useState({ name: "", email: "", phone: "", message: "" });
   const [claiming, setClaiming] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<"low" | "high" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
