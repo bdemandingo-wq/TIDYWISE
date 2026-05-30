@@ -150,24 +150,43 @@ function patchHead(html: string, route: string, meta: RouteMeta): string {
     `<div id="root">${h1}</div>${noscriptBlock}`
   );
 
+  // Optional JSON-LD structured data, inserted before </head>.
+  if (meta.jsonLd) {
+    const payload = Array.isArray(meta.jsonLd)
+      ? { "@context": "https://schema.org", "@graph": meta.jsonLd }
+      : { "@context": "https://schema.org", ...meta.jsonLd };
+    // Escape </script> sequences to avoid breaking out of the script tag.
+    const json = JSON.stringify(payload).replace(/<\/script/gi, "<\\/script");
+    const tag = `<script type="application/ld+json">${json}</script>`;
+    out = out.replace(/<\/head>/i, `${tag}</head>`);
+  }
+
   return out;
 }
 
-function allRoutes(): string[] {
+function allRoutes(scoreCompanies: ScoreCompanyForMeta[]): string[] {
   const routes = new Set<string>(Object.keys(STATIC_ROUTE_META));
   for (const slug of Object.keys(locationData)) {
     routes.add(`/cleaning-business-software/${slug}`);
   }
+  for (const c of scoreCompanies) {
+    if (c.slug) routes.add(`/score/c/${c.slug}`);
+  }
   return [...routes];
 }
 
-function metaFor(route: string): RouteMeta {
+function metaFor(route: string, scoreBySlug: Map<string, ScoreCompanyForMeta>): RouteMeta {
   if (STATIC_ROUTE_META[route]) return STATIC_ROUTE_META[route];
   const locMatch = route.match(/^\/cleaning-business-software\/([a-z0-9-]+)$/);
   if (locMatch) {
     const slug = locMatch[1];
     const loc = locationData[slug];
     if (loc) return locationRouteMeta(slug, loc);
+  }
+  const scoreMatch = route.match(/^\/score\/c\/([a-z0-9-]+)$/i);
+  if (scoreMatch) {
+    const c = scoreBySlug.get(scoreMatch[1]);
+    if (c) return scoreCompanyRouteMeta(c);
   }
   return STATIC_ROUTE_META["/"];
 }
