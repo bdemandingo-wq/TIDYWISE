@@ -105,12 +105,6 @@ export default function ScoreGeneratePage() {
         setResolvedName(null);
         setManualEntryHint(data.error ?? null);
         if (data.name && !name.trim()) setName(data.name);
-        toast({
-          title: "Google profile not available yet",
-          description:
-            data.error ??
-            "We couldn't match a public Google profile, but you can continue by filling out the form manually.",
-        });
         return;
       }
       if (error || !data?.place_id) {
