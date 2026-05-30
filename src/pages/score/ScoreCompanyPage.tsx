@@ -59,11 +59,52 @@ export default function ScoreCompanyPage() {
             setComputing(false);
           }
         }
+
+        // Post-signup auto-claim: if redirected back with ?claim=1 and user is signed in,
+        // attempt self-serve claim now.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("claim") === "1" && !c.claimed) {
+          const { data: sessionRes } = await supabase.auth.getSession();
+          if (sessionRes?.session) {
+            const { data: claimRes, error: claimErr } = await supabase.functions.invoke(
+              "score-claim-self",
+              { body: { slug: c.slug } }
+            );
+            if (!cancelled) {
+              if (claimErr || (claimRes as any)?.error) {
+                const reason = (claimRes as any)?.error ?? "";
+                if (reason === "already_claimed") {
+                  toast({
+                    title: "This profile has already been claimed",
+                    description: "Contact support if you believe this is a mistake.",
+                    variant: "destructive",
+                  });
+                } else {
+                  toast({ title: "Couldn't claim this profile", variant: "destructive" });
+                }
+              } else {
+                toast({ title: "Profile claimed", description: "Welcome — your full breakdown is unlocked." });
+                // Refresh company row to reflect claimed state.
+                const { data: c2 } = await supabase
+                  .from("score_companies")
+                  .select("*")
+                  .eq("id", c.id)
+                  .maybeSingle();
+                if (c2 && !cancelled) setCompany(c2);
+              }
+              // Strip the ?claim=1 query param.
+              const url = new URL(window.location.href);
+              url.searchParams.delete("claim");
+              window.history.replaceState({}, "", url.toString());
+            }
+          }
+        }
       }
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [slug]);
+
 
   const handleRefresh = async () => {
     if (!company) return;
