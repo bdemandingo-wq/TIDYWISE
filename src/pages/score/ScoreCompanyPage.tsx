@@ -311,14 +311,24 @@ export default function ScoreCompanyPage() {
   );
 }
 
-function SignalCard({ title, value, sub, icon }: { title: string; value: number | null | undefined; sub: string; icon: React.ReactNode }) {
+function SignalCard({ title, value, sub, icon, lowConfidence, lowConfidenceCaption }: { title: string; value: number | null | undefined; sub: string; icon: React.ReactNode; lowConfidence?: boolean; lowConfidenceCaption?: string }) {
   return (
     <Card variant="elevated" className="p-5">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-3">
         {icon} {title}
       </div>
-      <div className="font-serif text-3xl text-foreground tabular-nums">{value ?? "—"}</div>
-      <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+      {lowConfidence ? (
+        <>
+          <div className="font-serif text-3xl text-muted-foreground tabular-nums">Low confidence</div>
+          {lowConfidenceCaption && <p className="text-[11px] text-muted-foreground mt-1 truncate">{lowConfidenceCaption}</p>}
+          <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+        </>
+      ) : (
+        <>
+          <div className="font-serif text-3xl text-foreground tabular-nums">{value ?? "—"}</div>
+          <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+        </>
+      )}
     </Card>
   );
 }
