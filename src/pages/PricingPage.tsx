@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
 import { SiteFooter } from '@/components/SiteFooter';
 import { useAuth } from '@/hooks/useAuth';
+import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -90,52 +91,6 @@ const TIERS: Tier[] = [
   },
 ];
 
-interface LifetimeState {
-  total: number;
-  sold: number;
-  soldOut: boolean;
-  loading: boolean;
-}
-
-function useLifetimeCounter(): LifetimeState {
-  const [state, setState] = useState<LifetimeState>({
-    total: 50,
-    sold: 0,
-    soldOut: false,
-    loading: true,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('lifetime_offer_state')
-          .select('total_spots, sold_spots, sold_out_at')
-          .eq('id', 1)
-          .maybeSingle();
-        if (cancelled) return;
-        const total = data?.total_spots ?? 50;
-        const sold = data?.sold_spots ?? 0;
-        setState({
-          total,
-          sold,
-          soldOut: !!data?.sold_out_at || sold >= total,
-          loading: false,
-        });
-      } catch {
-        if (!cancelled) {
-          setState((s) => ({ ...s, loading: false }));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return state;
-}
 
 function priceFor(tier: Tier, interval: Interval): { display: string; sub: string } {
   if (interval === 'yearly') {
@@ -159,7 +114,7 @@ export default function PricingPage() {
   const lifetime = useLifetimeCounter();
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
-  const spotsLeft = Math.max(0, lifetime.total - lifetime.sold);
+  const spotsLeft = lifetime.spotsLeft;
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
     if (!user) {

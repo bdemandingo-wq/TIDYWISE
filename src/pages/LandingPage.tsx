@@ -5,14 +5,14 @@ const DemoBookingFormLazy = lazy(() => import("@/components/landing/DemoBookingF
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { 
-  Calendar, 
-  Users, 
-  CreditCard, 
-  BarChart3, 
-  Smartphone, 
-  Bell, 
-  Shield, 
+import {
+  Calendar,
+  Users,
+  CreditCard,
+  BarChart3,
+  Smartphone,
+  Bell,
+  Shield,
   Zap,
   CheckCircle2,
   ArrowRight,
@@ -21,12 +21,14 @@ import {
   Menu,
   X,
   Play,
-  ChevronRight
+  ChevronRight,
+  Crown
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
 import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { SiteFooter } from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLifetimeCounter } from "@/hooks/useLifetimeCounter";
 
 // Lazy load below-the-fold heavy components for better LCP
 const AIBusinessTools = lazy(() => import("@/components/landing/AIBusinessTools").then(m => ({ default: m.AIBusinessTools })));
@@ -169,6 +171,7 @@ export default function LandingPage() {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const lifetime = useLifetimeCounter();
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -477,9 +480,52 @@ export default function LandingPage() {
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Lifetime $300 — 50 spots
+              Yearly = 2 months free
             </span>
           </div>
+
+          {/* Lifetime founding offer hook — only renders while spots remain
+              so it never shows a stale "X of 50 left" once sold out. */}
+          {!lifetime.loading && !lifetime.soldOut && (
+            <button
+              type="button"
+              onClick={() => navigate('/pricing')}
+              className="group mt-8 inline-flex items-center gap-4 rounded-full border-2 border-amber-500/50 bg-amber-50/30 dark:bg-amber-950/20 px-5 py-3 hover:border-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 transition-all"
+            >
+              <span className="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <Crown className="h-4 w-4" />
+                <span className="text-xs uppercase tracking-wider font-semibold">
+                  Founding offer
+                </span>
+              </span>
+              <span className="hidden sm:inline text-amber-500/40">·</span>
+              <span className="text-sm sm:text-base text-foreground font-medium">
+                Lifetime access for{' '}
+                <span className="font-bold">$300 one-time</span>
+              </span>
+              <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                <span className="font-bold tabular-nums">{lifetime.spotsLeft}</span>
+                of {lifetime.total} spots left
+              </span>
+              <ArrowRight className="h-4 w-4 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+          {!lifetime.loading && lifetime.soldOut && (
+            <button
+              type="button"
+              onClick={() => navigate('/pricing')}
+              className="group mt-8 inline-flex items-center gap-3 rounded-full border-2 border-muted bg-muted/30 px-5 py-3 hover:border-muted-foreground/50 transition-all"
+            >
+              <Crown className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                Lifetime
+              </span>
+              <span className="text-sm text-foreground">
+                <span className="font-bold">SOLD OUT</span> — join the waitlist
+              </span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
 
           {/* Stats strip — editorial proof */}
           <div className="mt-20 grid grid-cols-3 gap-px bg-border rounded-md overflow-hidden border-[1.5px] border-border max-w-3xl mx-auto">
