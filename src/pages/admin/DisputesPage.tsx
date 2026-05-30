@@ -71,7 +71,7 @@ export default function DisputesPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Disputes">
       <SEOHead title="Disputes — TidyWise" description="Stripe chargeback dispute drafts" />
       <div className="container mx-auto p-4 space-y-4 max-w-5xl">
         <div className="flex items-center justify-between">
