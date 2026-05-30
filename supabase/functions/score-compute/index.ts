@@ -302,12 +302,56 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Abuse guard: force=true triggers ~25 LLM calls + Places API hits
+    // per invocation. The function is verify_jwt=false so anonymous
+    // callers can hit it; without this guard a single attacker could
+    // iterate the public score_companies table and burn the entire AI
+    // budget. Two layers:
+    //   1. force=true requires an authenticated caller (any valid
+    //      Supabase user — the score-claim-self flow already supplies
+    //      one when claiming; logged-in admins always do).
+    //   2. Even authenticated callers can't refresh a company more than
+    //      once per 60s — guards against accidentally-recursive UI
+    //      retries and intentional cost abuse from one logged-in user.
+    let forceAllowed = !force;
+    if (force) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const { data: udata } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+        ).auth.getUser(authHeader.replace("Bearer ", ""));
+        forceAllowed = !!udata?.user;
+      }
+      if (!forceAllowed) {
+        return new Response(
+          JSON.stringify({ error: "force refresh requires authentication" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const { data: company, error: cErr } = await supabase
       .from("score_companies")
       .select("*")
       .eq("id", company_id)
       .single();
     if (cErr || !company) throw new Error(cErr?.message ?? "company not found");
+
+    // Per-company cooldown on force refreshes (60s). Even an authenticated
+    // user can't drive AI cost from a single company by clicking refresh
+    // repeatedly. Natural (non-force) re-scoring is still gated by the
+    // 7-day cache below.
+    if (
+      force &&
+      company.last_scored_at &&
+      Date.now() - new Date(company.last_scored_at).getTime() < 60 * 1000
+    ) {
+      return new Response(
+        JSON.stringify({ error: "refresh rate-limited; try again in a minute" }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Cached recently (< 7 days)?
     if (
