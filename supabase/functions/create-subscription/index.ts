@@ -90,8 +90,9 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: "subscription",
-      // Request 3D Secure when the issuer supports it — shifts fraud
-      // liability to the issuer for Visa reason code 10.4 chargebacks.
+      // Request 3D Secure on the initial checkout charge when the issuer
+      // supports it — shifts fraud liability to the issuer for Visa
+      // reason code 10.4 chargebacks (free alternative to Adaptive 3DS).
       payment_method_options: {
         card: { request_three_d_secure: "automatic" },
       },
@@ -100,6 +101,14 @@ serve(async (req) => {
       metadata: evidenceMetadata,
       subscription_data: {
         metadata: evidenceMetadata,
+        // Carry 3DS request to recurring renewal invoices. Without this,
+        // only the initial Checkout charge would request authentication;
+        // monthly renewals would skip the issuer auth step.
+        payment_settings: {
+          payment_method_options: {
+            card: { request_three_d_secure: "automatic" },
+          },
+        },
       },
       payment_intent_data: undefined, // not allowed in subscription mode
       success_url: `${origin}/dashboard?subscription=success`,
