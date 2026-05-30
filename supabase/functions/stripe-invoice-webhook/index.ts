@@ -32,25 +32,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     let event: Stripe.Event;
 
-    // Parse event - verify signature if webhook secret is configured
-    if (stripeWebhookSecret && signature) {
-      const tempStripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_placeholder", { 
-        apiVersion: "2025-08-27.basil" 
-      });
-      
-      try {
-        event = tempStripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
-      } catch (err: any) {
-        console.error("[stripe-invoice-webhook] Webhook signature verification failed:", err.message);
-        return new Response(
-          JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else {
-      // Parse event without verification (for testing only)
-      event = JSON.parse(body);
-      console.warn("[stripe-invoice-webhook] Warning: Webhook signature not verified");
+    // Verify signature. Fail closed if the webhook secret isn't
+    // configured — silently processing unsigned events would let any
+    // caller who can reach the function URL forge subscription /
+    // dispute state.
+    if (!stripeWebhookSecret) {
+      console.error("[stripe-invoice-webhook] STRIPE_WEBHOOK_SECRET not configured — refusing to process unsigned events");
+      return new Response(
+        JSON.stringify({ error: "Webhook secret not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!signature) {
+      return new Response(
+        JSON.stringify({ error: "Missing stripe-signature header" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const tempStripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_placeholder", {
+      apiVersion: "2025-08-27.basil",
+    });
+    try {
+      event = tempStripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+    } catch (err: any) {
+      console.error("[stripe-invoice-webhook] Webhook signature verification failed:", err.message);
+      return new Response(
+        JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log("[stripe-invoice-webhook] Received Stripe event:", event.type, event.id);
@@ -86,16 +95,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Handle new subscription created - notify platform admin
     if (event.type === "customer.subscription.created") {
       const subscription = event.data.object as Stripe.Subscription;
-      const customerEmail = subscription.customer as string;
-      
+      const customerId = subscription.customer as string;
+
       console.log("[stripe-invoice-webhook] New subscription created:", subscription.id);
-      
+
       // Get customer details from Stripe
       try {
-        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
-          apiVersion: "2025-08-27.basil" 
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+          apiVersion: "2025-08-27.basil"
         });
-        const customer = await stripe.customers.retrieve(customerEmail);
+        const customer = await stripe.customers.retrieve(customerId);
         const email = (customer as Stripe.Customer).email || "Unknown";
         
         // Find the organization for this user
@@ -250,7 +259,10 @@ const handler = async (req: Request): Promise<Response> => {
               user_id: userId || null,
               stripe_session_id: session.id,
               stripe_payment_intent_id: session.payment_intent as string | null,
-              amount_cents: 20000,
+              // Pull amount from the session itself so price changes in
+              // Stripe don't silently produce wrong records. Falls back
+              // to the historical default if Stripe somehow omits it.
+              amount_cents: session.amount_total ?? 20000,
             },
             { onConflict: "stripe_session_id", ignoreDuplicates: true }
           );
