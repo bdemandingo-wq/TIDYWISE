@@ -353,11 +353,17 @@ export default function PricingPage() {
             and real human support.
           </p>
 
-          <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1">
+          <div
+            role="group"
+            aria-label="Billing interval"
+            className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1"
+          >
             <button
               type="button"
+              role="radio"
+              aria-checked={interval === 'monthly'}
               onClick={() => setInterval('monthly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 interval === 'monthly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -367,19 +373,23 @@ export default function PricingPage() {
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={interval === 'yearly'}
+              aria-label="Yearly billing, two months free"
               onClick={() => setInterval('yearly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 interval === 'yearly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Yearly
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+              <span aria-hidden="true" className="text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded-full px-2 py-0.5">
                 2 mo free
               </span>
             </button>
           </div>
+
         </section>
 
         <section className="max-w-7xl mx-auto px-4 pb-12">
