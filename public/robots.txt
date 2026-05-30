@@ -49,6 +49,11 @@ Disallow: /c/
 Disallow: /review/
 Disallow: /portal/dashboard
 Disallow: /portal/request
+# Interactive score generator (no SEO value, requires input)
+Disallow: /score/generate
+# Claim-gated query variants — the canonical page is /score/c/{slug} without params
+Disallow: /*?claim=
+Disallow: /*&claim=
 
 # Allow public marketing pages
 Allow: /
@@ -60,6 +65,9 @@ Allow: /compare/*
 Allow: /features/*
 Allow: /privacy-policy
 Allow: /portal
+# Public reputation score pages (per-company + per-city)
+Allow: /score/c/*
+Allow: /score/city/*
 
 # Sitemap (static — regenerated at build time from src/lib/generate-sitemap.ts)
 Sitemap: https://www.jointidywise.com/sitemap.xml

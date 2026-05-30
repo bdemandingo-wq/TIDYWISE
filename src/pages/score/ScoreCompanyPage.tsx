@@ -215,36 +215,44 @@ export default function ScoreCompanyPage() {
     ? `See ${company.name}'s reputation score (${score}/100)${locationLabel ? ` in ${locationLabel}` : ""} — analyzed from ${company.google_review_count ?? 0} Google reviews across reliability, communication, quality, and value.`
     : `See ${company.name}'s reputation analysis${locationLabel ? ` in ${locationLabel}` : ""} — TidyWise scores reliability, communication, quality, and value from Google reviews.`;
 
-  const schemaJson: Record<string, unknown>[] = [
-    {
-      "@type": "LocalBusiness",
-      name: company.name,
-      ...(company.formatted_address || company.city ? {
-        address: {
-          "@type": "PostalAddress",
-          ...(company.formatted_address ? { streetAddress: company.formatted_address } : {}),
-          ...(company.city ? { addressLocality: company.city } : {}),
-          ...(company.state ? { addressRegion: company.state } : {}),
-          ...(company.zip ? { postalCode: company.zip } : {}),
-          addressCountry: "US",
-        },
-      } : {}),
-      ...(company.website ? { url: company.website } : {}),
-      ...(company.phone ? { telephone: company.phone } : {}),
-      ...(company.latitude && company.longitude ? {
-        geo: { "@type": "GeoCoordinates", latitude: company.latitude, longitude: company.longitude },
-      } : {}),
-      ...(company.google_rating && company.google_review_count ? {
-        aggregateRating: {
-          "@type": "AggregateRating",
-          ratingValue: company.google_rating,
-          reviewCount: company.google_review_count,
-          bestRating: 5,
-          worstRating: 1,
-        },
-      } : {}),
-    },
-  ];
+  const pageUrl = `https://www.jointidywise.com/score/c/${company.slug}`;
+  const fallbackImage = "https://www.jointidywise.com/images/tidywise-og.png";
+
+  const businessSchema: Record<string, unknown> = {
+    "@type": "LocalBusiness",
+    "@id": pageUrl,
+    name: company.name,
+    url: company.website || pageUrl,
+    image: fallbackImage,
+  };
+  if (company.formatted_address || company.city || company.state) {
+    businessSchema.address = {
+      "@type": "PostalAddress",
+      ...(company.formatted_address ? { streetAddress: company.formatted_address } : {}),
+      ...(company.city ? { addressLocality: company.city } : {}),
+      ...(company.state ? { addressRegion: company.state } : {}),
+      ...(company.zip ? { postalCode: company.zip } : {}),
+      addressCountry: "US",
+    };
+  }
+  if (company.phone) businessSchema.telephone = company.phone;
+  if (company.latitude && company.longitude) {
+    businessSchema.geo = {
+      "@type": "GeoCoordinates",
+      latitude: company.latitude,
+      longitude: company.longitude,
+    };
+  }
+  if (company.google_rating && company.google_review_count && company.google_review_count > 0) {
+    businessSchema.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: Number(company.google_rating),
+      reviewCount: company.google_review_count,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
+  const schemaJson: Record<string, unknown>[] = [businessSchema];
 
   return (
     <div className="min-h-screen bg-background">
