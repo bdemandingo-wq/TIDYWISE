@@ -226,9 +226,10 @@ export default function PricingPage() {
   }
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
-    // Persist the choice so that if the user cancels at Stripe or
-    // bounces off /signup, the next /pricing render restores their
-    // selection (interval + scroll-into-view of the same tier).
+    // Persist the choice in BOTH places:
+    //   - sessionStorage for the Stripe cancel_url round-trip
+    //   - URL params so a full refresh during checkout (or a deep
+    //     link share) still restores the same tier highlight.
     try {
       sessionStorage.setItem(
         'tw_pending_plan',
@@ -237,10 +238,16 @@ export default function PricingPage() {
     } catch {
       // sessionStorage unavailable — silent no-op.
     }
+    const next = new URLSearchParams(searchParams);
+    next.set('plan', planId);
+    next.set('interval', interval);
+    setSearchParams(next, { replace: true });
+
     if (!user) {
       navigate(`/signup?plan=${planId}&interval=${interval}`);
       return;
     }
+
     setCheckoutBusy(planId);
     try {
       const { data, error } = await supabase.functions.invoke('create-subscription', {
