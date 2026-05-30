@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
-import { useAuthNoSession } from '@/hooks/useAuthNoSession';
+import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,12 +105,85 @@ export default function LoginPage() {
     }
   };
 
-  // Handle splash screen completion - navigate based on context
-  const handleSplashComplete = () => {
+  // Handle splash screen completion - navigate based on context.
+  //
+  // Resume-after-auth: a visitor who came from /pricing → /signup →
+  // (email confirmation required) lands here with either
+  // ?plan=...&interval=... in the URL, or with a stored tw_pending_plan
+  // in sessionStorage. After successful login we open Stripe Checkout
+  // for the requested plan so the broken-flow loop actually closes.
+  const handleSplashComplete = async () => {
     if (claimSlug) {
       navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
       return;
     }
+
+    // Pull pending-plan intent from either the URL or sessionStorage.
+    let pendingPlan = searchParams.get('plan');
+    let pendingInterval = searchParams.get('interval');
+    if (!pendingPlan) {
+      try {
+        const raw = sessionStorage.getItem('tw_pending_plan');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
+          pendingPlan = parsed?.plan ?? null;
+          pendingInterval = parsed?.interval ?? null;
+        }
+      } catch {
+        // ignore parse / storage errors
+      }
+    }
+    try {
+      sessionStorage.removeItem('tw_pending_plan');
+    } catch {
+      // ignore
+    }
+
+    if (pendingPlan === 'lifetime') {
+      try {
+        const { data, error } = await supabaseNoSession.functions.invoke('buy-lifetime', { body: {} });
+        if (error) throw error;
+        const url = (data as { url?: string })?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        throw new Error('Checkout URL missing');
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? `Couldn't open lifetime checkout: ${err.message}`
+            : "Couldn't open lifetime checkout — try again from /pricing.",
+        );
+        navigate('/dashboard');
+        return;
+      }
+    }
+
+    if (pendingPlan === 'basic' || pendingPlan === 'pro' || pendingPlan === 'custom') {
+      const interval = pendingInterval === 'yearly' ? 'yearly' : 'monthly';
+      try {
+        const { data, error } = await supabaseNoSession.functions.invoke('create-subscription', {
+          body: { plan: pendingPlan, interval },
+        });
+        if (error) throw error;
+        const url = (data as { url?: string })?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        throw new Error('Checkout URL missing');
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? `Couldn't open checkout: ${err.message}`
+            : "Couldn't open checkout — try again from /dashboard/subscription.",
+        );
+        navigate('/dashboard');
+        return;
+      }
+    }
+
     navigate('/dashboard');
   };
 
