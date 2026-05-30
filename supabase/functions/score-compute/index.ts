@@ -209,6 +209,8 @@ const PerReviewSentimentSchema = z.object({
   communication: z.number().min(0).max(100),
   quality: z.number().min(0).max(100),
   value: z.number().min(0).max(100),
+  topDimension: z.enum(["reliability", "communication", "quality", "value"]),
+  topReason: z.string().max(200),
 });
 
 async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
@@ -234,6 +236,10 @@ Rules:
 - A 1-star angry review should score under 30 on mentioned dimensions.
 - Reviewer's star rating (if any): ${review.rating ?? "n/a"}.
 
+Also return:
+- topDimension: the single dimension this review most supports
+- topReason: a one-line (max ~140 chars) justification grounded in the review text
+
 Return only the JSON object.
 
 Review text:
@@ -246,6 +252,7 @@ Review text:
   });
   return object;
 }
+
 
 async function aiAnalyzeInsights(opts: {
   name: string;
