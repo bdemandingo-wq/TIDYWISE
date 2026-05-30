@@ -52,6 +52,7 @@ export default function ScoreCompanyPage() {
             if (!error && data) {
               setCompany(data.company);
               setMetrics(data.metrics);
+              setAiConfidence(data.aiConfidence ?? null);
             }
             setComputing(false);
           }
