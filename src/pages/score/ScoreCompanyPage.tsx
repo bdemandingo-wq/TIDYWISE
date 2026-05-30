@@ -26,6 +26,15 @@ export default function ScoreCompanyPage() {
   const [showMethodology, setShowMethodology] = useState(false);
   const [expandedDim, setExpandedDim] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
