@@ -26,28 +26,34 @@ serve(async (req) => {
     if (!authHeader) throw new Error("Missing authorization header");
     const token = authHeader.replace("Bearer ", "");
 
+    // User-scoped client: attach the Bearer token globally so RPC calls
+    // see auth.uid() and is_platform_admin() can evaluate correctly.
+    // The service-role admin client below has auth.uid() = NULL, so
+    // calling is_platform_admin() through it always returns false.
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
     );
     const { data: udata } = await userClient.auth.getUser(token);
     const user = udata.user;
     if (!user) throw new Error("Not authenticated");
 
+    const { data: isAdmin, error: adminErr } = await userClient.rpc(
+      "is_platform_admin",
+    );
+    if (adminErr || !isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: platform admin only" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service-role client for the DB writes the gate just authorized.
     const admin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } },
     );
-
-    const { data: isAdmin } = await admin.rpc("is_platform_admin");
-    // Fallback: try the user-scoped client (since is_platform_admin uses auth.uid())
-    const { data: isAdminUser } = await userClient.rpc("is_platform_admin");
-    if (!isAdmin && !isAdminUser) {
-      return new Response(JSON.stringify({ error: "Forbidden: platform admin only" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { dispute_id, submit = true } = await req.json();
     if (!dispute_id) throw new Error("dispute_id required");
