@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,8 @@ const loginSchema = z.object({
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const claimSlug = searchParams.get('claim');
   const isNative = Capacitor.isNativePlatform();
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
 
@@ -103,8 +105,12 @@ export default function LoginPage() {
     }
   };
 
-  // Handle splash screen completion - navigate to dashboard
+  // Handle splash screen completion - navigate based on context
   const handleSplashComplete = () => {
+    if (claimSlug) {
+      navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
+      return;
+    }
     navigate('/dashboard');
   };
 
@@ -267,7 +273,7 @@ export default function LoginPage() {
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
                 <Link
-                  to="/signup"
+                  to={claimSlug ? `/signup?claim=${encodeURIComponent(claimSlug)}` : '/signup'}
                   className="text-primary hover:underline font-medium"
                 >
                   Create account

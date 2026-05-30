@@ -106,7 +106,12 @@ export default function SignupPage() {
       
       if (error) {
         if (error.message.includes('already registered')) {
-          toast.error('An account with this email already exists. Please log in instead.');
+          if (claimSlug) {
+            toast.error('You already have an account — log in to claim this profile.');
+            navigate(`/login?claim=${encodeURIComponent(claimSlug)}`);
+          } else {
+            toast.error('An account with this email already exists. Please log in instead.');
+          }
         } else {
           toast.error(error.message);
         }
@@ -419,7 +424,7 @@ export default function SignupPage() {
             <div className="mt-6 text-center text-sm">
               <span className="text-muted-foreground">Already have an account? </span>
               <Link
-                to="/login"
+                to={claimSlug ? `/login?claim=${encodeURIComponent(claimSlug)}` : '/login'}
                 className="text-primary hover:underline font-medium"
               >
                 Sign in
