@@ -273,7 +273,7 @@ export default function LoginPage() {
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
                 <Link
-                  to="/signup"
+                  to={claimSlug ? `/signup?claim=${encodeURIComponent(claimSlug)}` : '/signup'}
                   className="text-primary hover:underline font-medium"
                 >
                   Create account
