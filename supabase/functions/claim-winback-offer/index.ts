@@ -39,8 +39,29 @@ async function getOfferConfig(supabase: any): Promise<WinbackConfig> {
   };
 }
 
+// Build a coupon ID that includes a hash of the offer config so editing
+// platform_settings.winback_offer mints a new coupon. Without this,
+// the first time a config change tries to mint `winback_${type}` the
+// retrieve succeeds (old coupon), we never create a fresh one, and the
+// old percent_off/duration is applied forever — config edits in the
+// admin UI silently take no effect.
+function couponIdFor(cfg: WinbackConfig): string {
+  const parts = [
+    cfg.offer_type,
+    `pct${cfg.percent_off}`,
+    cfg.duration,
+    cfg.duration === "repeating" && cfg.duration_in_months
+      ? `m${cfg.duration_in_months}`
+      : null,
+  ].filter(Boolean);
+  // Stripe coupon IDs allow [A-Za-z0-9_-], capped reasonably long. The
+  // suffix is deterministic so the same config always resolves to the
+  // same coupon (idempotent across cron / repeated claims).
+  return `winback_${parts.join("_")}`.slice(0, 80);
+}
+
 async function ensureCoupon(stripe: Stripe, cfg: WinbackConfig): Promise<string> {
-  const id = `winback_${cfg.offer_type}`;
+  const id = couponIdFor(cfg);
   try {
     const existing = await stripe.coupons.retrieve(id);
     if (existing && !(existing as any).deleted) return existing.id;
