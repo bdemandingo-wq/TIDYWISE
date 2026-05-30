@@ -142,6 +142,8 @@ export default function SignupPage() {
             user_id: data.user.id,
             email: formData.email,
             ip_address: ipData?.ip || null,
+            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+            accepted: true,
             tos_version: '2025-02-01',
           });
         } catch (tosErr) {

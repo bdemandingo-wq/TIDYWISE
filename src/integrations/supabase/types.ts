@@ -5505,6 +5505,75 @@ export type Database = {
           },
         ]
       }
+      payment_evidence: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          device_fingerprint: string | null
+          email: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string | null
+          signup_date: string | null
+          stripe_customer_id: string | null
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          three_d_secure_status: string | null
+          tos_accepted: boolean | null
+          tos_accepted_at: string | null
+          tos_version: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          device_fingerprint?: string | null
+          email: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          signup_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          three_d_secure_status?: string | null
+          tos_accepted?: boolean | null
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          device_fingerprint?: string | null
+          email?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          signup_date?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          three_d_secure_status?: string | null
+          tos_accepted?: boolean | null
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       payroll_audit_log: {
         Row: {
           action: string
@@ -8032,27 +8101,33 @@ export type Database = {
       }
       tos_acceptances: {
         Row: {
+          accepted: boolean
           accepted_at: string
           email: string
           id: string
           ip_address: string | null
           tos_version: string
+          user_agent: string | null
           user_id: string
         }
         Insert: {
+          accepted?: boolean
           accepted_at?: string
           email: string
           id?: string
           ip_address?: string | null
           tos_version?: string
+          user_agent?: string | null
           user_id: string
         }
         Update: {
+          accepted?: boolean
           accepted_at?: string
           email?: string
           id?: string
           ip_address?: string | null
           tos_version?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
