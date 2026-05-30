@@ -181,6 +181,8 @@ export default function ScoreCompanyPage() {
             value={metrics ? Math.round(((metrics.sentiment_reliability ?? 0) + (metrics.sentiment_communication ?? 0) + (metrics.sentiment_quality ?? 0) + (metrics.sentiment_value ?? 0)) / 4) : null}
             sub="Reliability, communication, quality, value"
             icon={<Sparkles className="h-4 w-4" />}
+            lowConfidence={aiConfidence === "low"}
+            lowConfidenceCaption="Based on under 5 reviews with text"
           />
           <SignalCard
             title="Website Quality"
