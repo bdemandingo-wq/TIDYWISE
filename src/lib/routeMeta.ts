@@ -346,3 +346,74 @@ export function locationRouteMeta(
 export function homepageMeta(): RouteMeta {
   return STATIC_ROUTE_META["/"];
 }
+
+/**
+ * Per-route metadata for a /score/c/:slug company page. Includes
+ * LocalBusiness + AggregateRating JSON-LD so the rating can show in SERPs.
+ */
+export type ScoreCompanyForMeta = {
+  slug: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  formatted_address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  website?: string | null;
+  phone?: string | null;
+  score?: number | null;
+  google_rating?: number | null;
+  google_review_count?: number | null;
+};
+
+export function scoreCompanyRouteMeta(c: ScoreCompanyForMeta): RouteMeta {
+  const location = [c.city, c.state].filter(Boolean).join(", ");
+  const title = `${c.name} — Reputation Score & Review Analysis | ${BRAND}`;
+  const reviewCount = c.google_review_count ?? 0;
+  const description =
+    c.score != null
+      ? `See ${c.name}'s reputation score (${c.score}/100)${location ? ` in ${location}` : ""} — analyzed from ${reviewCount} Google reviews across reliability, communication, quality, and value.`
+      : `See ${c.name}'s reputation analysis${location ? ` in ${location}` : ""} — TidyWise scores reliability, communication, quality, and value from Google reviews.`;
+  const h1 = `${c.name} — Reputation Score${location ? ` · ${location}` : ""}`;
+
+  const business: Record<string, unknown> = {
+    "@type": "LocalBusiness",
+    name: c.name,
+  };
+  if (c.formatted_address || c.city || c.state) {
+    business.address = {
+      "@type": "PostalAddress",
+      ...(c.formatted_address ? { streetAddress: c.formatted_address } : {}),
+      ...(c.city ? { addressLocality: c.city } : {}),
+      ...(c.state ? { addressRegion: c.state } : {}),
+      ...(c.zip ? { postalCode: c.zip } : {}),
+      addressCountry: "US",
+    };
+  }
+  if (c.website) business.url = c.website;
+  if (c.phone) business.telephone = c.phone;
+  if (c.latitude && c.longitude) {
+    business.geo = {
+      "@type": "GeoCoordinates",
+      latitude: c.latitude,
+      longitude: c.longitude,
+    };
+  }
+  if (c.google_rating && c.google_review_count) {
+    business.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: c.google_rating,
+      reviewCount: c.google_review_count,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
+
+  return {
+    title: title.length > 60 ? title.slice(0, 57) + "..." : title,
+    description: description.length > 160 ? description.slice(0, 157) + "..." : description,
+    h1,
+    jsonLd: [business],
+  };
+}
