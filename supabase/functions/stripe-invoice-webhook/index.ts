@@ -574,7 +574,10 @@ const handler = async (req: Request): Promise<Response> => {
 
           console.log("[stripe-invoice-webhook] Payment evidence captured for", inv.id);
 
-          // Branded receipt email
+          // Branded receipt email. Yearly subscribers in particular need
+          // a clear "next billing date" so they know when the renewal
+          // hits — pass plan + interval through so the receipt can
+          // render the right copy.
           if (customerEmail) {
             await supabase.functions.invoke("send-subscription-receipt", {
               body: {
@@ -584,9 +587,12 @@ const handler = async (req: Request): Promise<Response> => {
                 invoice_id: inv.id,
                 hosted_invoice_url: inv.hosted_invoice_url,
                 period_end: inv.period_end,
+                plan: combined.tidywise_plan || null,
+                interval: combined.tidywise_interval || null,
               },
             }).catch((e) => console.error("[stripe-invoice-webhook] receipt invoke failed", e));
           }
+
         } catch (e) {
           console.error("[stripe-invoice-webhook] evidence capture error (non-fatal):", e);
         }
