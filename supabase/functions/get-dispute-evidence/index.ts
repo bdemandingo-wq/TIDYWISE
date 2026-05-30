@@ -30,20 +30,38 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
-
+    // User-scoped client: Bearer header attached so the is_platform_admin
+    // RPC can read auth.uid() and evaluate the platform admin allow-list.
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
     );
     const { data: udata } = await userClient.auth.getUser(
       authHeader.replace("Bearer ", ""),
     );
     if (!udata.user) throw new Error("Not authenticated");
+
+    // This endpoint returns PII (email, IP, UA, signup date, ToS row,
+    // last 25 transactions) for any payment intent the caller names.
+    // Without the admin gate, any authenticated tenant could brute force
+    // a stripe_payment_intent_id and pull another tenant's dispute pack.
+    const { data: isAdmin, error: adminErr } = await userClient.rpc(
+      "is_platform_admin",
+    );
+    if (adminErr || !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: platform admin only" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Service-role client for the cross-tenant reads the gate just authorized.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
 
     const { stripe_payment_intent_id } = await req.json();
     if (!stripe_payment_intent_id) throw new Error("stripe_payment_intent_id required");
