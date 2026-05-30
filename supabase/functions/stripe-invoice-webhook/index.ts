@@ -397,6 +397,81 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ── FRAUD-DEFENSE EVIDENCE CAPTURE (Visa CE 3.0 / reason 10.4) ──────────
+    // For successful subscription charges, persist auth evidence and send a
+    // branded receipt so the charge is recognizable.
+    if (event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") {
+      const inv = event.data.object as Stripe.Invoice;
+      const meta = (inv.metadata || {}) as Record<string, string>;
+      const subMeta = ((inv.subscription_details?.metadata as any) || {}) as Record<string, string>;
+      const combined = { ...subMeta, ...meta };
+
+      if (combined.purpose === "tidywise_saas_subscription" || inv.subscription) {
+        try {
+          const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
+          const pi = inv.payment_intent ? await stripe.paymentIntents.retrieve(inv.payment_intent as string) : null;
+          const charge = pi?.latest_charge ? await stripe.charges.retrieve(pi.latest_charge as string) : null;
+          const threeDS = (charge?.payment_method_details as any)?.card?.three_d_secure?.result || null;
+
+          // Look up Supabase user by account_id metadata or customer email
+          const customerEmail = inv.customer_email || (combined.email as string) || null;
+          let userId: string | null = (combined.account_id as string) || null;
+          let signupDate: string | null = (combined.signup_date as string) || null;
+          let tosRow: any = null;
+          if (userId) {
+            const { data: tos } = await supabase
+              .from("tos_acceptances")
+              .select("accepted, tos_version, accepted_at")
+              .eq("user_id", userId)
+              .order("accepted_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            tosRow = tos;
+          }
+
+          await supabase.from("payment_evidence").upsert({
+            user_id: userId,
+            email: customerEmail || "",
+            stripe_customer_id: inv.customer as string,
+            stripe_payment_intent_id: (inv.payment_intent as string) || null,
+            stripe_invoice_id: inv.id,
+            stripe_subscription_id: (inv.subscription as string) || null,
+            amount_cents: inv.amount_paid,
+            currency: inv.currency,
+            ip_address: combined.ip || null,
+            user_agent: combined.device || null,
+            device_fingerprint: combined.device_fingerprint || null,
+            signup_date: signupDate,
+            tos_accepted: tosRow?.accepted ?? null,
+            tos_version: tosRow?.tos_version ?? null,
+            tos_accepted_at: tosRow?.accepted_at ?? null,
+            three_d_secure_status: threeDS,
+            metadata: combined,
+          }, { onConflict: "stripe_payment_intent_id" });
+
+          console.log("[stripe-invoice-webhook] Payment evidence captured for", inv.id);
+
+          // Branded receipt email
+          if (customerEmail) {
+            await supabase.functions.invoke("send-subscription-receipt", {
+              body: {
+                email: customerEmail,
+                amount_cents: inv.amount_paid,
+                currency: inv.currency,
+                invoice_id: inv.id,
+                hosted_invoice_url: inv.hosted_invoice_url,
+                period_end: inv.period_end,
+              },
+            }).catch((e) => console.error("[stripe-invoice-webhook] receipt invoke failed", e));
+          }
+        } catch (e) {
+          console.error("[stripe-invoice-webhook] evidence capture error (non-fatal):", e);
+        }
+      }
+    }
+
+
+
     // Log organization context if available
     if (organizationId) {
       console.log("[stripe-invoice-webhook] Event processed for organization:", organizationId);
