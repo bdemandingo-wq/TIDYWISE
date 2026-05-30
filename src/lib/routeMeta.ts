@@ -30,6 +30,12 @@ export type RouteMeta = {
    * Keep escaped/trusted only — value is inlined verbatim.
    */
   noscriptBody?: string;
+  /**
+   * Optional JSON-LD structured data injected into <head> as
+   * <script type="application/ld+json">. Pass a single schema object or an
+   * array (will be wrapped in @graph). Useful for LocalBusiness, Article, etc.
+   */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 };
 
 const BRAND = "TidyWise";
