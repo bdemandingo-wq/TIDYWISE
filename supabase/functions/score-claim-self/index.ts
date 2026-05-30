@@ -53,57 +53,74 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Look up the company by slug.
-    const { data: company, error: cErr } = await admin
-      .from("score_companies")
-      .select("id, slug, claimed, claimed_user_id, claimed_organization_id")
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (cErr || !company) {
-      return new Response(JSON.stringify({ error: "company_not_found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // First-claim-wins: if already claimed by someone else, reject.
-    if (company.claimed && company.claimed_user_id && company.claimed_user_id !== user.id) {
-      return new Response(JSON.stringify({ error: "already_claimed" }), {
-        status: 409,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Mark claimed (idempotent if same user re-claims).
-    const { error: uErr } = await admin
+    // Atomic first-claim-wins: a single conditional UPDATE ... WHERE claimed_user_id IS NULL.
+    // If a row comes back, this caller won the race. If not, either it's already claimed
+    // (possibly by this same user — idempotent) or the slug doesn't exist.
+    const nowIso = new Date().toISOString();
+    const { data: claimedRows, error: uErr } = await admin
       .from("score_companies")
       .update({
         claimed: true,
         claimed_user_id: user.id,
-        claimed_at: company.claimed_at ?? new Date().toISOString(),
+        claimed_at: nowIso,
       } as any)
-      .eq("id", company.id);
+      .eq("slug", slug)
+      .is("claimed_user_id", null)
+      .select("id, slug");
     if (uErr) throw uErr;
 
-    // Audit log (best effort).
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-      req.headers.get("cf-connecting-ip") ||
-      null;
-    const ua = req.headers.get("user-agent") || null;
-    await admin
-      .from("score_claim_audit")
-      .insert({
-        company_id: company.id,
-        company_slug: company.slug,
-        user_id: user.id,
-        email: user.email ?? null,
-        ip_address: ip,
-        user_agent: ua,
-        source: "self_serve_signup",
-      })
-      .then((r) => r.error && console.warn("audit insert failed", r.error));
+    let company: { id: string; slug: string };
+    let wonRace = false;
+
+    if (claimedRows && claimedRows.length > 0) {
+      company = claimedRows[0] as { id: string; slug: string };
+      wonRace = true;
+    } else {
+      // Conditional update matched nothing. Disambiguate not_found vs already_claimed.
+      const { data: existing } = await admin
+        .from("score_companies")
+        .select("id, slug, claimed_user_id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!existing) {
+        return new Response(JSON.stringify({ error: "company_not_found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (existing.claimed_user_id !== user.id) {
+        // Lost the race / claimed by someone else. Do NOT write an audit row for the loser.
+        return new Response(JSON.stringify({ error: "already_claimed" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Same user re-claiming — idempotent success, no new audit row.
+      company = { id: existing.id, slug: existing.slug };
+    }
+
+
+    // Audit log only when this caller actually won the race (no rows for re-claims).
+    if (wonRace) {
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+        req.headers.get("cf-connecting-ip") ||
+        null;
+      const ua = req.headers.get("user-agent") || null;
+      await admin
+        .from("score_claim_audit")
+        .insert({
+          company_id: company.id,
+          company_slug: company.slug,
+          user_id: user.id,
+          email: user.email ?? null,
+          ip_address: ip,
+          user_agent: ua,
+          source: "self_serve_signup",
+        })
+        .then((r) => r.error && console.warn("audit insert failed", r.error));
+    }
 
     // If sentiment evidence missing, kick a recompute (best effort, fire-and-forget).
     try {
