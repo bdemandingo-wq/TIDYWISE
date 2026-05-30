@@ -22,6 +22,7 @@ export default function ScoreCompanyPage() {
   const [showClaim, setShowClaim] = useState(false);
   const [claim, setClaim] = useState({ name: "", email: "", phone: "", message: "" });
   const [claiming, setClaiming] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<"low" | "high" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +52,7 @@ export default function ScoreCompanyPage() {
             if (!error && data) {
               setCompany(data.company);
               setMetrics(data.metrics);
+              setAiConfidence(data.aiConfidence ?? null);
             }
             setComputing(false);
           }
@@ -70,6 +72,7 @@ export default function ScoreCompanyPage() {
     if (!error && data) {
       setCompany(data.company);
       setMetrics(data.metrics);
+      setAiConfidence(data.aiConfidence ?? null);
       toast({ title: "Score refreshed" });
     } else {
       toast({ title: "Couldn't refresh score", variant: "destructive" });
@@ -178,6 +181,8 @@ export default function ScoreCompanyPage() {
             value={metrics ? Math.round(((metrics.sentiment_reliability ?? 0) + (metrics.sentiment_communication ?? 0) + (metrics.sentiment_quality ?? 0) + (metrics.sentiment_value ?? 0)) / 4) : null}
             sub="Reliability, communication, quality, value"
             icon={<Sparkles className="h-4 w-4" />}
+            lowConfidence={aiConfidence === "low"}
+            lowConfidenceCaption="Based on under 5 reviews with text"
           />
           <SignalCard
             title="Website Quality"
@@ -189,8 +194,13 @@ export default function ScoreCompanyPage() {
 
         {metrics && (
           <Card variant="elevated" className="p-6 mb-10">
-            <h2 className="font-serif text-2xl text-foreground mb-4">Sentiment breakdown</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-serif text-2xl text-foreground">Sentiment breakdown</h2>
+              {aiConfidence === "low" && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground">Low confidence</span>
+              )}
+            </div>
+            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${aiConfidence === "low" ? "opacity-50" : ""}`}>
               {[
                 ["Reliability", metrics.sentiment_reliability],
                 ["Communication", metrics.sentiment_communication],
@@ -306,14 +316,24 @@ export default function ScoreCompanyPage() {
   );
 }
 
-function SignalCard({ title, value, sub, icon }: { title: string; value: number | null | undefined; sub: string; icon: React.ReactNode }) {
+function SignalCard({ title, value, sub, icon, lowConfidence, lowConfidenceCaption }: { title: string; value: number | null | undefined; sub: string; icon: React.ReactNode; lowConfidence?: boolean; lowConfidenceCaption?: string }) {
   return (
     <Card variant="elevated" className="p-5">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground mb-3">
         {icon} {title}
       </div>
-      <div className="font-serif text-3xl text-foreground tabular-nums">{value ?? "—"}</div>
-      <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+      {lowConfidence ? (
+        <>
+          <div className="font-serif text-3xl text-muted-foreground tabular-nums">Low confidence</div>
+          {lowConfidenceCaption && <p className="text-[11px] text-muted-foreground mt-1 truncate">{lowConfidenceCaption}</p>}
+          <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+        </>
+      ) : (
+        <>
+          <div className="font-serif text-3xl text-foreground tabular-nums">{value ?? "—"}</div>
+          <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>
+        </>
+      )}
     </Card>
   );
 }
