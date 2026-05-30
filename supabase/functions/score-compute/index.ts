@@ -386,6 +386,7 @@ Deno.serve(async (req) => {
         resolvedWebsite = fresh.resolvedWebsite;
         resolvedPhone = fresh.resolvedPhone;
         reviews = fresh.reviews;
+        richReviews = fresh.richReviews;
         mostRecentDays = fresh.mostRecentDays;
       }
     }
