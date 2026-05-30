@@ -18,7 +18,7 @@
  * session.
  */
 
-import { test, expect } from "../playwright-fixture";
+import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
