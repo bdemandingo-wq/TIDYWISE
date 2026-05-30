@@ -32,6 +32,8 @@ import { SEOHead } from '@/components/SEOHead';
 import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
 import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
+import ChurnRetentionTab from '@/components/admin/ChurnRetentionTab';
+import { TrendingDown } from 'lucide-react';
 
 interface Subscriber {
   id: string;
@@ -371,7 +373,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-4">
+          <TabsList className="grid w-full grid-cols-8 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -386,6 +388,10 @@ export default function PlatformAnalyticsPage() {
               <Building2 className="w-4 h-4" />
               <span className="hidden sm:inline">Orgs ({analytics?.organizations.total || 0})</span>
               <span className="sm:hidden">{analytics?.organizations.total || 0}</span>
+            </TabsTrigger>
+            <TabsTrigger value="churn" className="flex items-center gap-2">
+              <TrendingDown className="w-4 h-4" />
+              <span className="hidden sm:inline">Churn</span>
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="w-4 h-4" />
@@ -404,6 +410,10 @@ export default function PlatformAnalyticsPage() {
               <span className="hidden sm:inline">Feed</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="churn">
+            <ChurnRetentionTab />
+          </TabsContent>
 
           {/* TidyWise Subscribers Tab - Only shows users with subscriptions */}
           <TabsContent value="subscribers">
