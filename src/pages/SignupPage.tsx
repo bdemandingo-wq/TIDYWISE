@@ -260,13 +260,28 @@ export default function SignupPage() {
       return;
     }
 
+    // Helper: navigate to Stripe Checkout. Use top window so we break
+    // out of the Lovable preview iframe (Stripe Checkout sends
+    // X-Frame-Options: DENY, which would otherwise blank the iframe).
+    const goToCheckout = (url: string) => {
+      try {
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = url;
+          return;
+        }
+      } catch {
+        // Cross-origin top access blocked — fall through to _top open.
+      }
+      window.open(url, '_top');
+    };
+
     if (selectedPlan === 'lifetime') {
       try {
         const { data, error } = await supabaseNoSession.functions.invoke('buy-lifetime', { body: {} });
         if (error) throw error;
         const url = (data as { url?: string })?.url;
         if (url) {
-          window.location.href = url;
+          goToCheckout(url);
           return;
         }
         throw new Error('Checkout URL missing');
@@ -289,7 +304,7 @@ export default function SignupPage() {
         if (error) throw error;
         const url = (data as { url?: string })?.url;
         if (url) {
-          window.location.href = url;
+          goToCheckout(url);
           return;
         }
         throw new Error('Checkout URL missing');
@@ -303,6 +318,7 @@ export default function SignupPage() {
         return;
       }
     }
+
 
     navigate('/dashboard');
   };
