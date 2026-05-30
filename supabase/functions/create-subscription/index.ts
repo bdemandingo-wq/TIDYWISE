@@ -34,14 +34,18 @@ const PRICE_IDS: Record<string, Record<string, string | undefined>> = {
 };
 
 function resolvePriceId(plan: string | undefined, interval: string | undefined): string {
-  if (!plan) return LEGACY_PRICE_ID;
+  if (!plan) {
+    console.log(`[CREATE-SUBSCRIPTION] No plan supplied, using LEGACY_PRICE_ID=${LEGACY_PRICE_ID}`);
+    return LEGACY_PRICE_ID;
+  }
   const resolved = PRICE_IDS[plan]?.[interval ?? "monthly"];
   if (!resolved) {
     console.warn(
-      `[CREATE-SUBSCRIPTION] No price ID configured for ${plan}/${interval}, falling back to LEGACY_PRICE_ID`,
+      `[CREATE-SUBSCRIPTION] No price ID configured for ${plan}/${interval}, falling back to LEGACY_PRICE_ID=${LEGACY_PRICE_ID}`,
     );
     return LEGACY_PRICE_ID;
   }
+  console.log(`[CREATE-SUBSCRIPTION] Resolved price ID for ${plan}/${interval}: ${resolved}`);
   return resolved;
 }
 
