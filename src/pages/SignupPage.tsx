@@ -11,11 +11,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, User, Phone, Crown, Sparkles, Zap, Settings as SettingsIcon } from 'lucide-react';
 import { z } from 'zod';
+
+// Plan metadata for the "you're signing up to start X" banner. Kept
+// inline so the signup page doesn't have to import the full features.ts
+// machinery — labels and prices only.
+const PLAN_META: Record<string, { label: string; price: string; Icon: React.ComponentType<{ className?: string }>; ctaLabel: string }> = {
+  basic: { label: 'Basic', price: '$49/mo', Icon: Sparkles, ctaLabel: 'Sign up & continue to checkout' },
+  pro: { label: 'Pro', price: '$97/mo', Icon: Zap, ctaLabel: 'Sign up & continue to checkout' },
+  custom: { label: 'Custom', price: '$197/mo', Icon: SettingsIcon, ctaLabel: 'Sign up & continue to checkout' },
+  lifetime: { label: 'Lifetime', price: '$300 one-time', Icon: Crown, ctaLabel: 'Sign up & claim my lifetime spot' },
+};
 
 // Validation schema
 const signupSchema = z.object({
@@ -37,12 +48,26 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const claimSlug = searchParams.get('claim');
-  const { 
-    user, 
-    loading: authLoading, 
-    initialCleanupDone, 
-    signUp, 
-    signOut 
+  // Plan-pre-selection: when the visitor came from /pricing they have
+  // ?plan=basic|pro|custom|lifetime and (for subscriptions)
+  // ?interval=monthly|yearly. The form shows context up top so they
+  // know what they're signing up for, and post-signup we route them
+  // straight into Stripe Checkout for that plan instead of dropping
+  // them on the dashboard.
+  const rawPlan = searchParams.get('plan');
+  const selectedPlan: keyof typeof PLAN_META | null =
+    rawPlan && rawPlan in PLAN_META ? (rawPlan as keyof typeof PLAN_META) : null;
+  const rawInterval = searchParams.get('interval');
+  const selectedInterval: 'monthly' | 'yearly' =
+    rawInterval === 'yearly' ? 'yearly' : 'monthly';
+  const planMeta = selectedPlan ? PLAN_META[selectedPlan] : null;
+
+  const {
+    user,
+    loading: authLoading,
+    initialCleanupDone,
+    signUp,
+    signOut
   } = useAuthNoSession();
 
   const [loading, setLoading] = useState(false);
@@ -193,12 +218,61 @@ export default function SignupPage() {
   };
 
   // Handle splash screen completion - navigate based on context
-  const handleSplashComplete = () => {
+  const handleSplashComplete = async () => {
     if (claimSlug) {
       // Send back to score page with ?claim=1 — page will auto-claim using fresh session.
       navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
       return;
     }
+
+    // Plan-pre-selection flow: the visitor came from /pricing wanting
+    // to subscribe. Now that signup is done and the session is live,
+    // hand them off directly to Stripe Checkout for the requested plan.
+    // Errors fall through to the dashboard so they're never stuck.
+    if (selectedPlan === 'lifetime') {
+      try {
+        const { data, error } = await supabaseNoSession.functions.invoke('buy-lifetime', { body: {} });
+        if (error) throw error;
+        const url = (data as { url?: string })?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        throw new Error('Checkout URL missing');
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? `Couldn't open lifetime checkout: ${err.message}`
+            : "Couldn't open lifetime checkout — you can try again from the pricing page.",
+        );
+        navigate('/dashboard');
+        return;
+      }
+    }
+
+    if (selectedPlan && (selectedPlan === 'basic' || selectedPlan === 'pro' || selectedPlan === 'custom')) {
+      try {
+        const { data, error } = await supabaseNoSession.functions.invoke('create-subscription', {
+          body: { plan: selectedPlan, interval: selectedInterval },
+        });
+        if (error) throw error;
+        const url = (data as { url?: string })?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        throw new Error('Checkout URL missing');
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? `Couldn't open checkout: ${err.message}`
+            : "Couldn't open checkout — you can try again from your subscription page.",
+        );
+        navigate('/dashboard');
+        return;
+      }
+    }
+
     navigate('/dashboard');
   };
 
@@ -235,11 +309,40 @@ export default function SignupPage() {
           Back to home
         </Link>
         
+        {/* Plan-pre-selection banner. Visible only when the visitor
+            came from /pricing with a chosen plan — confirms what they're
+            buying so they don't lose context inside the signup form. */}
+        {planMeta && (
+          <div className="mb-4 rounded-lg border-2 border-primary/40 bg-primary/5 p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <planMeta.Icon className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <Badge variant="secondary" className="mb-1 text-[10px] uppercase tracking-wider">
+                Next: payment
+              </Badge>
+              <p className="text-sm">
+                Signing up to start{' '}
+                <span className="font-semibold">{planMeta.label}</span>{' '}
+                <span className="text-muted-foreground">
+                  ({selectedPlan !== 'lifetime' && selectedInterval === 'yearly'
+                    ? planMeta.price.replace('/mo', '/mo billed yearly · 2 months free')
+                    : planMeta.price})
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">Create your TidyWise account</h1>
+            <h1 className="text-2xl font-bold leading-none tracking-tight">
+              {planMeta ? 'Almost there — create your account' : 'Create your TidyWise account'}
+            </h1>
             <CardDescription>
-              Start your free trial today
+              {planMeta
+                ? `One quick step before checkout for ${planMeta.label}.`
+                : 'Pick a plan after signup, or start with our Basic plan.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -414,10 +517,12 @@ export default function SignupPage() {
                 </label>
               </div>
 
-              {/* Submit button */}
+              {/* Submit button. CTA copy reflects post-signup intent
+                  when a plan is pre-selected so the user knows checkout
+                  is next, not a generic landing on the dashboard. */}
               <Button type="submit" className="w-full" disabled={loading || !tosAccepted}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
+                {planMeta ? planMeta.ctaLabel : 'Create Account'}
               </Button>
             </form>
 
