@@ -25,6 +25,16 @@ export default function ScoreCompanyPage() {
   const [aiConfidence, setAiConfidence] = useState<"low" | "high" | null>(null);
   const [showMethodology, setShowMethodology] = useState(false);
   const [expandedDim, setExpandedDim] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -342,9 +352,19 @@ export default function ScoreCompanyPage() {
                   <p className="text-sm text-foreground">
                     Claim this profile to see which reviews drove each score — free.
                   </p>
-                  <Button size="sm" variant="premium" onClick={startClaim}>
-                    Claim & unlock
-                  </Button>
+                  <div className="flex flex-col items-start sm:items-end gap-2">
+                    <Button size="sm" variant="premium" onClick={startClaim}>
+                      Claim & unlock
+                    </Button>
+                    {!user && (
+                      <Link
+                        to={`/login?claim=${encodeURIComponent(slug!)}`}
+                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                      >
+                        Already have an account? Log in to claim
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
