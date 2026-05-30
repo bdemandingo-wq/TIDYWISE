@@ -357,14 +357,6 @@ export default function SignupPage() {
       <SEOHead title="Sign Up | TidyWise – Cleaning Business Software" description="Create your TidyWise account. Pick a plan from $49/mo (Basic), $97/mo (Pro), $197/mo (Custom), or grab one of 50 lifetime spots at $300." canonical="/signup" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
         
         {/* Back link — when a plan is pre-selected, point back to /pricing
             so users can swap plans without losing context. Otherwise back
