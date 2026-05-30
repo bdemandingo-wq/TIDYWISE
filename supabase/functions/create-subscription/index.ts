@@ -75,6 +75,33 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Refuse if the caller already has lifetime access (paid OR
+    // grandfathered). Without this guard, an existing-customer mis-click
+    // on /pricing would charge them on top of their free forever access.
+    // We resolve their org via service-role since the user-scoped client
+    // here is the legacy single-tier client (anon key only).
+    const accessAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+    const { data: existingOrg } = await accessAdmin
+      .from("org_memberships")
+      .select("organizations(plan_type, grandfathered_lifetime)")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    const org = (existingOrg as any)?.organizations;
+    if (org?.grandfathered_lifetime || org?.plan_type === "lifetime") {
+      return new Response(
+        JSON.stringify({
+          error: "You already have lifetime access — no need to subscribe.",
+          alreadyLifetime: true,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Optional client-supplied fraud-evidence fields. NOTE: ip and userAgent
     // MUST come from request headers, not from the body — anything the
     // client controls can be spoofed, and the dispute path at
