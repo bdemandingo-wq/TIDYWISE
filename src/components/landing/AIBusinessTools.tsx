@@ -198,7 +198,7 @@ export function AIBusinessTools() {
                   
                   <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
                     <Button size="lg" className="gap-2">
-                      Start Free Trial <ArrowRight className="h-4 w-4" />
+                      See Plans <ArrowRight className="h-4 w-4" />
                     </Button>
                     <Button size="lg" variant="outline" onClick={() => setShowResults(false)}>
                       Recalculate
@@ -311,7 +311,7 @@ export function AIBusinessTools() {
                   
                   <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
                     <Button size="lg" className="gap-2">
-                      Start Free Trial <ArrowRight className="h-4 w-4" />
+                      See Plans <ArrowRight className="h-4 w-4" />
                     </Button>
                     <Button size="lg" variant="outline" onClick={() => setShowScore(false)}>
                       Retake Assessment

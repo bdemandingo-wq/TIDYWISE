@@ -42,7 +42,7 @@ export function InteractiveDemo() {
         {/* CTA */}
         <div className="text-center mt-8">
           <Button size="lg" onClick={handleStartFree}>
-            Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
+            See Plans <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <p className="text-sm text-muted-foreground mt-2">
             No credit card required. Free forever.

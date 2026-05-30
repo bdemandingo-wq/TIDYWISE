@@ -145,7 +145,7 @@ export function CompetitorComparison() {
                   className="w-full mt-6"
                   onClick={() => navigate("/signup")}
                 >
-                  Get Started Free
+                  See Plans
                 </Button>
               )}
             </div>

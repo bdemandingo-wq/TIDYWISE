@@ -241,10 +241,10 @@ export default function LandingPage() {
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "Is TidyWise free?",
+                "name": "How much does TidyWise cost?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. TidyWise is free forever — no credit card required, no hidden fees, no per-user charges. Every feature including scheduling, CRM, invoicing, payroll, GPS tracking, and the mobile app is included at no cost."
+                  "text": "TidyWise has four plans: Basic at $49/month for solo operators, Pro at $97/month for growing teams (adds automations, AI, payroll, reports, and more), Custom at $197/month (everything plus 1 done-for-you request a month), and a one-time Lifetime founding offer at $300 for the first 50 customers. Annual billing is two months free at every tier."
                 }
               },
               {
@@ -260,7 +260,7 @@ export default function LandingPage() {
                 "name": "How does TidyWise compare to Jobber?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is free forever, while Jobber starts at $69/month. Both offer scheduling, invoicing, and client management. TidyWise also includes built-in payroll, GPS tracking, a loyalty program, AI business intelligence, and a client self-service portal — features that require paid add-ons or higher tiers on Jobber."
+                  "text": "TidyWise Basic starts at $49/month and Pro at $97/month, vs Jobber's $69/month entry. Both offer scheduling, invoicing, and client management. TidyWise Pro also includes built-in payroll, GPS tracking, AI business intelligence, automations, and a client self-service portal — features that require paid add-ons or higher tiers on Jobber, and at a lower monthly price."
                 }
               },
               {
@@ -276,7 +276,7 @@ export default function LandingPage() {
                 "name": "Does TidyWise have GPS tracking for cleaners?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. TidyWise includes real-time GPS tracking for cleaning teams. You can see where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports for reimbursements — all included in the free plan."
+                  "text": "Yes. TidyWise Pro and above include real-time GPS tracking for cleaning teams. See where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports for reimbursements."
                 }
               },
               {
@@ -325,7 +325,7 @@ export default function LandingPage() {
               <Button variant="ghost" asChild className="text-sm"><Link to="/login">Log In</Link></Button>
               <Button variant="premium" asChild className="text-sm">
                 <Link to="/signup">
-                  Get Started Free
+                  See Plans
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
@@ -403,7 +403,7 @@ export default function LandingPage() {
                        </Button>
                        <Button variant="premium" asChild className="mt-1" onClick={closeMobileMenu}>
                          <Link to="/signup">
-                           Get Started Free
+                           See Plans
                            <ArrowRight className="ml-1 h-4 w-4" />
                          </Link>
                        </Button>
@@ -449,7 +449,7 @@ export default function LandingPage() {
               onClick={handleGetStarted}
               className="group flex-1"
             >
-              Start Free
+              See Plans
               <ArrowRight className="ml-1 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <Button
@@ -467,17 +467,17 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              No credit card
+              Plans start at $49/mo
             </span>
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Free forever
+              Cancel any time
             </span>
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Unlimited bookings
+              Lifetime $300 — 50 spots
             </span>
           </div>
 
@@ -582,7 +582,7 @@ export default function LandingPage() {
               </p>
               <div className="space-y-3 mb-8">
                 {[
-                  "100% free — no credit card",
+                  "Free demo call — no commitment",
                   "Live walkthrough of your workflow",
                   "See how to automate your bookings",
                   "Get set up same day if you're ready",
@@ -761,20 +761,20 @@ export default function LandingPage() {
           <div className="space-y-4">
             {[
               {
-                q: "Is TidyWise free?",
-                a: "Yes — free forever. No credit card, no hidden fees, no per-user charges. Every feature including scheduling, CRM, invoicing, payroll, GPS tracking, and the mobile app is included at no cost."
+                q: "How much does TidyWise cost?",
+                a: "Four plans. Basic at $49/month for solo operators (bookings, CRM, scheduling, invoices, payments, recurring jobs). Pro at $97/month adds automations, AI Intelligence, payroll, GPS, reports, email campaigns, client portal, and more. Custom at $197/month is everything in Pro plus one done-for-you request a month. Or grab a Lifetime spot at $300 one-time — first 50 customers only. Yearly billing is two months free at every tier."
               },
               {
                 q: "How does TidyWise compare to Jobber?",
-                a: "TidyWise is free; Jobber starts at $69/month. Both handle scheduling, invoicing, and client management. TidyWise also includes built-in payroll, GPS tracking, a loyalty program, AI business intelligence, and a client self-service portal — features that cost extra or require higher tiers on Jobber."
+                a: "TidyWise Basic is $49/month vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Pro at $97/month adds built-in payroll, GPS tracking, AI Intelligence, automations, and a client self-service portal — features that cost extra or require Jobber's higher tiers."
               },
               {
                 q: "Does TidyWise work for small cleaning businesses?",
-                a: "Yes. TidyWise works for solo operators and multi-team companies alike. Setup takes about 5 minutes, there are no minimums or seat limits, and it scales with your business without ever charging you."
+                a: "Yes. Basic at $49/month is built for solo operators, and you can grow into Pro or Custom as you add cleaners. Setup takes about 5 minutes, no minimums, no seat caps on customers."
               },
               {
                 q: "Does TidyWise have GPS tracking for cleaners?",
-                a: "Yes. Real-time GPS tracking is included. See where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports — all on the free plan."
+                a: "Yes — included with the Pro plan and up. See where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports."
               },
               {
                 q: "Can I run payroll through TidyWise?",
@@ -823,7 +823,7 @@ export default function LandingPage() {
               onClick={handleStartFree}
               className="group shadow-2xl"
             >
-              Get Started Free
+              See Plans
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
