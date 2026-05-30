@@ -608,6 +608,7 @@ Deno.serve(async (req) => {
         website_load_ms: web.website_load_ms,
         review_themes: ai.themes,
         ai_tips: ai.tips,
+        sentiment_evidence: sentimentEvidence,
         computed_at: new Date().toISOString(),
       },
       { onConflict: "company_id" }
