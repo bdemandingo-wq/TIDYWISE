@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -114,7 +114,37 @@ export default function PricingPage() {
   const lifetime = useLifetimeCounter();
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
+  const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const spotsLeft = lifetime.spotsLeft;
+
+  // Restore selected plan + interval after a return trip to Stripe
+  // Checkout (cancel) or from /signup. We persist this in sessionStorage
+  // so the user lands back on the same plan they were considering rather
+  // than starting over from monthly/Basic.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('tw_pending_plan');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { plan?: string; interval?: string };
+      if (parsed.interval === 'yearly' || parsed.interval === 'monthly') {
+        setInterval(parsed.interval);
+      }
+      if (parsed.plan && ['basic', 'pro', 'custom'].includes(parsed.plan)) {
+        const id = parsed.plan as Tier['id'];
+        setHighlightedPlan(id);
+        // Scroll the tier into view + clear the highlight after a moment.
+        requestAnimationFrame(() => {
+          tierRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        window.setTimeout(() => setHighlightedPlan(null), 2400);
+      }
+      sessionStorage.removeItem('tw_pending_plan');
+    } catch {
+      // sessionStorage unavailable — silent no-op.
+    }
+  }, []);
+
 
   // Iframe-safe navigation to Stripe Checkout. Stripe sends
   // X-Frame-Options: DENY, so a plain `window.location.href` inside an
@@ -139,6 +169,17 @@ export default function PricingPage() {
   }
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
+    // Persist the choice so that if the user cancels at Stripe or
+    // bounces off /signup, the next /pricing render restores their
+    // selection (interval + scroll-into-view of the same tier).
+    try {
+      sessionStorage.setItem(
+        'tw_pending_plan',
+        JSON.stringify({ plan: planId, interval }),
+      );
+    } catch {
+      // sessionStorage unavailable — silent no-op.
+    }
     if (!user) {
       navigate(`/signup?plan=${planId}&interval=${interval}`);
       return;
@@ -159,6 +200,7 @@ export default function PricingPage() {
       setCheckoutBusy(null);
     }
   }
+
 
   async function startLifetimeCheckout() {
     if (!user) {
@@ -284,12 +326,18 @@ export default function PricingPage() {
               return (
                 <Card
                   key={tier.id}
-                  className={`p-7 flex flex-col ${
+                  ref={(el) => { tierRefs.current[tier.id] = el; }}
+                  className={`p-7 flex flex-col transition-shadow ${
                     tier.highlight
                       ? 'border-primary/60 shadow-lg shadow-primary/10 relative'
                       : ''
+                  } ${
+                    highlightedPlan === tier.id
+                      ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                      : ''
                   }`}
                 >
+
                   {tier.highlight && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 uppercase tracking-wider text-[10px]">
                       Most popular

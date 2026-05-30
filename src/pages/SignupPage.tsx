@@ -84,13 +84,23 @@ export default function SignupPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated.
+  // Special case: if they came back here from Stripe Checkout with a
+  // ?plan=… in the URL (browser-back during signup→checkout handoff),
+  // do NOT bounce them through the splash→dashboard flow — that's the
+  // "signup direct loop" users complained about. Send them back to
+  // /pricing so they can re-launch checkout cleanly.
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
     if (user) {
+      if (selectedPlan) {
+        navigate(`/pricing`, { replace: true });
+        return;
+      }
       setShowSplash(true);
     }
-  }, [user, authLoading, initialCleanupDone]);
+  }, [user, authLoading, initialCleanupDone, selectedPlan, navigate]);
+
 
   const validateForm = (): boolean => {
     try {
@@ -347,15 +357,18 @@ export default function SignupPage() {
       <SEOHead title="Sign Up | TidyWise – Cleaning Business Software" description="Create your TidyWise account. Pick a plan from $49/mo (Basic), $97/mo (Pro), $197/mo (Custom), or grab one of 50 lifetime spots at $300." canonical="/signup" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link 
-          to="/" 
+        
+        {/* Back link — when a plan is pre-selected, point back to /pricing
+            so users can swap plans without losing context. Otherwise back
+            to home. */}
+        <Link
+          to={planMeta ? '/pricing' : '/'}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to home
+          {planMeta ? 'Back to plans' : 'Back to home'}
         </Link>
-        
+
         {/* Plan-pre-selection banner. Visible only when the visitor
             came from /pricing with a chosen plan — confirms what they're
             buying so they don't lose context inside the signup form. */}
@@ -363,6 +376,7 @@ export default function SignupPage() {
           <div className="mb-4 rounded-lg border-2 border-primary/40 bg-primary/5 p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <planMeta.Icon className="h-5 w-5 text-primary" />
+
             </div>
             <div className="flex-1 min-w-0">
               <Badge variant="secondary" className="mb-1 text-[10px] uppercase tracking-wider">
