@@ -8,8 +8,6 @@ const corsHeaders = {
 };
 
 // TIDYWISE Standard plan price ID - $97/month
-// Set STRIPE_STANDARD_PRICE_ID in Supabase secrets after App Store approval.
-// Falls back to the legacy $50 price ID for grandfathered accounts.
 const PRICE_ID = Deno.env.get("STRIPE_STANDARD_PRICE_ID") || "price_1SihrVJv857o86noT8NIIfrq";
 
 const logStep = (step: string, details?: any) => {
@@ -32,7 +30,6 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -43,6 +40,16 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Optional client-supplied fraud-evidence fields
+    let bodyData: any = {};
+    try { bodyData = await req.json(); } catch { /* no body */ }
+    const clientIp =
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      bodyData?.ip || null;
+    const userAgent = bodyData?.userAgent || req.headers.get("user-agent") || null;
+    const deviceFingerprint = bodyData?.deviceFingerprint || null;
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Check for existing Stripe customer
@@ -52,14 +59,12 @@ serve(async (req) => {
       customerId = customers.data[0].id;
       logStep("Found existing Stripe customer", { customerId });
 
-      // Check if they already have an active subscription
       const existingSubs = await stripe.subscriptions.list({
         customer: customerId,
         status: "active",
         limit: 1,
       });
       if (existingSubs.data.length > 0) {
-        logStep("User already has an active subscription");
         return new Response(JSON.stringify({ error: "You already have an active subscription." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
@@ -69,22 +74,39 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
 
-    // Create checkout session for $50/month subscription
+    // Fraud-evidence metadata travels with every charge in Stripe
+    const evidenceMetadata: Record<string, string> = {
+      account_id: user.id,
+      email: user.email,
+      signup_date: user.created_at || new Date().toISOString(),
+      ip: clientIp || "",
+      device: (userAgent || "").slice(0, 480),
+      device_fingerprint: deviceFingerprint || "",
+      purpose: "tidywise_saas_subscription",
+    };
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: PRICE_ID,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: "subscription",
+      // Request 3D Secure when the issuer supports it — shifts fraud
+      // liability to the issuer for Visa reason code 10.4 chargebacks.
+      payment_method_options: {
+        card: { request_three_d_secure: "automatic" },
+      },
+      // Metadata on the Checkout Session, the Subscription, and every
+      // generated Invoice / PaymentIntent — so evidence stays with the charge.
+      metadata: evidenceMetadata,
+      subscription_data: {
+        metadata: evidenceMetadata,
+      },
+      payment_intent_data: undefined, // not allowed in subscription mode
       success_url: `${origin}/dashboard?subscription=success`,
       cancel_url: `${origin}/dashboard/subscription?canceled=true`,
     });
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { sessionId: session.id });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
