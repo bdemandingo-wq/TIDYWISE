@@ -195,12 +195,27 @@ export default function ScoreCompanyPage() {
 
         {metrics && (
           <Card variant="elevated" className="p-6 mb-10">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
               <h2 className="font-serif text-2xl text-foreground">Sentiment breakdown</h2>
               {aiConfidence === "low" && (
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground">Low confidence</span>
               )}
+              <button
+                type="button"
+                onClick={() => setShowMethodology((v) => !v)}
+                className="ml-auto text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                {showMethodology ? "Hide" : "How is this calculated?"}
+              </button>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              AI-analyzed from {company.google_review_count ?? 0} Google reviews across reliability, communication, quality, and value. Scores are review-derived, not self-reported.
+            </p>
+            {showMethodology && (
+              <div className="mb-5 p-4 rounded-lg bg-muted/40 text-sm text-muted-foreground leading-relaxed">
+                We pull your public Google reviews and use AI to score four dimensions on a 0–100 scale. Each review is scored individually, then averaged, with more recent reviews weighted slightly higher. The sentiment score makes up 30% of the overall TidyWise Score.
+              </div>
+            )}
             <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${aiConfidence === "low" ? "opacity-50" : ""}`}>
               {[
                 ["Reliability", metrics.sentiment_reliability],
@@ -235,6 +250,28 @@ export default function ScoreCompanyPage() {
                 ))}
               </div>
             )}
+            {!company.claimed && (
+              <div className="mt-6 relative rounded-lg border border-border bg-muted/30 p-5 overflow-hidden">
+                <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+                  <Lock className="h-4 w-4" />
+                  <span>Per-dimension breakdown & supporting review quotes</span>
+                </div>
+                <div className="space-y-2 blur-sm select-none pointer-events-none" aria-hidden>
+                  <div className="h-3 w-3/4 bg-muted rounded" />
+                  <div className="h-3 w-2/3 bg-muted rounded" />
+                  <div className="h-3 w-5/6 bg-muted rounded" />
+                </div>
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-foreground">
+                    Claim this profile to see which reviews drove each score — free.
+                  </p>
+                  <Button size="sm" variant="premium" onClick={() => setShowClaim(true)}>
+                    Claim & unlock
+                  </Button>
+                </div>
+              </div>
+            )}
+            {/* TODO: when company.claimed, render full per-review breakdown once per-review data is surfaced */}
           </Card>
         )}
 
