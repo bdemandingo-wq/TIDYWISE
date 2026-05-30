@@ -215,7 +215,7 @@ export default function ScoreCompanyPage() {
             <p className="text-sm text-foreground">
               <span className="font-medium">Is this your business?</span> Claim this page to unlock your full score report — free.
             </p>
-            <Button size="sm" variant="outline" onClick={() => setShowClaim(true)}>
+            <Button size="sm" variant="outline" onClick={startClaim}>
               Claim
             </Button>
           </Card>
@@ -342,7 +342,7 @@ export default function ScoreCompanyPage() {
                   <p className="text-sm text-foreground">
                     Claim this profile to see which reviews drove each score — free.
                   </p>
-                  <Button size="sm" variant="premium" onClick={() => setShowClaim(true)}>
+                  <Button size="sm" variant="premium" onClick={startClaim}>
                     Claim & unlock
                   </Button>
                 </div>
