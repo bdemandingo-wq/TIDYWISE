@@ -9,6 +9,27 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Mask emails, phones, and long digit sequences in free-text cancellation
+// feedback before it lands in the admin UI. Users sometimes paste
+// account credentials, personal phone numbers, or competitor sales-rep
+// emails into the feedback field — none of which the admin actually
+// needs to see, and all of which would create a small but real
+// data-handling obligation if we surface them verbatim in the
+// dashboard, in an export, or in a screenshot to support.
+function scrubPii(text: string): string {
+  return text
+    // Emails
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, "[email]")
+    // US-shaped phone numbers (matches 555-123-4567, (555) 123-4567,
+    // +1 555 123 4567, etc.) — done before the generic digit run so
+    // formatted phones don't fall through and partial-match.
+    .replace(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g, "[phone]")
+    // Long bare digit runs (likely SSN/CC/account numbers). 11+ digits.
+    .replace(/\d{11,}/g, "[digits]")
+    // Cap length so a copy/pasted screed doesn't blow up the response.
+    .slice(0, 500);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -98,7 +119,7 @@ serve(async (req) => {
       if (f.feedback_text?.trim()) {
         recentFeedback.push({
           reason: f.reason,
-          text: f.feedback_text,
+          text: scrubPii(f.feedback_text),
           canceled_at: f.canceled_at,
         });
       }
