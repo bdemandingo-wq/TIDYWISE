@@ -202,7 +202,7 @@ serve(async (req) => {
         // already requests 3DS, which shifts liability for the saved card.
       },
       payment_intent_data: undefined, // not allowed in subscription mode
-      success_url: `${origin}/dashboard?subscription=success`,
+      success_url: `${origin}/checkout/success?plan=${encodeURIComponent(requestedPlan ?? '')}&interval=${encodeURIComponent(requestedInterval ?? 'monthly')}`,
       cancel_url: `${origin}/pricing`,
     });
 
