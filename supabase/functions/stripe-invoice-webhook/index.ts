@@ -96,8 +96,57 @@ const handler = async (req: Request): Promise<Response> => {
     if (event.type === "customer.subscription.created") {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
+      const subMeta = (subscription.metadata ?? {}) as Record<string, string>;
 
       console.log("[stripe-invoice-webhook] New subscription created:", subscription.id);
+
+      // ── Ad-management retainer subscription ──────────────────────────
+      // Distinct from the main TidyWise plan: metadata.purpose set by
+      // buy-ad-management identifies these so we can record them in
+      // ad_management_subscriptions for the cascade-cancel logic.
+      if (subMeta.purpose === "tidywise_ad_management" && subMeta.organization_id) {
+        try {
+          const platform = subMeta.ad_platform;
+          const userId = subMeta.account_id || null;
+          const priceId = subscription.items.data[0]?.price?.id ?? null;
+          const monthlyAmount =
+            subscription.items.data[0]?.price?.unit_amount ?? 40000;
+
+          await supabase.from("ad_management_subscriptions").upsert(
+            {
+              organization_id: subMeta.organization_id,
+              user_id: userId,
+              platform,
+              stripe_subscription_id: subscription.id,
+              stripe_customer_id: customerId,
+              stripe_price_id: priceId,
+              status: "active",
+              monthly_amount_cents: monthlyAmount,
+            },
+            { onConflict: "stripe_subscription_id", ignoreDuplicates: false },
+          );
+
+          console.log(
+            "[stripe-invoice-webhook] Ad mgmt sub recorded:",
+            subscription.id,
+            platform,
+          );
+
+          await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+            organizationName: "Ad Management",
+            ownerEmail: subMeta.email || "unknown",
+            subscriptionType: `New ad-mgmt subscription: ${platform} ($${(monthlyAmount / 100).toFixed(0)}/mo)`,
+          }).catch(() => {});
+        } catch (e) {
+          console.error("[stripe-invoice-webhook] ad mgmt record failed:", e);
+        }
+        // Skip the rest of customer.subscription.created handling for
+        // ad-mgmt subs — they're not the main TidyWise plan and don't
+        // need the new-org admin SMS / Make webhook below.
+        return new Response(JSON.stringify({ received: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       // Get customer details from Stripe
       try {
@@ -246,7 +295,7 @@ const handler = async (req: Request): Promise<Response> => {
       // ── Lifetime access purchase ──────────────────────────────────────────
       if (session.mode === "payment" && session.metadata?.plan === "lifetime") {
         const email = (session.customer_email || session.metadata?.email || "").toLowerCase();
-        const userId = session.metadata?.user_id || null;
+        const userId = session.metadata?.user_id || session.metadata?.account_id || null;
 
         console.log("[stripe-invoice-webhook] Lifetime purchase confirmed:", { email, userId });
 
@@ -282,9 +331,16 @@ const handler = async (req: Request): Promise<Response> => {
               .maybeSingle();
 
             if (membership?.organization_id) {
+              // Flip plan_type to 'lifetime' AND set grandfathered_lifetime=true
+              // so the feature-gating layer never locks this customer out
+              // even if plan_type ever drifts. We promise lifetime = lifetime.
               await supabase
                 .from("organizations")
-                .update({ plan_type: "lifetime" })
+                .update({
+                  plan_type: "lifetime",
+                  grandfathered_lifetime: true,
+                  grandfathered_at: new Date().toISOString(),
+                })
                 .eq("id", membership.organization_id);
 
               // Link purchase to org
@@ -297,11 +353,58 @@ const handler = async (req: Request): Promise<Response> => {
             }
           }
 
+          // ── Claim one of the 50 spots (atomic) ───────────────────────
+          // claim_lifetime_spot() is a single-statement UPDATE; the
+          // table's CHECK(sold_spots <= total_spots) raises when a 51st
+          // attempt tries to land. We catch that and refund the
+          // unlucky-by-microseconds buyer.
+          try {
+            const { data: claimed, error: claimErr } = await supabase
+              .rpc("claim_lifetime_spot");
+
+            if (claimErr) {
+              // Likely check_violation = oversold race lost.
+              console.error(
+                "[stripe-invoice-webhook] Lifetime oversold — refunding",
+                claimErr.message,
+              );
+              if (session.payment_intent) {
+                const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+                  apiVersion: "2025-08-27.basil",
+                });
+                await stripe.refunds.create({
+                  payment_intent: session.payment_intent as string,
+                  reason: "duplicate",
+                  metadata: { reason: "lifetime_oversold" },
+                });
+              }
+              await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+                organizationName: "LIFETIME OVERSOLD — refunded",
+                ownerEmail: email,
+                subscriptionType:
+                  "Spot #51+ attempted, automatic refund issued. Reach out personally.",
+              });
+            } else {
+              const row = Array.isArray(claimed) ? claimed[0] : claimed;
+              console.log(
+                "[stripe-invoice-webhook] Lifetime spot claimed",
+                row?.sold_spots,
+                "/",
+                row?.total_spots,
+              );
+              if (row?.sold_out) {
+                console.log("[stripe-invoice-webhook] Lifetime is now SOLD OUT");
+              }
+            }
+          } catch (counterE) {
+            console.error("[stripe-invoice-webhook] counter update failed:", counterE);
+          }
+
           // Notify platform admin
           await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
             organizationName: "Lifetime Purchase",
             ownerEmail: email,
-            subscriptionType: "Lifetime Access — $200",
+            subscriptionType: `Lifetime Access — $${((session.amount_total ?? 30000) / 100).toFixed(2)}`,
           });
         }
       }
@@ -639,9 +742,34 @@ const handler = async (req: Request): Promise<Response> => {
     if (event.type === "customer.subscription.deleted") {
       try {
         const sub = event.data.object as Stripe.Subscription;
+        const subMeta = (sub.metadata ?? {}) as Record<string, string>;
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
           apiVersion: "2025-08-27.basil",
         });
+
+        // Branch 1: ad-management retainer cancelled (its own Stripe sub).
+        // Just mark the row inactive; no cascade or plan-type change.
+        if (subMeta.purpose === "tidywise_ad_management") {
+          await supabase
+            .from("ad_management_subscriptions")
+            .update({
+              status: "cancelled",
+              cancelled_at: new Date().toISOString(),
+              cancellation_reason: "stripe_subscription_deleted",
+            })
+            .eq("stripe_subscription_id", sub.id);
+          console.log(
+            "[stripe-invoice-webhook] Ad-management subscription cancelled:",
+            sub.id,
+          );
+          return new Response(JSON.stringify({ received: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Branch 2: main TidyWise subscription cancelled — revoke paid
+        // plan access AND cascade-cancel any ad-management retainers
+        // for the same org (per spec: ads can't outlive TidyWise).
         const customer = await stripe.customers.retrieve(sub.customer as string);
         const email = (customer as Stripe.Customer).email;
 
@@ -669,6 +797,51 @@ const handler = async (req: Request): Promise<Response> => {
                 "[stripe-invoice-webhook] Subscription deleted, org reverted to free:",
                 membership.organization_id,
               );
+
+              // Cascade: cancel any active ad-management subs for this
+              // org in Stripe (which will fire their own
+              // customer.subscription.deleted events; the branch above
+              // marks them cancelled in our table) then mark them
+              // cancelled locally as a defensive write in case the
+              // Stripe-side cancel webhook is delayed.
+              const { data: adSubs } = await supabase
+                .from("ad_management_subscriptions")
+                .select("stripe_subscription_id, platform")
+                .eq("organization_id", membership.organization_id)
+                .eq("status", "active");
+
+              for (const ad of adSubs ?? []) {
+                try {
+                  await stripe.subscriptions.cancel(ad.stripe_subscription_id);
+                  console.log(
+                    "[stripe-invoice-webhook] Cascade-cancelled ad sub:",
+                    ad.platform,
+                    ad.stripe_subscription_id,
+                  );
+                } catch (cancelErr) {
+                  console.error(
+                    "[stripe-invoice-webhook] cascade cancel failed:",
+                    cancelErr,
+                  );
+                }
+              }
+              if (adSubs && adSubs.length > 0) {
+                await supabase
+                  .from("ad_management_subscriptions")
+                  .update({
+                    status: "cancelled",
+                    cancelled_at: new Date().toISOString(),
+                    cancellation_reason: "tidywise_subscription_cancelled",
+                  })
+                  .eq("organization_id", membership.organization_id)
+                  .eq("status", "active");
+
+                await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+                  organizationName: "Ad Mgmt Cascade-Cancelled",
+                  ownerEmail: email,
+                  subscriptionType: `${adSubs.length} ad-mgmt sub(s) cancelled along with TidyWise sub`,
+                }).catch(() => {});
+              }
             }
           }
         }

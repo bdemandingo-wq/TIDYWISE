@@ -116,6 +116,11 @@ serve(async (req) => {
       // sets the user's org plan_type to 'lifetime'.
       metadata: {
         plan: "lifetime",
+        // Both keys set so the webhook can read either — `user_id` is
+        // the historical name expected by the existing lifetime branch
+        // in stripe-invoice-webhook; `account_id` matches the
+        // fraud-evidence convention used by create-subscription.
+        user_id: user.id,
         account_id: user.id,
         email: user.email,
       },
