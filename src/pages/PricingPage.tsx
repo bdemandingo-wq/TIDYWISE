@@ -145,6 +145,26 @@ export default function PricingPage() {
     }
   }, []);
 
+  // Cleanup: if the user leaves /pricing for somewhere that isn't part
+  // of the checkout flow (signup, checkout success, Stripe-hosted page
+  // which lives off-domain), drop the persisted plan so a future visit
+  // starts fresh instead of re-highlighting a stale choice.
+  useEffect(() => {
+    return () => {
+      try {
+        const next = window.location.pathname;
+        const inFlow =
+          next.startsWith('/signup') ||
+          next.startsWith('/checkout/') ||
+          next.startsWith('/login');
+        if (!inFlow) sessionStorage.removeItem('tw_pending_plan');
+      } catch {
+        /* no-op */
+      }
+    };
+  }, []);
+
+
 
   // Iframe-safe navigation to Stripe Checkout. Stripe sends
   // X-Frame-Options: DENY, so a plain `window.location.href` inside an
