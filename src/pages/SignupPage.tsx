@@ -235,11 +235,14 @@ export default function SignupPage() {
       return;
     }
 
-    // No plan picked → straight to dashboard.
+    // No plan picked → straight to dashboard. Drop any stale persisted
+    // plan since they're not continuing into checkout.
     if (!selectedPlan) {
+      try { sessionStorage.removeItem('tw_pending_plan'); } catch { /* no-op */ }
       navigate('/dashboard');
       return;
     }
+
 
     // Plan-pre-selection flow: hand off to Stripe Checkout. The
     // Bearer token has to be live for the edge function to authorize
