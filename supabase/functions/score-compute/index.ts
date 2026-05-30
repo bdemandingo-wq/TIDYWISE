@@ -143,6 +143,8 @@ async function checkWebsite(url: string | null) {
   };
 }
 
+type RichReview = { text: string; rating: number | null; publishTime: string | null };
+
 async function fetchPlaceSignals(
   placeId: string,
   current: {
@@ -156,7 +158,7 @@ async function fetchPlaceSignals(
     headers: {
       "X-Goog-Api-Key": PLACES_KEY,
       "X-Goog-FieldMask":
-        "id,displayName,rating,userRatingCount,reviews,websiteUri,nationalPhoneNumber",
+        "id,displayName,rating,userRatingCount,reviews.text,reviews.originalText,reviews.rating,reviews.publishTime,websiteUri,nationalPhoneNumber",
     },
   });
   if (!r.ok) return null;
@@ -165,12 +167,21 @@ async function fetchPlaceSignals(
   const rs = j.reviews ?? [];
   const newest = rs[0]?.publishTime;
 
+  const richReviews: RichReview[] = rs
+    .map((x: any) => ({
+      text: x.text?.text ?? x.originalText?.text ?? "",
+      rating: typeof x.rating === "number" ? x.rating : null,
+      publishTime: x.publishTime ?? null,
+    }))
+    .filter((r: RichReview) => r.text.length > 0);
+
   return {
     rating: j.rating ?? current.rating,
     count: j.userRatingCount ?? current.count,
     resolvedWebsite: current.resolvedWebsite ?? j.websiteUri ?? null,
     resolvedPhone: current.resolvedPhone ?? j.nationalPhoneNumber ?? null,
-    reviews: rs.map((x: any) => x.text?.text ?? x.originalText?.text ?? "").filter(Boolean),
+    reviews: richReviews.map((r) => r.text),
+    richReviews,
     mostRecentDays: newest
       ? Math.floor((Date.now() - new Date(newest).getTime()) / (24 * 3600 * 1000))
       : null,
