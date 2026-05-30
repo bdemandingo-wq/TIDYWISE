@@ -6495,6 +6495,42 @@ export type Database = {
           },
         ]
       }
+      score_claim_audit: {
+        Row: {
+          company_id: string
+          company_slug: string
+          created_at: string
+          email: string | null
+          id: string
+          ip_address: string | null
+          source: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          company_slug: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          source?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          company_slug?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          source?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       score_claim_requests: {
         Row: {
           approved_organization_id: string | null
@@ -6551,6 +6587,7 @@ export type Database = {
           claimed: boolean
           claimed_at: string | null
           claimed_organization_id: string | null
+          claimed_user_id: string | null
           created_at: string
           formatted_address: string | null
           google_place_id: string | null
@@ -6579,6 +6616,7 @@ export type Database = {
           claimed?: boolean
           claimed_at?: string | null
           claimed_organization_id?: string | null
+          claimed_user_id?: string | null
           created_at?: string
           formatted_address?: string | null
           google_place_id?: string | null
@@ -6607,6 +6645,7 @@ export type Database = {
           claimed?: boolean
           claimed_at?: string | null
           claimed_organization_id?: string | null
+          claimed_user_id?: string | null
           created_at?: string
           formatted_address?: string | null
           google_place_id?: string | null

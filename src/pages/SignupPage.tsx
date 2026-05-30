@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,8 @@ const signupSchema = z.object({
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const claimSlug = searchParams.get('claim');
   const { 
     user, 
     loading: authLoading, 
@@ -184,8 +186,13 @@ export default function SignupPage() {
     }
   };
 
-  // Handle splash screen completion - navigate to dashboard
+  // Handle splash screen completion - navigate based on context
   const handleSplashComplete = () => {
+    if (claimSlug) {
+      // Send back to score page with ?claim=1 — page will auto-claim using fresh session.
+      navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
+      return;
+    }
     navigate('/dashboard');
   };
 
