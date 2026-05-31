@@ -92,7 +92,7 @@ export default function LocationSoftwarePage() {
         "@type": "Offer",
         price: "0",
         priceCurrency: "USD",
-        description: "Free forever · Premium $50/mo flat with premium upgrade at $50/month",
+        description: "Free forever — Premium upgrade $50/mo flat (unlimited users)",
       },
     },
     {
@@ -199,7 +199,7 @@ export default function LocationSoftwarePage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              Free forever · Premium $50/mo flat · Premium at $50/month flat (unlimited users) · money-back within 30 days
+              Free forever · Premium $50/mo flat (unlimited users) · Cancel anytime
             </p>
           </div>
         </section>

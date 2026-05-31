@@ -816,11 +816,11 @@ export default function LandingPage() {
               },
               {
                 q: "How does TidyWise compare to Jobber?",
-                a: "TidyWise Basic is $49/month vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Pro at $97/month adds built-in payroll, GPS tracking, AI Intelligence, automations, and a client self-service portal — features that cost extra or require Jobber's higher tiers."
+                a: "TidyWise is free forever vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Premium at $50/mo flat adds built-in payroll, GPS reporting, AI Intelligence, automations, and route optimization — features that cost extra or require Jobber's higher tiers."
               },
               {
                 q: "Does TidyWise work for small cleaning businesses?",
-                a: "Yes. Basic at $49/month is built for solo operators, and you can grow into Pro or Custom as you add cleaners. Setup takes about 5 minutes, no minimums, no seat caps on customers."
+                a: "Yes. Free Forever is built for solo operators and growing teams alike — unlimited bookings, unlimited users, no seat caps. Upgrade to Premium ($50/mo flat) when you want payroll, AI pricing, and advanced reporting. Setup takes about 5 minutes."
               },
               {
                 q: "Does TidyWise have GPS tracking for cleaners?",
