@@ -1007,6 +1007,45 @@ export default function PlatformAnalyticsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={!!bulkConfirm} onOpenChange={(o) => !o && !bulkDeleting && setBulkConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {bulkConfirm === 'user' ? selectedSignups.size : selectedOrgs.size}{' '}
+              {bulkConfirm === 'user' ? 'user(s)' : 'organization(s)'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone and will permanently remove all associated data
+              {bulkConfirm === 'organization'
+                ? ' (bookings, customers, staff, settings, and everything else tied to each business)'
+                : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete all
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
+
   );
 }
