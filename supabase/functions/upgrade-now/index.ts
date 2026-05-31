@@ -7,8 +7,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Set STRIPE_STANDARD_PRICE_ID in Supabase secrets after App Store approval.
-const PRICE_ID = Deno.env.get("STRIPE_STANDARD_PRICE_ID") || "price_1SihrVJv857o86noT8NIIfrq";
+// Used to "end trial now" for users already in a Stripe trial, or open
+// a Checkout Session for users on an org-based free trial.
+//
+// Previously this hardcoded `price_1SihrVJv857o86noT8NIIfrq` as a
+// fallback when STRIPE_STANDARD_PRICE_ID wasn't set. That price ID is
+// not in current production secrets — and silently using it would bill
+// $50 against a legacy "Pro Subscription" product the customer didn't
+// pick. Prefer the configured tier prices, with Pro monthly as the
+// sensible default (the post-trial path is for users converting their
+// trial, which is the canonical paid plan). Fail closed with a 503 if
+// none are configured.
+function resolveUpgradePriceId(): string | null {
+  return (
+    Deno.env.get("STRIPE_PRO_MONTHLY_PRICE_ID") ||
+    Deno.env.get("STRIPE_BASIC_MONTHLY_PRICE_ID") ||
+    Deno.env.get("STRIPE_STANDARD_PRICE_ID") ||
+    null
+  );
+}
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -97,6 +114,21 @@ serve(async (req) => {
 
     // No trialing sub found — user is on org-based free trial
     // Create a Stripe Checkout session to start their paid subscription
+    const priceId = resolveUpgradePriceId();
+    if (!priceId) {
+      logStep("No upgrade price ID configured");
+      return new Response(
+        JSON.stringify({
+          error:
+            "Upgrade is not configured yet. The operator needs to set STRIPE_PRO_MONTHLY_PRICE_ID (or STRIPE_BASIC_MONTHLY_PRICE_ID) in Supabase secrets.",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 503,
+        },
+      );
+    }
+
     const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://jointidywise.com";
 
     const session = await stripe.checkout.sessions.create({
@@ -104,7 +136,7 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
