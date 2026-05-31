@@ -208,35 +208,46 @@ export default function PricingPage() {
 
 
 
-  // Iframe-safe navigation to Stripe Checkout. Stripe sends
-  // X-Frame-Options: DENY, so a plain `window.location.href` inside an
-  // embedded preview (Lovable iframe, in-app webview, etc.) blanks the
-  // frame instead of navigating. Strategy:
-  //   1. If we're inside an iframe, prefer opening a NEW top-level tab
-  //      (window.open _blank) so the redirect can never be silently
-  //      blanked by the embedder.
-  //   2. Fall back to breaking the top frame (_top), then plain
-  //      same-tab navigation.
-  //   3. After ~2s, if we're still here, surface a "Continue to secure
-  //      checkout" link as a toast action so the user always has a
-  //      manual escape hatch (no infinite spinner).
-  function goToCheckout(url: string) {
-    const inIframe = (() => {
-      try {
-        return window.self !== window.top;
-      } catch {
-        return true; // cross-origin top access throws → definitely iframed
-      }
-    })();
+  // Detect iframe once per call. Cross-origin top access throws → iframed.
+  function isInIframe(): boolean {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  }
 
+  // Synchronously open a blank tab from inside a user-gesture click handler.
+  // Browsers only honor window.open() during the gesture; after an `await`
+  // it's treated as programmatic and popup-blocked. Call this BEFORE
+  // awaiting the edge function, then point the returned window at the
+  // Stripe URL once it resolves. Returns null when not iframed (we use
+  // same-tab navigation instead, which is never popup-blocked) or when
+  // the popup was blocked outright.
+  function preopenCheckoutTab(): Window | null {
+    if (!isInIframe()) return null;
+    try {
+      return window.open('', '_blank', 'noopener,noreferrer');
+    } catch {
+      return null;
+    }
+  }
+
+  // Navigate to Stripe. Preferred path: top-level same-tab navigation,
+  // which browsers never popup-block. If we're inside an iframe (Lovable
+  // preview, in-app webview), use the pre-opened tab from the click
+  // gesture, then fall back to top-frame break, then plain navigation.
+  // A "Continue to secure checkout" toast appears after 2s as a safety
+  // net for the rare case all paths are blocked.
+  function goToCheckout(url: string, preopened?: Window | null) {
     let opened = false;
 
-    if (inIframe) {
+    if (preopened && !preopened.closed) {
       try {
-        const win = window.open(url, '_blank', 'noopener,noreferrer');
-        if (win) opened = true;
+        preopened.location.href = url;
+        opened = true;
       } catch {
-        // popup blocked or sandboxed — fall through
+        try { preopened.close(); } catch { /* ignore */ }
       }
     }
 
@@ -245,18 +256,12 @@ export default function PricingPage() {
         if (window.top && window.top !== window.self) {
           window.top.location.href = url;
           opened = true;
+        } else {
+          window.location.href = url;
+          opened = true;
         }
       } catch {
-        // Cross-origin top access blocked — fall through.
-      }
-    }
-
-    if (!opened) {
-      try {
-        const win = window.open(url, '_top');
-        if (win !== null) opened = true;
-      } catch {
-        // ignore
+        // cross-origin top access — fall through
       }
     }
 
@@ -269,10 +274,6 @@ export default function PricingPage() {
       }
     }
 
-    // Always show a manual-continue fallback shortly after, in case the
-    // redirect was silently blocked (sandboxed iframe, popup blocker,
-    // in-app webview). This is dismissible and harmless if the
-    // navigation already succeeded.
     window.setTimeout(() => {
       toast.message('Continue to secure checkout', {
         description: 'If Stripe did not open automatically, tap below.',
@@ -287,6 +288,7 @@ export default function PricingPage() {
       });
     }, 2000);
   }
+
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
     // Persist the choice in BOTH places:
