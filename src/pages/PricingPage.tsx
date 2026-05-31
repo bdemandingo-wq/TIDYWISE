@@ -776,6 +776,11 @@ export default function PricingPage() {
 
         <SiteFooter />
       </main>
+      <AdManagementRequestDialog
+        open={adRequestService !== null}
+        onOpenChange={(o) => { if (!o) setAdRequestService(null); }}
+        serviceType={adRequestService}
+      />
     </>
   );
 }
