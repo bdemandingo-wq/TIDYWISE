@@ -985,6 +985,17 @@ const handler = async (req: Request): Promise<Response> => {
               .maybeSingle();
 
             if (membership?.organization_id) {
+              // Mark the org's subscription row canceled so the paywall
+              // gate kicks back in immediately.
+              await supabase
+                .from("stripe_subscriptions")
+                .update({
+                  status: sub.status || "canceled",
+                  cancel_at_period_end: !!sub.cancel_at_period_end,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("stripe_subscription_id", sub.id);
+
               await supabase
                 .from("organizations")
                 .update({ plan_type: "free" })
