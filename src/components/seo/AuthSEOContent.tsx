@@ -147,15 +147,11 @@ export function AuthSEOContent({ variant = 'login', heading, headingLevel = 'h1'
         <div>
           <h3 className="font-semibold text-foreground">How much does TidyWise cost?</h3>
           <p>
-            Yes. You can{' '}
-            <Link to="/signup" className="text-primary hover:underline">
-              create an account
-            </Link>{' '}
-            and explore TidyWise — see{' '}
+            Plans start at $49/mo (Basic), with Pro at $97/mo and Custom at $197/mo. A founding $300 one-time Lifetime spot is available for the first 50 customers. Yearly billing includes 2 months free. See{' '}
             <Link to="/pricing" className="text-primary hover:underline">
               pricing
             </Link>{' '}
-            for current plans and limits.
+            for full details.
           </p>
         </div>
         <div>
