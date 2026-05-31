@@ -251,7 +251,7 @@ export default function LandingPage() {
                 "name": "How much does TidyWise cost?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is available on paid plans from $49/mo with unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The optional Pro plan is $97/month and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
+                  "text": "TidyWise's Basic plan ($49/mo) includes unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The Pro plan is $97/month and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
                 }
               },
               {
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 "name": "How does TidyWise compare to Jobber?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is starts at $49/mo vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Pro at $97/mo adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
+                  "text": "TidyWise starts at $49/mo vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Pro at $97/mo adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
                 }
               },
               {
@@ -724,7 +724,7 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: '$0', label: 'Plans from $49/mo', delay: '0.1s' },
+                   { value: '$49', label: 'Starting price', delay: '0.1s' },
                    { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
                    { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
@@ -816,11 +816,11 @@ export default function LandingPage() {
               },
               {
                 q: "How does TidyWise compare to Jobber?",
-                a: "TidyWise is starts at $49/mo vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Pro at $97/mo adds built-in payroll, GPS reporting, AI Intelligence, automations, and route optimization — features that cost extra or require Jobber's higher tiers."
+                a: "TidyWise starts at $49/mo vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Pro at $97/mo adds built-in payroll, GPS reporting, AI Intelligence, automations, and route optimization — features that cost extra or require Jobber's higher tiers."
               },
               {
                 q: "Does TidyWise work for small cleaning businesses?",
-                a: "Yes. Basic is built for solo operators and growing teams alike — unlimited bookings, unlimited users, no seat caps. Upgrade to Premium ($49/mo) when you want payroll, AI pricing, and advanced reporting. Setup takes about 5 minutes."
+                a: "Yes. Basic is built for solo operators and growing teams alike — unlimited bookings, unlimited users, no seat caps. Upgrade to Pro ($97/mo) when you want payroll, AI pricing, and advanced reporting. Setup takes about 5 minutes."
               },
               {
                 q: "Does TidyWise have GPS tracking for cleaners?",
