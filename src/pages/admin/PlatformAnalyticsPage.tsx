@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
@@ -123,6 +124,52 @@ export default function PlatformAnalyticsPage() {
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
   const [cancelImmediate, setCancelImmediate] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [selectedSignups, setSelectedSignups] = useState<Set<string>>(new Set());
+  const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState<null | 'user' | 'organization'>(null);
+
+  const toggleSelect = (setter: typeof setSelectedSignups, id: string) => {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const type = bulkConfirm;
+    if (!type) return;
+    const ids = Array.from(type === 'user' ? selectedSignups : selectedOrgs);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    let success = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const { data, error } = await supabase.functions.invoke('delete-platform-account', {
+          body: { userId: id, type },
+        });
+        if (error || (data as any)?.error) {
+          failed++;
+        } else {
+          success++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+    if (success) toast.success(`Deleted ${success} ${type === 'user' ? 'user(s)' : 'organization(s)'}`);
+    if (failed) toast.error(`${failed} failed to delete`);
+    if (type === 'user') setSelectedSignups(new Set());
+    else setSelectedOrgs(new Set());
+    setBulkConfirm(null);
+    setBulkDeleting(false);
+    fetchAnalytics();
+    refetchSessions();
+  };
+
 
   const handleCancelSubscription = async () => {
     if (!cancelTarget) return;
@@ -562,6 +609,40 @@ export default function PlatformAnalyticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {analytics?.signups.recent && analytics.signups.recent.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={
+                          selectedSignups.size > 0 &&
+                          selectedSignups.size === analytics.signups.recent.length
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSignups(new Set(analytics.signups.recent.map((s) => s.id)));
+                          } else {
+                            setSelectedSignups(new Set());
+                          }
+                        }}
+                      />
+                      <span className="text-muted-foreground">
+                        {selectedSignups.size > 0
+                          ? `${selectedSignups.size} selected`
+                          : 'Select all'}
+                      </span>
+                    </label>
+                    {selectedSignups.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setBulkConfirm('user')}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete {selectedSignups.size}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <ScrollArea className="h-[400px] pr-4">
                   {analytics?.signups.recent && analytics.signups.recent.length > 0 ? (
                     <div className="space-y-2">
@@ -571,6 +652,10 @@ export default function PlatformAnalyticsPage() {
                           className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                         >
                           <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedSignups.has(signup.id)}
+                              onCheckedChange={() => toggleSelect(setSelectedSignups, signup.id)}
+                            />
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium text-primary">
                                 {signup.email?.charAt(0).toUpperCase() || '?'}
@@ -618,6 +703,7 @@ export default function PlatformAnalyticsPage() {
             </Card>
           </TabsContent>
 
+
           <TabsContent value="organizations">
             <Card>
               <CardHeader className="pb-3">
@@ -628,6 +714,40 @@ export default function PlatformAnalyticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {analytics?.organizations.recent && analytics.organizations.recent.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={
+                          selectedOrgs.size > 0 &&
+                          selectedOrgs.size === analytics.organizations.recent.length
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedOrgs(new Set(analytics.organizations.recent.map((o) => o.id)));
+                          } else {
+                            setSelectedOrgs(new Set());
+                          }
+                        }}
+                      />
+                      <span className="text-muted-foreground">
+                        {selectedOrgs.size > 0
+                          ? `${selectedOrgs.size} selected`
+                          : 'Select all'}
+                      </span>
+                    </label>
+                    {selectedOrgs.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setBulkConfirm('organization')}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete {selectedOrgs.size}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <ScrollArea className="h-[400px] pr-4">
                   {analytics?.organizations.recent && analytics.organizations.recent.length > 0 ? (
                     <div className="space-y-2">
@@ -637,6 +757,11 @@ export default function PlatformAnalyticsPage() {
                           className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                         >
                           <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedOrgs.has(org.id)}
+                              onCheckedChange={() => toggleSelect(setSelectedOrgs, org.id)}
+                            />
+
                             <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                               <Building2 className="w-5 h-5 text-blue-500" />
                             </div>
@@ -882,6 +1007,45 @@ export default function PlatformAnalyticsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={!!bulkConfirm} onOpenChange={(o) => !o && !bulkDeleting && setBulkConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {bulkConfirm === 'user' ? selectedSignups.size : selectedOrgs.size}{' '}
+              {bulkConfirm === 'user' ? 'user(s)' : 'organization(s)'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone and will permanently remove all associated data
+              {bulkConfirm === 'organization'
+                ? ' (bookings, customers, staff, settings, and everything else tied to each business)'
+                : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete all
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
+
   );
 }
