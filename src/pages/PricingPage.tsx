@@ -339,6 +339,7 @@ export default function PricingPage() {
     const timeoutId = window.setTimeout(() => {
       setCheckoutBusy((current) => {
         if (current === planId) {
+          isRedirectingRef.current = false;
           toast.error('Checkout is taking longer than expected. Please try again.');
           return null;
         }
