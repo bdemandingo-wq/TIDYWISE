@@ -93,5 +93,21 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/" replace />;
   }
 
+  // ── PAYWALL GATE ────────────────────────────────────────────────────────
+  // TidyWise is paid-only on the web. Org owners/admins without an active
+  // paid subscription, lifetime purchase, or pre-cutoff org trial get
+  // bounced to /pricing. Billing/logout/settings routes stay reachable so
+  // they can purchase or sign out. Native builds bypass the gate (Apple
+  // policy — billing happens on the web).
+  if (!Capacitor.isNativePlatform() && !subLoading && !hasFullAccess) {
+    const path = location.pathname;
+    const isAllowed = PAYWALL_ALLOWED_PATHS.some(
+      (allowed) => path === allowed || path.startsWith(allowed + '/')
+    );
+    if (!isAllowed) {
+      return <Navigate to="/pricing" replace state={{ from: path }} />;
+    }
+  }
+
   return <>{children}</>;
 }
