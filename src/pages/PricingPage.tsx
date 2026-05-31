@@ -120,6 +120,7 @@ export default function PricingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
+  const [adRequestService, setAdRequestService] = useState<AdServiceType | null>(null);
   const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const spotsLeft = lifetime.spotsLeft;
 
