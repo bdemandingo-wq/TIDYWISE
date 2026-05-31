@@ -32,7 +32,10 @@ const PAYWALL_ALLOWED_PATHS = [
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading: authLoading } = useAuth();
   const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
+  const { hasFullAccess, isLoading: subLoading } = useSubscription();
+  const location = useLocation();
   const switchedRef = useRef(false);
+
 
   // If the active org isn't admin/owner but the user IS admin/owner in another
   // org, transparently switch to that org instead of bouncing to /staff. This
