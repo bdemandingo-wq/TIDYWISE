@@ -215,6 +215,33 @@ const handler = async (req: Request): Promise<Response> => {
         console.error("[stripe-invoice-webhook] Failed to notify admin:", notifyError);
         // Don't fail the webhook - notification is non-critical
       }
+
+      // Mirror this subscription into stripe_subscriptions so the org
+      // immediately has an active row that the paywall gate can read.
+      try {
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+          apiVersion: "2025-08-27.basil",
+        });
+        const orgId = await resolveOrgIdForSubscription(supabase, stripe, subscription);
+        if (orgId) await upsertStripeSubscription(supabase, orgId, subscription);
+      } catch (mirrorErr) {
+        console.error("[stripe-invoice-webhook] mirror to stripe_subscriptions failed:", mirrorErr);
+      }
+    }
+
+    // Handle subscription updates (plan changes, renewals, cancellation
+    // scheduled at period end, etc.) — keep stripe_subscriptions in sync.
+    if (event.type === "customer.subscription.updated") {
+      try {
+        const subscription = event.data.object as Stripe.Subscription;
+        const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+          apiVersion: "2025-08-27.basil",
+        });
+        const orgId = await resolveOrgIdForSubscription(supabase, stripe, subscription);
+        if (orgId) await upsertStripeSubscription(supabase, orgId, subscription);
+      } catch (e) {
+        console.error("[stripe-invoice-webhook] subscription.updated mirror error:", e);
+      }
     }
 
     // Handle checkout.session.completed event
