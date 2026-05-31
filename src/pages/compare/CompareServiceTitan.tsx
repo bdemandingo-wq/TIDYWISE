@@ -14,7 +14,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "2 months free", servicetitan: "Demo only, no trial", winner: "tidywise" },
+  { feature: "Free Trial", tidywise: "Free forever", servicetitan: "Demo only, no trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$50/month flat", servicetitan: "$125–$500+/month per user", winner: "tidywise" },
   { feature: "Setup Time", tidywise: "Hours", servicetitan: "Weeks to months", winner: "tidywise" },
   { feature: "Cleaning-Specific Features", tidywise: true, servicetitan: false, winner: "tidywise" },
@@ -83,7 +83,7 @@ export default function CompareServiceTitan() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+              <Button onClick={handleStartFreeTrial}>Start Free</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -257,7 +257,7 @@ export default function CompareServiceTitan() {
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">TIDYWISE — Built for Cleaning Businesses</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Try it free for 2 months. Cancel any time, no implementation fee, no per-user pricing. Running in hours, not weeks.</p>
-            <Button size="lg" onClick={handleStartFreeTrial}>Start Free Trial →</Button>
+            <Button size="lg" onClick={handleStartFreeTrial}>Start Free →</Button>
           </div>
 
           <div className="mt-16">

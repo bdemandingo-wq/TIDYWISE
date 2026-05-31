@@ -60,7 +60,7 @@ export default function SchedulingSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+              <Button onClick={handleStartFreeTrial}>Start Free</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -73,7 +73,7 @@ export default function SchedulingSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+                <Button onClick={handleStartFreeTrial}>Start Free</Button>
               </div>
             </div>
           )}

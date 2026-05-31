@@ -34,7 +34,7 @@ export default function MaidServiceSoftware() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-              <Button asChild><Link to="/signup">Start Free Trial</Link></Button>
+              <Button asChild><Link to="/signup">Start Free</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -136,7 +136,7 @@ export default function MaidServiceSoftware() {
               Maid service software pricing varies widely:
             </p>
             <ul className="space-y-2 text-muted-foreground list-disc list-inside">
-              <li><strong className="text-foreground">TIDYWISE:</strong> Plans from $49/mo with unlimited bookings on every tier</li>
+              <li><strong className="text-foreground">TIDYWISE:</strong> Free forever · Premium $50/mo flat with unlimited bookings on every tier</li>
               <li><strong className="text-foreground">ZenMaid:</strong> $23–$100/month depending on booking volume</li>
               <li><strong className="text-foreground">Launch27:</strong> $47–$97/month</li>
               <li><strong className="text-foreground">Jobber:</strong> $69–$349/month (not cleaning-specific)</li>
@@ -160,7 +160,7 @@ export default function MaidServiceSoftware() {
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
               <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE — Built for Maid Services</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Online booking, scheduling, invoicing, payroll, GPS tracking, and client management — plans from $49/mo. Built specifically for residential cleaning businesses, not adapted from a general tool.
+                Online booking, scheduling, invoicing, payroll, GPS tracking, and client management — free forever, with Premium at $50/mo flat. Built specifically for residential cleaning businesses, not adapted from a general tool.
               </p>
               <Button asChild><Link to="/signup">Start Free →</Link></Button>
               <p className="text-sm text-muted-foreground mt-3">

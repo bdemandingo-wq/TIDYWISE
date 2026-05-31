@@ -22,7 +22,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "2 months free", jobber: "14 days", winner: "tidywise" },
+  { feature: "Free Trial", tidywise: "Free forever", jobber: "14 days", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$50/month flat", jobber: "$69-$349/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, jobber: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, jobber: true, winner: "tie" },
@@ -95,7 +95,7 @@ export default function CompareJobber() {
               <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+              <Button onClick={handleStartFreeTrial}>Start Free</Button>
             </div>
             <button 
               className="md:hidden p-2"
@@ -110,7 +110,7 @@ export default function CompareJobber() {
                 <a href="/#features" className="text-muted-foreground hover:text-foreground">Features</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+                <Button onClick={handleStartFreeTrial}>Start Free</Button>
               </div>
             </div>
           )}
@@ -133,13 +133,13 @@ export default function CompareJobber() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFreeTrial}>
-              Start 2-Month Free Trial <ArrowRight className="ml-2 h-4 w-4" />
+              Start Free <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" className="h-12 px-8" onClick={() => document.getElementById('comparison')?.scrollIntoView({ behavior: 'smooth' })}>
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
+          <p className="text-sm text-muted-foreground mt-4">Free forever · Premium $50/mo flat · Cancel any time</p>
         </div>
       </section>
 
@@ -289,7 +289,7 @@ export default function CompareJobber() {
             Start your money-back within 30 days today. Cancel any time. Import your Jobber data in minutes.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
+            Start Free <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>

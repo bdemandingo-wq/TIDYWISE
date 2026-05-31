@@ -243,7 +243,7 @@ export default function CleaningBusinessSoftware() {
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web (mobile-friendly)",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Plans from $49/mo."
+            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Free forever · Premium $50/mo flat."
           },
           {
             "@type": "FAQPage",
@@ -295,7 +295,7 @@ export default function CleaningBusinessSoftware() {
             <span className="text-primary">That Runs Itself</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Scheduling, payroll, CRM, GPS tracking, invoicing, and a staff app — all in one platform built specifically for cleaning businesses. <strong>Plans from $49/mo.</strong> Cancel any time. Yearly = 2 months free.
+            Scheduling, payroll, CRM, GPS tracking, invoicing, and a staff app — all in one platform built specifically for cleaning businesses. <strong>Free forever · Premium $50/mo flat.</strong> Cancel any time. Yearly = free forever.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFree}>
@@ -503,7 +503,7 @@ export default function CleaningBusinessSoftware() {
             The Last Cleaning Business Software You'll Need
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Plans from $49/mo. Cancel any time. Scheduling, payroll, CRM, GPS, and invoicing — all in one platform built for cleaning companies.
+            Free forever · Premium $50/mo flat. Cancel any time. Scheduling, payroll, CRM, GPS, and invoicing — all in one platform built for cleaning companies.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFree}>
             See Plans <ArrowRight className="ml-2 h-4 w-4" />

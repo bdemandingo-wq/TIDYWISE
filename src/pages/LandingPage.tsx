@@ -220,7 +220,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
-        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever · Premium $50/mo flat — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -241,7 +241,7 @@ export default function LandingPage() {
               "price": "0",
               "priceCurrency": "USD"
             },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Plans from $49/mo."
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever · Premium $50/mo flat."
           },
           {
             "@type": "FAQPage",
@@ -474,7 +474,7 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Plans start at $49/mo
+              Free forever · Premium $50/mo flat
             </span>
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
@@ -484,7 +484,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Yearly = 2 months free
+              Yearly = free forever
             </span>
           </div>
 
@@ -724,7 +724,7 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: '$49', label: 'Plans start here', delay: '0.1s' },
+                   { value: '$0', label: 'Free forever', delay: '0.1s' },
                    { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
                    { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
@@ -878,7 +878,7 @@ export default function LandingPage() {
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-lg font-medium">Plans from $49/mo · Cancel any time</span>
+              <span className="text-lg font-medium">Free forever · Premium $50/mo flat · Cancel any time</span>
             </div>
           </div>
         </div>

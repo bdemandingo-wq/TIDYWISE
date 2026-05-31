@@ -62,7 +62,7 @@ export default function DemoPage() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground text-sm">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground text-sm">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
-              <Button onClick={() => navigate("/signup")} className="text-sm">Start Free Trial</Button>
+              <Button onClick={() => navigate("/signup")} className="text-sm">Start Free</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -74,7 +74,7 @@ export default function DemoPage() {
               <a href="/pricing" className="px-4 py-2 text-muted-foreground">Pricing</a>
               <a href="/blog" className="px-4 py-2 text-muted-foreground">Blog</a>
               <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={() => navigate("/signup")}>Start Free Trial</Button>
+              <Button onClick={() => navigate("/signup")}>Start Free</Button>
             </div>
           )}
         </div>

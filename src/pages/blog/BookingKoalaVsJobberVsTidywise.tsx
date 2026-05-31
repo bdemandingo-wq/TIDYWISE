@@ -67,7 +67,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free Trial</Link>
+              <Link to="/auth">Start Free</Link>
             </Button>
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               <div className="bg-primary text-primary-foreground rounded-xl p-6">
                 <h3 className="text-xl font-bold mb-2">TIDYWISE</h3>
                 <p className="text-4xl font-bold mb-2">$50<span className="text-lg">/mo</span></p>
-                <p className="text-primary-foreground/80 text-sm">2 months free trial</p>
+                <p className="text-primary-foreground/80 text-sm">free forever trial</p>
                 <p className="text-primary-foreground/80 text-sm mt-2">All features included</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-6">
@@ -250,7 +250,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
               Try TIDYWISE for your cleaning business. Start your money-back within 30 days today—no credit card required.
             </p>
             <Button size="lg" asChild>
-              <Link to="/auth">Start Free Trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              <Link to="/auth">Start Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
         </div>

@@ -15,7 +15,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "2 months free", zenmaid: "14 days", winner: "tidywise" },
+  { feature: "Free Trial", tidywise: "Free forever", zenmaid: "14 days", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$50/month flat", zenmaid: "$23–$100/month", winner: "tie" },
   { feature: "Online Booking", tidywise: true, zenmaid: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, zenmaid: true, winner: "tie" },
@@ -85,7 +85,7 @@ export default function CompareZenMaid() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+              <Button onClick={handleStartFreeTrial}>Start Free</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -178,7 +178,7 @@ export default function CompareZenMaid() {
                 </thead>
                 <tbody>
                   {[
-                    { plan: "Starter", tw: "Plans from $49/mo", zm: "$23/month" },
+                    { plan: "Starter", tw: "Free forever · Premium $50/mo flat", zm: "$23/month" },
                     { plan: "Growing business", tw: "$50/month flat", zm: "$49/month (up to 75 bookings)" },
                     { plan: "Scaling business", tw: "$50/month flat", zm: "$100/month (up to 200 bookings)" },
                     { plan: "Payroll included", tw: "Yes", zm: "No" },
@@ -291,7 +291,7 @@ export default function CompareZenMaid() {
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">See TIDYWISE Plans</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Cancel any time. Full access to scheduling, payroll, invoicing, GPS tracking, and P&L reports from day one.</p>
-            <Button size="lg" onClick={handleStartFreeTrial}>Start Free Trial →</Button>
+            <Button size="lg" onClick={handleStartFreeTrial}>Start Free →</Button>
           </div>
 
           <div className="mt-16">
