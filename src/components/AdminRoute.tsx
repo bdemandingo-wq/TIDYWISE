@@ -1,12 +1,24 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
 interface AdminRouteProps {
   children: ReactNode;
 }
+
+// Routes a non-active org owner is still allowed to reach so they can
+// pay / log out / view billing. Everything else bounces to /pricing.
+const PAYWALL_ALLOWED_PATHS = [
+  '/dashboard/subscription',
+  '/dashboard/settings',
+  '/logout',
+];
+
+
 
 /**
  * AdminRoute - Protects admin dashboard routes
