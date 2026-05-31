@@ -18,6 +18,29 @@ const isMissingSubscriptionError = (error: unknown) => {
   return message.includes("No such subscription");
 };
 
+const findCancelableSubscriptionByEmail = async (
+  stripe: Stripe,
+  customerEmail: string,
+) => {
+  const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+  if (customers.data.length === 0) {
+    return { error: "No Stripe customer found" as const };
+  }
+
+  const subs = await stripe.subscriptions.list({
+    customer: customers.data[0].id,
+    status: "all",
+    limit: 10,
+  });
+  const active = subs.data.find((s) => ["active", "trialing", "past_due"].includes(s.status));
+
+  if (!active) {
+    return { error: "No cancelable subscription found" as const };
+  }
+
+  return { subscriptionId: active.id };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -102,26 +125,14 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-      if (customers.data.length === 0) {
-        return new Response(JSON.stringify({ error: "No Stripe customer found" }), {
+      const lookup = await findCancelableSubscriptionByEmail(stripe, customerEmail);
+      if ("error" in lookup) {
+        return new Response(JSON.stringify({ error: lookup.error }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const subs = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        status: "all",
-        limit: 10,
-      });
-      const active = subs.data.find((s) => ["active", "trialing", "past_due"].includes(s.status));
-      if (!active) {
-        return new Response(JSON.stringify({ error: "No cancelable subscription found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      subscriptionId = active.id;
+      subscriptionId = lookup.subscriptionId;
     }
 
     log("Cancelling subscription", { subscriptionId, immediate, by: udata.user.email });
@@ -142,28 +153,15 @@ serve(async (req) => {
         customerEmail,
       });
 
-      const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-      if (customers.data.length === 0) {
-        return new Response(JSON.stringify({ error: "No Stripe customer found" }), {
+      const lookup = await findCancelableSubscriptionByEmail(stripe, customerEmail);
+      if ("error" in lookup) {
+        return new Response(JSON.stringify({ error: lookup.error }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const subs = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        status: "all",
-        limit: 10,
-      });
-      const active = subs.data.find((s) => ["active", "trialing", "past_due"].includes(s.status));
-      if (!active) {
-        return new Response(JSON.stringify({ error: "No cancelable subscription found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      subscriptionId = active.id;
+      subscriptionId = lookup.subscriptionId;
       result = immediate
         ? await stripe.subscriptions.cancel(subscriptionId)
         : await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
