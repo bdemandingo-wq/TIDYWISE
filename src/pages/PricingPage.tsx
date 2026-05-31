@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
 import { SiteFooter } from '@/components/SiteFooter';
+import {
+  AdManagementRequestDialog,
+  type AdServiceType,
+} from '@/components/pricing/AdManagementRequestDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
 import { supabase } from '@/integrations/supabase/client';
