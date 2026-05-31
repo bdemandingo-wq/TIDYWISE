@@ -351,7 +351,7 @@ export default function StaffLoginPage() {
               <Link to="/features/scheduling-software" className="text-primary hover:underline">scheduling tools</Link>,{" "}
               <Link to="/features/payroll-software" className="text-primary hover:underline">payroll software</Link>,
               and <Link to="/pricing" className="text-primary hover:underline">pricing</Link>, or{" "}
-              <Link to="/signup" className="text-primary hover:underline">start a free trial</Link>.
+              <Link to="/signup" className="text-primary hover:underline">see pricing</Link>.
             </p>
           </div>
         </div>

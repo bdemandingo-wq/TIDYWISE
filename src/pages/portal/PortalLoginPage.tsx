@@ -223,7 +223,7 @@ export default function PortalLoginPage() {
               <Link to="/features/booking" className="text-primary hover:underline">online booking</Link>,{" "}
               <Link to="/features/scheduling-software" className="text-primary hover:underline">scheduling</Link>, and{" "}
               <Link to="/pricing" className="text-primary hover:underline">pricing plans</Link>. You can{" "}
-              <Link to="/signup" className="text-primary hover:underline">start a free trial</Link> or{" "}
+              <Link to="/signup" className="text-primary hover:underline">see pricing</Link> or{" "}
               <Link to="/login" className="text-primary hover:underline">sign in to your owner dashboard</Link>.
               Already on the team? Use the <Link to="/staff/login" className="text-primary hover:underline">Staff Portal</Link> instead.
             </p>

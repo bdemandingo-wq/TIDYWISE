@@ -92,7 +92,7 @@ export default function LocationSoftwarePage() {
         "@type": "Offer",
         price: "0",
         priceCurrency: "USD",
-        description: "Free forever — Premium upgrade $50/mo flat (unlimited users)",
+        description: "Plans from $49/mo — unlimited users",
       },
     },
     {
@@ -142,7 +142,7 @@ export default function LocationSoftwarePage() {
                 <ArrowLeft className="h-4 w-4" /> All Markets
               </Link>
               <Button asChild size="sm">
-                <Link to="/signup">Start Free</Link>
+                <Link to="/signup">Get started</Link>
               </Button>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function LocationSoftwarePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" asChild>
                 <Link to="/signup">
-                  Start Free — No Credit Card <ArrowRight className="ml-2 h-4 w-4" />
+                  Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
@@ -199,7 +199,7 @@ export default function LocationSoftwarePage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              Free forever · Premium $50/mo flat (unlimited users) · Cancel anytime
+              Plans from $49/mo · Unlimited users · Cancel anytime
             </p>
           </div>
         </section>
@@ -313,7 +313,7 @@ export default function LocationSoftwarePage() {
         <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30 border-y border-border">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-              Start free. Upgrade when you&apos;re ready.
+              Get started. Upgrade when you&apos;re ready.
             </h2>
             <p className="text-muted-foreground mb-10 max-w-2xl mx-auto">
               Most {data.name} cleaning businesses run their entire operation on TidyWise Free.
@@ -321,7 +321,7 @@ export default function LocationSoftwarePage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto text-left">
               <div className="p-6 bg-card rounded-xl border border-border">
-                <div className="text-lg font-bold text-foreground mb-1">Free Forever</div>
+                <div className="text-lg font-bold text-foreground mb-1">Basic</div>
                 <div className="text-3xl font-bold text-foreground mb-4">$0<span className="text-base font-normal text-muted-foreground">/month</span></div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   {[
@@ -421,7 +421,7 @@ export default function LocationSoftwarePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" variant="secondary" asChild>
                 <Link to="/signup">
-                  Start Free — No Credit Card <ArrowRight className="ml-2 h-4 w-4" />
+                  Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button

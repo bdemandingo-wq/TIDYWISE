@@ -194,7 +194,7 @@ const featureArticles = [
   },
   {
     slug: "/features/payroll-software",
-    title: "Payroll Software for Cleaning Businesses — Free Forever",
+    title: "Payroll Software for Cleaning Businesses — Plans from $49/mo",
     excerpt: "Automate cleaner wages, tips, mileage reimbursements, and W-2/1099 docs. Built specifically for cleaning businesses.",
     category: "Features",
     readTime: "5 min read",
@@ -255,7 +255,7 @@ export default function BlogIndex() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free</Link>
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
         </div>

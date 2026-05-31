@@ -34,7 +34,7 @@ export default function PayrollSoftwareForCleaners() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={() => navigate("/signup")}>Start Free</Button>
+              <Button onClick={() => navigate("/signup")}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -46,7 +46,7 @@ export default function PayrollSoftwareForCleaners() {
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
                 <Button variant="ghost" onClick={() => navigate("/login")} className="flex-1">Log In</Button>
-                <Button onClick={() => navigate("/signup")} className="flex-1">Start Free</Button>
+                <Button onClick={() => navigate("/signup")} className="flex-1">Get started</Button>
               </div>
             </div>
           )}
@@ -103,7 +103,7 @@ export default function PayrollSoftwareForCleaners() {
             </p>
             <p className="text-muted-foreground">
               <strong className="text-foreground">Best for:</strong> Cleaning businesses that want payroll, scheduling, CRM, and invoicing in one place.<br />
-              <strong className="text-foreground">Price:</strong> Free forever · Premium $50/mo flat.
+              <strong className="text-foreground">Price:</strong> Plans from $49/mo.
             </p>
 
             <h3 className="text-xl font-semibold mt-6">2. Gusto — Best for Full-Service Payroll</h3>

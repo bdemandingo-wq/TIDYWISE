@@ -228,11 +228,11 @@ export function SubscriptionDialog({
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg text-foreground">Start Free Trial</h3>
+                    <h3 className="font-semibold text-lg text-foreground">See Pricing</h3>
                     {checkingOut === "standard" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Full access to all features for 60 days — no card required
+                    Full access to all features for 30 days — no card required
                   </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {["Unlimited bookings", "Team management", "AI tools", "Analytics"].map((f) => (

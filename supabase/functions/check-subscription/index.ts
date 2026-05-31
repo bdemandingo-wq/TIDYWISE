@@ -293,7 +293,7 @@ serve(async (req) => {
       product_id: null,
       subscription_end: null,
       trial_end: trialEndIso,
-      message: "Your 60-day free trial has ended. Please subscribe to continue.",
+      message: "Your 30-day money-back guarantee has ended. Please subscribe to continue.",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

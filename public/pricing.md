@@ -1,6 +1,6 @@
 # Pricing — TIDYWISE Cleaning Business Software
 
-## Free (Forever)
+## Basic
 - Price: $0/month
 - Users: Unlimited
 - Bookings: Unlimited
@@ -16,7 +16,7 @@
   - Client portal
 
 ## Premium
-- Price: $50/month (flat rate, all users included)
+- Price: $49/month (flat rate, all users included)
 - Users: Unlimited
 - Bookings: Unlimited
 - Features (everything in Free, plus):
@@ -36,7 +36,7 @@
 - Access: Full Premium features during trial
 
 ## Notes
-- No per-user fees — flat $50/month covers the entire team
+- No per-user fees — flat $49/month covers the entire team
 - No per-booking fees
 - No annual contract required
 - No implementation fee

@@ -29,7 +29,7 @@ export default function BookingSoftware() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="Online Booking Software for Cleaning Businesses | TidyWise"
-        description="Let clients book cleaning services online 24/7. TidyWise automates your booking process so you never miss a job. Try free today."
+        description="Let clients book cleaning services online 24/7. TidyWise automates your booking process so you never miss a job. See pricing."
         canonical="/features/booking"
         ogImage="/images/tidywise-og.png"
         schemaJson={{
@@ -37,7 +37,7 @@ export default function BookingSoftware() {
           "name": "TidyWise Booking Software",
           "applicationCategory": "BusinessApplication",
           "description": "Online booking software designed for cleaning businesses with smart scheduling and automated confirmations.",
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "60-day free trial" }
+          "offers": { "@type": "Offer", "price": "49", "priceCurrency": "USD", "description": "30-day money-back guarantee" }
         }}
       />
 
@@ -52,7 +52,7 @@ export default function BookingSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -65,7 +65,7 @@ export default function BookingSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -142,7 +142,7 @@ export default function BookingSoftware() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-primary/5">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-foreground mb-4">Start Accepting Bookings Today</h2>
-          <p className="text-lg text-muted-foreground mb-8">Join hundreds of cleaning businesses using TidyWise to fill their calendar. Start free, no credit card required.</p>
+          <p className="text-lg text-muted-foreground mb-8">Join hundreds of cleaning businesses using TidyWise to fill their calendar. Get started.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
             Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
           </Button>

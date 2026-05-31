@@ -15,8 +15,8 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Free forever", zenmaid: "14 days", winner: "tidywise" },
-  { feature: "Monthly Pricing", tidywise: "$50/month flat", zenmaid: "$23–$100/month", winner: "tie" },
+  { feature: "Free Trial", tidywise: "Plans from $49/mo", zenmaid: "14 days", winner: "tidywise" },
+  { feature: "Monthly Pricing", tidywise: "$49/month", zenmaid: "$23–$100/month", winner: "tie" },
   { feature: "Online Booking", tidywise: true, zenmaid: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, zenmaid: true, winner: "tie" },
   { feature: "GPS Check-ins", tidywise: true, zenmaid: true, winner: "tie" },
@@ -85,7 +85,7 @@ export default function CompareZenMaid() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -97,7 +97,7 @@ export default function CompareZenMaid() {
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
                 <Button variant="ghost" onClick={() => navigate("/login")} className="flex-1">Log In</Button>
-                <Button onClick={handleStartFreeTrial} className="flex-1">Start Free</Button>
+                <Button onClick={handleStartFreeTrial} className="flex-1">Get started</Button>
               </div>
             </div>
           )}
@@ -120,7 +120,7 @@ export default function CompareZenMaid() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
               <Button size="lg" onClick={handleStartFreeTrial}>
-                Start Free with TIDYWISE <Zap className="ml-2 h-4 w-4" />
+                Get started with TIDYWISE <Zap className="ml-2 h-4 w-4" />
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link to="/pricing">See Pricing</Link>
@@ -138,7 +138,7 @@ export default function CompareZenMaid() {
                 <span className="font-bold text-foreground text-lg">TIDYWISE</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$50/month flat — doesn't increase with bookings", "Automated payroll built-in", "P&L reporting and profit per job", "AI revenue and pricing tools", "Inventory tracking", "money-back within 30 days"].map(p => (
+                {["$49/month — doesn't increase with bookings", "Automated payroll built-in", "P&L reporting and profit per job", "AI revenue and pricing tools", "Inventory tracking", "money-back within 30 days"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -153,7 +153,7 @@ export default function CompareZenMaid() {
                 <span className="font-bold text-foreground text-lg">ZenMaid</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$23–$100/month, scales with booking volume", "No automated payroll", "Basic reporting (no P&L)", "No AI tools", "No inventory tracking", "14-day free trial"].map(p => (
+                {["$23–$100/month, scales with booking volume", "No automated payroll", "Basic reporting (no P&L)", "No AI tools", "No inventory tracking", "30-day money-back guarantee"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -178,9 +178,9 @@ export default function CompareZenMaid() {
                 </thead>
                 <tbody>
                   {[
-                    { plan: "Starter", tw: "Free forever · Premium $50/mo flat", zm: "$23/month" },
-                    { plan: "Growing business", tw: "$50/month flat", zm: "$49/month (up to 75 bookings)" },
-                    { plan: "Scaling business", tw: "$50/month flat", zm: "$100/month (up to 200 bookings)" },
+                    { plan: "Starter", tw: "Plans from $49/mo", zm: "$23/month" },
+                    { plan: "Growing business", tw: "$49/month", zm: "$49/month (up to 75 bookings)" },
+                    { plan: "Scaling business", tw: "$49/month", zm: "$100/month (up to 200 bookings)" },
                     { plan: "Payroll included", tw: "Yes", zm: "No" },
                     { plan: "P&L reporting", tw: "Yes", zm: "No" },
                   ].map((row, i) => (
@@ -291,7 +291,7 @@ export default function CompareZenMaid() {
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">See TIDYWISE Plans</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">Cancel any time. Full access to scheduling, payroll, invoicing, GPS tracking, and P&L reports from day one.</p>
-            <Button size="lg" onClick={handleStartFreeTrial}>Start Free →</Button>
+            <Button size="lg" onClick={handleStartFreeTrial}>Get started →</Button>
           </div>
 
           <div className="mt-16">

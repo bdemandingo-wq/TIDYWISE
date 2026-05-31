@@ -225,7 +225,7 @@ const activeAutomationsMeta: Record<string, {
   winback_60day: {
     icon: UserX,
     emoji: '💸',
-    description: 'Fires after 60 days of no booking — sends win-back message',
+    description: 'Fires after 30 days of no booking — sends win-back message',
     color: 'text-orange-500',
   },
   recurring_upsell: {

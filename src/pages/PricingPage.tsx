@@ -383,7 +383,7 @@ export default function PricingPage() {
                     <Link to="/login">Log in</Link>
                   </Button>
                   <Button asChild size="sm">
-                    <Link to="/signup">Start free</Link>
+                    <Link to="/signup">Get started</Link>
                   </Button>
                 </>
               )}

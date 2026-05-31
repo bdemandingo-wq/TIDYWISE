@@ -17,8 +17,8 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Free forever", bookingkoala: "14 days", winner: "tidywise" },
-  { feature: "Monthly Pricing", tidywise: "$50/month flat", bookingkoala: "$79-$379/month", winner: "tidywise" },
+  { feature: "Free Trial", tidywise: "Plans from $49/mo", bookingkoala: "14 days", winner: "tidywise" },
+  { feature: "Monthly Pricing", tidywise: "$49/month", bookingkoala: "$79-$379/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, bookingkoala: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, bookingkoala: true, winner: "tie" },
   { feature: "GPS Check-ins", tidywise: true, bookingkoala: true, winner: "tie" },
@@ -74,7 +74,7 @@ export default function CompareBookingKoala() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="TidyWise vs BookingKoala 2026: Which Wins for Cleaners?"
-        description="Compare TIDYWISE vs BookingKoala for cleaning businesses. Payroll, P&L reports, and AI tools for $50/mo vs BookingKoala's $79–$379/mo."
+        description="Compare TIDYWISE vs BookingKoala for cleaning businesses. Payroll, P&L reports, and AI tools for $49/mo vs BookingKoala's $79–$379/mo."
         canonical="/compare/booking-koala"
         ogImage="/images/tidywise-og.png"
       />
@@ -90,7 +90,7 @@ export default function CompareBookingKoala() {
               <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button 
               className="md:hidden p-2"
@@ -105,7 +105,7 @@ export default function CompareBookingKoala() {
                 <a href="/#features" className="text-muted-foreground hover:text-foreground">Features</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -124,17 +124,17 @@ export default function CompareBookingKoala() {
             <span className="text-primary">The Better Alternative</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Looking for a BookingKoala alternative? TIDYWISE offers <strong>automated payroll, P&L reports, and AI revenue tools</strong>—all for a flat $50/month vs BookingKoala's $79-$379/month.
+            Looking for a BookingKoala alternative? TIDYWISE offers <strong>automated payroll, P&L reports, and AI revenue tools</strong>—all for a flat $49/month vs BookingKoala's $79-$379/month.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFreeTrial}>
-              Start Free <ArrowRight className="ml-2 h-4 w-4" />
+              Get started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" className="h-12 px-8" onClick={() => document.getElementById('comparison')?.scrollIntoView({ behavior: 'smooth' })}>
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">Free forever · Premium $50/mo flat · Cancel any time</p>
+          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
         </div>
       </section>
 
@@ -221,7 +221,7 @@ export default function CompareBookingKoala() {
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Save $300+/Month</h3>
               <p className="text-muted-foreground">
-                BookingKoala Pro costs $379/month. TIDYWISE includes everything for just $50/month.
+                BookingKoala Pro costs $379/month. TIDYWISE includes everything for just $49/month.
               </p>
             </div>
 
@@ -284,7 +284,7 @@ export default function CompareBookingKoala() {
             Start your money-back within 30 days today. Cancel any time. We'll help you migrate.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>
@@ -330,7 +330,7 @@ export default function CompareBookingKoala() {
             "priceCurrency": "USD",
             "priceValidUntil": "2026-12-31"
           },
-          "description": "The best BookingKoala alternative for cleaning businesses. Automated payroll, P&L reports, and flat $50/month pricing."
+          "description": "The best BookingKoala alternative for cleaning businesses. Automated payroll, P&L reports, and flat $49/month pricing."
         })
       }} />
     </div>

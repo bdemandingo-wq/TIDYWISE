@@ -74,7 +74,7 @@ export default function QuoteSoftware() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="Cleaning Quote Software | Instant Estimates | TIDYWISE"
-        description="Professional quote software for cleaning businesses. Auto-calculate prices, send branded estimates, and convert leads to bookings. Start free trial."
+        description="Professional quote software for cleaning businesses. Auto-calculate prices, send branded estimates, and convert leads to bookings. Get started trial."
         canonical="/features/quote-software"
       />
 
@@ -89,7 +89,7 @@ export default function QuoteSoftware() {
               <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button 
               className="md:hidden p-2"
@@ -104,7 +104,7 @@ export default function QuoteSoftware() {
                 <a href="/#features" className="text-muted-foreground hover:text-foreground">Features</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -127,7 +127,7 @@ export default function QuoteSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFreeTrial}>
-              Start Free <ArrowRight className="ml-2 h-4 w-4" />
+              Get started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" className="h-12 px-8" onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}>
               See How It Works
@@ -209,10 +209,10 @@ export default function QuoteSoftware() {
             Start Winning More Cleaning Contracts
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Professional quotes in 60 seconds. Start your free trial today.
+            Professional quotes in 60 seconds. See pricing today.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>

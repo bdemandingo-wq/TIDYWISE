@@ -98,7 +98,7 @@ export function SubscriptionBanner() {
       return `Your ${planPhrase} plan is active.${nextBillingDate ? ` Next billing date: ${nextBillingDate}.` : ''}`;
     }
     if (state === 'trialing') {
-      return `You are on a free trial of the ${planPhrase} plan.${trialEndDate ? ` Trial ends on ${trialEndDate}.` : ''}`;
+      return `You are on a trial of the ${planPhrase} plan.${trialEndDate ? ` Trial ends on ${trialEndDate}.` : ''}`;
     }
     // canceled
     return `Your ${planPhrase} plan has been canceled.${
@@ -200,10 +200,10 @@ export function SubscriptionBanner() {
       Icon: Clock,
       tone: 'border-amber-300/40 bg-amber-50 dark:bg-amber-950/20',
       iconWrap: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-      title: planLabel ? `${planLabel} plan — free trial` : 'Free trial active',
+      title: planLabel ? `${planLabel} plan — trial` : 'Trial active',
       subtitle: trialEndDate
         ? `Trial ends on ${trialEndDate}`
-        : 'You are currently on a free trial.',
+        : 'You are currently on a trial.',
     },
     canceled: {
       Icon: AlertCircle,

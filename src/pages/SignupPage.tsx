@@ -630,14 +630,14 @@ export default function SignupPage() {
           </h2>
           <p className="text-muted-foreground leading-relaxed">
             TidyWise is the operating system for modern cleaning businesses. Create your
-            free trial above and you'll have access to the same software that thousands
+            plan above and you'll have access to the same software that thousands
             of independent cleaners, maid services, commercial janitorial teams, and
             franchise operators use to win more jobs and run leaner operations.
           </p>
 
           <div>
             <h3 className="text-lg font-semibold text-foreground mb-3">
-              Your free trial includes
+              Your plan includes
             </h3>
             <ul className="space-y-2 text-muted-foreground list-disc pl-5">
               <li>A branded online booking page where clients can book and pay 24/7</li>

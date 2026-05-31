@@ -105,7 +105,7 @@ export default function PayrollSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -118,7 +118,7 @@ export default function PayrollSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -262,7 +262,7 @@ export default function PayrollSoftware() {
             TidyWise handles payroll, scheduling, CRM, and invoicing — all in one free platform for cleaning businesses.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>
