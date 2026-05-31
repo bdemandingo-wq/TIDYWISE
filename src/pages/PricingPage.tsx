@@ -298,7 +298,20 @@ export default function PricingPage() {
   }
 
 
-  async function startSubscriptionCheckout(planId: Tier['id'], preopened?: Window | null) {
+  async function startSubscriptionCheckout(planId: Tier['id']) {
+    // Idempotency guard — bail on every re-entry until the page
+    // navigates away. Prevents the duplicate-session bug seen in
+    // edge-function logs (multiple sessions per click from rapid
+    // double-taps / re-renders firing the handler before busy state
+    // painted). pageshow listener resets it on bfcache restore.
+    if (isRedirectingRef.current || checkoutBusy) return;
+    isRedirectingRef.current = true;
+
+    // Open the blank tab synchronously (still inside the user gesture)
+    // ONLY after the guard passes — so rapid clicks can't each pop a
+    // blank tab before busy state lands.
+    const preopened = preopenCheckoutTab();
+
     // Persist the choice in BOTH places:
     //   - sessionStorage for the Stripe cancel_url round-trip
     //   - URL params so a full refresh during checkout (or a deep
