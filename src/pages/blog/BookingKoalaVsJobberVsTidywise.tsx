@@ -129,7 +129,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
             <div className="grid md:grid-cols-3 gap-6 mb-8">
               <div className="bg-primary text-primary-foreground rounded-xl p-6">
                 <h3 className="text-xl font-bold mb-2">TIDYWISE</h3>
-                <p className="text-4xl font-bold mb-2">$50<span className="text-lg">/mo</span></p>
+                <p className="text-4xl font-bold mb-2">$49<span className="text-lg">/mo</span></p>
                 <p className="text-primary-foreground/80 text-sm">from $49/mo trial</p>
                 <p className="text-primary-foreground/80 text-sm mt-2">All features included</p>
               </div>

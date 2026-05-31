@@ -121,7 +121,7 @@ const faqs = [
   },
   {
     question: "How much does cleaning business software cost?",
-    answer: "Cleaning business software ranges from $50 to $500+ per month. TIDYWISE starts at $49/month with unlimited users. Competitors like Jobber charge $349/month and Booking Koala charges $197/month for similar features."
+    answer: "Cleaning business software ranges from $49 to $500+ per month. TIDYWISE starts at $49/month with unlimited users. Competitors like Jobber charge $349/month and Booking Koala charges $197/month for similar features."
   },
   {
     question: "What features should I look for in cleaning business CRM software?",

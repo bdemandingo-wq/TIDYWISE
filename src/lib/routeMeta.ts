@@ -51,7 +51,7 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   "/pricing": {
     title: "Pricing — Plans from $49/mo | TidyWise",
     description:
-      "TidyWise is from $49/mo for cleaning businesses. Upgrade to Pro at $97/mo — unlimited users, no per-booking fees, cancel anytime.",
+      "TidyWise plans start at $49/mo (Basic) for cleaning businesses. Upgrade to Pro at $97/mo — unlimited users, no per-booking fees, cancel anytime.",
     h1: "Pick the plan that fits your business",
   },
   "/demo": {

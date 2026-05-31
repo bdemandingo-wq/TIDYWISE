@@ -366,7 +366,7 @@ export default function CleaningBusinessSoftware() {
               How TidyWise Compares to Other Cleaning Business Software
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise is from $49/mo, with Pro at $97/mo and Custom at $197/mo — including built-in payroll and GPS that competitors charge extra for or don't offer.
+              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise starts at $49/mo (Basic), with Pro at $97/mo and Custom at $197/mo — including built-in payroll and GPS that competitors charge extra for or don't offer.
             </p>
           </div>
 

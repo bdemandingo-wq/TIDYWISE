@@ -346,7 +346,7 @@ export default function LocationSoftwarePage() {
                   Most Popular
                 </div>
                 <div className="text-lg font-bold mb-1">Premium</div>
-                <div className="text-3xl font-bold mb-4">$50<span className="text-base font-normal opacity-80">/month flat</span></div>
+                <div className="text-3xl font-bold mb-4">$49<span className="text-base font-normal opacity-80">/month</span></div>
                 <ul className="space-y-2 text-sm opacity-90">
                   {[
                     "Everything in Free",
