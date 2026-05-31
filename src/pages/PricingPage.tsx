@@ -382,7 +382,7 @@ export default function PricingPage() {
   // the tier highlighted (via the existing effect) so a one-click
   // retry is right there. No auto-resume.
 
-  async function startLifetimeCheckout() {
+  async function startLifetimeCheckout(preopened?: Window | null) {
     setCheckoutBusy('lifetime');
     try {
       const { data, error } = await supabase.functions.invoke('buy-lifetime', {
@@ -393,11 +393,14 @@ export default function PricingPage() {
       if (payload?.error) throw new Error(payload.error);
       const url = payload?.url;
       if (!url) throw new Error('Checkout URL missing');
-      goToCheckout(url);
+      goToCheckout(url, preopened);
       window.setTimeout(() => {
         setCheckoutBusy((current) => (current === 'lifetime' ? null : current));
       }, 1500);
     } catch (err) {
+      if (preopened && !preopened.closed) {
+        try { preopened.close(); } catch { /* ignore */ }
+      }
       toast.error(
         err instanceof Error
           ? err.message
@@ -406,6 +409,7 @@ export default function PricingPage() {
       setCheckoutBusy(null);
     }
   }
+
 
   async function joinWaitlist(e: React.FormEvent) {
     e.preventDefault();
