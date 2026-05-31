@@ -153,12 +153,20 @@ export function ProductTour() {
 
     const currentPath = `${location.pathname}${location.search}`;
     if (currentPath !== step.route) {
-      // Pause joyride while the route transitions — the target won't exist
-      // mid-flight.
+      // Only auto-route the user onto the tour step when they're already
+      // somewhere inside the admin shell. Otherwise we'd fight other
+      // redirects (paywall → /pricing, no-org → /onboarding, /login,
+      // Stripe return URLs, etc.) and produce an infinite navigation
+      // loop that Chrome throttles into a black screen.
+      if (!location.pathname.startsWith('/dashboard')) {
+        setRun(false);
+        return;
+      }
       setRun(false);
       navigate(step.route);
       return;
     }
+
 
     // We're on the right page. Wait for the target element.
     let attempts = 0;
