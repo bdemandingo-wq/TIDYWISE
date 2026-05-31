@@ -84,7 +84,7 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     h1: "Log in to TidyWise",
   },
   "/signup": {
-    title: "Create a Free TidyWise Account",
+    title: "Create your TidyWise Account",
     description:
       "Create your TidyWise account in under 60 seconds. Schedule, invoice, and run payroll from day one.",
     h1: "Create your TidyWise account",
@@ -336,7 +336,7 @@ export function locationRouteMeta(
   const title = `Cleaning Business Software in ${loc.name} | ${BRAND}`.slice(0, 60);
   const description =
     loc.seoDescription ??
-    `Cleaning business software for ${place} — scheduling, payroll, invoicing, and CRM built for local cleaners. Free to start.`.slice(0, 160);
+    `Cleaning business software for ${place} — scheduling, payroll, invoicing, and CRM built for local cleaners. Plans from $49/mo.`.slice(0, 160);
   const h1 = isCity
     ? `Cleaning Business Software in ${place}`
     : `Cleaning Business Software in ${loc.name}`;

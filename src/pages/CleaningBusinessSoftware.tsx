@@ -72,7 +72,7 @@ const features = [
 ];
 
 const competitorTable = [
-  { feature: "Monthly Price",         tidywise: "Free",          jobber: "$69–$349",     housecall: "$65–$299",    bookingKoala: "$39–$199" },
+  { feature: "Monthly Price",         tidywise: "$49–$197",      jobber: "$69–$349",     housecall: "$65–$299",    bookingKoala: "$39–$199" },
   { feature: "Online Booking",        tidywise: true,            jobber: true,            housecall: true,          bookingKoala: true       },
   { feature: "Scheduling",            tidywise: true,            jobber: true,            housecall: true,          bookingKoala: true       },
   { feature: "Automated Payroll",     tidywise: true,            jobber: false,           housecall: false,         bookingKoala: false      },
@@ -288,7 +288,7 @@ export default function CleaningBusinessSoftware() {
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
             <Zap className="h-4 w-4" />
-            Free Cleaning Business Software
+            Cleaning Business Software
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
             Cleaning Business Software<br />
@@ -520,7 +520,7 @@ export default function CleaningBusinessSoftware() {
 
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} TidyWise. Free cleaning business software for maid services and cleaning companies.</p>
+          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} TidyWise. Cleaning business software for maid services and cleaning companies — plans from $49/mo.</p>
           <div className="flex flex-wrap justify-center gap-6 mt-4">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
             <Link to="/features/scheduling-software" className="text-sm text-muted-foreground hover:text-foreground">Scheduling</Link>

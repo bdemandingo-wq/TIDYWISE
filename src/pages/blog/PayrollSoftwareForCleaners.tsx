@@ -166,11 +166,11 @@ export default function PayrollSoftwareForCleaners() {
             </p>
 
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
-              <h3 className="text-lg font-semibold text-foreground mb-2">Try TIDYWISE Payroll for Free</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Try TIDYWISE Payroll</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Built-in payroll, scheduling, CRM, and invoicing — all in one platform designed for cleaning businesses. Cancel any time.
               </p>
-              <Button onClick={() => navigate("/signup")}>Get Started Free →</Button>
+              <Button onClick={() => navigate("/signup")}>Get Started →</Button>
             </div>
           </div>
 
