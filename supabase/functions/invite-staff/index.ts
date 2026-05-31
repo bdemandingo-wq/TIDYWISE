@@ -372,6 +372,64 @@ serve(async (req) => {
 
     await logToSystem('info', 'Staff member created successfully', { staffId: staffData.id, email, wasNewUser: wasNewUserCreated }, adminUserId, organizationId);
 
+    // Email the new staff member their login credentials so the admin
+    // doesn't have to manually copy/text them. Fire-and-forget — failure
+    // here must NOT block the invite (admin can always resend manually).
+    try {
+      // Pull org name for sender context
+      const { data: org } = await supabaseAdmin
+        .from("organizations")
+        .select("name")
+        .eq("id", organizationId)
+        .maybeSingle();
+      const orgName = org?.name || "your team";
+      const loginUrl = "https://www.jointidywise.com/staff/login";
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const firstName = name.trim().split(" ")[0] || "there";
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #1a1a1a; margin: 0 0 12px;">Welcome to ${esc(orgName)}, ${esc(firstName)} 👋</h2>
+          <p style="color: #333; line-height: 1.6;">
+            You've been added as a team member. Use the credentials below to
+            sign in to your staff portal and start picking up jobs.
+          </p>
+          <table style="border-collapse: collapse; margin: 16px 0; background: #f5f5f5; padding: 12px; width: 100%; max-width: 400px;">
+            <tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
+            <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>
+          </table>
+          <p style="margin: 16px 0;">
+            <a href="${loginUrl}" style="display: inline-block; background: #2563eb; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Sign in to staff portal</a>
+          </p>
+          <p style="color: #92400e; background: #fff7ed; border-left: 4px solid #f59e0b; padding: 12px 16px; line-height: 1.5;">
+            <strong>Please change your password</strong> after signing in for the first time.
+          </p>
+          <p style="color: #555; margin-top: 24px;">— ${esc(orgName)}</p>
+        </div>`;
+
+      // Try Resend directly with platform key (works regardless of org email setup).
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      if (resendKey) {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "TidyWise <noreply@tidywisecleaning.com>",
+            to: [email.toLowerCase().trim()],
+            reply_to: "support@tidywisecleaning.com",
+            subject: `Welcome to ${orgName} — your staff login`,
+            html,
+          }),
+        });
+        await logToSystem('info', 'Staff welcome email sent', { staffId: staffData.id, email }, adminUserId, organizationId);
+      } else {
+        console.warn("[invite-staff] RESEND_API_KEY not set — skipping welcome email");
+      }
+    } catch (emailErr) {
+      console.error("[invite-staff] Welcome email failed (non-fatal):", emailErr);
+      await logToSystem('warn', 'Staff welcome email failed', { staffId: staffData.id, error: String(emailErr) }, adminUserId, organizationId);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
