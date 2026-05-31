@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -34,7 +34,16 @@ export function AdminRoute({ children }: AdminRouteProps) {
   const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const location = useLocation();
+  const navigate = useNavigate();
   const switchedRef = useRef(false);
+  // One-shot paywall redirect guard. Without this, AdminRoute returns a
+  // fresh <Navigate to="/pricing"> on every re-render — and re-renders
+  // happen often (subscription poll, org refetch, queryClient changes).
+  // Each render fires a navigation call; Chrome's "Throttling navigation"
+  // protection kicks in around 30 nav/5s and freezes the tab on a black
+  // screen. Imperative navigate() inside useEffect fires once per
+  // distinct redirect decision and never floods.
+  const paywallRedirectRef = useRef<string | null>(null);
 
 
   // If the active org isn't admin/owner but the user IS admin/owner in another
@@ -99,14 +108,30 @@ export function AdminRoute({ children }: AdminRouteProps) {
   // bounced to /pricing. Billing/logout/settings routes stay reachable so
   // they can purchase or sign out. Native builds bypass the gate (Apple
   // policy — billing happens on the web).
-  if (!Capacitor.isNativePlatform() && !subLoading && !hasFullAccess) {
-    const path = location.pathname;
-    const isAllowed = PAYWALL_ALLOWED_PATHS.some(
-      (allowed) => path === allowed || path.startsWith(allowed + '/')
+  const needsPaywallRedirect =
+    !Capacitor.isNativePlatform() &&
+    !subLoading &&
+    !hasFullAccess &&
+    !PAYWALL_ALLOWED_PATHS.some(
+      (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
     );
-    if (!isAllowed) {
-      return <Navigate to="/pricing" replace state={{ from: path }} />;
-    }
+
+  // Imperative one-shot redirect (see paywallRedirectRef comment above).
+  // Keyed on `pathname` so a user who walks from /dashboard to a different
+  // gated route after the first redirect still gets bounced again.
+  useEffect(() => {
+    if (!needsPaywallRedirect) return;
+    if (paywallRedirectRef.current === location.pathname) return;
+    paywallRedirectRef.current = location.pathname;
+    navigate('/pricing', { replace: true, state: { from: location.pathname } });
+  }, [needsPaywallRedirect, location.pathname, navigate]);
+
+  if (needsPaywallRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return <>{children}</>;
