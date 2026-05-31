@@ -47,7 +47,10 @@ serve(async (req: Request) => {
 
       const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
       try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+        // Deno-compatible async signature verification. The sync
+        // constructEvent() throws "SubtleCryptoProvider cannot be used
+        // in a synchronous context" in Supabase Edge Functions.
+        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
       } catch (err: any) {
         console.error("[stripe-connect-webhook] Signature verification failed:", err.message);
         return new Response(JSON.stringify({ error: "Invalid signature" }), {

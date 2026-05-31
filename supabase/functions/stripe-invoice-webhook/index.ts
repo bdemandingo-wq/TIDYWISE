@@ -53,7 +53,15 @@ const handler = async (req: Request): Promise<Response> => {
       apiVersion: "2025-08-27.basil",
     });
     try {
-      event = tempStripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+      // Deno's Web Crypto (SubtleCrypto) is async-only, so the
+      // synchronous constructEvent() throws "SubtleCryptoProvider
+      // cannot be used in a synchronous context". constructEventAsync
+      // is the Deno-compatible version. Same signature, just await it.
+      event = await tempStripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        stripeWebhookSecret,
+      );
     } catch (err: any) {
       console.error("[stripe-invoice-webhook] Webhook signature verification failed:", err.message);
       return new Response(
