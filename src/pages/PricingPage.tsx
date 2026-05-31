@@ -686,7 +686,7 @@ export default function PricingPage() {
                   )
                 ) : (
                   <Button
-                    onClick={startLifetimeCheckout}
+                    onClick={() => startLifetimeCheckout(preopenCheckoutTab())}
                     disabled={checkoutBusy === 'lifetime'}
                     size="lg"
                     className="w-full md:w-auto bg-amber-600 hover:bg-amber-700"
