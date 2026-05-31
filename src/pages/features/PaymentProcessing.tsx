@@ -90,7 +90,7 @@ export default function PaymentProcessing() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Try TidyWise Free <ArrowRight className="ml-2 h-5 w-5" />
+              Try TidyWise <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See Pricing
@@ -133,7 +133,7 @@ export default function PaymentProcessing() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Start Getting Paid on Time</h2>
           <p className="text-lg text-muted-foreground mb-8">Automatic charging and professional invoicing. See pricing today.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-            Try TidyWise Free <ArrowRight className="ml-2 h-5 w-5" />
+            Try TidyWise <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

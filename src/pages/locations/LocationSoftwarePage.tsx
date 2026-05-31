@@ -85,7 +85,7 @@ export default function LocationSoftwarePage() {
     {
       "@type": "SoftwareApplication",
       name: "TidyWise",
-      description: `Free cleaning business software for ${data.name}. Scheduling, invoicing, automated payroll, GPS tracking, and client management built specifically for cleaning companies.`,
+      description: `Cleaning business software for ${data.name} from $49/mo. Scheduling, invoicing, automated payroll, GPS tracking, and client management built specifically for cleaning companies.`,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web, iOS, Android",
       offers: {
@@ -122,7 +122,7 @@ export default function LocationSoftwarePage() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={`Cleaning Business Software for ${data.name} | TidyWise`}
-        description={data.seoDescription ?? `Free cleaning business software for ${data.name} — booking, scheduling, payroll, GPS, and CRM. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaners.`}`}
+        description={data.seoDescription ?? `Cleaning business software for ${data.name} from $49/mo — booking, scheduling, payroll, GPS, and CRM. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaners.`}`}
         canonical={canonicalPath}
         schemaJson={schemaJson}
       />
@@ -316,7 +316,7 @@ export default function LocationSoftwarePage() {
               Get started. Upgrade when you&apos;re ready.
             </h2>
             <p className="text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Most {data.name} cleaning businesses run their entire operation on TidyWise Free.
+              Most {data.name} cleaning businesses run their entire operation on TidyWise Basic ($49/mo).
               No per-user fees, no per-booking fees, no contracts.
             </p>
             <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto text-left">
@@ -349,7 +349,7 @@ export default function LocationSoftwarePage() {
                 <div className="text-3xl font-bold mb-4">$49<span className="text-base font-normal opacity-80">/month</span></div>
                 <ul className="space-y-2 text-sm opacity-90">
                   {[
-                    "Everything in Free",
+                    "Everything in Basic",
                     "Automated payroll",
                     "P&L reporting",
                     "AI pricing tools",

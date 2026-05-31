@@ -96,7 +96,7 @@ export default function SchedulingSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See Pricing
@@ -144,7 +144,7 @@ export default function SchedulingSoftware() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Take Control of Your Schedule</h2>
           <p className="text-lg text-muted-foreground mb-8">Stop wasting time on manual scheduling. See pricing today.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-            Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+            Get Started <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

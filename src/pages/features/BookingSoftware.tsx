@@ -88,7 +88,7 @@ export default function BookingSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See Pricing
@@ -144,7 +144,7 @@ export default function BookingSoftware() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Start Accepting Bookings Today</h2>
           <p className="text-lg text-muted-foreground mb-8">Join hundreds of cleaning businesses using TidyWise to fill their calendar. Get started.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-            Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+            Get Started <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>
