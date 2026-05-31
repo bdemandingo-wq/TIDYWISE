@@ -119,6 +119,68 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_management_requests: {
+        Row: {
+          business_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          has_ad_accounts: boolean | null
+          id: string
+          monthly_budget: number | null
+          notes: string | null
+          organization_id: string
+          service_area: string | null
+          service_type: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          has_ad_accounts?: boolean | null
+          id?: string
+          monthly_budget?: number | null
+          notes?: string | null
+          organization_id: string
+          service_area?: string | null
+          service_type: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          has_ad_accounts?: boolean | null
+          id?: string
+          monthly_budget?: number | null
+          notes?: string | null
+          organization_id?: string
+          service_area?: string | null
+          service_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_management_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       additional_charges: {
         Row: {
           booking_id: string

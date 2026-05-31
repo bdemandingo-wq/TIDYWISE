@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
 import { SiteFooter } from '@/components/SiteFooter';
+import {
+  AdManagementRequestDialog,
+  type AdServiceType,
+} from '@/components/pricing/AdManagementRequestDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,6 +120,7 @@ export default function PricingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
+  const [adRequestService, setAdRequestService] = useState<AdServiceType | null>(null);
   const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const spotsLeft = lifetime.spotsLeft;
 
@@ -657,29 +662,32 @@ export default function PricingPage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-4">
-              {[
+              {([
                 {
+                  slug: 'google_search' as AdServiceType,
                   name: 'Google Search Ads',
                   body:
                     'Capture "house cleaner near me" searches in your zip code. We build the campaign, write the ads, monitor performance.',
                   guarantee: null,
                 },
                 {
+                  slug: 'google_lsa' as AdServiceType,
                   name: 'Google Local Services Ads',
                   body:
                     'Top of Google with the green checkmark. We handle license verification, lead scoring, and weekly optimization.',
                   guarantee: null,
                 },
                 {
+                  slug: 'facebook' as AdServiceType,
                   name: 'Facebook Ads',
                   body:
                     'Retargeting and lookalike audiences from your customer list. We write the copy, design the creative, run the campaign.',
                   guarantee: '10 leads in 30 days',
                 },
-              ].map((p) => (
+              ] as const).map((p) => (
                 <div
                   key={p.name}
-                  className={`rounded-lg bg-background p-5 border relative ${
+                  className={`rounded-lg bg-background p-5 border relative flex flex-col ${
                     p.guarantee ? 'border-emerald-500/50 shadow-sm shadow-emerald-500/10' : ''
                   }`}
                 >
@@ -706,6 +714,13 @@ export default function PricingPage() {
                       </p>
                     </div>
                   )}
+                  <Button
+                    className="mt-4 w-full"
+                    variant={p.guarantee ? 'default' : 'outline'}
+                    onClick={() => setAdRequestService(p.slug)}
+                  >
+                    Get started
+                  </Button>
                 </div>
               ))}
             </div>
@@ -761,6 +776,11 @@ export default function PricingPage() {
 
         <SiteFooter />
       </main>
+      <AdManagementRequestDialog
+        open={adRequestService !== null}
+        onOpenChange={(o) => { if (!o) setAdRequestService(null); }}
+        serviceType={adRequestService}
+      />
     </>
   );
 }
