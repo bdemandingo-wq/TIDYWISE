@@ -227,12 +227,10 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user?.email,
-      // Anonymous flow: force Stripe to create a Customer object for
-      // the email it collects. Without this, an existing customer
-      // record with the same email could be reused — pulling stale
-      // metadata into the new session's evidence trail. customer_creation
-      // is only valid when there's no `customer` already.
-      ...(customerId ? {} : { customer_creation: "always" as const }),
+      // Note: `customer_creation` is only valid in payment mode. In
+      // subscription mode Stripe always creates a Customer automatically,
+      // so we don't need (or are allowed) to set it.
+
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       payment_method_options: {
