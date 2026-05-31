@@ -86,8 +86,8 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   "/signup": {
     title: "Create a Free TidyWise Account",
     description:
-      "Start your free cleaning business account in under 60 seconds.  Schedule, invoice, and run payroll from day one.",
-    h1: "Create your free TidyWise account",
+      "Create your TidyWise account in under 60 seconds. Schedule, invoice, and run payroll from day one.",
+    h1: "Create your TidyWise account",
   },
   "/auth": {
     title: "Sign In or Create Your TidyWise Account",

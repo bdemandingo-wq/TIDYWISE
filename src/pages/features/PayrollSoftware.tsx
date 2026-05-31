@@ -259,7 +259,7 @@ export default function PayrollSoftware() {
             Stop Running Payroll in Spreadsheets
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            TidyWise handles payroll, scheduling, CRM, and invoicing — all in one free platform for cleaning businesses.
+            TidyWise handles payroll, scheduling, CRM, and invoicing — all in one platform for cleaning businesses, with plans from $49/mo.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Get started <ArrowRight className="ml-2 h-4 w-4" />

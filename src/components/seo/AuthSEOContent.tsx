@@ -145,7 +145,7 @@ export function AuthSEOContent({ variant = 'login', heading, headingLevel = 'h1'
           </p>
         </div>
         <div>
-          <h3 className="font-semibold text-foreground">Is TidyWise free to try?</h3>
+          <h3 className="font-semibold text-foreground">How much does TidyWise cost?</h3>
           <p>
             Yes. You can{' '}
             <Link to="/signup" className="text-primary hover:underline">

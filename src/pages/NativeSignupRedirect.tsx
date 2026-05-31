@@ -26,7 +26,7 @@ export default function NativeSignupRedirect() {
     <>
       <SEOHead
         title="Sign Up | TidyWise"
-        description="Opening the TidyWise signup page on the web — create your free cleaning business CRM account in minutes."
+        description="Opening the TidyWise signup page on the web — create your cleaning business CRM account in minutes."
         noIndex
       />
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center">

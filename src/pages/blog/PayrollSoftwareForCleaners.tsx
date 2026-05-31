@@ -162,7 +162,7 @@ export default function PayrollSoftwareForCleaners() {
               If you're running payroll manually in a spreadsheet, you're losing hours every two weeks — and introducing errors. The best payroll software for your cleaning business depends on your size and how integrated you want your tools to be.
             </p>
             <p className="text-muted-foreground">
-              For most cleaning companies under 20 cleaners, TIDYWISE covers payroll, scheduling, and invoicing in one free platform. Larger operations or those with complex tax situations may want to add Gusto for full-service compliance support.
+              For most cleaning companies under 20 cleaners, TIDYWISE covers payroll, scheduling, and invoicing in one affordable platform (plans from $49/mo). Larger operations or those with complex tax situations may want to add Gusto for full-service compliance support.
             </p>
 
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">

@@ -80,7 +80,7 @@ export default function AutomateCleaningCompany() {
 
             <div className="bg-primary/5 rounded-xl p-6 mt-8 border border-primary/20">
               <h3 className="text-xl font-bold text-foreground mb-2">Automate Your Cleaning Business Today</h3>
-              <p className="text-muted-foreground mb-4">TidyWise automates booking, scheduling, invoicing, reminders, and reporting in one platform. Start your free 60-day trial.</p>
+              <p className="text-muted-foreground mb-4">TidyWise automates booking, scheduling, invoicing, reminders, and reporting in one platform. Plans start at $49/mo.</p>
               <Button asChild>
                 <Link to="/signup">Get started <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>

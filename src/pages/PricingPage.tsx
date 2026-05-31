@@ -755,11 +755,11 @@ export default function PricingPage() {
               },
               {
                 q: 'What happens at the end of my paid month if I cancel?',
-                a: 'You keep using TidyWise until the day your last paid month ends. After that your account drops to a free read-only state — your data stays, you can come back any time by resubscribing.',
+                a: 'You keep using TidyWise until the day your last paid month ends. After that your account drops to a read-only state — your data stays, you can come back any time by resubscribing.',
               },
               {
                 q: 'Does the lifetime plan include future features?',
-                a: "Yes. Anything we ship later is included free, forever. The only thing the lifetime plan does NOT include is the Custom plan's done-for-you requests — those are a Custom-tier benefit.",
+                a: "Yes. Anything we ship later is included at no extra cost, for life. The only thing the lifetime plan does NOT include is the Custom plan's done-for-you requests — those are a Custom-tier benefit.",
               },
               {
                 q: 'Can I buy ad management without TidyWise?',
