@@ -714,6 +714,40 @@ export default function PlatformAnalyticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {analytics?.organizations.recent && analytics.organizations.recent.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={
+                          selectedOrgs.size > 0 &&
+                          selectedOrgs.size === analytics.organizations.recent.length
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedOrgs(new Set(analytics.organizations.recent.map((o) => o.id)));
+                          } else {
+                            setSelectedOrgs(new Set());
+                          }
+                        }}
+                      />
+                      <span className="text-muted-foreground">
+                        {selectedOrgs.size > 0
+                          ? `${selectedOrgs.size} selected`
+                          : 'Select all'}
+                      </span>
+                    </label>
+                    {selectedOrgs.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setBulkConfirm('organization')}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete {selectedOrgs.size}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <ScrollArea className="h-[400px] pr-4">
                   {analytics?.organizations.recent && analytics.organizations.recent.length > 0 ? (
                     <div className="space-y-2">
@@ -723,6 +757,11 @@ export default function PlatformAnalyticsPage() {
                           className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                         >
                           <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedOrgs.has(org.id)}
+                              onCheckedChange={() => toggleSelect(setSelectedOrgs, org.id)}
+                            />
+
                             <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                               <Building2 className="w-5 h-5 text-blue-500" />
                             </div>
