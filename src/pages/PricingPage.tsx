@@ -265,7 +265,21 @@ export default function PricingPage() {
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: { plan: planId, interval },
       });
-      if (error) throw error;
+      if (error) {
+        // Supabase wraps non-2xx as FunctionsHttpError with a generic message.
+        // Read the real error from the response body so the toast is useful.
+        let realMessage: string | undefined;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.clone().json();
+            if (body?.error) realMessage = String(body.error);
+          }
+        } catch {
+          // ignore — fall back to generic error.message
+        }
+        throw new Error(realMessage || error.message);
+      }
       const payload = data as { url?: string; error?: string } | null;
       if (payload?.error) throw new Error(payload.error);
       const url = payload?.url;
