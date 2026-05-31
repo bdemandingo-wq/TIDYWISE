@@ -1125,4 +1125,91 @@ async function sendAdminNotification(
   }
 }
 
+/**
+ * Resolve the TidyWise organization for a Stripe subscription by looking up
+ * the customer's email → profile → org_memberships. Returns null when the
+ * subscription is for an ad-management retainer (those don't grant TidyWise
+ * access) or when no matching org can be found.
+ */
+async function resolveOrgIdForSubscription(
+  supabase: any,
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+): Promise<string | null> {
+  const meta = (subscription.metadata ?? {}) as Record<string, string>;
+  if (meta.purpose === "tidywise_ad_management") return null;
+  if (meta.organization_id) return meta.organization_id;
+
+  try {
+    const customer = await stripe.customers.retrieve(subscription.customer as string);
+    const email = (customer as Stripe.Customer).email?.toLowerCase();
+    if (!email) return null;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    if (!profile?.id) return null;
+    const { data: membership } = await supabase
+      .from("org_memberships")
+      .select("organization_id")
+      .eq("user_id", profile.id)
+      .limit(1)
+      .maybeSingle();
+    return membership?.organization_id ?? null;
+  } catch (e) {
+    console.error("[stripe-invoice-webhook] resolveOrgIdForSubscription failed:", e);
+    return null;
+  }
+}
+
+/**
+ * Upsert a row into public.stripe_subscriptions. This is the source of truth
+ * that has_active_subscription() reads to decide whether an org may create
+ * bookings / customers / invoices. Called on subscription created/updated/
+ * deleted and on invoice.paid.
+ */
+async function upsertStripeSubscription(
+  supabase: any,
+  orgId: string,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const item = subscription.items?.data?.[0];
+  const price = item?.price;
+  const meta = (subscription.metadata ?? {}) as Record<string, string>;
+
+  const currentPeriodEndSec = (subscription as any).current_period_end as number | undefined;
+  const trialEndSec = (subscription as any).trial_end as number | undefined;
+
+  const row = {
+    organization_id: orgId,
+    stripe_subscription_id: subscription.id,
+    stripe_customer_id: subscription.customer as string,
+    stripe_price_id: price?.id ?? null,
+    status: subscription.status,
+    plan: (meta.tidywise_plan as string | undefined) ?? null,
+    billing_interval: price?.recurring?.interval ?? null,
+    current_period_end: currentPeriodEndSec
+      ? new Date(currentPeriodEndSec * 1000).toISOString()
+      : null,
+    cancel_at_period_end: !!subscription.cancel_at_period_end,
+    trial_end: trialEndSec ? new Date(trialEndSec * 1000).toISOString() : null,
+    metadata: meta,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("stripe_subscriptions")
+    .upsert(row, { onConflict: "stripe_subscription_id" });
+  if (error) {
+    console.error("[stripe-invoice-webhook] stripe_subscriptions upsert failed:", error);
+  } else {
+    console.log("[stripe-invoice-webhook] stripe_subscriptions upserted", {
+      orgId,
+      subId: subscription.id,
+      status: subscription.status,
+    });
+  }
+}
+
 serve(handler);
