@@ -609,6 +609,40 @@ export default function PlatformAnalyticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {analytics?.signups.recent && analytics.signups.recent.length > 0 && (
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={
+                          selectedSignups.size > 0 &&
+                          selectedSignups.size === analytics.signups.recent.length
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSignups(new Set(analytics.signups.recent.map((s) => s.id)));
+                          } else {
+                            setSelectedSignups(new Set());
+                          }
+                        }}
+                      />
+                      <span className="text-muted-foreground">
+                        {selectedSignups.size > 0
+                          ? `${selectedSignups.size} selected`
+                          : 'Select all'}
+                      </span>
+                    </label>
+                    {selectedSignups.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setBulkConfirm('user')}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete {selectedSignups.size}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <ScrollArea className="h-[400px] pr-4">
                   {analytics?.signups.recent && analytics.signups.recent.length > 0 ? (
                     <div className="space-y-2">
@@ -618,6 +652,10 @@ export default function PlatformAnalyticsPage() {
                           className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                         >
                           <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedSignups.has(signup.id)}
+                              onCheckedChange={() => toggleSelect(setSelectedSignups, signup.id)}
+                            />
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium text-primary">
                                 {signup.email?.charAt(0).toUpperCase() || '?'}
@@ -664,6 +702,7 @@ export default function PlatformAnalyticsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
 
           <TabsContent value="organizations">
             <Card>
