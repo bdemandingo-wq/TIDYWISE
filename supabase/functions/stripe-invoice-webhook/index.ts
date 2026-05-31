@@ -792,6 +792,12 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("[stripe-invoice-webhook] Failed to update invoice status:", updateError);
         } else {
           console.log("[stripe-invoice-webhook] Invoice marked as paid:", invoiceId);
+
+          // Send branded "thank you / receipt" email to the customer.
+          // Fire-and-forget; never blocks the webhook ack.
+          supabase.functions.invoke("notify-invoice-paid", {
+            body: { invoice_id: invoiceId, organization_id: organizationId },
+          }).catch((e) => console.error("[stripe-invoice-webhook] notify-invoice-paid failed:", e));
         }
       }
     }
