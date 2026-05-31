@@ -1,12 +1,24 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
 interface AdminRouteProps {
   children: ReactNode;
 }
+
+// Routes a non-active org owner is still allowed to reach so they can
+// pay / log out / view billing. Everything else bounces to /pricing.
+const PAYWALL_ALLOWED_PATHS = [
+  '/dashboard/subscription',
+  '/dashboard/settings',
+  '/logout',
+];
+
+
 
 /**
  * AdminRoute - Protects admin dashboard routes
@@ -20,7 +32,10 @@ interface AdminRouteProps {
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading: authLoading } = useAuth();
   const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
+  const { hasFullAccess, isLoading: subLoading } = useSubscription();
+  const location = useLocation();
   const switchedRef = useRef(false);
+
 
   // If the active org isn't admin/owner but the user IS admin/owner in another
   // org, transparently switch to that org instead of bouncing to /staff. This
@@ -76,6 +91,22 @@ export function AdminRoute({ children }: AdminRouteProps) {
   // Only allow if user is explicitly admin or owner
   if (!isAdmin) {
     return <Navigate to="/" replace />;
+  }
+
+  // ── PAYWALL GATE ────────────────────────────────────────────────────────
+  // TidyWise is paid-only on the web. Org owners/admins without an active
+  // paid subscription, lifetime purchase, or pre-cutoff org trial get
+  // bounced to /pricing. Billing/logout/settings routes stay reachable so
+  // they can purchase or sign out. Native builds bypass the gate (Apple
+  // policy — billing happens on the web).
+  if (!Capacitor.isNativePlatform() && !subLoading && !hasFullAccess) {
+    const path = location.pathname;
+    const isAllowed = PAYWALL_ALLOWED_PATHS.some(
+      (allowed) => path === allowed || path.startsWith(allowed + '/')
+    );
+    if (!isAllowed) {
+      return <Navigate to="/pricing" replace state={{ from: path }} />;
+    }
   }
 
   return <>{children}</>;
