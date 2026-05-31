@@ -750,7 +750,7 @@ export default function PricingPage() {
                 a: 'Yes. Upgrade any time and the new features unlock instantly. Downgrade and the new plan kicks in at the end of your current billing month — no partial refunds, but no lost access either.',
               },
               {
-                q: 'Is there a free trial?',
+                q: 'Is there a money-back guarantee?',
                 a: 'No trial — you pay from day one, but you can cancel any time and you keep access until the end of the month you paid for.',
               },
               {

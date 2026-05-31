@@ -626,7 +626,7 @@ export default function SignupPage() {
       <section aria-labelledby="signup-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="signup-info-heading" className="text-2xl font-bold text-foreground">
-            Everything you need to run your cleaning business — start free
+            Everything you need to run your cleaning business
           </h2>
           <p className="text-muted-foreground leading-relaxed">
             TidyWise is the operating system for modern cleaning businesses. Create your

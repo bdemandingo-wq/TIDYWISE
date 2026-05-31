@@ -15,7 +15,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Plans from $49/mo", zenmaid: "14 days", winner: "tidywise" },
+  { feature: "Money-back guarantee", tidywise: "30 days", zenmaid: "14-day trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", zenmaid: "$23–$100/month", winner: "tie" },
   { feature: "Online Booking", tidywise: true, zenmaid: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, zenmaid: true, winner: "tie" },

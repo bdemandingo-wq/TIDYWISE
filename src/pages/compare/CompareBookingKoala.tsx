@@ -17,7 +17,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Plans from $49/mo", bookingkoala: "14 days", winner: "tidywise" },
+  { feature: "Money-back guarantee", tidywise: "30 days", bookingkoala: "14-day trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", bookingkoala: "$79-$379/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, bookingkoala: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, bookingkoala: true, winner: "tie" },
@@ -148,7 +148,7 @@ export default function CompareBookingKoala() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">2 Months</div>
-              <p className="text-sm text-muted-foreground">Free Trial</p>
+              <p className="text-sm text-muted-foreground">Money-back</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">12+</div>

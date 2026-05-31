@@ -22,7 +22,7 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Plans from $49/mo", jobber: "14 days", winner: "tidywise" },
+  { feature: "Money-back guarantee", tidywise: "30 days", jobber: "14-day trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", jobber: "$69-$349/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, jobber: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, jobber: true, winner: "tie" },
@@ -153,7 +153,7 @@ export default function CompareJobber() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">2 Months</div>
-              <p className="text-sm text-muted-foreground">Free Trial</p>
+              <p className="text-sm text-muted-foreground">Money-back</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">10+</div>

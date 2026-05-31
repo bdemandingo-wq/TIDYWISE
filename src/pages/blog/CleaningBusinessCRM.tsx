@@ -186,7 +186,7 @@ export default function CleaningBusinessCRM() {
               </Button>
             </div>
             <Button asChild className="md:hidden">
-              <Link to="/auth">Free Trial</Link>
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
         </div>
@@ -402,7 +402,7 @@ export default function CleaningBusinessCRM() {
                       <th className="text-left p-4 font-medium text-foreground">Software</th>
                       <th className="text-center p-4 font-medium text-foreground">Monthly Price</th>
                       <th className="text-center p-4 font-medium text-foreground">Users Included</th>
-                      <th className="text-center p-4 font-medium text-foreground">Free Trial</th>
+                      <th className="text-center p-4 font-medium text-foreground">Money-back</th>
                       <th className="text-center p-4 font-medium text-foreground">Built for Cleaning</th>
                       <th className="text-center p-4 font-medium text-foreground">Mobile App</th>
                       <th className="text-center p-4 font-medium text-foreground">Rating</th>
