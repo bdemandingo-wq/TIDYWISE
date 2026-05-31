@@ -624,8 +624,37 @@ const handler = async (req: Request): Promise<Response> => {
               );
             }
           }
+
+          // Mirror the new/upgraded subscription into stripe_subscriptions
+          // so the paywall gate opens immediately, without waiting for the
+          // separate customer.subscription.created event.
+          try {
+            const stripeSubId = typeof session.subscription === "string"
+              ? session.subscription
+              : (session.subscription as any)?.id;
+            if (stripeSubId) {
+              const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+                apiVersion: "2025-08-27.basil",
+              });
+              const fullSub = await stripe.subscriptions.retrieve(stripeSubId);
+              let orgId: string | null = null;
+              if (userId) {
+                const { data: mem } = await supabase
+                  .from("org_memberships")
+                  .select("organization_id")
+                  .eq("user_id", userId)
+                  .limit(1)
+                  .maybeSingle();
+                orgId = mem?.organization_id ?? null;
+              }
+              if (orgId) await upsertStripeSubscription(supabase, orgId, fullSub);
+            }
+          } catch (mirrorErr) {
+            console.error("[stripe-invoice-webhook] checkout mirror failed:", mirrorErr);
+          }
         }
       }
+
 
       if (invoiceId) {
         // Update invoice status to paid
