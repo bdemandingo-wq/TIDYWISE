@@ -210,7 +210,7 @@ export const locationData: Record<string, LocationData> = {
   "colorado": {
     type: "state",
     name: "Colorado",
-    seoDescription: "Cleaning business software for Colorado — Denver, Boulder, and Vail/Aspen vacation rentals. Free booking, scheduling, payroll, and GPS routing.",
+    seoDescription: "Cleaning business software for Colorado — Denver, Boulder, and Vail/Aspen vacation rentals. booking, scheduling, payroll, and GPS routing.",
     intro: "Colorado's cleaning market is driven by Denver's rapid growth and a mountain resort sector that creates strong vacation rental cleaning demand in towns like Vail, Aspen, Breckenridge, and Steamboat Springs. The Front Range—Denver, Aurora, Lakewood, Boulder, Fort Collins—is the core residential market, with suburban expansion pushing demand further east.",
     marketContext: "Colorado's outdoor lifestyle means clients often track in more dirt and debris, increasing cleaning frequency. Mountain resort markets need cleaners who can handle quick turnovers between ski-season bookings, often with same-day scheduling changes.",
     topCities: ["Denver", "Colorado Springs", "Aurora", "Fort Collins", "Boulder", "Lakewood", "Thornton", "Pueblo"],
@@ -1163,7 +1163,7 @@ export const locationData: Record<string, LocationData> = {
   "kentucky": {
     type: "state",
     name: "Kentucky",
-    seoDescription: "Cleaning business software for Kentucky — built for Louisville's healthcare market and Lexington's equine economy. Free booking, scheduling, payroll.",
+    seoDescription: "Cleaning business software for Kentucky — built for Louisville's healthcare market and Lexington's equine economy. booking, scheduling, payroll.",
     intro: "Kentucky's cleaning market is anchored by Louisville—the state's largest city and home to major corporations including Humana, Kindred Healthcare, and the bourbon industry—and Lexington, the horse capital of the world and home to the University of Kentucky. Both cities have growing professional class populations with strong residential cleaning demand.",
     marketContext: "Louisville's healthcare sector (one of the largest in the Southeast) and Lexington's equine industry create a stable, high-income client base. Kentucky's bourbon tourism boom has also driven short-term rental growth in Louisville's NuLu and Nulu neighborhoods.",
     topCities: ["Louisville", "Lexington", "Bowling Green", "Owensboro", "Covington", "Georgetown", "Frankfort", "Florence"],
@@ -1211,7 +1211,7 @@ export const locationData: Record<string, LocationData> = {
   "maine": {
     type: "state",
     name: "Maine",
-    seoDescription: "Cleaning business software for Maine — built for Portland residential and the seasonal coastal vacation rental market. Free booking, scheduling, payroll.",
+    seoDescription: "Cleaning business software for Maine — built for Portland residential and the seasonal coastal vacation rental market. booking, scheduling, payroll.",
     intro: "Maine's cleaning market is split between year-round residential in the Portland metro and a highly seasonal vacation rental market along its stunning coastline (Kennebunkport, Ogunquit, Bar Harbor, Camden, Boothbay Harbor). Portland, ME has transformed into one of the most vibrant small cities in New England, with a restaurant and arts scene that drives professional class migration.",
     marketContext: "Maine's coastal vacation rental market is extremely seasonal—peak season runs June through October, with August and foliage season (late September/October) being the busiest periods. Building a revenue mix of year-round Portland residential clients and seasonal coastal turnover cleaning creates a more stable annual income.",
     topCities: ["Portland", "Lewiston", "Bangor", "South Portland", "Auburn", "Kennebunkport", "Bar Harbor", "Brunswick"],
