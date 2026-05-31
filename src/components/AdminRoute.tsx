@@ -61,6 +61,28 @@ export function AdminRoute({ children }: AdminRouteProps) {
     }
   }, [orgLoading, authLoading, membership, isAdmin, adminOrgElsewhere, switchOrganization]);
 
+  // ── PAYWALL GATE ────────────────────────────────────────────────────────
+  // Compute BEFORE any early returns so hook order stays stable across
+  // renders (otherwise React error #310 — hooks called conditionally).
+  const needsPaywallRedirect =
+    !!user &&
+    !!organization &&
+    isAdmin &&
+    !Capacitor.isNativePlatform() &&
+    !subLoading &&
+    !hasFullAccess &&
+    !PAYWALL_ALLOWED_PATHS.some(
+      (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
+    );
+
+  // Imperative one-shot redirect, keyed on pathname.
+  useEffect(() => {
+    if (!needsPaywallRedirect) return;
+    if (paywallRedirectRef.current === location.pathname) return;
+    paywallRedirectRef.current = location.pathname;
+    navigate('/pricing', { replace: true, state: { from: location.pathname } });
+  }, [needsPaywallRedirect, location.pathname, navigate]);
+
   if (authLoading || orgLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -101,30 +123,6 @@ export function AdminRoute({ children }: AdminRouteProps) {
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
-
-  // ── PAYWALL GATE ────────────────────────────────────────────────────────
-  // TidyWise is paid-only on the web. Org owners/admins without an active
-  // paid subscription, lifetime purchase, or pre-cutoff org trial get
-  // bounced to /pricing. Billing/logout/settings routes stay reachable so
-  // they can purchase or sign out. Native builds bypass the gate (Apple
-  // policy — billing happens on the web).
-  const needsPaywallRedirect =
-    !Capacitor.isNativePlatform() &&
-    !subLoading &&
-    !hasFullAccess &&
-    !PAYWALL_ALLOWED_PATHS.some(
-      (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
-    );
-
-  // Imperative one-shot redirect (see paywallRedirectRef comment above).
-  // Keyed on `pathname` so a user who walks from /dashboard to a different
-  // gated route after the first redirect still gets bounced again.
-  useEffect(() => {
-    if (!needsPaywallRedirect) return;
-    if (paywallRedirectRef.current === location.pathname) return;
-    paywallRedirectRef.current = location.pathname;
-    navigate('/pricing', { replace: true, state: { from: location.pathname } });
-  }, [needsPaywallRedirect, location.pathname, navigate]);
 
   if (needsPaywallRedirect) {
     return (
