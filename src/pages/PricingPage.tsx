@@ -290,7 +290,7 @@ export default function PricingPage() {
   }
 
 
-  async function startSubscriptionCheckout(planId: Tier['id']) {
+  async function startSubscriptionCheckout(planId: Tier['id'], preopened?: Window | null) {
     // Persist the choice in BOTH places:
     //   - sessionStorage for the Stripe cancel_url round-trip
     //   - URL params so a full refresh during checkout (or a deep
