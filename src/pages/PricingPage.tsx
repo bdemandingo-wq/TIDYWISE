@@ -359,6 +359,10 @@ export default function PricingPage() {
         setCheckoutBusy((current) => (current === planId ? null : current));
       }, 1500);
     } catch (err) {
+      // Close the pre-opened tab so the user isn't left with a blank page.
+      if (preopened && !preopened.closed) {
+        try { preopened.close(); } catch { /* ignore */ }
+      }
       console.error('[pricing] create-subscription failed', err);
       toast.error(
         err instanceof Error ? err.message : 'Could not start checkout. Try again.',
@@ -368,6 +372,7 @@ export default function PricingPage() {
       window.clearTimeout(timeoutId);
     }
   }
+
 
   // Auto-resume after the cancel_url round-trip. If the user clicks a
   // plan, lands on Stripe, then clicks cancel and returns to /pricing,
