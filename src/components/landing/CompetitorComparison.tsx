@@ -190,7 +190,7 @@ export function CompetitorComparison() {
 
         <div className="text-center mt-12">
           <Button size="lg" onClick={() => navigate("/pricing")}>
-            See TIDYWISE Plans — From $49/mo
+            See TIDYWISE Plans — Free Forever
           </Button>
           <p className="text-sm text-muted-foreground mt-3">
             Trusted by cleaning businesses using TIDYWISE
