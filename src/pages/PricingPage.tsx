@@ -122,6 +122,16 @@ export default function PricingPage() {
   const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
   const [adRequestService, setAdRequestService] = useState<AdServiceType | null>(null);
   const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Hard guard against duplicate checkout sessions / double redirects.
+  // Once a click begins the redirect, every subsequent call bails until
+  // the page actually unloads. pageshow resets it so a back-nav restore
+  // (bfcache) doesn't leave the button permanently disabled.
+  const isRedirectingRef = useRef(false);
+  useEffect(() => {
+    const reset = () => { isRedirectingRef.current = false; };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
   const spotsLeft = lifetime.spotsLeft;
 
   // Restore selected plan + interval after a return trip to Stripe.
