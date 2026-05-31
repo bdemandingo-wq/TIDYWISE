@@ -6,6 +6,7 @@
 // of which (or whether any) organization they belong to.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { tidywiseEmailFooterHtml } from "../_shared/email-footer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +65,7 @@ serve(async (req) => {
           </p>
         </div>
         <p style="color: #555; margin-top: 24px;">— The TidyWise team</p>
+        ${tidywiseEmailFooterHtml()}
       </div>`;
 
     try {

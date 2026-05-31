@@ -191,17 +191,9 @@ export default function SignupPage() {
           console.error('TOS acceptance logging failed (non-critical):', tosErr);
         }
         
-        // Send welcome SMS if phone provided
-        if (formData.phone) {
-          supabaseNoSession.functions.invoke('send-signup-welcome-sms', {
-            body: {
-              to: formData.phone,
-              fullName: formData.fullName,
-            },
-          }).catch(err => console.log('Welcome SMS failed (non-critical):', err));
-        }
-        
-        // Notify platform admin of new signup
+        // Welcome SMS removed for cost control — the welcome email covers it.
+        // notify-platform-admin-signup still runs (admin alert), but it's been
+        // converted to email-only too; see that function for details.
         supabaseNoSession.functions.invoke('notify-platform-admin-signup', {
           body: {
             email: formData.email,

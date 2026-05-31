@@ -19,15 +19,14 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { tidywiseEmailFooterHtml } from "../_shared/email-footer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const TIDYWISE_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
 const ADMIN_EMAIL = "support@tidywisecleaning.com";
-const ADMIN_PHONES = ["+15615718725", "+18137356859"];
 
 const REASON_LABELS: Record<string, string> = {
   not_enough_jobs: "Not enough jobs to justify it",
@@ -147,6 +146,7 @@ serve(async (req: Request) => {
               — The TidyWise team<br/>
               <a href="mailto:${ADMIN_EMAIL}" style="color: #2563eb;">${ADMIN_EMAIL}</a>
             </p>
+            ${tidywiseEmailFooterHtml()}
           </div>`;
 
         await fetch("https://api.resend.com/emails", {
@@ -211,71 +211,10 @@ serve(async (req: Request) => {
       console.warn("[notify-tidywise-cancellation] RESEND_API_KEY not set — skipping emails");
     }
 
-    // ── 2. Customer SMS + 4. Admin SMS via OpenPhone ──────────────────────
-    const { data: smsSettings } = await supabase
-      .from("organization_sms_settings")
-      .select("openphone_api_key, openphone_phone_number_id")
-      .eq("organization_id", TIDYWISE_ORG_ID)
-      .maybeSingle();
-
-    if (smsSettings?.openphone_api_key && smsSettings?.openphone_phone_number_id) {
-      let phoneNumberId = smsSettings.openphone_phone_number_id;
-      if (phoneNumberId.includes("openphone.com")) {
-        const m = phoneNumberId.match(/phone-numbers\/([A-Za-z0-9]+)/);
-        if (m) phoneNumberId = m[1];
-      }
-      const opAuth = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, "");
-
-      // Customer SMS — only if we have a phone
-      if (userPhone) {
-        const customerMsg = `Hey ${firstName} — your TidyWise cancellation is confirmed. Your account stays active until ${periodEndDisplay}. Data stays safe; you can come back any time. Questions? Just reply to this text.`;
-        try {
-          const formatted = userPhone.startsWith("+")
-            ? userPhone
-            : `+1${userPhone.replace(/\D/g, "")}`;
-          await fetch("https://api.openphone.com/v1/messages", {
-            method: "POST",
-            headers: { Authorization: opAuth, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: phoneNumberId,
-              to: [formatted],
-              content: customerMsg,
-            }),
-          });
-          console.log("[notify-tidywise-cancellation] Customer SMS sent to", formatted);
-        } catch (err) {
-          console.error("[notify-tidywise-cancellation] Customer SMS failed:", err);
-        }
-      } else {
-        console.log("[notify-tidywise-cancellation] No phone on file for", email);
-      }
-
-      // Admin SMS
-      const adminMsg =
-        `📉 CANCEL: ${userName || email}\n` +
-        `${userPhone || "no phone"} • ${body.plan || "plan?"}\n` +
-        `Reason: ${reasonLabel}\n` +
-        `Access until ${periodEndDisplay}\n` +
-        (body.feedback_text ? `\n"${body.feedback_text.slice(0, 200)}"` : "");
-      try {
-        for (const ap of ADMIN_PHONES) {
-          await fetch("https://api.openphone.com/v1/messages", {
-            method: "POST",
-            headers: { Authorization: opAuth, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: phoneNumberId,
-              to: [ap],
-              content: adminMsg,
-            }),
-          });
-        }
-        console.log("[notify-tidywise-cancellation] Admin SMS sent to", ADMIN_PHONES);
-      } catch (err) {
-        console.error("[notify-tidywise-cancellation] Admin SMS failed:", err);
-      }
-    } else {
-      console.warn("[notify-tidywise-cancellation] OpenPhone not configured for TidyWise org");
-    }
+    // SMS removed — cost-control decision: TidyWise-paid OpenPhone
+    // SMS adds up fast at scale, and the cancellation email above already
+    // covers the same information. Both customer-facing SMS and admin
+    // alert SMS dropped together to keep the policy simple.
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

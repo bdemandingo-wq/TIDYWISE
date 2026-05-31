@@ -39,7 +39,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const TIDYWISE_ORG_ID = "e95b92d0-7099-408e-a773-e4407b34f8b4";
-    const ADMIN_PHONES = ["+15615718725", "+18137356859"];
+    // ADMIN_PHONES removed — admin alerts are now email-only.
 
     // Format date/time for display
     let dateDisplay = "";
@@ -63,63 +63,9 @@ serve(async (req: Request) => {
       .select("*", { count: "exact", head: true })
       .eq("status", "confirmed");
 
-    // 1. Send SMS to admins via OpenPhone
-    const { data: smsSettings } = await supabase
-      .from("organization_sms_settings")
-      .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
-      .eq("organization_id", TIDYWISE_ORG_ID)
-      .maybeSingle();
-
-    if (smsSettings?.openphone_api_key && smsSettings?.openphone_phone_number_id) {
-      // Admin notification
-      const adminMsg = bookedDate && bookedTime
-        ? `📅 NEW DEMO BOOKED!\n\n${fullName}\nBusiness: ${businessName}\nPhone: ${phone}\nEmail: ${email}\nTeam: ${teamSize || "N/A"}\nChallenge: ${biggestChallenge || "N/A"}\n\n📆 ${dateDisplay}\n⏰ ${timeDisplay} EST\n\nTotal demos booked: ${totalDemos || 1}\n→ jointidywise.com/admin/platform-analytics`
-        : `📅 NEW DEMO REQUEST!\n\nName: ${fullName}\nBusiness: ${businessName}\nPhone: ${phone}\nEmail: ${email}\nTeam: ${teamSize || "N/A"}\nChallenge: ${biggestChallenge || "N/A"}\nPrefers: ${preferredDays?.join(", ") || "Any"} ${preferredTime || ""}\n\nReply to confirm their demo!`;
-
-      try {
-        for (const adminPhone of ADMIN_PHONES) {
-          await fetch("https://api.openphone.com/v1/messages", {
-            method: "POST",
-            headers: {
-              Authorization: smsSettings.openphone_api_key,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              content: adminMsg,
-              to: [adminPhone],
-              from: smsSettings.openphone_phone_number_id,
-            }),
-          });
-        }
-        console.log("[notify-demo-request] Admin SMS sent");
-      } catch (smsErr) {
-        console.error("[notify-demo-request] Admin SMS error:", smsErr);
-      }
-
-      // Prospect confirmation SMS (only for calendar bookings)
-      if (bookedDate && bookedTime && phone) {
-        const firstName = fullName.split(" ")[0];
-        const prospectMsg = `Hey ${firstName}! 🎉\n\nYour TidyWise demo is confirmed!\n\n📆 ${dateDisplay}\n⏰ ${timeDisplay} EST\n\nEmmanuel will call you at ${phone} at that time.\n\nQuestions before then? Text or call: (561) 571-8725\n\nSee you soon!\n— Emmanuel, TidyWise`;
-
-        try {
-          await fetch("https://api.openphone.com/v1/messages", {
-            method: "POST",
-            headers: {
-              Authorization: smsSettings.openphone_api_key,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              content: prospectMsg,
-              to: [phone],
-              from: smsSettings.openphone_phone_number_id,
-            }),
-          });
-          console.log("[notify-demo-request] Prospect SMS sent to", phone);
-        } catch (smsErr) {
-          console.error("[notify-demo-request] Prospect SMS error:", smsErr);
-        }
-      }
-    }
+    // SMS removed for cost control — see admin email below for the
+    // alert, and the prospect confirmation email further down for the
+    // booking acknowledgment.
 
     // 2. Send confirmation email to prospect via Resend
     const { data: emailSettings } = await supabase
@@ -130,7 +76,49 @@ serve(async (req: Request) => {
 
     if (emailSettings?.resend_api_key) {
       const firstName = fullName.split(" ")[0];
-      
+
+      // Admin alert email — replaces the previous admin SMS. Sent BEFORE
+      // the prospect confirmation so a Resend hiccup hits the lower-
+      // priority message first if we're throttled.
+      try {
+        const adminAlertHtml = bookedDate && bookedTime
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+              <h2>📅 New demo BOOKED</h2>
+              <p><strong>${fullName}</strong> — ${businessName}</p>
+              <p>📆 ${dateDisplay} at ${timeDisplay} EST</p>
+              <p>📞 ${phone} • ✉️ <a href="mailto:${email}">${email}</a></p>
+              <p>Team: ${teamSize || "N/A"} • Challenge: ${biggestChallenge || "N/A"}</p>
+              <p style="color:#888;font-size:12px;">Total demos booked: ${totalDemos || 1}</p>
+            </div>`
+          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+              <h2>📅 New demo REQUEST</h2>
+              <p><strong>${fullName}</strong> — ${businessName}</p>
+              <p>📞 ${phone} • ✉️ <a href="mailto:${email}">${email}</a></p>
+              <p>Team: ${teamSize || "N/A"} • Challenge: ${biggestChallenge || "N/A"}</p>
+              <p>Prefers: ${preferredDays?.join(", ") || "Any"} ${preferredTime || ""}</p>
+              <p style="color:#b91c1c;">Reach out to confirm a time.</p>
+            </div>`;
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${emailSettings.resend_api_key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: `${emailSettings.from_name || "TidyWise"} <${emailSettings.from_email || "noreply@tidywisecleaning.com"}>`,
+            to: ["support@tidywisecleaning.com"],
+            reply_to: email,
+            subject: bookedDate && bookedTime
+              ? `📅 Demo booked: ${fullName} — ${dateDisplay}`
+              : `📅 Demo request: ${fullName}`,
+            html: adminAlertHtml,
+          }),
+        });
+        console.log("[notify-demo-request] Admin email alert sent");
+      } catch (adminErr) {
+        console.error("[notify-demo-request] Admin email error:", adminErr);
+      }
+
       const emailSubject = bookedDate && bookedTime
         ? `Your TidyWise Demo is Confirmed for ${dateDisplay} at ${timeDisplay} ✅`
         : "Your TidyWise Demo Request is Confirmed! 🎉";

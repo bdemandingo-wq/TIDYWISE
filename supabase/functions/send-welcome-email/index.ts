@@ -164,8 +164,16 @@ const handler = async (req: Request): Promise<Response> => {
           <tr>
             <td style="background-color:#1f2937;padding:25px;text-align:center;">
               <p style="color:#ffffff;font-size:16px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
-              <p style="color:#9ca3af;font-size:12px;margin:0;">
+              <p style="color:#9ca3af;font-size:12px;margin:0 0 12px;">
                 © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+              </p>
+              <p style="color:#9ca3af;font-size:11px;margin:0 0 4px;">
+                TidyWise, P.O. Box [TODO], FL
+              </p>
+              <p style="color:#9ca3af;font-size:11px;margin:0;">
+                <a href="mailto:support@tidywisecleaning.com?subject=Unsubscribe" style="color:#9ca3af;">Unsubscribe</a>
+                ·
+                <a href="mailto:support@tidywisecleaning.com" style="color:#9ca3af;">support@tidywisecleaning.com</a>
               </p>
             </td>
           </tr>

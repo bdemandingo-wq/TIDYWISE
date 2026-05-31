@@ -114,6 +114,16 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
+    // organizations.name is the FINAL fallback in the company-name
+    // chain — it's set at signup so it always exists. Used to prevent
+    // customer-facing invoices from ever showing the literal string
+    // "TidyWise" as the sending company name.
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", data.organizationId)
+      .maybeSingle();
+
     const { data: secretRows, error: stripeSettingsError } = await supabase.rpc("get_org_stripe_secret", {
       p_org_id: data.organizationId,
     });
@@ -189,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const paymentUrl = session.url;
-    const companyName = bizSettings?.company_name || emailSettings.from_name || "TidyWise";
+    const companyName = bizSettings?.company_name || emailSettings.from_name || orgRow?.name || "Your Business";
     const orgEmailLine = bizSettings?.company_email || emailSettings.from_email;
     const companyMeta = [
       [bizSettings?.company_address, [bizSettings?.company_city, bizSettings?.company_state, bizSettings?.company_zip].filter(Boolean).join(", ")].filter(Boolean).join("\n"),

@@ -56,14 +56,35 @@ serve(async (req) => {
       throw new Error("Quote not found");
     }
 
-    // Get business settings
+    // Get business settings for THIS quote's org. Previously this query
+    // used .limit(1) with no organization filter, which meant the function
+    // could return any org's settings — a multi-tenant data leak that
+    // would put Org A's company name / address on Org B's quote PDF.
     const { data: settings } = await supabase
       .from("business_settings")
       .select("*")
-      .limit(1)
+      .eq("organization_id", quote.organization_id)
       .maybeSingle();
 
-    const companyName = settings?.company_name || "TidyWise";
+    // Pull the org-level fallbacks for the company-name chain so a
+    // quote PDF never shows the literal "TidyWise" to the customer.
+    // organizations.name is set at signup and always exists.
+    const { data: orgEmailRow } = await supabase
+      .from("organization_email_settings")
+      .select("from_name")
+      .eq("organization_id", quote.organization_id)
+      .maybeSingle();
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", quote.organization_id)
+      .maybeSingle();
+
+    const companyName =
+      settings?.company_name ||
+      orgEmailRow?.from_name ||
+      orgRow?.name ||
+      "Your Business";
     const companyAddress = settings?.company_address || "";
     const companyCity = settings?.company_city || "";
     const companyState = settings?.company_state || "";
