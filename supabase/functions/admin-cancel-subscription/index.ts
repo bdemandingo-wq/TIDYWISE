@@ -103,7 +103,7 @@ serve(async (req) => {
       subscriptionId = active.id;
     }
 
-    log("Cancelling subscription", { subscriptionId, immediate, by: userEmail });
+    log("Cancelling subscription", { subscriptionId, immediate, by: udata.user.email });
 
     const result = immediate
       ? await stripe.subscriptions.cancel(subscriptionId)
