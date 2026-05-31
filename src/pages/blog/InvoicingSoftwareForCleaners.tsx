@@ -34,7 +34,7 @@ export default function InvoicingSoftwareForCleaners() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-              <Button asChild><Link to="/signup">Start Free</Link></Button>
+              <Button asChild><Link to="/signup">Get started</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -46,7 +46,7 @@ export default function InvoicingSoftwareForCleaners() {
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
                 <Button variant="ghost" asChild className="flex-1"><Link to="/login">Log In</Link></Button>
-                <Button asChild className="flex-1"><Link to="/signup">Start Free</Link></Button>
+                <Button asChild className="flex-1"><Link to="/signup">Get started</Link></Button>
               </div>
             </div>
           )}
@@ -149,17 +149,17 @@ export default function InvoicingSoftwareForCleaners() {
             </p>
             <ul className="space-y-2 text-muted-foreground list-disc list-inside">
               <li>Average payment time drops from 14+ days to 2-3 days (card-on-file charges same-day)</li>
-              <li>Outstanding receivables drop by 60-80% within 60 days</li>
+              <li>Outstanding receivables drop by 60-80% within 30 days</li>
               <li>3-5 hours per week recovered from manual invoicing and payment chasing</li>
               <li>Billing errors reduced to near zero (automated pricing from job records)</li>
             </ul>
 
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
-              <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE Invoicing — Automatic, Connected, Free</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE Invoicing — Automatic & Connected</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Invoices generated automatically when jobs are completed, card-on-file auto-charge for recurring clients, deposit collection, branded receipts, and Stripe integration — included free with TIDYWISE.
               </p>
-              <Button asChild><Link to="/signup">Start Free →</Link></Button>
+              <Button asChild><Link to="/signup">Get started →</Link></Button>
               <p className="text-sm text-muted-foreground mt-3">
                 Already have a TidyWise account? <Link to="/login" className="text-primary hover:underline">Sign in to your dashboard</Link>.
               </p>

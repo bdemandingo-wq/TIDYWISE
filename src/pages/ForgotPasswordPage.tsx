@@ -178,8 +178,8 @@ export default function ForgotPasswordPage() {
               TidyWise is the all-in-one platform for cleaning business owners — online
               booking, scheduling, invoicing, payroll, GPS tracking, and CRM in one
               dashboard. If you don't have an account yet,{" "}
-              <Link to="/signup" className="text-primary hover:underline">start a free trial</Link>{" "}
-              (no credit card required), browse our{" "}
+              <Link to="/signup" className="text-primary hover:underline">see pricing</Link>{" "}
+              (), browse our{" "}
               <Link to="/blog" className="text-primary hover:underline">guides for cleaning businesses</Link>,
               or compare{" "}
               <Link to="/pricing" className="text-primary hover:underline">pricing plans</Link>.

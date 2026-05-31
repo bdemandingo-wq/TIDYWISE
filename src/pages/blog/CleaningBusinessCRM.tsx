@@ -109,7 +109,7 @@ const keywordVariations = [
 const faqs = [
   {
     question: "What is the best CRM for a small cleaning business?",
-    answer: "TIDYWISE is the best CRM for small cleaning businesses because it's affordable ($50/month), easy to use, and includes all essential features like scheduling, invoicing, customer management, and automated reminders without expensive add-ons or per-user fees."
+    answer: "TIDYWISE is the best CRM for small cleaning businesses because it's affordable ($49/month), easy to use, and includes all essential features like scheduling, invoicing, customer management, and automated reminders without expensive add-ons or per-user fees."
   },
   {
     question: "Do I need a CRM for my maid service?",
@@ -117,11 +117,11 @@ const faqs = [
   },
   {
     question: "Can I use a free CRM for my cleaning business?",
-    answer: "Free CRMs like HubSpot or Zoho aren't designed for cleaning businesses and lack scheduling, dispatching, invoicing, and route optimization features. TIDYWISE offers a 60-day free trial so you can test all features before committing to a paid plan."
+    answer: "Free CRMs like HubSpot or Zoho aren't designed for cleaning businesses and lack scheduling, dispatching, invoicing, and route optimization features. TIDYWISE offers a 30-day money-back guarantee so you can test all features before committing to a paid plan."
   },
   {
     question: "How much does cleaning business software cost?",
-    answer: "Cleaning business software ranges from $50 to $500+ per month. TIDYWISE starts at $50/month with unlimited users. Competitors like Jobber charge $349/month and Booking Koala charges $197/month for similar features."
+    answer: "Cleaning business software ranges from $49 to $500+ per month. TIDYWISE starts at $49/month with unlimited users. Competitors like Jobber charge $349/month and Booking Koala charges $197/month for similar features."
   },
   {
     question: "What features should I look for in cleaning business CRM software?",
@@ -143,7 +143,7 @@ const faqs = [
 
 // Comparison data for competitors
 const competitorComparison = [
-  { name: "TIDYWISE", price: "$50/mo", users: "Unlimited", trial: "60 days", cleaning: true, mobile: true, rating: "4.9/5" },
+  { name: "TIDYWISE", price: "$49/mo", users: "Unlimited", trial: "30 days", cleaning: true, mobile: true, rating: "4.9/5" },
   { name: "Jobber", price: "$349/mo", users: "Up to 15", trial: "14 days", cleaning: false, mobile: true, rating: "4.5/5" },
   { name: "Booking Koala", price: "$197/mo", users: "Unlimited", trial: "14 days", cleaning: true, mobile: true, rating: "4.3/5" },
   { name: "Housecall Pro", price: "$129/mo", users: "1 user", trial: "14 days", cleaning: false, mobile: true, rating: "4.5/5" },
@@ -182,11 +182,11 @@ export default function CleaningBusinessCRM() {
               <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
               <Link to="/compare/jobber" className="text-muted-foreground hover:text-foreground transition-colors">Compare</Link>
               <Button asChild>
-                <Link to="/auth">Start Free</Link>
+                <Link to="/auth">Get started</Link>
               </Button>
             </div>
             <Button asChild className="md:hidden">
-              <Link to="/auth">Free Trial</Link>
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function CleaningBusinessCRM() {
               <div>
                 <h2 className="text-xl font-bold text-foreground mb-3">🏆 Best CRM for Cleaning Business 2026: Quick Answer</h2>
                 <p className="text-muted-foreground mb-4">
-                  <strong>TIDYWISE</strong> is a top-rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$50/month with unlimited users</strong> and a 60-day free trial (no credit card required).
+                  <strong>TIDYWISE</strong> is a top-rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$49/month with unlimited users</strong> and a 30-day money-back guarantee ().
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild size="lg">
@@ -402,7 +402,7 @@ export default function CleaningBusinessCRM() {
                       <th className="text-left p-4 font-medium text-foreground">Software</th>
                       <th className="text-center p-4 font-medium text-foreground">Monthly Price</th>
                       <th className="text-center p-4 font-medium text-foreground">Users Included</th>
-                      <th className="text-center p-4 font-medium text-foreground">Free Trial</th>
+                      <th className="text-center p-4 font-medium text-foreground">Money-back</th>
                       <th className="text-center p-4 font-medium text-foreground">Built for Cleaning</th>
                       <th className="text-center p-4 font-medium text-foreground">Mobile App</th>
                       <th className="text-center p-4 font-medium text-foreground">Rating</th>
@@ -468,14 +468,14 @@ export default function CleaningBusinessCRM() {
                     <span className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">3</span>
                     Evaluate Total Cost
                   </h3>
-                  <p className="text-muted-foreground">Look beyond the base price. Many competitors charge per user, charge extra for SMS, or limit features on lower tiers. TIDYWISE includes unlimited users and all features for $50/month.</p>
+                  <p className="text-muted-foreground">Look beyond the base price. Many competitors charge per user, charge extra for SMS, or limit features on lower tiers. TIDYWISE includes unlimited users and all features for $49/month.</p>
                 </div>
                 <div className="bg-card border border-border rounded-lg p-5">
                   <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                     <span className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">4</span>
                     Test Before You Commit
                   </h3>
-                  <p className="text-muted-foreground">A 14-day trial often isn't enough to truly evaluate software. TIDYWISE offers 60 days free—enough time to run your business through a full billing cycle and see real results.</p>
+                  <p className="text-muted-foreground">A 14-day trial often isn't enough to truly evaluate software. TIDYWISE offers 30-day money-back guarantee—enough time to run your business through a full billing cycle and see real results.</p>
                 </div>
               </div>
             </section>
@@ -566,11 +566,11 @@ export default function CleaningBusinessCRM() {
               Ready to Grow Your Cleaning Business?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Try TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 60-day free trial today—no credit card required.
+              Try TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 30-day money-back guarantee today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
-                <Link to="/auth">Start Free 60-Day Trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link to="/auth">Choose a Plan <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link to="/#demo">Watch Demo</Link>

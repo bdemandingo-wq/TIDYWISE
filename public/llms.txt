@@ -22,9 +22,10 @@ TIDYWISE is an all-in-one software platform built specifically for residential c
 
 ## Pricing
 
-- Free forever tier (core scheduling, invoicing, booking)
-- Premium: $50/month flat rate — unlimited users, unlimited bookings
-- 2-month free trial, no credit card required
+- Basic: $49/mo · Pro: $97/mo · Custom: $197/mo (yearly billing = 2 months free)
+- Founding Lifetime offer: $300 one-time (50 spots, limited)
+- Unlimited users, unlimited bookings on every plan
+- 30-day money-back guarantee
 - No per-user pricing, no per-booking fees
 
 ## Key Pages
@@ -47,7 +48,7 @@ TIDYWISE is an all-in-one software platform built specifically for residential c
 ## Pages
 
 - [Homepage](/): All-in-one cleaning business software overview.
-- [Pricing](/pricing): Free forever tier and $50/month premium plan.
+- [Pricing](/pricing): Basic $49/mo, Pro $97/mo, Custom $197/mo, Lifetime $300 one-time.
 - [Blog](/blog): Articles on growing and running a cleaning business.
 - [Contact](/contact): Get in touch with TidyWise.
 - [Cleaning Business Software](/cleaning-business-software): Full feature overview for cleaning businesses.

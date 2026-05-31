@@ -42,7 +42,7 @@ export default function HowToStartCleaningBusiness() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free</Link>
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
         </div>
@@ -389,7 +389,7 @@ export default function HowToStartCleaningBusiness() {
             </p>
             <Button size="lg" variant="secondary" asChild>
               <Link to="/auth">
-                Start Free <ArrowRight className="ml-2 h-4 w-4" />
+                Get started <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>

@@ -33,7 +33,7 @@ export default function AutomateCleaningCompany() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-              <Button asChild><Link to="/signup">Start Free</Link></Button>
+              <Button asChild><Link to="/signup">Get started</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -80,9 +80,9 @@ export default function AutomateCleaningCompany() {
 
             <div className="bg-primary/5 rounded-xl p-6 mt-8 border border-primary/20">
               <h3 className="text-xl font-bold text-foreground mb-2">Automate Your Cleaning Business Today</h3>
-              <p className="text-muted-foreground mb-4">TidyWise automates booking, scheduling, invoicing, reminders, and reporting in one platform. Start your free 60-day trial.</p>
+              <p className="text-muted-foreground mb-4">TidyWise automates booking, scheduling, invoicing, reminders, and reporting in one platform. Plans start at $49/mo.</p>
               <Button asChild>
-                <Link to="/signup">Start Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link to="/signup">Get started <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
               <p className="text-sm text-muted-foreground mt-3">
                 Already have a TidyWise account? <Link to="/login" className="text-primary hover:underline">Sign in to your dashboard</Link>.

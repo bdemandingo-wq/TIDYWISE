@@ -33,7 +33,7 @@ export default function BestSoftwareForCleaners() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-              <Button asChild><Link to="/signup">Start Free</Link></Button>
+              <Button asChild><Link to="/signup">Get started</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -61,7 +61,7 @@ export default function BestSoftwareForCleaners() {
             <p className="text-muted-foreground">The ideal cleaning business software should offer: online booking, client CRM, team scheduling, automated notifications, invoicing, and reporting. Bonus points for mobile apps, payment processing, and a client portal.</p>
 
             <h2 className="text-2xl font-bold mt-8">1. TidyWise — Best All-in-One Platform</h2>
-            <p className="text-muted-foreground">TidyWise is purpose-built for cleaning businesses with booking, scheduling, CRM, invoicing, SMS/email automation, a staff portal, client portal, and AI-powered business intelligence. Pricing starts at $50/month after a 60-day free trial.</p>
+            <p className="text-muted-foreground">TidyWise is purpose-built for cleaning businesses with booking, scheduling, CRM, invoicing, SMS/email automation, a staff portal, client portal, and AI-powered business intelligence. Pricing starts at $49/month after a 30-day money-back guarantee.</p>
             <p className="text-muted-foreground"><strong>Best for:</strong> Growing cleaning businesses that want everything in one place without juggling multiple tools.</p>
 
             <h2 className="text-2xl font-bold mt-8">2. Jobber — Best for Field Service Variety</h2>
@@ -77,10 +77,10 @@ export default function BestSoftwareForCleaners() {
             <p className="text-muted-foreground">Consider your team size, budget, and growth plans. Solo operators may start with simpler tools, but if you plan to scale, choose software that grows with you. Features like automated reminders, recurring booking, and a client portal will save you hours every week.</p>
 
             <div className="bg-primary/5 rounded-xl p-6 mt-8 border border-primary/20">
-              <h3 className="text-xl font-bold text-foreground mb-2">Try TidyWise Free for 60 Days</h3>
+              <h3 className="text-xl font-bold text-foreground mb-2">Try TidyWise — Plans from $49/mo</h3>
               <p className="text-muted-foreground mb-4">All-in-one cleaning business software with booking, CRM, scheduling, invoicing, and automation. Cancel any time.</p>
               <Button asChild>
-                <Link to="/signup">Start Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link to="/signup">Get started <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
               <p className="text-sm text-muted-foreground mt-3">
                 Already have a TidyWise account? <Link to="/login" className="text-primary hover:underline">Sign in to your dashboard</Link>.

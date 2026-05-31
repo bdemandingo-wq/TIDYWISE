@@ -52,7 +52,7 @@ export default function DynamicBlogPost() {
                 <span className="font-bold text-xl text-foreground">TIDYWISE</span>
               </Link>
               <Button asChild>
-                <Link to="/signup">Start Free</Link>
+                <Link to="/signup">Get started</Link>
               </Button>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function DynamicBlogPost() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free</Link>
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function DynamicBlogPost() {
               Try TIDYWISE to manage bookings, staff, and payments for your cleaning business.
             </p>
             <Button size="lg" asChild>
-              <Link to="/auth">Start Your Free Trial</Link>
+              <Link to="/auth">See Pricing</Link>
             </Button>
           </div>
         </div>

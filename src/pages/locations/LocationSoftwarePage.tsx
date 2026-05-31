@@ -85,14 +85,14 @@ export default function LocationSoftwarePage() {
     {
       "@type": "SoftwareApplication",
       name: "TidyWise",
-      description: `Free cleaning business software for ${data.name}. Scheduling, invoicing, automated payroll, GPS tracking, and client management built specifically for cleaning companies.`,
+      description: `Cleaning business software for ${data.name} from $49/mo. Scheduling, invoicing, automated payroll, GPS tracking, and client management built specifically for cleaning companies.`,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web, iOS, Android",
       offers: {
         "@type": "Offer",
         price: "0",
         priceCurrency: "USD",
-        description: "Free forever — Premium upgrade $50/mo flat (unlimited users)",
+        description: "Plans from $49/mo — unlimited users",
       },
     },
     {
@@ -122,7 +122,7 @@ export default function LocationSoftwarePage() {
     <div className="min-h-screen bg-background">
       <SEOHead
         title={`Cleaning Business Software for ${data.name} | TidyWise`}
-        description={data.seoDescription ?? `Free cleaning business software for ${data.name} — booking, scheduling, payroll, GPS, and CRM. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaners.`}`}
+        description={data.seoDescription ?? `Cleaning business software for ${data.name} from $49/mo — booking, scheduling, payroll, GPS, and CRM. ${isState ? `Used by cleaning companies across ${data.name}.` : `Built for ${data.name}${data.stateAbbr ? ", " + data.stateAbbr : ""} cleaners.`}`}
         canonical={canonicalPath}
         schemaJson={schemaJson}
       />
@@ -142,7 +142,7 @@ export default function LocationSoftwarePage() {
                 <ArrowLeft className="h-4 w-4" /> All Markets
               </Link>
               <Button asChild size="sm">
-                <Link to="/signup">Start Free</Link>
+                <Link to="/signup">Get started</Link>
               </Button>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function LocationSoftwarePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" asChild>
                 <Link to="/signup">
-                  Start Free — No Credit Card <ArrowRight className="ml-2 h-4 w-4" />
+                  Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
@@ -199,7 +199,7 @@ export default function LocationSoftwarePage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              Free forever · Premium $50/mo flat (unlimited users) · Cancel anytime
+              Plans from $49/mo · Unlimited users · Cancel anytime
             </p>
           </div>
         </section>
@@ -313,15 +313,15 @@ export default function LocationSoftwarePage() {
         <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30 border-y border-border">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">
-              Start free. Upgrade when you&apos;re ready.
+              Get started. Upgrade when you&apos;re ready.
             </h2>
             <p className="text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Most {data.name} cleaning businesses run their entire operation on TidyWise Free.
+              Most {data.name} cleaning businesses run their entire operation on TidyWise Basic ($49/mo).
               No per-user fees, no per-booking fees, no contracts.
             </p>
             <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto text-left">
               <div className="p-6 bg-card rounded-xl border border-border">
-                <div className="text-lg font-bold text-foreground mb-1">Free Forever</div>
+                <div className="text-lg font-bold text-foreground mb-1">Basic</div>
                 <div className="text-3xl font-bold text-foreground mb-4">$0<span className="text-base font-normal text-muted-foreground">/month</span></div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   {[
@@ -346,10 +346,10 @@ export default function LocationSoftwarePage() {
                   Most Popular
                 </div>
                 <div className="text-lg font-bold mb-1">Premium</div>
-                <div className="text-3xl font-bold mb-4">$50<span className="text-base font-normal opacity-80">/month flat</span></div>
+                <div className="text-3xl font-bold mb-4">$49<span className="text-base font-normal opacity-80">/month</span></div>
                 <ul className="space-y-2 text-sm opacity-90">
                   {[
-                    "Everything in Free",
+                    "Everything in Basic",
                     "Automated payroll",
                     "P&L reporting",
                     "AI pricing tools",
@@ -421,7 +421,7 @@ export default function LocationSoftwarePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" variant="secondary" asChild>
                 <Link to="/signup">
-                  Start Free — No Credit Card <ArrowRight className="ml-2 h-4 w-4" />
+                  Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button

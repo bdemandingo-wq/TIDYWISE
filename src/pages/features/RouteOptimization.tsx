@@ -90,7 +90,7 @@ export default function RouteOptimization() {
               <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button 
               className="md:hidden p-2"
@@ -105,7 +105,7 @@ export default function RouteOptimization() {
                 <a href="/#features" className="text-muted-foreground hover:text-foreground">Features</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -128,7 +128,7 @@ export default function RouteOptimization() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFreeTrial}>
-              Start Free <ArrowRight className="ml-2 h-4 w-4" />
+              Get started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" className="h-12 px-8" onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}>
               See How It Works
@@ -213,7 +213,7 @@ export default function RouteOptimization() {
             Save time and fuel with smart route optimization for your cleaning business.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>

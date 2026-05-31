@@ -1,7 +1,7 @@
 # Pricing — TIDYWISE Cleaning Business Software
 
-## Free (Forever)
-- Price: $0/month
+## Basic
+- Price: $49/month (or $490/year — 2 months free)
 - Users: Unlimited
 - Bookings: Unlimited
 - Features:
@@ -15,11 +15,11 @@
   - SMS reminders
   - Client portal
 
-## Premium
-- Price: $50/month (flat rate, all users included)
+## Pro
+- Price: $97/month (or $970/year — 2 months free)
 - Users: Unlimited
 - Bookings: Unlimited
-- Features (everything in Free, plus):
+- Features (everything in Basic, plus):
   - Automated payroll calculation
   - P&L reporting and profit per job
   - AI pricing and revenue tools
@@ -30,17 +30,21 @@
   - Route optimization
   - Priority support
 
-## Free Trial
-- Duration: 2 months
-- Card required: No
-- Access: Full Premium features during trial
+## Custom
+- Price: $197/month (or $1,970/year — 2 months free)
+- Everything in Pro, plus done-for-you customization requests and dedicated support.
+
+## Founding Lifetime Offer
+- Price: $300 one-time (50 spots, limited)
+- Every Pro feature, for life. No recurring charges.
 
 ## Notes
-- No per-user fees — flat $50/month covers the entire team
+- No per-user fees — flat pricing covers the entire team
 - No per-booking fees
 - No annual contract required
 - No implementation fee
 - Cancel anytime
+- 30-day money-back guarantee
 
 ## Contact
 - Sales questions: https://www.jointidywise.com/demo

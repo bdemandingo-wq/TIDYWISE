@@ -23,7 +23,7 @@ const DUE_DATE_OPTIONS = [
   { label: 'In 14 days', days: 14 },
   { label: 'In 30 days', days: 30 },
   { label: 'In 45 days', days: 45 },
-  { label: 'In 60 days', days: 60 },
+  { label: 'In 30 days', days: 60 },
   { label: 'In 90 days', days: 90 },
 ];
 

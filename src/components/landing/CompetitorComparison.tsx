@@ -59,7 +59,7 @@ const pricingPlans = [
     tagline: "Built for cleaning businesses",
     price: "$0",
     priceNote: "/month",
-    subtitle: "Free forever · Premium $50/mo flat",
+    subtitle: "Plans from $49/mo",
     highlight: true,
   },
   {
@@ -190,7 +190,7 @@ export function CompetitorComparison() {
 
         <div className="text-center mt-12">
           <Button size="lg" onClick={() => navigate("/pricing")}>
-            See TIDYWISE Plans — Free Forever
+            See TIDYWISE Plans
           </Button>
           <p className="text-sm text-muted-foreground mt-3">
             Trusted by cleaning businesses using TIDYWISE

@@ -59,7 +59,7 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
     e.preventDefault();
 
     if (atLimit) {
-      toast.error(`Free plan is limited to ${maxCustomers} customers. Upgrade to add more.`);
+      toast.error(`Basic plan is limited to ${maxCustomers} customers. Upgrade to add more.`);
       setShowSubscriptionDialog(true);
       return;
     }

@@ -72,7 +72,7 @@ const features = [
 ];
 
 const competitorTable = [
-  { feature: "Monthly Price",         tidywise: "Free",          jobber: "$69–$349",     housecall: "$65–$299",    bookingKoala: "$39–$199" },
+  { feature: "Monthly Price",         tidywise: "$49–$197",      jobber: "$69–$349",     housecall: "$65–$299",    bookingKoala: "$39–$199" },
   { feature: "Online Booking",        tidywise: true,            jobber: true,            housecall: true,          bookingKoala: true       },
   { feature: "Scheduling",            tidywise: true,            jobber: true,            housecall: true,          bookingKoala: true       },
   { feature: "Automated Payroll",     tidywise: true,            jobber: false,           housecall: false,         bookingKoala: false      },
@@ -110,11 +110,11 @@ const testimonials = [
 const faqs = [
   {
     q: "What is the best software for a cleaning business?",
-    a: "The best cleaning business software handles scheduling, client management, invoicing, payroll, and staff tracking in one place. TidyWise includes all of these and is free forever for unlimited users and bookings — Premium adds automated payroll, GPS reporting, and AI business intelligence for $50/mo flat. Competitors like Jobber ($69–$349/mo) and Housecall Pro ($65–$299/mo) charge per user and still lack built-in payroll."
+    a: "The best cleaning business software handles scheduling, client management, invoicing, payroll, and staff tracking in one place. TidyWise includes all of these starting at $49/mo (Basic) with unlimited users — Pro adds automated payroll, GPS reporting, and AI business intelligence for $97/mo. Competitors like Jobber ($69–$349/mo) and Housecall Pro ($65–$299/mo) charge per user and still lack built-in payroll."
   },
   {
     q: "How much does cleaning business software cost?",
-    a: "Most cleaning business software costs $69–$349/month depending on the platform and plan. TidyWise is free forever — unlimited users, unlimited bookings, no contracts. The optional Premium plan is $50/mo flat and unlocks automated payroll, P&L reporting, AI pricing tools, route optimization, and the in-app SMS inbox."
+    a: "Most cleaning business software costs $69–$349/month depending on the platform and plan. TidyWise starts at $49/mo — unlimited users, unlimited bookings, no contracts. The Pro plan is $97/mo and unlocks automated payroll, P&L reporting, AI pricing tools, route optimization, and the in-app SMS inbox."
   },
   {
     q: "What features should cleaning business software have?",
@@ -232,8 +232,8 @@ export default function CleaningBusinessSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Cleaning Business Software — Free Forever | TIDYWISE"
-        description="Cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Free forever for unlimited users, with optional Premium at $50/mo flat. Built to beat Jobber and Housecall Pro."
+        title="Cleaning Business Software — Plans from $49/mo | TIDYWISE"
+        description="Cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Plans from $49/mo for unlimited users, with optional Pro at $97/mo. Built to beat Jobber and Housecall Pro."
         canonical="/cleaning-business-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -243,7 +243,7 @@ export default function CleaningBusinessSoftware() {
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web (mobile-friendly)",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Free forever · Premium $50/mo flat."
+            "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Plans from $49/mo."
           },
           {
             "@type": "FAQPage",
@@ -264,7 +264,7 @@ export default function CleaningBusinessSoftware() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFree}>Start Free</Button>
+              <Button onClick={handleStartFree}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -276,7 +276,7 @@ export default function CleaningBusinessSoftware() {
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
                 <Button variant="ghost" onClick={() => navigate("/login")} className="flex-1">Log In</Button>
-                <Button onClick={handleStartFree} className="flex-1">Start Free</Button>
+                <Button onClick={handleStartFree} className="flex-1">Get started</Button>
               </div>
             </div>
           )}
@@ -288,14 +288,14 @@ export default function CleaningBusinessSoftware() {
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-6">
             <Zap className="h-4 w-4" />
-            Free Cleaning Business Software
+            Cleaning Business Software
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
             Cleaning Business Software<br />
             <span className="text-primary">That Runs Itself</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Scheduling, payroll, CRM, GPS tracking, invoicing, and a staff app — all in one platform built specifically for cleaning businesses. <strong>Free forever · Premium $50/mo flat.</strong> Cancel any time. Yearly = free forever.
+            Scheduling, payroll, CRM, GPS tracking, invoicing, and a staff app — all in one platform built specifically for cleaning businesses. <strong>Plans from $49/mo.</strong> Cancel any time. Yearly = 2 months free.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFree}>
@@ -305,7 +305,7 @@ export default function CleaningBusinessSoftware() {
               Compare to Competitors
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">Free forever · Premium $50/mo flat · Unlimited users · Cancel anytime</p>
+          <p className="text-sm text-muted-foreground">Plans from $49/mo · Unlimited users · Cancel anytime</p>
         </div>
       </section>
 
@@ -366,7 +366,7 @@ export default function CleaningBusinessSoftware() {
               How TidyWise Compares to Other Cleaning Business Software
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise is free forever, and the optional Premium plan is $50/mo flat — including built-in payroll and GPS that competitors charge extra for or don't offer.
+              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise starts at $49/mo (Basic), with Pro at $97/mo and Custom at $197/mo — including built-in payroll and GPS that competitors charge extra for or don't offer.
             </p>
           </div>
 
@@ -399,7 +399,7 @@ export default function CleaningBusinessSoftware() {
 
           <div className="mt-8 text-center">
             <Button size="lg" onClick={handleStartFree}>
-              Start Free — No Credit Card <ArrowRight className="ml-2 h-4 w-4" />
+              Get started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -503,7 +503,7 @@ export default function CleaningBusinessSoftware() {
             The Last Cleaning Business Software You'll Need
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Free forever · Premium $50/mo flat. Cancel any time. Scheduling, payroll, CRM, GPS, and invoicing — all in one platform built for cleaning companies.
+            Plans from $49/mo. Cancel any time. Scheduling, payroll, CRM, GPS, and invoicing — all in one platform built for cleaning companies.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFree}>
             See Plans <ArrowRight className="ml-2 h-4 w-4" />
@@ -520,7 +520,7 @@ export default function CleaningBusinessSoftware() {
 
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} TidyWise. Free cleaning business software for maid services and cleaning companies.</p>
+          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} TidyWise. Cleaning business software for maid services and cleaning companies — plans from $49/mo.</p>
           <div className="flex flex-wrap justify-center gap-6 mt-4">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
             <Link to="/features/scheduling-software" className="text-sm text-muted-foreground hover:text-foreground">Scheduling</Link>

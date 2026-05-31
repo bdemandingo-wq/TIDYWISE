@@ -220,7 +220,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
-        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Free forever · Premium $50/mo flat — get started today."
+        description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
         canonical="/"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -241,7 +241,7 @@ export default function LandingPage() {
               "price": "0",
               "priceCurrency": "USD"
             },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Free forever · Premium $50/mo flat."
+            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Plans from $49/mo."
           },
           {
             "@type": "FAQPage",
@@ -251,7 +251,7 @@ export default function LandingPage() {
                 "name": "How much does TidyWise cost?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is free forever for unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The optional Premium plan is $50/month flat and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
+                  "text": "TidyWise's Basic plan ($49/mo) includes unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The Pro plan is $97/month and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
                 }
               },
               {
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 "name": "How does TidyWise compare to Jobber?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise is free forever vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Premium at $50/mo flat adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
+                  "text": "TidyWise starts at $49/mo vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Pro at $97/mo adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
                 }
               },
               {
@@ -474,7 +474,7 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Free forever · Premium $50/mo flat
+              Plans from $49/mo
             </span>
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
@@ -484,7 +484,7 @@ export default function LandingPage() {
             <span className="hidden sm:inline text-foreground/30">·</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-foreground" />
-              Yearly = free forever
+              Yearly = 2 months free
             </span>
           </div>
 
@@ -724,7 +724,7 @@ export default function LandingPage() {
               <div className="relative grid grid-cols-2 gap-4">
                  {[
                    { value: '24/7', label: 'Online booking', delay: '0s' },
-                   { value: '$0', label: 'Free forever', delay: '0.1s' },
+                   { value: '$49', label: 'Starting price', delay: '0.1s' },
                    { value: '∞', label: 'Unlimited bookings', delay: '0.2s' },
                    { value: '5 min', label: 'Setup time', delay: '0.3s' },
                  ].map((stat, i) => (
@@ -812,15 +812,15 @@ export default function LandingPage() {
             {[
               {
                 q: "How much does TidyWise cost?",
-                a: "Two plans. Free Forever ($0/month, unlimited users) covers online booking, scheduling, invoicing, payments, the cleaner mobile app, GPS check-ins, SMS reminders, and the client portal. Premium ($50/month flat) adds automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, loyalty programs, the in-app SMS inbox, and priority support."
+                a: "Two plans. Basic ($49/month, unlimited users) covers online booking, scheduling, invoicing, payments, the cleaner mobile app, GPS check-ins, SMS reminders, and the client portal. Pro ($97/month) adds automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, loyalty programs, the in-app SMS inbox, and priority support."
               },
               {
                 q: "How does TidyWise compare to Jobber?",
-                a: "TidyWise is free forever vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Premium at $50/mo flat adds built-in payroll, GPS reporting, AI Intelligence, automations, and route optimization — features that cost extra or require Jobber's higher tiers."
+                a: "TidyWise starts at $49/mo vs Jobber's $69/month starter. Both handle scheduling, invoicing, and client management. TidyWise Pro at $97/mo adds built-in payroll, GPS reporting, AI Intelligence, automations, and route optimization — features that cost extra or require Jobber's higher tiers."
               },
               {
                 q: "Does TidyWise work for small cleaning businesses?",
-                a: "Yes. Free Forever is built for solo operators and growing teams alike — unlimited bookings, unlimited users, no seat caps. Upgrade to Premium ($50/mo flat) when you want payroll, AI pricing, and advanced reporting. Setup takes about 5 minutes."
+                a: "Yes. Basic is built for solo operators and growing teams alike — unlimited bookings, unlimited users, no seat caps. Upgrade to Pro ($97/mo) when you want payroll, AI pricing, and advanced reporting. Setup takes about 5 minutes."
               },
               {
                 q: "Does TidyWise have GPS tracking for cleaners?",
@@ -878,7 +878,7 @@ export default function LandingPage() {
             </Button>
             <div className="flex items-center gap-3 text-primary-foreground/90">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-lg font-medium">Free forever · Premium $50/mo flat · Cancel any time</span>
+              <span className="text-lg font-medium">Plans from $49/mo · Cancel any time</span>
             </div>
           </div>
         </div>

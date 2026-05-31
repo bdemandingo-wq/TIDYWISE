@@ -438,7 +438,7 @@ export default function LoginPage() {
           </p>
 
           <p className="text-muted-foreground leading-relaxed">
-            New to TidyWise? Create a free account in under a minute — no credit card
+            New to TidyWise? Create your account in under a minute
             required and you can cancel anytime. Import your existing client list,
             configure services and pricing, set up online booking, and take your first
             job the same day you sign up.

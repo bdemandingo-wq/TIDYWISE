@@ -60,7 +60,7 @@ export default function SchedulingSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -73,7 +73,7 @@ export default function SchedulingSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -96,7 +96,7 @@ export default function SchedulingSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See Pricing
@@ -142,9 +142,9 @@ export default function SchedulingSoftware() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-primary/5">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-foreground mb-4">Take Control of Your Schedule</h2>
-          <p className="text-lg text-muted-foreground mb-8">Stop wasting time on manual scheduling. Start your free trial today.</p>
+          <p className="text-lg text-muted-foreground mb-8">Stop wasting time on manual scheduling. See pricing today.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-            Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+            Get Started <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

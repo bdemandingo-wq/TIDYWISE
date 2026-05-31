@@ -105,7 +105,7 @@ export default function PayrollSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -118,7 +118,7 @@ export default function PayrollSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -141,7 +141,7 @@ export default function PayrollSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See All Features
@@ -224,7 +224,7 @@ export default function PayrollSoftware() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-foreground text-center mb-12">
-            Everything Included, Free
+            Everything Included
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {features.map((feature) => (
@@ -259,10 +259,10 @@ export default function PayrollSoftware() {
             Stop Running Payroll in Spreadsheets
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            TidyWise handles payroll, scheduling, CRM, and invoicing — all in one free platform for cleaning businesses.
+            TidyWise handles payroll, scheduling, CRM, and invoicing — all in one platform for cleaning businesses, with plans from $49/mo.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>

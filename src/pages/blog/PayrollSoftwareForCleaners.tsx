@@ -34,7 +34,7 @@ export default function PayrollSoftwareForCleaners() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={() => navigate("/signup")}>Start Free</Button>
+              <Button onClick={() => navigate("/signup")}>Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -46,7 +46,7 @@ export default function PayrollSoftwareForCleaners() {
               <a href="/pricing" className="block px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</a>
               <div className="px-4 flex gap-2">
                 <Button variant="ghost" onClick={() => navigate("/login")} className="flex-1">Log In</Button>
-                <Button onClick={() => navigate("/signup")} className="flex-1">Start Free</Button>
+                <Button onClick={() => navigate("/signup")} className="flex-1">Get started</Button>
               </div>
             </div>
           )}
@@ -103,7 +103,7 @@ export default function PayrollSoftwareForCleaners() {
             </p>
             <p className="text-muted-foreground">
               <strong className="text-foreground">Best for:</strong> Cleaning businesses that want payroll, scheduling, CRM, and invoicing in one place.<br />
-              <strong className="text-foreground">Price:</strong> Free forever · Premium $50/mo flat.
+              <strong className="text-foreground">Price:</strong> Plans from $49/mo.
             </p>
 
             <h3 className="text-xl font-semibold mt-6">2. Gusto — Best for Full-Service Payroll</h3>
@@ -162,15 +162,15 @@ export default function PayrollSoftwareForCleaners() {
               If you're running payroll manually in a spreadsheet, you're losing hours every two weeks — and introducing errors. The best payroll software for your cleaning business depends on your size and how integrated you want your tools to be.
             </p>
             <p className="text-muted-foreground">
-              For most cleaning companies under 20 cleaners, TIDYWISE covers payroll, scheduling, and invoicing in one free platform. Larger operations or those with complex tax situations may want to add Gusto for full-service compliance support.
+              For most cleaning companies under 20 cleaners, TIDYWISE covers payroll, scheduling, and invoicing in one affordable platform (plans from $49/mo). Larger operations or those with complex tax situations may want to add Gusto for full-service compliance support.
             </p>
 
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
-              <h3 className="text-lg font-semibold text-foreground mb-2">Try TIDYWISE Payroll for Free</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Try TIDYWISE Payroll</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Built-in payroll, scheduling, CRM, and invoicing — all in one platform designed for cleaning businesses. Cancel any time.
               </p>
-              <Button onClick={() => navigate("/signup")}>Get Started Free →</Button>
+              <Button onClick={() => navigate("/signup")}>Get Started →</Button>
             </div>
           </div>
 

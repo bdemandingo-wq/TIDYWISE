@@ -575,7 +575,7 @@ export default function CustomersPage() {
           </Button>
           <Button size="sm" className="gap-2" onClick={() => {
             if (atCustomerLimit) {
-              toast.error(`Free plan limited to ${maxCustomers} customers. Upgrade to add more.`);
+              toast.error(`Basic plan limited to ${maxCustomers} customers. Upgrade to add more.`);
               setShowSubscriptionDialog(true);
             } else {
               setAddDialogOpen(true);
@@ -590,7 +590,7 @@ export default function CustomersPage() {
       {atCustomerLimit && (
         <div className="mb-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5 flex items-center justify-between gap-3">
           <p className="text-sm text-destructive">
-            You've reached the free plan limit of {maxCustomers} customers. Upgrade to add unlimited customers.
+            You've reached the Basic plan limit of {maxCustomers} customers. Upgrade to add unlimited customers.
           </p>
           <Button size="sm" variant="destructive" onClick={() => setShowSubscriptionDialog(true)}>
             Upgrade

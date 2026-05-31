@@ -17,8 +17,8 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Free Trial", tidywise: "Free forever", housecallpro: "14 days", winner: "tidywise" },
-  { feature: "Monthly Pricing", tidywise: "$50/month flat", housecallpro: "$59-$199/month", winner: "tidywise" },
+  { feature: "Money-back guarantee", tidywise: "30 days", housecallpro: "14-day trial", winner: "tidywise" },
+  { feature: "Monthly Pricing", tidywise: "$49/month", housecallpro: "$59-$199/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, housecallpro: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, housecallpro: true, winner: "tie" },
   { feature: "GPS Check-ins", tidywise: true, housecallpro: true, winner: "tie" },
@@ -74,7 +74,7 @@ export default function CompareHousecallPro() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="TidyWise vs Housecall Pro 2026: Best Cleaning Software?"
-        description="Compare TIDYWISE vs Housecall Pro for cleaning businesses. Cleaning-specific features, payroll, and $50/mo flat pricing vs Housecall Pro's $59–$199/mo."
+        description="Compare TIDYWISE vs Housecall Pro for cleaning businesses. Cleaning-specific features, payroll, and $49/mo pricing vs Housecall Pro's $59–$199/mo."
         canonical="/compare/housecall-pro"
         ogImage="/images/tidywise-og.png"
       />
@@ -90,7 +90,7 @@ export default function CompareHousecallPro() {
               <a href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/auth")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free</Button>
+              <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button 
               className="md:hidden p-2"
@@ -105,7 +105,7 @@ export default function CompareHousecallPro() {
                 <a href="/#features" className="text-muted-foreground hover:text-foreground">Features</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/auth")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free</Button>
+                <Button onClick={handleStartFreeTrial}>Get started</Button>
               </div>
             </div>
           )}
@@ -124,17 +124,17 @@ export default function CompareHousecallPro() {
             <span className="text-primary">Built for Cleaning, Not Plumbing</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Housecall Pro was built for plumbers and HVAC techs. TidyWise is built specifically for cleaning businesses with <strong>square footage pricing, automated payroll, and P&L reports</strong>—all for a flat $50/month.
+            Housecall Pro was built for plumbers and HVAC techs. TidyWise is built specifically for cleaning businesses with <strong>square footage pricing, automated payroll, and P&L reports</strong>—all for a flat $49/month.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="h-12 px-8" onClick={handleStartFreeTrial}>
-              Start Free <ArrowRight className="ml-2 h-4 w-4" />
+              Get started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button size="lg" variant="outline" className="h-12 px-8" onClick={() => document.getElementById('comparison')?.scrollIntoView({ behavior: 'smooth' })}>
               See Full Comparison
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">Free forever · Premium $50/mo flat · Cancel any time</p>
+          <p className="text-sm text-muted-foreground mt-4">Plans from $49/mo · Cancel any time</p>
         </div>
       </section>
 
@@ -148,7 +148,7 @@ export default function CompareHousecallPro() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">2 Months</div>
-              <p className="text-sm text-muted-foreground">Free Trial</p>
+              <p className="text-sm text-muted-foreground">Money-back</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">10+</div>
@@ -221,7 +221,7 @@ export default function CompareHousecallPro() {
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Save $100+/Month</h3>
               <p className="text-muted-foreground">
-                Housecall Pro's Pro plan costs $199/month. TidyWise gives you more cleaning features for just $50/month flat.
+                Housecall Pro's Pro plan costs $199/month. TidyWise gives you more cleaning features for just $49/month.
               </p>
             </div>
 
@@ -284,7 +284,7 @@ export default function CompareHousecallPro() {
             Start your money-back within 30 days today. Cancel any time. Get software actually built for cleaning.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
-            Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            Get started <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </section>
@@ -330,7 +330,7 @@ export default function CompareHousecallPro() {
             "priceCurrency": "USD",
             "priceValidUntil": "2027-12-31"
           },
-          "description": "The best Housecall Pro alternative for cleaning businesses. Cleaning-specific features, automated payroll, and flat $50/month pricing."
+          "description": "The best Housecall Pro alternative for cleaning businesses. Cleaning-specific features, automated payroll, and flat $49/month pricing."
         })
       }} />
     </div>

@@ -342,7 +342,7 @@ export default function ScoreGeneratePage() {
             <p className="text-muted-foreground leading-relaxed">
               We only use publicly available information about your business — nothing
               behind a login. You can request edits or take-down at any time by claiming
-              your profile after it's generated, or by emailing us. No credit card. No
+              your profile after it's generated, or by emailing us.  No
               forced signup. No data sale.
             </p>
           </div>

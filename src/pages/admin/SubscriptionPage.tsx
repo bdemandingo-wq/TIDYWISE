@@ -85,7 +85,7 @@ export default function SubscriptionPage() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground text-center">
-                TidyWise is free to use. Existing subscribers can manage billing at{" "}
+                Manage your TidyWise plan below. Existing subscribers can manage billing at{" "}
                 <a
                   href="https://www.jointidywise.com"
                   target="_blank"

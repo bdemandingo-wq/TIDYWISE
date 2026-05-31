@@ -45,8 +45,8 @@ const expectations = [
 
 const faqs = [
   {
-    q: 'How does the free trial work?',
-    a: 'Start TidyWise free for 14 days — no credit card required. You get the full product: scheduling, customer management, invoicing, payments, and team coordination. At the end of the trial, pick a plan or your data stays read-only until you decide.',
+    q: 'How does billing work?',
+    a: 'Pick a plan and get started in minutes. You get the full product: scheduling, customer management, invoicing, payments, and team coordination. At the end of the trial, pick a plan or your data stays read-only until you decide.',
   },
   {
     q: 'Can I import data from my current CRM?',
@@ -283,15 +283,15 @@ export default function ContactPage() {
       <section className="py-16 sm:py-20 bg-gradient-to-br from-primary/5 via-background to-secondary/5 border-t border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Not ready to talk? Try TidyWise free for 14 days.
+            Not ready to talk? Try TidyWise — plans from $49/mo.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Full product, no credit card. Decide if it's worth a conversation after you've tried it.
+            Full product. Decide if it's worth a conversation after you've tried it.
           </p>
           <div className="mt-6">
             <Button asChild size="lg" variant="premium">
               <Link to="/demo">
-                Start your free trial
+                See pricing
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

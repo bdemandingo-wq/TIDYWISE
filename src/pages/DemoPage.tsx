@@ -33,7 +33,7 @@ const testimonials = [
 
 const faqs = [
   { q: "How long is the demo?", a: "30 minutes — we respect your time." },
-  { q: "Is there any obligation?", a: "Zero. It's completely free." },
+  { q: "Is there any obligation?", a: "Zero. It's a quick intro call with no obligation." },
   { q: "What will I see in the demo?", a: "Bookings, scheduling, payments, client management, automations, and how to set it all up for your specific business." },
   { q: "What if I'm not tech savvy?", a: "Perfect — TidyWise was built for cleaning business owners, not developers." },
 ];
@@ -62,7 +62,7 @@ export default function DemoPage() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground text-sm">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground text-sm">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
-              <Button onClick={() => navigate("/signup")} className="text-sm">Start Free</Button>
+              <Button onClick={() => navigate("/signup")} className="text-sm">Get started</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -74,7 +74,7 @@ export default function DemoPage() {
               <a href="/pricing" className="px-4 py-2 text-muted-foreground">Pricing</a>
               <a href="/blog" className="px-4 py-2 text-muted-foreground">Blog</a>
               <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={() => navigate("/signup")}>Start Free</Button>
+              <Button onClick={() => navigate("/signup")}>Get started</Button>
             </div>
           )}
         </div>
@@ -100,7 +100,7 @@ export default function DemoPage() {
 
               <div className="space-y-3 mb-10">
                 {[
-                  "100% free — no credit card",
+                  "Quick intro call — no obligation",
                   "Live walkthrough of your workflow",
                   "See how to automate your bookings",
                   "Get set up same day if you're ready",

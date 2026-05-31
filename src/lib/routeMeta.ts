@@ -45,13 +45,13 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
   "/": {
     title: "TidyWise — Cleaning Business Software & CRM",
     description:
-      "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Free forever · Premium $50/mo flat, or a one-time Lifetime spot at $300.",
+      "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Plans from $49/mo, or a one-time Lifetime spot at $300.",
     h1: "Run your cleaning business on one platform",
   },
   "/pricing": {
-    title: "Pricing — Free Forever | TidyWise",
+    title: "Pricing — Plans from $49/mo | TidyWise",
     description:
-      "TidyWise is free forever for cleaning businesses. Upgrade to Premium at $50/mo flat — unlimited users, no per-booking fees, cancel anytime.",
+      "TidyWise plans start at $49/mo (Basic) for cleaning businesses. Upgrade to Pro at $97/mo — unlimited users, no per-booking fees, cancel anytime.",
     h1: "Pick the plan that fits your business",
   },
   "/demo": {
@@ -84,10 +84,10 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     h1: "Log in to TidyWise",
   },
   "/signup": {
-    title: "Create a Free TidyWise Account",
+    title: "Create your TidyWise Account",
     description:
-      "Start your free cleaning business account in under 60 seconds. No credit card. Schedule, invoice, and run payroll from day one.",
-    h1: "Create your free TidyWise account",
+      "Create your TidyWise account in under 60 seconds. Schedule, invoice, and run payroll from day one.",
+    h1: "Create your TidyWise account",
   },
   "/auth": {
     title: "Sign In or Create Your TidyWise Account",
@@ -336,7 +336,7 @@ export function locationRouteMeta(
   const title = `Cleaning Business Software in ${loc.name} | ${BRAND}`.slice(0, 60);
   const description =
     loc.seoDescription ??
-    `Cleaning business software for ${place} — scheduling, payroll, invoicing, and CRM built for local cleaners. Free to start.`.slice(0, 160);
+    `Cleaning business software for ${place} — scheduling, payroll, invoicing, and CRM built for local cleaners. Plans from $49/mo.`.slice(0, 160);
   const h1 = isCity
     ? `Cleaning Business Software in ${place}`
     : `Cleaning Business Software in ${loc.name}`;
