@@ -138,6 +138,21 @@ export default function ResetPasswordPage() {
         return;
       }
 
+
+      // Security notification — let the account holder know their password
+      // was changed (so they can react if it wasn't them). Fire-and-forget.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        supabase.functions.invoke('notify-password-changed', {
+          body: {
+            email,
+            name: (user?.user_metadata as { full_name?: string } | null)?.full_name ?? null,
+          },
+        }).catch((e) => console.error('notify-password-changed failed:', e));
+      } catch (e) {
+        console.error('notify-password-changed lookup failed:', e);
+      }
+
       toast.success('Password updated. Please sign in with your new password.');
       // Force a clean session — don't leave the user logged in via the OTP session.
       await supabase.auth.signOut();

@@ -176,6 +176,30 @@ export function QuotesTabContent() {
 
       if (bookingError) throw bookingError;
 
+      // Notify the customer that their quote was approved (email + SMS).
+      // Fire-and-forget; never blocks the accept flow.
+      try {
+        const { data: cust } = await supabase
+          .from('customers')
+          .select('first_name, last_name, email, phone')
+          .eq('id', quote.customer_id)
+          .maybeSingle();
+        supabase.functions.invoke('notify-quote-accepted', {
+          body: {
+            organization_id: organization?.id,
+            quote_id: quote.id,
+            quote_number: quote.quote_number,
+            booking_number: newBooking.booking_number,
+            customer_name: cust ? `${cust.first_name ?? ''} ${cust.last_name ?? ''}`.trim() : null,
+            customer_email: cust?.email ?? null,
+            customer_phone: cust?.phone ?? null,
+            total_amount: quote.total_amount ?? null,
+          },
+        }).catch((e) => console.error('notify-quote-accepted failed:', e));
+      } catch (e) {
+        console.error('notify-quote-accepted lookup failed:', e);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success(`Quote #${quote.quote_number} accepted! Booking #${newBooking.booking_number} created. Please set the scheduled date.`);
