@@ -182,7 +182,7 @@ export default function CleaningBusinessCRM() {
               <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
               <Link to="/compare/jobber" className="text-muted-foreground hover:text-foreground transition-colors">Compare</Link>
               <Button asChild>
-                <Link to="/auth">Start Free Trial</Link>
+                <Link to="/auth">Start Free</Link>
               </Button>
             </div>
             <Button asChild className="md:hidden">

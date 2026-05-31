@@ -33,7 +33,7 @@ export default function BestSoftwareForCleaners() {
               <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
               <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
               <Button variant="ghost" asChild><Link to="/login">Log In</Link></Button>
-              <Button asChild><Link to="/signup">Start Free Trial</Link></Button>
+              <Button asChild><Link to="/signup">Start Free</Link></Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -80,7 +80,7 @@ export default function BestSoftwareForCleaners() {
               <h3 className="text-xl font-bold text-foreground mb-2">Try TidyWise Free for 60 Days</h3>
               <p className="text-muted-foreground mb-4">All-in-one cleaning business software with booking, CRM, scheduling, invoicing, and automation. Cancel any time.</p>
               <Button asChild>
-                <Link to="/signup">Start Free Trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link to="/signup">Start Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
               <p className="text-sm text-muted-foreground mt-3">
                 Already have a TidyWise account? <Link to="/login" className="text-primary hover:underline">Sign in to your dashboard</Link>.

@@ -53,7 +53,7 @@ export default function CRMSoftware() {
               <a href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
-              <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+              <Button onClick={handleStartFreeTrial}>Start Free</Button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -66,7 +66,7 @@ export default function CRMSoftware() {
                 <a href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</a>
                 <a href="/blog" className="text-muted-foreground hover:text-foreground">Blog</a>
                 <Button variant="ghost" className="justify-start" onClick={() => navigate("/login")}>Log In</Button>
-                <Button onClick={handleStartFreeTrial}>Start Free Trial</Button>
+                <Button onClick={handleStartFreeTrial}>Start Free</Button>
               </div>
             </div>
           )}
@@ -89,7 +89,7 @@ export default function CRMSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
+              Start Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See Pricing
@@ -132,7 +132,7 @@ export default function CRMSoftware() {
           <h2 className="text-3xl font-bold text-foreground mb-4">See Your Business in One Place</h2>
           <p className="text-lg text-muted-foreground mb-8">Join hundreds of cleaning businesses using TidyWise CRM. Start free, no credit card required.</p>
           <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-            Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
+            Start Free <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

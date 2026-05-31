@@ -45,7 +45,7 @@ export function InteractiveDemo() {
             See Plans <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <p className="text-sm text-muted-foreground mt-2">
-            Plans from $49/mo · Cancel any time
+            Free forever · Premium $50/mo flat · Cancel any time
           </p>
         </div>
       </div>

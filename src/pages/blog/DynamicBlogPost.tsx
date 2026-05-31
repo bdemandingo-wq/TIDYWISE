@@ -52,7 +52,7 @@ export default function DynamicBlogPost() {
                 <span className="font-bold text-xl text-foreground">TIDYWISE</span>
               </Link>
               <Button asChild>
-                <Link to="/signup">Start Free Trial</Link>
+                <Link to="/signup">Start Free</Link>
               </Button>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function DynamicBlogPost() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free Trial</Link>
+              <Link to="/auth">Start Free</Link>
             </Button>
           </div>
         </div>

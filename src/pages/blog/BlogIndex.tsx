@@ -255,7 +255,7 @@ export default function BlogIndex() {
               <span className="font-bold text-xl text-foreground">TIDYWISE</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Start Free Trial</Link>
+              <Link to="/auth">Start Free</Link>
             </Button>
           </div>
         </div>
