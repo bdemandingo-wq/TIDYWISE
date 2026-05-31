@@ -349,7 +349,8 @@ export default function PricingPage() {
       if (payload?.error) throw new Error(payload.error);
       const url = payload?.url;
       if (!url) throw new Error('Checkout URL missing — please try again.');
-      goToCheckout(url);
+      goToCheckout(url, preopened);
+
       // Always release the spinner shortly after attempting the redirect.
       // In iframed previews (or popup-blocked contexts) the top-level
       // navigation can silently fail; without this the button would
