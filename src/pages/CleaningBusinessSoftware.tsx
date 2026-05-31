@@ -110,11 +110,11 @@ const testimonials = [
 const faqs = [
   {
     q: "What is the best software for a cleaning business?",
-    a: "The best cleaning business software handles scheduling, client management, invoicing, payroll, and staff tracking in one place. TidyWise includes all of these — Basic at $49/mo for solo operators, Pro at $97/mo adds automated payroll, GPS, and AI business intelligence. Competitors like Jobber ($69–$349/mo) and Housecall Pro ($65–$299/mo) charge more and still lack built-in payroll."
+    a: "The best cleaning business software handles scheduling, client management, invoicing, payroll, and staff tracking in one place. TidyWise includes all of these and is free forever for unlimited users and bookings — Premium adds automated payroll, GPS reporting, and AI business intelligence for $50/mo flat. Competitors like Jobber ($69–$349/mo) and Housecall Pro ($65–$299/mo) charge per user and still lack built-in payroll."
   },
   {
     q: "How much does cleaning business software cost?",
-    a: "Most cleaning business software costs $69–$349/month depending on the platform and plan. TidyWise starts at $49/mo (Basic) and tops out at $197/mo (Custom, all features + done-for-you work) — or grab a one-time Lifetime plan at $300 if one of the 50 founding spots is still available."
+    a: "Most cleaning business software costs $69–$349/month depending on the platform and plan. TidyWise is free forever — unlimited users, unlimited bookings, no contracts. The optional Premium plan is $50/mo flat and unlocks automated payroll, P&L reporting, AI pricing tools, route optimization, and the in-app SMS inbox."
   },
   {
     q: "What features should cleaning business software have?",
@@ -232,8 +232,8 @@ export default function CleaningBusinessSoftware() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Cleaning Business Software — From $49/mo | TIDYWISE"
-        description="Cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Basic $49/mo, Pro $97/mo, or a one-time Lifetime spot. Built to beat Jobber and Housecall Pro."
+        title="Cleaning Business Software — Free Forever | TIDYWISE"
+        description="Cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Free forever for unlimited users, with optional Premium at $50/mo flat. Built to beat Jobber and Housecall Pro."
         canonical="/cleaning-business-software"
         ogImage="/images/tidywise-og.png"
         schemaJson={[
@@ -305,7 +305,7 @@ export default function CleaningBusinessSoftware() {
               Compare to Competitors
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">Basic $49/mo · Pro $97/mo · Custom $197/mo · Lifetime $300 (50 spots)</p>
+          <p className="text-sm text-muted-foreground">Free forever · Premium $50/mo flat · Unlimited users · Cancel anytime</p>
         </div>
       </section>
 
@@ -366,7 +366,7 @@ export default function CleaningBusinessSoftware() {
               How TidyWise Compares to Other Cleaning Business Software
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise Basic is $49/mo, Pro is $97/mo, and Pro includes things — like built-in payroll and GPS — that competitors charge extra for or don't offer.
+              Jobber starts at $69/mo, Housecall Pro at $65/mo. TidyWise is free forever, and the optional Premium plan is $50/mo flat — including built-in payroll and GPS that competitors charge extra for or don't offer.
             </p>
           </div>
 

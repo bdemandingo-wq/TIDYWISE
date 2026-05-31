@@ -251,7 +251,7 @@ export default function LandingPage() {
                 "name": "How much does TidyWise cost?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise has four plans: Basic at $49/month for solo operators, Pro at $97/month for growing teams (adds automations, AI, payroll, reports, and more), Custom at $197/month (everything plus 1 done-for-you request a month), and a one-time Lifetime founding offer at $300 for the first 50 customers. Annual billing is two months free at every tier."
+                  "text": "TidyWise is free forever for unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The optional Premium plan is $50/month flat and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
                 }
               },
               {
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 "name": "How does TidyWise compare to Jobber?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "TidyWise Basic starts at $49/month and Pro at $97/month, vs Jobber's $69/month entry. Both offer scheduling, invoicing, and client management. TidyWise Pro also includes built-in payroll, GPS tracking, AI business intelligence, automations, and a client self-service portal — features that require paid add-ons or higher tiers on Jobber, and at a lower monthly price."
+                  "text": "TidyWise is free forever vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Premium at $50/mo flat adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
                 }
               },
               {
@@ -812,7 +812,7 @@ export default function LandingPage() {
             {[
               {
                 q: "How much does TidyWise cost?",
-                a: "Four plans. Basic at $49/month for solo operators (bookings, CRM, scheduling, invoices, payments, recurring jobs). Pro at $97/month adds automations, AI Intelligence, payroll, GPS, reports, email campaigns, client portal, and more. Custom at $197/month is everything in Pro plus one done-for-you request a month. Or grab a Lifetime spot at $300 one-time — first 50 customers only. Yearly billing is two months free at every tier."
+                a: "Two plans. Free Forever ($0/month, unlimited users) covers online booking, scheduling, invoicing, payments, the cleaner mobile app, GPS check-ins, SMS reminders, and the client portal. Premium ($50/month flat) adds automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, loyalty programs, the in-app SMS inbox, and priority support."
               },
               {
                 q: "How does TidyWise compare to Jobber?",

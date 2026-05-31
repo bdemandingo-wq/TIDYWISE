@@ -57,9 +57,9 @@ const pricingPlans = [
   {
     name: "TIDYWISE",
     tagline: "Built for cleaning businesses",
-    price: "$49",
+    price: "$0",
     priceNote: "/month",
-    subtitle: "Pro $97 · Lifetime $300 (50 spots)",
+    subtitle: "Free forever · Premium $50/mo flat",
     highlight: true,
   },
   {
