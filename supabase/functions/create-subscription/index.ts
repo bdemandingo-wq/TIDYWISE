@@ -101,20 +101,42 @@ serve(async (req) => {
     let user: { id: string; email: string; created_at?: string } | null = null;
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
-      const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      );
-      const { data } = await supabaseClient.auth.getUser(token);
-      if (data.user?.email) {
-        user = {
-          id: data.user.id,
-          email: data.user.email,
-          created_at: data.user.created_at,
-        };
-        logStep("Authenticated flow", { userId: user.id, email: user.email });
+      // Skip the supabase auth gateway's anon-key fingerprint that some
+      // clients send by default — that's not a real session token.
+      const isAnonKey = token === (Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+      if (!isAnonKey) {
+        const supabaseClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        );
+        const { data } = await supabaseClient.auth.getUser(token);
+        if (data.user?.email) {
+          user = {
+            id: data.user.id,
+            email: data.user.email,
+            created_at: data.user.created_at,
+          };
+          logStep("Authenticated flow", { userId: user.id, email: user.email });
+        } else {
+          // A Bearer token was provided but didn't resolve to a user
+          // (expired session, revoked token, malformed JWT). Don't
+          // silently switch to anonymous mode — a logged-in user with
+          // a stale token would otherwise get a brand-new orphan
+          // Stripe customer + a "set your password" email for an
+          // account they already own. Force them to re-auth.
+          logStep("Bearer present but invalid — returning 401");
+          return new Response(
+            JSON.stringify({
+              error: "Your session has expired. Please refresh the page and try again.",
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 401,
+            },
+          );
+        }
       } else {
-        logStep("Bearer present but invalid — falling through to anonymous flow");
+        logStep("Anonymous flow (anon-key Bearer ignored)");
       }
     } else {
       logStep("Anonymous flow (no Bearer header)");
@@ -205,6 +227,12 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user?.email,
+      // Anonymous flow: force Stripe to create a Customer object for
+      // the email it collects. Without this, an existing customer
+      // record with the same email could be reused — pulling stale
+      // metadata into the new session's evidence trail. customer_creation
+      // is only valid when there's no `customer` already.
+      ...(customerId ? {} : { customer_creation: "always" as const }),
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       payment_method_options: {

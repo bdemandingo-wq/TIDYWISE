@@ -82,8 +82,35 @@ serve(async (req) => {
     }
     const orgName = (membership as any)?.organizations?.name ?? "";
 
+    // Gate: must have an active paid plan (or grandfathered/lifetime).
+    // Without this, a free/trial user could submit ad-mgmt requests
+    // even though the public copy promises "requires an active paid
+    // TidyWise plan" — burning admin SMS quota and operator time.
+    const { data: gate } = await admin.rpc("has_active_subscription", {
+      _org_id: orgId,
+    });
+    if (!gate) {
+      return new Response(
+        JSON.stringify({
+          error: "Ad management requires an active paid TidyWise plan. Please upgrade first.",
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Server-side length caps so a direct call with a 1MB notes blob
+    // can't bypass the form's maxLength. Conservative limits match
+    // typical business-context fields.
+    const sliceStr = (s: string | null | undefined, n: number) =>
+      typeof s === "string" ? s.slice(0, n) : null;
+
     const budgetNum = body.monthly_budget != null && body.monthly_budget !== ""
       ? Number(body.monthly_budget) : null;
+    const safeBudget = budgetNum !== null && Number.isFinite(budgetNum) && budgetNum >= 0 && budgetNum <= 100000
+      ? budgetNum : null;
 
     const { data: inserted, error: insertErr } = await admin
       .from("ad_management_requests")
@@ -91,14 +118,14 @@ serve(async (req) => {
         organization_id: orgId,
         user_id: user.id,
         service_type,
-        business_name: body.business_name ?? null,
-        service_area: body.service_area ?? null,
-        monthly_budget: budgetNum,
+        business_name: sliceStr(body.business_name, 160),
+        service_area: sliceStr(body.service_area, 240),
+        monthly_budget: safeBudget,
         has_ad_accounts: !!body.has_ad_accounts,
-        contact_name: body.contact_name ?? null,
-        contact_email: body.contact_email ?? user.email,
-        contact_phone: body.contact_phone ?? null,
-        notes: body.notes ?? null,
+        contact_name: sliceStr(body.contact_name, 120),
+        contact_email: sliceStr(body.contact_email ?? user.email, 200),
+        contact_phone: sliceStr(body.contact_phone, 40),
+        notes: sliceStr(body.notes, 2000),
         status: "new",
       })
       .select("id")

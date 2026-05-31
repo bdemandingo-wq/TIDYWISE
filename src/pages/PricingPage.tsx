@@ -114,7 +114,10 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [interval, setInterval] = useState<Interval>('monthly');
+  // billingInterval / setBillingInterval — NOT named "setInterval" so it
+  // doesn't shadow the global timer function. Renaming because the prior
+  // setState shadowing was a footgun for any future code in this file.
+  const [billingInterval, setBillingInterval] = useState<Interval>('monthly');
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
   const lifetime = useLifetimeCounter();
   const [waitlistEmail, setWaitlistEmail] = useState('');
@@ -125,11 +128,31 @@ export default function PricingPage() {
   // Hard guard against duplicate checkout sessions / double redirects.
   // Once a click begins the redirect, every subsequent call bails until
   // the page actually unloads. pageshow resets it so a back-nav restore
-  // (bfcache) doesn't leave the button permanently disabled.
+  // (bfcache) doesn't leave the button permanently disabled. Also reset
+  // checkoutBusy and cancel the pending fallback toast — otherwise the
+  // button could remain spinning after a bfcache restore and the user
+  // would see a stale "Continue to secure checkout" toast.
   const isRedirectingRef = useRef(false);
   useEffect(() => {
-    const reset = () => { isRedirectingRef.current = false; };
+    const reset = () => {
+      isRedirectingRef.current = false;
+      setCheckoutBusy(null);
+      if (checkoutToastTimerRef.current) {
+        window.clearTimeout(checkoutToastTimerRef.current);
+        checkoutToastTimerRef.current = null;
+      }
+    };
+    // pagehide fires when the user is navigating away (including to
+    // Stripe). Cancel the fallback toast so it doesn't pop in during
+    // the unload transition — the load-bearing fix for the glitch the
+    // user reported.
     window.addEventListener('pageshow', reset);
+    window.addEventListener('pagehide', () => {
+      if (checkoutToastTimerRef.current) {
+        window.clearTimeout(checkoutToastTimerRef.current);
+        checkoutToastTimerRef.current = null;
+      }
+    });
     return () => window.removeEventListener('pageshow', reset);
   }, []);
   const spotsLeft = lifetime.spotsLeft;
@@ -168,12 +191,21 @@ export default function PricingPage() {
       }
     }
 
-    if (intv) setInterval(intv);
+    if (intv) setBillingInterval(intv);
     if (plan) {
       setHighlightedPlan(plan);
-      requestAnimationFrame(() => {
+      // Delay the smooth-scroll a beat so it doesn't fight the browser's
+      // back-nav restoration animation when the user is returning from
+      // Stripe Cancel (iOS in particular renders this as the page
+      // visually fighting itself).
+      const stripeReferrer = (() => {
+        try { return new URL(document.referrer).hostname.includes('stripe.com'); }
+        catch { return false; }
+      })();
+      const scrollDelay = stripeReferrer ? 600 : 150;
+      window.setTimeout(() => {
         tierRefs.current[plan!]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      }, scrollDelay);
       window.setTimeout(() => setHighlightedPlan(null), 2400);
     }
     // Persisted entry has done its job — clear so a future fresh visit
@@ -207,12 +239,12 @@ export default function PricingPage() {
   // into the URL when the user actively starts checkout.
   useEffect(() => {
     const current = searchParams.get('interval');
-    if (current === interval) return;
+    if (current === billingInterval) return;
     const next = new URLSearchParams(searchParams);
-    next.set('interval', interval);
+    next.set('interval', billingInterval);
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interval]);
+  }, [billingInterval]);
 
 
 
@@ -249,6 +281,13 @@ export default function PricingPage() {
   // gesture, then fall back to top-frame break, then plain navigation.
   // A "Continue to secure checkout" toast appears after 2s as a safety
   // net for the rare case all paths are blocked.
+  // Track the "Continue to secure checkout" toast timer at component
+  // scope so the click handlers can cancel it once the redirect actually
+  // succeeds. Without this, the toast fires after every click — even
+  // successful navigations — and pops in during the brief unload window,
+  // which looked like "glitching" to the user.
+  const checkoutToastTimerRef = useRef<number | null>(null);
+
   function goToCheckout(url: string, preopened?: Window | null) {
     // Exactly ONE navigation per call. Caller MUST set
     // isRedirectingRef before invoking so duplicate sessions can't
@@ -281,8 +320,18 @@ export default function PricingPage() {
     }
 
     // Safety-net fallback toast in case the navigation is silently
-    // blocked (popup blockers in some in-app webviews).
-    window.setTimeout(() => {
+    // blocked (popup blockers in some in-app webviews). Cancellable from
+    // outside — once the browser actually starts navigating away (the
+    // page hides via visibilitychange OR pagehide) we clear the timer
+    // so it doesn't pop in during unload.
+    if (checkoutToastTimerRef.current) {
+      window.clearTimeout(checkoutToastTimerRef.current);
+    }
+    checkoutToastTimerRef.current = window.setTimeout(() => {
+      checkoutToastTimerRef.current = null;
+      // If the document is already hidden, we ARE mid-redirect. Skip
+      // the toast — by the time the user gets back the toast is stale.
+      if (document.visibilityState !== 'visible') return;
       toast.message('Continue to secure checkout', {
         description: 'If Stripe did not open automatically, tap below.',
         duration: 30000,
@@ -294,7 +343,7 @@ export default function PricingPage() {
           },
         },
       });
-    }, 2000);
+    }, 2500);
   }
 
 
@@ -319,14 +368,14 @@ export default function PricingPage() {
     try {
       sessionStorage.setItem(
         'tw_pending_plan',
-        JSON.stringify({ plan: planId, interval }),
+        JSON.stringify({ plan: planId, interval: billingInterval }),
       );
     } catch {
       // sessionStorage unavailable — silent no-op.
     }
     const next = new URLSearchParams(searchParams);
     next.set('plan', planId);
-    next.set('interval', interval);
+    next.set('interval', billingInterval);
     setSearchParams(next, { replace: true });
 
     // Checkout-first flow: every click goes straight to Stripe. The
@@ -348,9 +397,9 @@ export default function PricingPage() {
     }, 20000);
 
     try {
-      console.log('[pricing] starting checkout', { plan: planId, interval });
+      console.log('[pricing] starting checkout', { plan: planId, interval: billingInterval });
       const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: { plan: planId, interval },
+        body: { plan: planId, interval: billingInterval },
       });
       if (error) {
         // Supabase wraps non-2xx as FunctionsHttpError with a generic message.
@@ -373,13 +422,18 @@ export default function PricingPage() {
       if (!url) throw new Error('Checkout URL missing — please try again.');
       goToCheckout(url, preopened);
 
-      // Always release the spinner shortly after attempting the redirect.
-      // In iframed previews (or popup-blocked contexts) the top-level
-      // navigation can silently fail; without this the button would
-      // spin forever and look broken.
+      // Only release the spinner if we're still visible after the
+      // redirect window. If the browser actually started navigating to
+      // Stripe, the document hides — keeping the spinner on through
+      // the unload feels correct (the page is leaving). Clearing it
+      // mid-navigation made the button briefly flash back to "Start
+      // Basic" while Stripe was loading, which contributed to the
+      // glitch the user reported.
       window.setTimeout(() => {
-        setCheckoutBusy((current) => (current === planId ? null : current));
-      }, 1500);
+        if (document.visibilityState === 'visible') {
+          setCheckoutBusy((current) => (current === planId ? null : current));
+        }
+      }, 2000);
     } catch (err) {
       // Close the pre-opened tab so the user isn't left with a blank page.
       if (preopened && !preopened.closed) {
@@ -422,8 +476,10 @@ export default function PricingPage() {
       if (!url) throw new Error('Checkout URL missing');
       goToCheckout(url, preopened);
       window.setTimeout(() => {
-        setCheckoutBusy((current) => (current === 'lifetime' ? null : current));
-      }, 1500);
+        if (document.visibilityState === 'visible') {
+          setCheckoutBusy((current) => (current === 'lifetime' ? null : current));
+        }
+      }, 2000);
     } catch (err) {
       if (preopened && !preopened.closed) {
         try { preopened.close(); } catch { /* ignore */ }
@@ -518,10 +574,10 @@ export default function PricingPage() {
             <button
               type="button"
               role="radio"
-              aria-checked={interval === 'monthly'}
-              onClick={() => setInterval('monthly')}
+              aria-checked={billingInterval === 'monthly'}
+              onClick={() => setBillingInterval('monthly')}
               className={`px-5 py-2 rounded-full text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                interval === 'monthly'
+                billingInterval === 'monthly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -531,11 +587,11 @@ export default function PricingPage() {
             <button
               type="button"
               role="radio"
-              aria-checked={interval === 'yearly'}
+              aria-checked={billingInterval === 'yearly'}
               aria-label="Yearly billing, two months free"
-              onClick={() => setInterval('yearly')}
+              onClick={() => setBillingInterval('yearly')}
               className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                interval === 'yearly'
+                billingInterval === 'yearly'
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -556,7 +612,7 @@ export default function PricingPage() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             {TIERS.map((tier) => {
-              const price = priceFor(tier, interval);
+              const price = priceFor(tier, billingInterval);
               const isBusy = checkoutBusy === tier.id;
               const isHighlighted = highlightedPlan === tier.id;
               const cardLabel = `${tier.name} plan, ${price.display}${price.sub}${tier.highlight ? ', most popular' : ''}${isHighlighted ? ', selected' : ''}`;
@@ -611,7 +667,7 @@ export default function PricingPage() {
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
                     className="w-full mb-6"
-                    aria-label={`${user ? 'Choose' : 'Start'} ${tier.name} plan, ${interval === 'yearly' ? 'billed yearly' : 'billed monthly'}`}
+                    aria-label={`${user ? 'Choose' : 'Start'} ${tier.name} plan, ${billingInterval === 'yearly' ? 'billed yearly' : 'billed monthly'}`}
                     aria-busy={isBusy}
                   >
                     {isBusy ? (

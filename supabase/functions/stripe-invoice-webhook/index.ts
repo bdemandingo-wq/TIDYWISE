@@ -84,8 +84,16 @@ const handler = async (req: Request): Promise<Response> => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        // Other DB errors: log but continue (don't block legitimate events)
-        console.error("[stripe-invoice-webhook] Idempotency insert error (non-fatal):", idempotencyError);
+        // ANY other DB error means we can't guarantee single-execution
+        // semantics. Returning 500 makes Stripe retry the delivery,
+        // which is exactly what we want — better than silently
+        // double-processing (eg two inviteUserByEmail calls → two
+        // welcome emails to the same buyer).
+        console.error("[stripe-invoice-webhook] Idempotency insert failed, refusing to process:", idempotencyError);
+        return new Response(
+          JSON.stringify({ error: "Idempotency lookup failed; Stripe will retry." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 
@@ -234,6 +242,16 @@ const handler = async (req: Request): Promise<Response> => {
     if (event.type === "customer.subscription.updated") {
       try {
         const subscription = event.data.object as Stripe.Subscription;
+        const subMetaUpdate = (subscription.metadata ?? {}) as Record<string, string>;
+        // Ad-management retainers live in their own ad_management_subscriptions
+        // table — don't mirror them into stripe_subscriptions (which tracks
+        // only the main TidyWise plan). Without this early-return, the
+        // updated row would pollute the customer's primary plan record.
+        if (subMetaUpdate.purpose === "tidywise_ad_management") {
+          return new Response(JSON.stringify({ received: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
           apiVersion: "2025-08-27.basil",
         });
@@ -450,6 +468,26 @@ const handler = async (req: Request): Promise<Response> => {
                 .update({ organization_id: membership.organization_id })
                 .eq("stripe_session_id", session.id);
 
+              // Mirror into stripe_subscriptions as a synthetic 'active'
+              // row so any code path that still checks for an active
+              // Stripe subscription (eg legacy gates or analytics
+              // queries) sees lifetime customers as covered too. The
+              // updated has_active_subscription() RPC also OR-matches
+              // plan_type='lifetime' directly, so this is belt-and-
+              // suspenders — but losing one doesn't lock the customer
+              // out. Idempotent on stripe_subscription_id.
+              await supabase.from("stripe_subscriptions").upsert(
+                {
+                  organization_id: membership.organization_id,
+                  stripe_subscription_id: `lifetime_${session.id}`,
+                  stripe_customer_id: (session.customer as string) || null,
+                  status: "active",
+                  plan: "lifetime",
+                  current_period_end: null,
+                },
+                { onConflict: "stripe_subscription_id", ignoreDuplicates: true },
+              );
+
               console.log("[stripe-invoice-webhook] Organization plan_type set to lifetime:", membership.organization_id);
             }
           }
@@ -530,7 +568,13 @@ const handler = async (req: Request): Promise<Response> => {
         if (!checkoutEmail) {
           console.error("[stripe-invoice-webhook] Subscription checkout completed with no email");
         } else {
+          // First check profiles by email — the common case for any user
+          // who's signed up before. Profile rows are kept in sync with
+          // auth.users via the existing signup flows, so a hit here means
+          // the user exists and we can short-circuit straight to the
+          // plan-update path.
           let userId: string | null = null;
+          let isNewAccount = false;
           const { data: profile } = await supabase
             .from("profiles")
             .select("id")
@@ -538,27 +582,21 @@ const handler = async (req: Request): Promise<Response> => {
             .maybeSingle();
           if (profile?.id) {
             userId = profile.id;
-          } else {
-            try {
-              const { data: listed } = await supabase.auth.admin.listUsers({
-                page: 1,
-                perPage: 200,
-              });
-              const found = listed?.users?.find(
-                (u) => u.email?.toLowerCase() === checkoutEmail,
-              );
-              if (found) userId = found.id;
-            } catch (listErr) {
-              console.error("[stripe-invoice-webhook] auth.admin.listUsers failed:", listErr);
-            }
-          }
-
-          let isNewAccount = false;
-          if (!userId && signupFlow === "anonymous_checkout") {
-            // Brand new account from a /pricing → Stripe → here flow.
-            // Invite the user — Supabase creates the user record with
-            // no password and sends an email with a magic link that
-            // routes to /checkout/success?from_invite=1 for password setup.
+          } else if (signupFlow === "anonymous_checkout") {
+            // No profile → try to provision a new account by inviting.
+            // inviteUserByEmail creates the auth user + sends a "set
+            // your password" email. If the email already belongs to an
+            // auth.users row (eg the profile row is missing but auth.users
+            // is not), invite returns an error containing "already
+            // registered" — we recover by looking up the existing user
+            // via auth.admin.getUserByEmail (no pagination needed) and
+            // then just upgrading their plan.
+            //
+            // The prior implementation paged through auth.admin.listUsers
+            // with perPage:200, which silently missed any user beyond
+            // page 1 — so once the project had >200 users, returning
+            // customers got "already registered" errors and never had
+            // their plan attached.
             try {
               const fullName = session.customer_details?.name ?? null;
               const inviteUrl = `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/checkout/success?from_invite=1`;
@@ -569,7 +607,26 @@ const handler = async (req: Request): Promise<Response> => {
                   data: fullName ? { full_name: fullName } : undefined,
                 },
               );
-              if (inviteErr) {
+              const inviteErrMsg = inviteErr?.message?.toLowerCase() ?? "";
+              const alreadyRegistered =
+                inviteErr && (
+                  inviteErrMsg.includes("already") ||
+                  inviteErrMsg.includes("registered") ||
+                  inviteErrMsg.includes("exists")
+                );
+              if (alreadyRegistered) {
+                // Look up the existing user directly — no pagination.
+                try {
+                  const { data: existing } = await (supabase.auth.admin as unknown as {
+                    getUserByEmail: (e: string) => Promise<{ data: { user?: { id: string } | null } }>
+                  }).getUserByEmail(checkoutEmail);
+                  if (existing?.user?.id) {
+                    userId = existing.user.id;
+                  }
+                } catch (lookupErr) {
+                  console.error("[stripe-invoice-webhook] getUserByEmail failed:", lookupErr);
+                }
+              } else if (inviteErr) {
                 console.error("[stripe-invoice-webhook] inviteUserByEmail failed:", inviteErr);
               } else if (invited?.user?.id) {
                 userId = invited.user.id;

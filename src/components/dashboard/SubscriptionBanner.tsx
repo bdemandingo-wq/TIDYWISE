@@ -18,7 +18,7 @@
  *     accessible names that include plan + interval + date context.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,12 +62,12 @@ type BannerState = 'active' | 'trialing' | 'canceled';
 
 export function SubscriptionBanner() {
   const { subscription, user } = useAuth();
-  const [meta, setMeta] = useState<ActivePlanMeta>(() => readActivePlanMeta());
+  // localStorage value is set by the /checkout/success page only.
+  // Reading it once on mount is sufficient — it doesn't change between
+  // renders. Previous code re-read + re-parsed JSON on every
+  // subscription state change for no benefit.
+  const [meta] = useState<ActivePlanMeta>(() => readActivePlanMeta());
   const [resending, setResending] = useState(false);
-
-  useEffect(() => {
-    setMeta(readActivePlanMeta());
-  }, [subscription?.subscribed, subscription?.subscription_end, subscription?.trial_active]);
 
   const nextBillingDate = formatDate(subscription?.subscription_end);
   const trialEndDate = formatDate(subscription?.trial_end);

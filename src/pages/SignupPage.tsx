@@ -84,22 +84,29 @@ export default function SignupPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Redirect if already authenticated.
-  // Special case: if they came back here from Stripe Checkout with a
-  // ?plan=… in the URL (browser-back during signup→checkout handoff),
-  // do NOT bounce them through the splash→dashboard flow — that's the
-  // "signup direct loop" users complained about. Send them back to
-  // /pricing so they can re-launch checkout cleanly.
+  // /signup?plan=… is the OLD signup-first checkout path. The new
+  // pricing flow goes /pricing → Stripe directly (anonymous checkout)
+  // → webhook creates the account → email link sets password. Any
+  // visitor still landing here from a cached link or stale bookmark
+  // gets redirected back to /pricing with their plan choice so they
+  // re-enter the canonical flow instead of falling through this
+  // deprecated path.
+  useEffect(() => {
+    if (selectedPlan) {
+      const params = new URLSearchParams();
+      params.set('plan', selectedPlan);
+      params.set('interval', selectedInterval);
+      navigate(`/pricing?${params.toString()}`, { replace: true });
+    }
+  }, [selectedPlan, selectedInterval, navigate]);
+
+  // Standard "already authenticated" redirect.
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
-    if (user) {
-      if (selectedPlan) {
-        navigate(`/pricing`, { replace: true });
-        return;
-      }
+    if (user && !selectedPlan) {
       setShowSplash(true);
     }
-  }, [user, authLoading, initialCleanupDone, selectedPlan, navigate]);
+  }, [user, authLoading, initialCleanupDone, selectedPlan]);
 
 
   const validateForm = (): boolean => {

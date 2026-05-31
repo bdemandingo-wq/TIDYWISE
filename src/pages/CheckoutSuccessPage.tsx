@@ -57,18 +57,20 @@ export default function CheckoutSuccessPage() {
   // session is live and `user` is truthy.
   const isAnonymousCheckout = !user;
 
+  // Mount-only side effects: clear pending-plan, write active-plan,
+  // set the post-checkout grace flag so useAuth's checkSubscription
+  // doesn't pop the paywall dialog while the webhook catches up.
   useEffect(() => {
-    // Persisted "pending" plan choice exists only to bring users back to
-    // the same tier if they cancel/return mid-flow. Checkout completed → clear.
     try {
       sessionStorage.removeItem('tw_pending_plan');
+      // 30-second grace window. useAuth.checkSubscription reads this
+      // flag and suppresses the subscription dialog during it. Cleared
+      // automatically once the function sees `subscribed: true`.
+      sessionStorage.setItem('tw_post_checkout', '1');
     } catch {
       /* no-op */
     }
 
-    // Persist the "active" plan metadata so the dashboard banner can
-    // render plan + interval immediately after webhook completion,
-    // without needing extra fields on the subscription endpoint.
     if (plan || interval) {
       try {
         localStorage.setItem(
@@ -79,27 +81,38 @@ export default function CheckoutSuccessPage() {
         /* no-op */
       }
     }
+    // Belt-and-suspenders: drop the grace flag after 30s no matter
+    // what, so a stuck state can't permanently hide the paywall.
+    const graceTimer = window.setTimeout(() => {
+      try { sessionStorage.removeItem('tw_post_checkout'); } catch { /* no-op */ }
+    }, 30000);
+    return () => window.clearTimeout(graceTimer);
+  }, [plan, interval]);
 
-    // Stripe's success redirect can race the invoice webhook by a
-    // second or two. Poll a few times so the dashboard's subscription
-    // gate updates without a manual refresh. Skip when the visitor
-    // isn't authenticated yet (anonymous checkout) — they won't have a
-    // session to refresh until they click their password-setup email.
+  // Polling loop — re-fires whenever the auth state changes. When the
+  // visitor arrives from the Supabase invite email, `user` is null at
+  // first paint (Supabase is processing the magic-link hash) and
+  // becomes truthy ~50ms later. Old behavior (deps:[]) ran the poll
+  // ONCE on mount and never again — user got stuck on "Check your
+  // email" forever.
+  useEffect(() => {
+    if (!user) return;
     let cancelled = false;
-    if (user) {
-      const delays = [0, 1500, 4000, 8000];
-      delays.forEach((ms) => {
-        window.setTimeout(() => {
-          if (cancelled) return;
-          checkSubscription().catch(() => {
-            /* network errors are non-fatal; periodic check covers it */
-          });
-        }, ms);
-      });
-    }
-    return () => { cancelled = true; };
+    const delays = [0, 1500, 4000, 8000];
+    const timers = delays.map((ms) =>
+      window.setTimeout(() => {
+        if (cancelled) return;
+        checkSubscription().catch(() => {
+          /* network errors are non-fatal; periodic check covers it */
+        });
+      }, ms),
+    );
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
 
   const headingId = 'checkout-success-heading';
 

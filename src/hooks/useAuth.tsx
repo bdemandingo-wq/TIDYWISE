@@ -5,7 +5,7 @@
  * Session persistence is disabled - users must login every visit.
  */
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { useAuthNoSession, supabaseNoSession } from './useAuthNoSession';
 
@@ -38,6 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  // Tolerate a single 401 from check-subscription before signing the
+  // user out. Supabase auth occasionally returns a transient 401 right
+  // after a new user is created via inviteUserByEmail (the checkout-
+  // first flow) before the session propagates. Without this, the user
+  // landing on /checkout/success would get auto-signed-out by the
+  // polling loop and see the anonymous variant of the page.
+  const consecutive401sRef = useRef(0);
 
   const signOut = async () => {
     await noSessionAuth.signOut();
@@ -65,24 +72,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       setSubscription(data);
-      // Only OPEN the dialog if not subscribed; never auto-close it
+      consecutive401sRef.current = 0;
+      // Open the subscription dialog only when:
+      //   1. The user genuinely doesn't have a subscription, AND
+      //   2. We are NOT in the post-checkout grace window — the
+      //      /checkout/success page polls this function several times
+      //      right after Stripe redirects, and the webhook can race
+      //      that by a second or two. Without the guard, the paywall
+      //      dialog flashes open during the polling and creates the
+      //      "screen glitching" the user reported.
       if (!data?.subscribed) {
-        setShowSubscriptionDialog(true);
+        const inGrace = (() => {
+          try {
+            return sessionStorage.getItem("tw_post_checkout") === "1";
+          } catch { return false; }
+        })();
+        if (!inGrace) setShowSubscriptionDialog(true);
+      } else {
+        // Subscription confirmed — exit the grace window if we were in
+        // one so a later state change (downgrade, cancel) opens the
+        // dialog normally.
+        try { sessionStorage.removeItem("tw_post_checkout"); } catch { /* no-op */ }
       }
     } catch (error: any) {
       const status = error?.context?.status;
       const msg = String(error?.message ?? "");
 
-      // If the stored session is stale/invalid, clear it so the app can recover.
-      if (
+      const looksLikeAuth =
         status === 401 ||
         msg.includes("Auth session missing") ||
-        msg.includes("session_not_found")
-      ) {
-        await signOut();
+        msg.includes("session_not_found");
+
+      // Tolerate a single transient 401 — Supabase auth occasionally
+      // returns one right after a new user is created (eg from the
+      // checkout-first flow's inviteUserByEmail) before propagation.
+      // Two in a row = real auth failure; sign out.
+      if (looksLikeAuth) {
+        consecutive401sRef.current += 1;
+        if (consecutive401sRef.current >= 2) {
+          consecutive401sRef.current = 0;
+          await signOut();
+          return;
+        }
+        console.warn("[useAuth] transient 401 — tolerating one retry");
         return;
       }
-
+      consecutive401sRef.current = 0;
       // Log but don't block login — subscription check failure should not prevent access
       console.error("Error checking subscription:", error);
     }
