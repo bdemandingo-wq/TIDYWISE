@@ -859,26 +859,12 @@ export default function PlatformAnalyticsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {itemToDelete && (
-            <div className="space-y-2 py-2">
-              <label className="text-sm font-medium">
-                Type <span className="font-mono text-destructive">{itemToDelete.name}</span> to confirm
-              </label>
-              <Input
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder={itemToDelete.name}
-                autoFocus
-                disabled={deleting}
-              />
-            </div>
-          )}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={deleting || !confirmTextMatches}
+              disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
