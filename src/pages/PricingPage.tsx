@@ -211,23 +211,81 @@ export default function PricingPage() {
   // Iframe-safe navigation to Stripe Checkout. Stripe sends
   // X-Frame-Options: DENY, so a plain `window.location.href` inside an
   // embedded preview (Lovable iframe, in-app webview, etc.) blanks the
-  // frame instead of navigating. Always try to break out to top first.
+  // frame instead of navigating. Strategy:
+  //   1. If we're inside an iframe, prefer opening a NEW top-level tab
+  //      (window.open _blank) so the redirect can never be silently
+  //      blanked by the embedder.
+  //   2. Fall back to breaking the top frame (_top), then plain
+  //      same-tab navigation.
+  //   3. After ~2s, if we're still here, surface a "Continue to secure
+  //      checkout" link as a toast action so the user always has a
+  //      manual escape hatch (no infinite spinner).
   function goToCheckout(url: string) {
-    try {
-      if (window.top && window.top !== window.self) {
-        window.top.location.href = url;
-        return;
+    const inIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true; // cross-origin top access throws → definitely iframed
       }
-    } catch {
-      // Cross-origin top access blocked — fall through.
+    })();
+
+    let opened = false;
+
+    if (inIframe) {
+      try {
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (win) opened = true;
+      } catch {
+        // popup blocked or sandboxed — fall through
+      }
     }
-    try {
-      window.open(url, '_top');
-      return;
-    } catch {
-      // ignore
+
+    if (!opened) {
+      try {
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = url;
+          opened = true;
+        }
+      } catch {
+        // Cross-origin top access blocked — fall through.
+      }
     }
-    window.location.href = url;
+
+    if (!opened) {
+      try {
+        const win = window.open(url, '_top');
+        if (win !== null) opened = true;
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!opened) {
+      try {
+        window.location.href = url;
+        opened = true;
+      } catch {
+        // ignore
+      }
+    }
+
+    // Always show a manual-continue fallback shortly after, in case the
+    // redirect was silently blocked (sandboxed iframe, popup blocker,
+    // in-app webview). This is dismissible and harmless if the
+    // navigation already succeeded.
+    window.setTimeout(() => {
+      toast.message('Continue to secure checkout', {
+        description: 'If Stripe did not open automatically, tap below.',
+        duration: 30000,
+        action: {
+          label: 'Open Stripe',
+          onClick: () => {
+            window.open(url, '_blank', 'noopener,noreferrer') ??
+              (window.location.href = url);
+          },
+        },
+      });
+    }, 2000);
   }
 
   async function startSubscriptionCheckout(planId: Tier['id']) {
