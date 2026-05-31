@@ -405,7 +405,11 @@ export default function PricingPage() {
   // the tier highlighted (via the existing effect) so a one-click
   // retry is right there. No auto-resume.
 
-  async function startLifetimeCheckout(preopened?: Window | null) {
+  async function startLifetimeCheckout() {
+    if (isRedirectingRef.current || checkoutBusy) return;
+    isRedirectingRef.current = true;
+
+    const preopened = preopenCheckoutTab();
     setCheckoutBusy('lifetime');
     try {
       const { data, error } = await supabase.functions.invoke('buy-lifetime', {
@@ -430,6 +434,7 @@ export default function PricingPage() {
           : 'Could not start the lifetime checkout. Try again.',
       );
       setCheckoutBusy(null);
+      isRedirectingRef.current = false;
     }
   }
 
