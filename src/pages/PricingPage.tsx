@@ -250,40 +250,38 @@ export default function PricingPage() {
   // A "Continue to secure checkout" toast appears after 2s as a safety
   // net for the rare case all paths are blocked.
   function goToCheckout(url: string, preopened?: Window | null) {
-    let opened = false;
-
+    // Exactly ONE navigation per call. Caller MUST set
+    // isRedirectingRef before invoking so duplicate sessions can't
+    // ride alongside.
     if (preopened && !preopened.closed) {
       try {
         preopened.location.href = url;
-        opened = true;
       } catch {
         try { preopened.close(); } catch { /* ignore */ }
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = url;
+          } else {
+            window.location.href = url;
+          }
+        } catch {
+          window.location.href = url;
+        }
       }
-    }
-
-    if (!opened) {
+    } else {
       try {
         if (window.top && window.top !== window.self) {
           window.top.location.href = url;
-          opened = true;
         } else {
           window.location.href = url;
-          opened = true;
         }
       } catch {
-        // cross-origin top access — fall through
-      }
-    }
-
-    if (!opened) {
-      try {
         window.location.href = url;
-        opened = true;
-      } catch {
-        // ignore
       }
     }
 
+    // Safety-net fallback toast in case the navigation is silently
+    // blocked (popup blockers in some in-app webviews).
     window.setTimeout(() => {
       toast.message('Continue to secure checkout', {
         description: 'If Stripe did not open automatically, tap below.',
