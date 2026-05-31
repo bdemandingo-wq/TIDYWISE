@@ -4393,6 +4393,89 @@ export type Database = {
           },
         ]
       }
+      lifetime_access_purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          email: string
+          id: string
+          organization_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          email: string
+          id?: string
+          organization_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          email?: string
+          id?: string
+          organization_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifetime_access_purchases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lifetime_offer_state: {
+        Row: {
+          id: number
+          sold_out_at: string | null
+          sold_spots: number
+          total_spots: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          sold_out_at?: string | null
+          sold_spots?: number
+          total_spots?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          sold_out_at?: string | null
+          sold_spots?: number
+          total_spots?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lifetime_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           address: string | null
@@ -5607,28 +5690,37 @@ export type Database = {
       organizations: {
         Row: {
           created_at: string
+          grandfathered_at: string | null
+          grandfathered_lifetime: boolean
           id: string
           logo_url: string | null
           name: string
           owner_id: string
+          plan_type: string | null
           slug: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          grandfathered_at?: string | null
+          grandfathered_lifetime?: boolean
           id?: string
           logo_url?: string | null
           name: string
           owner_id: string
+          plan_type?: string | null
           slug?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          grandfathered_at?: string | null
+          grandfathered_lifetime?: boolean
           id?: string
           logo_url?: string | null
           name?: string
           owner_id?: string
+          plan_type?: string | null
           slug?: string | null
           updated_at?: string
         }
