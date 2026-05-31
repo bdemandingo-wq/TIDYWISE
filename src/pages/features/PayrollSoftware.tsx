@@ -141,7 +141,7 @@ export default function PayrollSoftware() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 h-14" onClick={handleStartFreeTrial}>
-              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/pricing")}>
               See All Features
@@ -224,7 +224,7 @@ export default function PayrollSoftware() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-foreground text-center mb-12">
-            Everything Included, Free
+            Everything Included
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {features.map((feature) => (

@@ -155,7 +155,7 @@ export default function InvoicingSoftwareForCleaners() {
             </ul>
 
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
-              <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE Invoicing — Automatic, Connected, Free</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">TIDYWISE Invoicing — Automatic & Connected</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Invoices generated automatically when jobs are completed, card-on-file auto-charge for recurring clients, deposit collection, branded receipts, and Stripe integration — included free with TIDYWISE.
               </p>
