@@ -390,6 +390,7 @@ export default function PricingPage() {
         err instanceof Error ? err.message : 'Could not start checkout. Try again.',
       );
       setCheckoutBusy(null);
+      isRedirectingRef.current = false;
     } finally {
       window.clearTimeout(timeoutId);
     }
