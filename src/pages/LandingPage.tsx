@@ -237,9 +237,11 @@ export default function LandingPage() {
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web (mobile-friendly)",
             "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
+              "@type": "AggregateOffer",
+              "lowPrice": "49",
+              "highPrice": "300",
+              "priceCurrency": "USD",
+              "offerCount": "4"
             },
             "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Plans from $49/mo."
           },
@@ -314,8 +316,8 @@ export default function LandingPage() {
           : 'bg-transparent'
       }`}>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-14 md:h-18">
-            <div className="flex items-center gap-2">
+            <div className="flex justify-between items-center h-14 md:h-18 gap-6">
+            <div className="flex items-center gap-2 pl-1 md:pl-2 mr-4 md:mr-8">
               <span className="font-bold text-xl md:text-2xl text-foreground tracking-tight">TIDYWISE</span>
             </div>
 
@@ -331,7 +333,7 @@ export default function LandingPage() {
               <Button variant="ghost" asChild className="text-sm font-medium text-primary"><Link to="/demo">Schedule Demo</Link></Button>
               <Button variant="ghost" asChild className="text-sm"><Link to="/login">Log In</Link></Button>
               <Button variant="premium" asChild className="text-sm">
-                <Link to="/signup">
+                <Link to="/pricing">
                   See Plans
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
@@ -409,7 +411,7 @@ export default function LandingPage() {
                          <Link to="/login">Log In</Link>
                        </Button>
                        <Button variant="premium" asChild className="mt-1" onClick={closeMobileMenu}>
-                         <Link to="/signup">
+                         <Link to="/pricing">
                            See Plans
                            <ArrowRight className="ml-1 h-4 w-4" />
                          </Link>

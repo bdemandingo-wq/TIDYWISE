@@ -87,13 +87,21 @@ export default function ContactPage() {
     setErrors({});
     setLoading(true);
     try {
-      // Reuse the existing demo-request notification edge function for inbound contact.
-      await supabase.functions.invoke('notify-demo-request', {
-        body: { ...parsed.data, source: 'contact_form' },
+      // Dedicated contact-form handler — sends admin alert + user
+      // confirmation email. The previous code reused notify-demo-request
+      // which required fullName/phone/businessName and silently 400'd,
+      // so every contact submission "succeeded" without an email being sent.
+      const { data, error } = await supabase.functions.invoke('notify-contact-form', {
+        body: parsed.data,
       });
+      if (error) throw error;
+      if ((data as { success?: boolean; error?: string } | null)?.error) {
+        throw new Error((data as { error: string }).error);
+      }
       setSent(true);
       toast.success("Thanks — we'll be in touch within 24 hours.");
-    } catch {
+    } catch (err) {
+      console.error('[contact-form] submit failed', err);
       toast.error(`Could not send your message. Please email ${SUPPORT_EMAIL}.`);
     } finally {
       setLoading(false);

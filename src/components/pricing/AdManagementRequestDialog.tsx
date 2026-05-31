@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, Loader2 } from 'lucide-react';
+
+type Readiness = 'yes' | 'no' | 'not_sure';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +43,10 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
     service_area: '',
     monthly_budget: '',
     has_ad_accounts: false,
+    has_google_business: '' as Readiness | '',
+    has_google_ads: '' as Readiness | '',
+    has_lsa_verified: '' as Readiness | '',
+    has_facebook_bm: '' as Readiness | '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
@@ -53,7 +58,7 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
 
   const isFacebook = serviceType === 'facebook';
   const budgetNum = Number(form.monthly_budget);
-  const budgetTooLow = isFacebook && form.monthly_budget !== '' && budgetNum < 500;
+  const budgetTooLow = isFacebook && form.monthly_budget !== '' && budgetNum < 1500;
 
   const handleSubmit = async () => {
     if (!serviceType) return;
@@ -71,7 +76,7 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
       return;
     }
     if (budgetTooLow) {
-      toast.error('Facebook Ads requires a minimum $500/mo ad budget');
+      toast.error('Facebook Ads requires a minimum $1500/mo ad budget');
       return;
     }
 
@@ -84,6 +89,10 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
           service_area: form.service_area.trim(),
           monthly_budget: form.monthly_budget ? Number(form.monthly_budget) : null,
           has_ad_accounts: form.has_ad_accounts,
+          has_google_business: form.has_google_business || null,
+          has_google_ads: form.has_google_ads || null,
+          has_lsa_verified: form.has_lsa_verified || null,
+          has_facebook_bm: form.has_facebook_bm || null,
           contact_name: form.contact_name.trim() || null,
           contact_email: form.contact_email.trim() || user.email,
           contact_phone: form.contact_phone.trim() || null,
@@ -111,6 +120,10 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
         service_area: '',
         monthly_budget: '',
         has_ad_accounts: false,
+        has_google_business: '',
+        has_google_ads: '',
+        has_lsa_verified: '',
+        has_facebook_bm: '',
         contact_name: '',
         contact_email: '',
         contact_phone: '',
@@ -143,7 +156,7 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
             <p><strong>Requires an active paid TidyWise plan.</strong></p>
             {isFacebook && (
               <p>
-                Facebook Ads requires a <strong>minimum $500/mo ad budget</strong> paid
+                Facebook Ads requires a <strong>minimum $1500/mo ad budget</strong> paid
                 directly to Facebook (separate from the $400/mo management fee).
               </p>
             )}
@@ -174,33 +187,68 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
 
           <div>
             <Label htmlFor="budget">
-              Monthly ad budget (USD){isFacebook ? ' — min $500' : ''}
+              Monthly ad budget (USD){isFacebook ? ' — min $1500' : ''}
             </Label>
             <Input
               id="budget"
               type="number"
               min={0}
-              placeholder={isFacebook ? '500' : '300'}
+              placeholder="1500"
               value={form.monthly_budget}
               onChange={(e) => update('monthly_budget', e.target.value)}
             />
             {budgetTooLow && (
               <p className="text-xs text-destructive mt-1">
-                Facebook Ads requires a minimum $500/mo budget.
+                Facebook Ads requires a minimum $1500/mo budget.
               </p>
             )}
           </div>
 
-          <div className="flex items-start gap-2 pt-1">
-            <Checkbox
-              id="hasAccts"
-              checked={form.has_ad_accounts}
-              onCheckedChange={(v) => update('has_ad_accounts', v === true)}
+          {/* Account-readiness questions: helps onboarding know what to
+              CREATE vs CONNECT during done-for-you setup. Each service
+              type only shows the questions relevant to it (plus GBP,
+              which both Google services need). */}
+          <div className="pt-2 space-y-3">
+            <p className="text-sm font-medium text-foreground">
+              What do you already have set up?
+            </p>
+
+            <ReadinessQuestion
+              label="A Google Business Profile (the listing that shows on Google Maps)"
+              value={form.has_google_business}
+              onChange={(v) => update('has_google_business', v)}
             />
-            <Label htmlFor="hasAccts" className="text-sm leading-tight font-normal">
-              I already have a {serviceType === 'facebook' ? 'Facebook' : 'Google'} ads
-              account set up
-            </Label>
+
+            {serviceType === 'google_search' && (
+              <ReadinessQuestion
+                label="A Google Ads account"
+                value={form.has_google_ads}
+                onChange={(v) => update('has_google_ads', v)}
+              />
+            )}
+
+            {serviceType === 'google_lsa' && (
+              <ReadinessQuestion
+                label="Google Local Services Ads (license-verified)"
+                value={form.has_lsa_verified}
+                onChange={(v) => update('has_lsa_verified', v)}
+              />
+            )}
+
+            {serviceType === 'facebook' && (
+              <ReadinessQuestion
+                label="A Facebook Page + Business Manager"
+                value={form.has_facebook_bm}
+                onChange={(v) => update('has_facebook_bm', v)}
+              />
+            )}
+
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-md p-3 leading-relaxed">
+              <strong className="text-foreground">Don't have these yet? No problem</strong> —
+              we set them up for you during onboarding. You'll own the accounts; ad spend is
+              billed directly to your card by Google/Facebook (separate from the $400/mo
+              management fee).
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -272,5 +320,40 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface ReadinessQuestionProps {
+  label: string;
+  value: Readiness | '';
+  onChange: (v: Readiness) => void;
+}
+
+function ReadinessQuestion({ label, value, onChange }: ReadinessQuestionProps) {
+  const options: { value: Readiness; label: string }[] = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' },
+    { value: 'not_sure', label: 'Not sure' },
+  ];
+  return (
+    <div>
+      <p className="text-sm text-foreground mb-1.5">{label}</p>
+      <div className="flex gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`flex-1 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+              value === opt.value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

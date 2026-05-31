@@ -112,6 +112,63 @@ async function callLovableAI(systemPrompt: string, userPrompt: string): Promise<
   return JSON.parse(content) as GeneratedBlog;
 }
 
+// Second-pass "humanizer." Rewrites the HTML body to remove AI tells —
+// uniform sentence rhythm, hedging, formulaic transitions ("Moreover,
+// furthermore..."), and the over-cleaned prose that AI detectors flag.
+// Returns the rewritten HTML; falls back to the original if the rewrite
+// fails so a humanizer outage doesn't block publishing.
+const HUMANIZER_SYSTEM = `You are a senior B2B editor who rewrites AI-generated drafts so they read like a person wrote them.
+
+Task: Rewrite the HTML body. Keep ALL <h2>, <h3>, <ul>, <ol>, <li>, <strong>, and <script type="application/ld+json"> tags exactly. Keep the structure, headings, facts, and length (do not shorten). Preserve all FAQ Q&As verbatim if they exist.
+
+What to change:
+- Vary sentence length — mix short punchy sentences with longer ones.
+- Cut formulaic transitions ("Moreover," "Furthermore," "In conclusion," "It is important to note that," "delve into," "navigate the complexities").
+- Replace passive voice with active where natural.
+- Add one or two specific real-world details where a section feels generic (e.g., "after 200+ jobs," "a 3-cleaner crew," "a $1,500 weekly route").
+- Use contractions ("it's," "don't," "you'll").
+- Remove em-dashes used purely for flair — replace with comma or period.
+- Sound like a founder writing for other founders. No filler.
+
+What to keep:
+- Every heading and structural HTML tag, exactly.
+- Every fact, claim, and competitor mention.
+- The overall word count (±10%).
+- The soft CTA mentioning TidyWise.
+
+Return JSON only: {"content":"the rewritten HTML"}. No markdown fences.`;
+
+async function humanizePass(html: string): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return html;
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: HUMANIZER_SYSTEM },
+          { role: "user", content: `Rewrite this HTML body:\n\n${html}` },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[humanizer] gateway returned ${res.status} — keeping original draft`);
+      return html;
+    }
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) return html;
+    const parsed = JSON.parse(content) as { content?: string };
+    return parsed.content?.trim() || html;
+  } catch (e) {
+    console.warn("[humanizer] failed — keeping original draft:", e);
+    return html;
+  }
+}
+
 async function fetchUnsplashImage(keyword: string): Promise<string> {
   const accessKey = Deno.env.get("UNSPLASH_ACCESS_KEY");
   if (!accessKey) { console.log("UNSPLASH_ACCESS_KEY not set — using fallback"); return FALLBACK_IMAGE; }
@@ -152,6 +209,15 @@ serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Body opt-in: auto-publish? Cron passes nothing (defaults true so the
+  // 2x/week schedule actually publishes). Manual admin generate sends
+  // {auto_publish:false} to keep posts in draft for review.
+  let autoPublish = true;
+  try {
+    const body = await req.clone().json().catch(() => ({} as any));
+    if (typeof body?.auto_publish === "boolean") autoPublish = body.auto_publish;
+  } catch { /* no body — keep default */ }
+
   try {
     const { data: nextKeywords, error: qErr } = await supabase
       .from("blog_keyword_queue").select("*").eq("status", "queued")
@@ -183,6 +249,10 @@ serve(async (req) => {
       }
       throw e;
     }
+
+    // Humanizer second pass — rewrites the draft to sound less AI-generated.
+    // Runs BEFORE quality scoring so the scored content matches what's published.
+    post.content = await humanizePass(post.content);
 
     const wordCount = countWords(post.content);
     const competitorCount = countCompetitorMentions(post.content);
@@ -216,13 +286,23 @@ serve(async (req) => {
       finalContent += `\n<script type="application/ld+json">${JSON.stringify(faqJsonLd)}</script>`;
     }
 
+    // Auto-publish gate: cron runs publish straight away so the site
+    // shows fresh posts without manual intervention. Manual admin
+    // generates default to draft via {auto_publish:false}.
+    // Skip auto-publish if quality is too low OR similar post already exists.
+    const tooLowQuality = score < 60;
+    const shouldPublish = autoPublish && !similar && !tooLowQuality;
+    const nowIso = new Date().toISOString();
+
     const { data: inserted, error: insErr } = await supabase.from("blog_posts").insert({
       title: post.title, slug, excerpt: post.excerpt, content: finalContent,
       meta_title: post.meta_title, meta_description: post.meta_description,
       target_keyword: queueRow.keyword, secondary_keywords: post.secondary_keywords || [],
       word_count: wordCount, ai_model_used: MODEL, featured_image_url,
       category: "Cleaning Business", author: "TidyWise Team",
-      status: "draft", is_published: false,
+      status: shouldPublish ? "published" : "draft",
+      is_published: shouldPublish,
+      published_at: shouldPublish ? nowIso : null,
       quality_score: score, quality_notes: validationNotes.join(" • "),
     }).select("id, slug, title").single();
 

@@ -891,7 +891,7 @@ export default function PricingPage() {
               <p>
                 <strong className="text-foreground">About the Facebook guarantee:</strong>{' '}
                 A "lead" = a form fill, phone call, or direct message from someone in your
-                service area. Requires a minimum $500/mo ad budget paid to Facebook on your
+                service area. Requires a minimum $1500/mo ad budget paid to Facebook on your
                 card. If we don't deliver 10 in your first 30 days, your second month of
                 ad management is free while we tune.
               </p>

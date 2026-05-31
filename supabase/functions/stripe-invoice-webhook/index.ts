@@ -437,8 +437,8 @@ const handler = async (req: Request): Promise<Response> => {
               stripe_payment_intent_id: session.payment_intent as string | null,
               // Pull amount from the session itself so price changes in
               // Stripe don't silently produce wrong records. Falls back
-              // to the historical default if Stripe somehow omits it.
-              amount_cents: session.amount_total ?? 20000,
+              // to $300 (the current lifetime price) if Stripe omits it.
+              amount_cents: session.amount_total ?? 30000,
             },
             { onConflict: "stripe_session_id", ignoreDuplicates: true }
           );

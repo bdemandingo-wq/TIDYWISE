@@ -34,7 +34,9 @@ export default function BlogAdminGeneratePage() {
       for (const keyword of keywords) {
         try {
           const { data, error } = await supabase.functions.invoke("generate-daily-blogs", {
-            body: { keywords: [keyword] },
+            // Manual admin generates stay as drafts for review — only
+            // the scheduled cron auto-publishes.
+            body: { keywords: [keyword], auto_publish: false },
           });
           if (error) throw error;
           const post = data?.results?.[0];

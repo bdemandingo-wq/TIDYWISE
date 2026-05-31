@@ -10,14 +10,19 @@ import { toast } from 'sonner';
 import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Lock, Mail } from 'lucide-react';
 import { z } from 'zod';
 
-const CODE_LENGTH = 8;
+// Accept 6–8 digit codes — Supabase's default OTP is 6 digits, but the
+// project can be configured up to 8. Hardcoding 8 here previously
+// rejected every valid 6-digit code with "Code must be 8 digits" on
+// any project that wasn't explicitly set to 8.
+const CODE_MIN = 6;
+const CODE_MAX = 8;
 
 const passwordSchema = z
   .object({
     code: z
       .string()
       .trim()
-      .regex(new RegExp(`^\\d{${CODE_LENGTH}}$`), `Code must be ${CODE_LENGTH} digits`),
+      .regex(new RegExp(`^\\d{${CODE_MIN},${CODE_MAX}}$`), `Code must be ${CODE_MIN}–${CODE_MAX} digits`),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -214,15 +219,15 @@ export default function ResetPasswordPage() {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   autoComplete="one-time-code"
-                  placeholder="12345678"
+                  placeholder="123456"
                   value={code}
                   onChange={(e) => {
-                    const next = e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH);
+                    const next = e.target.value.replace(/\D/g, '').slice(0, CODE_MAX);
                     setCode(next);
                     if (errors.code) setErrors({ ...errors, code: undefined });
                   }}
                   className={`tracking-widest text-center text-lg font-medium ${errors.code ? 'border-destructive' : ''}`}
-                  maxLength={CODE_LENGTH}
+                  maxLength={CODE_MAX}
                   required
                 />
                 {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
@@ -320,7 +325,7 @@ export default function ResetPasswordPage() {
           </h2>
           <p className="text-muted-foreground leading-relaxed">
             This page is the second step of the TidyWise password recovery flow. You should
-            already have an 8-digit reset code in your inbox — it was sent the moment you
+            already have a numeric reset code in your inbox — it was sent the moment you
             submitted the email lookup form. Codes expire after 15 minutes and are single-
             use, so if you wait too long or try to reuse one, you'll need to request a
             fresh one from the previous step.

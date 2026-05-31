@@ -205,3 +205,7 @@ verify_jwt = true
 
   [functions.buy-lifetime]
     verify_jwt = false
+
+  # Public contact form on /contact — anonymous visitors hit it.
+  [functions.notify-contact-form]
+    verify_jwt = false

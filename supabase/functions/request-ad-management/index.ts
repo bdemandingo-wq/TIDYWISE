@@ -16,12 +16,23 @@ const SERVICE_LABEL: Record<string, string> = {
   facebook: "Facebook Ads",
 };
 
+type Readiness = "yes" | "no" | "not_sure";
+function normReadiness(v: unknown): Readiness | null {
+  return v === "yes" || v === "no" || v === "not_sure" ? v : null;
+}
+
 interface Body {
   service_type?: string;
   business_name?: string;
   service_area?: string;
   monthly_budget?: number | string;
   has_ad_accounts?: boolean;
+  // New account-readiness questions: 'yes' / 'no' / 'not_sure'.
+  // Stored so onboarding knows whether to CREATE or CONNECT each account.
+  has_google_business?: Readiness;
+  has_google_ads?: Readiness;
+  has_lsa_verified?: Readiness;
+  has_facebook_bm?: Readiness;
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
@@ -122,6 +133,10 @@ serve(async (req) => {
         service_area: sliceStr(body.service_area, 240),
         monthly_budget: safeBudget,
         has_ad_accounts: !!body.has_ad_accounts,
+        has_google_business: normReadiness(body.has_google_business),
+        has_google_ads: normReadiness(body.has_google_ads),
+        has_lsa_verified: normReadiness(body.has_lsa_verified),
+        has_facebook_bm: normReadiness(body.has_facebook_bm),
         contact_name: sliceStr(body.contact_name, 120),
         contact_email: sliceStr(body.contact_email ?? user.email, 200),
         contact_phone: sliceStr(body.contact_phone, 40),
@@ -156,6 +171,10 @@ serve(async (req) => {
           `Area: ${body.service_area || "—"}\n` +
           `Budget: ${budgetNum ? "$" + budgetNum + "/mo" : "—"}\n` +
           `Has ad accts: ${body.has_ad_accounts ? "Yes" : "No"}\n` +
+          `Readiness — GBP:${body.has_google_business ?? "—"} ` +
+          `GAds:${body.has_google_ads ?? "—"} ` +
+          `LSA:${body.has_lsa_verified ?? "—"} ` +
+          `FBBM:${body.has_facebook_bm ?? "—"}\n` +
           `Contact: ${body.contact_name || ""} ${body.contact_email || user.email} ${body.contact_phone || ""}`;
         await fetch("https://api.openphone.com/v1/messages", {
           method: "POST",

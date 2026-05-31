@@ -242,7 +242,7 @@ export default function CleaningBusinessSoftware() {
             "name": "TIDYWISE Cleaning Business Software",
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web (mobile-friendly)",
-            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "offers": { "@type": "AggregateOffer", "lowPrice": "49", "highPrice": "300", "priceCurrency": "USD", "offerCount": "4" },
             "description": "All-in-one cleaning business software with scheduling, CRM, automated payroll, GPS tracking, invoicing, and staff management. Plans from $49/mo."
           },
           {

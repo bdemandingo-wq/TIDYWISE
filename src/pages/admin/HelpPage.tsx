@@ -337,9 +337,9 @@ export default function HelpPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Have a question or idea? Text us at{' '}
-              <a href="sms:+18137356859" className="text-primary underline">
-                (813) 735-6859
+              Have a question or idea? Email us at{' '}
+              <a href="mailto:support@tidywisecleaning.com" className="text-primary underline">
+                support@tidywisecleaning.com
               </a>
             </p>
           </CardContent>

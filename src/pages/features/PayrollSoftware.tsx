@@ -89,7 +89,7 @@ export default function PayrollSoftware() {
           "name": "TidyWise Payroll Software",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web, iOS, Android",
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "offers": { "@type": "Offer", "price": "97", "priceCurrency": "USD", "category": "subscription", "description": "Included with Pro plan" },
           "description": "Payroll software for cleaning businesses. Automate wages, tips, mileage reimbursements, and generate W-2/1099 documentation. Included with the TIDYWISE Pro plan."
         }}
       />

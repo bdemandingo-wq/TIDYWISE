@@ -140,19 +140,25 @@ export function DemoBookingForm() {
   const localTz = useMemo(() => getLocalTimezone(), []);
   const isLocalEST = localTz.includes("New_York") || localTz.includes("Eastern");
 
-  // Fetch booked slots and blocked dates
+  // Fetch booked slots and blocked dates.
+  // Uses the public get_demo_booked_slots() RPC instead of selecting
+  // from demo_bookings directly — the table's SELECT policy was locked
+  // down to platform admins in migration 20260428083904, so an anon
+  // visitor querying the table received zero rows and the calendar
+  // happily showed already-booked slots as available (silent
+  // double-booking bug).
   useEffect(() => {
     const fetchSlots = async () => {
       const { data: bookings } = await (supabase
-        .from("demo_bookings" as any)
-        .select("booked_date, booked_time, status") as any)
-        .in("status", ["confirmed", "rescheduled"]);
-      
+        .rpc("get_demo_booked_slots" as any) as any);
+
       if (bookings) {
         setBookedSlots(
           (bookings as any[]).map((b: any) => ({
             date: b.booked_date,
-            time: b.booked_time?.substring(0, 5), // HH:MM
+            time: typeof b.booked_time === "string"
+              ? b.booked_time.substring(0, 5) // HH:MM
+              : b.booked_time,
           }))
         );
       }
