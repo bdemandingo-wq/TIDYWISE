@@ -606,7 +606,7 @@ export default function PricingPage() {
                   </div>
 
                   <Button
-                    onClick={() => startSubscriptionCheckout(tier.id, preopenCheckoutTab())}
+                    onClick={() => startSubscriptionCheckout(tier.id)}
                     disabled={isBusy}
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
