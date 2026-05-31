@@ -432,9 +432,17 @@ export default function PricingPage() {
             </Link>
             <div className="flex items-center gap-2">
               {user ? (
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/dashboard">Dashboard</Link>
-                </Button>
+                <>
+                  <span className="hidden sm:inline text-xs text-muted-foreground mr-1 truncate max-w-[180px]">
+                    {user.email}
+                  </span>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/dashboard/settings">Settings</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/logout">Log out</Link>
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button asChild variant="ghost" size="sm">
