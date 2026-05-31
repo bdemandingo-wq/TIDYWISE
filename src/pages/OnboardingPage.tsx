@@ -396,7 +396,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
       <SEOHead
         title="Set Up Your Cleaning Business | TidyWise"
         description="Tell TidyWise about your cleaning business and pick the services you offer in two quick steps. You'll be ready to take bookings right after."
