@@ -22,8 +22,9 @@ TIDYWISE is an all-in-one software platform built specifically for residential c
 
 ## Pricing
 
-- Plans from $49/mo tier (core scheduling, invoicing, booking)
-- Basic: $49/mo · Pro: $97/mo · Custom: $197/mo — unlimited users, unlimited bookings
+- Basic: $49/mo · Pro: $97/mo · Custom: $197/mo (yearly billing = 2 months free)
+- Founding Lifetime offer: $300 one-time (50 spots, limited)
+- Unlimited users, unlimited bookings on every plan
 - 30-day money-back guarantee
 - No per-user pricing, no per-booking fees
 
