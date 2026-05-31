@@ -122,6 +122,16 @@ export default function PricingPage() {
   const [highlightedPlan, setHighlightedPlan] = useState<Tier['id'] | null>(null);
   const [adRequestService, setAdRequestService] = useState<AdServiceType | null>(null);
   const tierRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Hard guard against duplicate checkout sessions / double redirects.
+  // Once a click begins the redirect, every subsequent call bails until
+  // the page actually unloads. pageshow resets it so a back-nav restore
+  // (bfcache) doesn't leave the button permanently disabled.
+  const isRedirectingRef = useRef(false);
+  useEffect(() => {
+    const reset = () => { isRedirectingRef.current = false; };
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
   const spotsLeft = lifetime.spotsLeft;
 
   // Restore selected plan + interval after a return trip to Stripe.
@@ -240,40 +250,38 @@ export default function PricingPage() {
   // A "Continue to secure checkout" toast appears after 2s as a safety
   // net for the rare case all paths are blocked.
   function goToCheckout(url: string, preopened?: Window | null) {
-    let opened = false;
-
+    // Exactly ONE navigation per call. Caller MUST set
+    // isRedirectingRef before invoking so duplicate sessions can't
+    // ride alongside.
     if (preopened && !preopened.closed) {
       try {
         preopened.location.href = url;
-        opened = true;
       } catch {
         try { preopened.close(); } catch { /* ignore */ }
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = url;
+          } else {
+            window.location.href = url;
+          }
+        } catch {
+          window.location.href = url;
+        }
       }
-    }
-
-    if (!opened) {
+    } else {
       try {
         if (window.top && window.top !== window.self) {
           window.top.location.href = url;
-          opened = true;
         } else {
           window.location.href = url;
-          opened = true;
         }
       } catch {
-        // cross-origin top access — fall through
-      }
-    }
-
-    if (!opened) {
-      try {
         window.location.href = url;
-        opened = true;
-      } catch {
-        // ignore
       }
     }
 
+    // Safety-net fallback toast in case the navigation is silently
+    // blocked (popup blockers in some in-app webviews).
     window.setTimeout(() => {
       toast.message('Continue to secure checkout', {
         description: 'If Stripe did not open automatically, tap below.',
@@ -290,7 +298,20 @@ export default function PricingPage() {
   }
 
 
-  async function startSubscriptionCheckout(planId: Tier['id'], preopened?: Window | null) {
+  async function startSubscriptionCheckout(planId: Tier['id']) {
+    // Idempotency guard — bail on every re-entry until the page
+    // navigates away. Prevents the duplicate-session bug seen in
+    // edge-function logs (multiple sessions per click from rapid
+    // double-taps / re-renders firing the handler before busy state
+    // painted). pageshow listener resets it on bfcache restore.
+    if (isRedirectingRef.current || checkoutBusy) return;
+    isRedirectingRef.current = true;
+
+    // Open the blank tab synchronously (still inside the user gesture)
+    // ONLY after the guard passes — so rapid clicks can't each pop a
+    // blank tab before busy state lands.
+    const preopened = preopenCheckoutTab();
+
     // Persist the choice in BOTH places:
     //   - sessionStorage for the Stripe cancel_url round-trip
     //   - URL params so a full refresh during checkout (or a deep
@@ -318,6 +339,7 @@ export default function PricingPage() {
     const timeoutId = window.setTimeout(() => {
       setCheckoutBusy((current) => {
         if (current === planId) {
+          isRedirectingRef.current = false;
           toast.error('Checkout is taking longer than expected. Please try again.');
           return null;
         }
@@ -368,6 +390,7 @@ export default function PricingPage() {
         err instanceof Error ? err.message : 'Could not start checkout. Try again.',
       );
       setCheckoutBusy(null);
+      isRedirectingRef.current = false;
     } finally {
       window.clearTimeout(timeoutId);
     }
@@ -382,7 +405,11 @@ export default function PricingPage() {
   // the tier highlighted (via the existing effect) so a one-click
   // retry is right there. No auto-resume.
 
-  async function startLifetimeCheckout(preopened?: Window | null) {
+  async function startLifetimeCheckout() {
+    if (isRedirectingRef.current || checkoutBusy) return;
+    isRedirectingRef.current = true;
+
+    const preopened = preopenCheckoutTab();
     setCheckoutBusy('lifetime');
     try {
       const { data, error } = await supabase.functions.invoke('buy-lifetime', {
@@ -407,6 +434,7 @@ export default function PricingPage() {
           : 'Could not start the lifetime checkout. Try again.',
       );
       setCheckoutBusy(null);
+      isRedirectingRef.current = false;
     }
   }
 
@@ -578,7 +606,7 @@ export default function PricingPage() {
                   </div>
 
                   <Button
-                    onClick={() => startSubscriptionCheckout(tier.id, preopenCheckoutTab())}
+                    onClick={() => startSubscriptionCheckout(tier.id)}
                     disabled={isBusy}
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
@@ -686,7 +714,7 @@ export default function PricingPage() {
                   )
                 ) : (
                   <Button
-                    onClick={() => startLifetimeCheckout(preopenCheckoutTab())}
+                    onClick={() => startLifetimeCheckout()}
                     disabled={checkoutBusy === 'lifetime'}
                     size="lg"
                     className="w-full md:w-auto bg-amber-600 hover:bg-amber-700"
