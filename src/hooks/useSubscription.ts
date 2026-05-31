@@ -56,21 +56,28 @@ export function useSubscription(): SubscriptionAccess {
   const { user, subscription, loading } = useAuth();
 
   // On native platforms (iOS/Android), all users get full access.
-  // Subscription billing is managed on the web — no IAP needed.
+  // Subscription billing is managed on the web — App Store policy prevents
+  // gating sign-in users behind an external paywall on native.
   const isNativeApp = Capacitor.isNativePlatform();
 
   const isFreeAccount = isDemoAccount(user?.email ?? '');
   const isSubscribed = subscription?.subscribed === true;
   const isTrialActive = subscription?.trial_active === true;
-  // Free-Forever: every organization gets full access across all platforms.
-  const hasFullAccess = true;
-  void isNativeApp; void isFreeAccount; void isSubscribed; void isTrialActive;
+
+  // TidyWise is paid-only on the web. Access is granted only when:
+  //   • the user is on an allowlisted demo / Apple-review account, OR
+  //   • check-subscription returned subscribed=true (active Stripe sub,
+  //     lifetime purchase, or an unexpired pre-cutoff org trial), OR
+  //   • running on a native build (paywall doesn't apply there).
+  const hasFullAccess = isNativeApp || isFreeAccount || isSubscribed;
 
   return {
     isSubscribed,
     isTrialActive,
     hasFullAccess,
-    isLoading: false,
+    // While auth/subscription is still loading we don't know yet — keep
+    // isLoading true so route guards can wait instead of bouncing.
+    isLoading: loading || (!!user && subscription === null && !isFreeAccount && !isNativeApp),
 
     canAccessCampaigns: hasFullAccess,
     canAccessOpenPhone: hasFullAccess,
