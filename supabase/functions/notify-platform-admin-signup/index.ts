@@ -97,24 +97,10 @@ const handler = async (req: Request): Promise<Response> => {
     const result = await response.json();
     console.log(`[notify-platform-admin-signup] SMS sent successfully:`, result);
 
-    // Trigger Make welcome email automation
-    try {
-      const makeWebhookUrl = "https://hook.us2.make.com/zsyiy664w5qhstih2w2e4dqvcpljrzml";
-      await fetch(makeWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          full_name: fullName || "there",
-          phone: phone || "",
-          signup_method: signupMethod || "email",
-          signed_up_at: new Date().toISOString(),
-        }),
-      });
-      console.log("[notify-platform-admin-signup] Make welcome email webhook triggered");
-    } catch (makeErr) {
-      console.error("[notify-platform-admin-signup] Make webhook failed (non-critical):", makeErr);
-    }
+    // Welcome email is fired directly from SignupPage via the
+    // send-welcome-email function (Resend). No need for the legacy
+    // Make.com webhook here — removing the duplicate so we don't
+    // double-send if Make is reconnected later.
 
     return new Response(
       JSON.stringify({ success: true, messageId: result.data?.id }),

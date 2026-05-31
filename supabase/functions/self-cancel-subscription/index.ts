@@ -162,6 +162,27 @@ serve(async (req) => {
       log("WARN: failed to write feedback", insertError.message);
     }
 
+    // Fire-and-forget cancellation notifications (email + SMS to user,
+    // alert to platform admin). Failures are non-fatal — the cancellation
+    // itself already succeeded by this point; just log and move on.
+    try {
+      await supabase.functions.invoke("notify-tidywise-cancellation", {
+        body: {
+          user_id: userId,
+          user_email: userEmail,
+          reason,
+          feedback_text: feedback_text?.slice(0, 2000) || null,
+          competitor_name: competitor_name?.slice(0, 200) || null,
+          missing_feature: missing_feature?.slice(0, 200) || null,
+          period_end_date: periodEnd,
+          plan: active.items.data[0]?.price?.id || null,
+          triggered_by: "self",
+        },
+      });
+    } catch (notifyErr) {
+      log("WARN: notification dispatch failed", String(notifyErr));
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

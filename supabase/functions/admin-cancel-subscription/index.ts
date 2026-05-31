@@ -167,6 +167,42 @@ serve(async (req) => {
         : await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
     }
 
+    // Fire cancellation notifications (email + SMS to customer, alert
+    // to platform admin). Need the customer email + period end for the
+    // user-facing message. Failures are non-fatal.
+    try {
+      let notifyEmail = customerEmail ?? null;
+      if (!notifyEmail) {
+        try {
+          const refreshed = await stripe.subscriptions.retrieve(result.id, {
+            expand: ["customer"],
+          });
+          const cust = refreshed.customer as Stripe.Customer | null;
+          notifyEmail = cust?.email ?? null;
+        } catch { /* ignore */ }
+      }
+      if (notifyEmail) {
+        const periodEndSec =
+          (result as any).items?.data?.[0]?.current_period_end ??
+          (result as any).current_period_end;
+        const periodEnd = periodEndSec
+          ? new Date(periodEndSec * 1000).toISOString()
+          : null;
+        await supabaseClient.functions.invoke("notify-tidywise-cancellation", {
+          body: {
+            user_email: notifyEmail,
+            period_end_date: periodEnd,
+            plan: (result as any).items?.data?.[0]?.price?.id || null,
+            triggered_by: "admin",
+          },
+        });
+      } else {
+        log("WARN: no customer email available, skipping notification");
+      }
+    } catch (notifyErr) {
+      log("WARN: notification dispatch failed", String(notifyErr));
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

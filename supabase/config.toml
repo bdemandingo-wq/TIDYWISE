@@ -209,3 +209,10 @@ verify_jwt = true
   # Public contact form on /contact — anonymous visitors hit it.
   [functions.notify-contact-form]
     verify_jwt = false
+
+  # TidyWise SaaS cancellation notifier — invoked server-side by the
+  # cancel functions (self-cancel-subscription, admin-cancel-subscription).
+  # No public callers, but JWT verify off so the invoker doesn't need to
+  # forward the user's token; auth happens upstream in the cancel function.
+  [functions.notify-tidywise-cancellation]
+    verify_jwt = false

@@ -213,18 +213,17 @@ export default function SignupPage() {
         
         toast.success('Account created! Welcome aboard.');
 
-        // Fire-and-forget welcome email via Make webhook
-        fetch("https://hook.us2.make.com/zsyiy664w5qhstih2w2e4dqvcpljrzml", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        // Fire-and-forget welcome email via our own send-welcome-email
+        // edge function (Resend under the hood). Previously this was a
+        // Make.com webhook — if Make ever broke or the subscription
+        // lapsed, no welcome email went out and we'd never know. Owning
+        // the call removes that single point of failure.
+        supabaseNoSession.functions.invoke('send-welcome-email', {
+          body: {
             email: formData.email,
-            full_name: formData.fullName,
-            phone: formData.phone || "",
-            signup_method: "email",
-            signed_up_at: new Date().toISOString(),
-          }),
-        }).catch(() => {});
+            fullName: formData.fullName,
+          },
+        }).catch(err => console.log('Welcome email failed (non-critical):', err));
         setLoading(false);
         setShowSplash(true);
       }
