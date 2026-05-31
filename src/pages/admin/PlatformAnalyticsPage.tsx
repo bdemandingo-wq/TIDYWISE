@@ -124,6 +124,52 @@ export default function PlatformAnalyticsPage() {
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
   const [cancelImmediate, setCancelImmediate] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [selectedSignups, setSelectedSignups] = useState<Set<string>>(new Set());
+  const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState<null | 'user' | 'organization'>(null);
+
+  const toggleSelect = (setter: typeof setSelectedSignups, id: string) => {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const type = bulkConfirm;
+    if (!type) return;
+    const ids = Array.from(type === 'user' ? selectedSignups : selectedOrgs);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    let success = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const { data, error } = await supabase.functions.invoke('delete-platform-account', {
+          body: { userId: id, type },
+        });
+        if (error || (data as any)?.error) {
+          failed++;
+        } else {
+          success++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+    if (success) toast.success(`Deleted ${success} ${type === 'user' ? 'user(s)' : 'organization(s)'}`);
+    if (failed) toast.error(`${failed} failed to delete`);
+    if (type === 'user') setSelectedSignups(new Set());
+    else setSelectedOrgs(new Set());
+    setBulkConfirm(null);
+    setBulkDeleting(false);
+    fetchAnalytics();
+    refetchSessions();
+  };
+
 
   const handleCancelSubscription = async () => {
     if (!cancelTarget) return;
