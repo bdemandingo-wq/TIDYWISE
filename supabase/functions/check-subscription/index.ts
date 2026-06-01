@@ -106,14 +106,33 @@ serve(async (req) => {
     }
 
     // ── Step 0: Check for lifetime access ──────────────────────────────────
+    // Two sources mean "lifetime":
+    //   (a) a row in lifetime_access_purchases for this email (new buyers), OR
+    //   (b) the user owns an organization flagged grandfathered_lifetime=true
+    //       or plan_type='lifetime' (pre-pricing-launch users we promised
+    //       permanent access to). Without this second check, all 78
+    //       grandfathered owners get blocked by the AdminRoute paywall
+    //       because check-subscription returns subscribed=false.
     const { data: lifetimePurchase } = await supabaseClient
       .from("lifetime_access_purchases")
       .select("id, created_at")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    if (lifetimePurchase) {
-      logStep("Lifetime access found", { email: normalizedEmail });
+    let grandfatheredOrg = false;
+    if (!lifetimePurchase) {
+      const { data: gfMembership } = await supabaseClient
+        .from("org_memberships")
+        .select("organizations!inner(grandfathered_lifetime, plan_type)")
+        .eq("user_id", user.id)
+        .or("grandfathered_lifetime.eq.true,plan_type.eq.lifetime", { foreignTable: "organizations" })
+        .limit(1)
+        .maybeSingle();
+      grandfatheredOrg = !!gfMembership;
+    }
+
+    if (lifetimePurchase || grandfatheredOrg) {
+      logStep("Lifetime access found", { email: normalizedEmail, source: lifetimePurchase ? "purchase" : "grandfathered_org" });
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: false,
@@ -126,6 +145,7 @@ serve(async (req) => {
         status: 200,
       });
     }
+
 
     // ── Step 1: Check Stripe for an active/trialing subscription first ──
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
