@@ -1,8 +1,34 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkAndRecord, getClientIp } from "../_shared/rate-limit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+// redirectUrl is user-controlled and gets baked into the Supabase
+// recovery link. An open redirect here would let an attacker craft a
+// reset SMS that bounces the staff member to a phishing site post-
+// login. Hard-allow only the public TidyWise domains and the native
+// app's capacitor:// scheme.
+const ALLOWED_REDIRECT_HOSTS = new Set([
+  "jointidywise.com",
+  "www.jointidywise.com",
+  "tidywisecleaning.com",
+  "www.tidywisecleaning.com",
+]);
+
+function isAllowedRedirect(url: string | null | undefined): boolean {
+  if (!url) return false;
+  // capacitor:// is the native-app scheme — no host to check.
+  if (url.startsWith("capacitor://")) return true;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_REDIRECT_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +69,44 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Redirect-URL whitelist — see ALLOWED_REDIRECT_HOSTS above.
+    // Open redirect here = phishing vector (staff thinks they're going
+    // to TidyWise, lands on attacker's clone).
+    if (!isAllowedRedirect(redirectUrl)) {
+      console.warn("[send-staff-password-reset] Rejected redirectUrl:", redirectUrl);
+      return new Response(
+        JSON.stringify({ error: "Invalid redirect URL" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Rate limit: max 3 reset attempts per email per 10 minutes, plus
+    // max 10 per IP per hour as a coarser net against IP-based abuse.
+    // Both fail-open if the throttle table is down (logged but allowed)
+    // so a transient DB hiccup doesn't lock real users out.
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailLimit = await checkAndRecord(supabaseAdmin, "password_reset",
+      `email:${normalizedEmail}`, { maxPerWindow: 3, windowSeconds: 600 });
+    if (emailLimit.blocked) {
+      console.warn("[send-staff-password-reset] Email-scoped throttle tripped:", normalizedEmail);
+      // Return the generic "if an account exists..." response — don't
+      // tell the caller whether the email is real OR whether they tripped
+      // the limit. Either signal helps attackers.
+      return new Response(
+        JSON.stringify({ success: true, message: "If an account exists, a reset link has been sent." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const ipLimit = await checkAndRecord(supabaseAdmin, "password_reset",
+      `ip:${getClientIp(req)}`, { maxPerWindow: 10, windowSeconds: 3600 });
+    if (ipLimit.blocked) {
+      console.warn("[send-staff-password-reset] IP-scoped throttle tripped:", getClientIp(req));
+      return new Response(
+        JSON.stringify({ success: true, message: "If an account exists, a reset link has been sent." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     console.log("[send-staff-password-reset] Processing password reset for:", email);

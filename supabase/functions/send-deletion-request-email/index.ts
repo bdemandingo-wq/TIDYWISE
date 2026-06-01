@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logToSystem } from "../_shared/system-logger.ts";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { checkAndRecord, getClientIp } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +27,31 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limit: max 1 deletion request per email per 24 hours
+    // (legit users only need to submit once), plus a coarser IP cap
+    // (max 5/hour) to prevent inbox spam from a single attacker
+    // cycling email addresses. Returns the same generic success
+    // response either way so we don't reveal whether the email exists.
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const emailLimit = await checkAndRecord(supabase, "deletion_request",
+      `email:${normalizedEmail}`, { maxPerWindow: 1, windowSeconds: 86400 });
+    if (emailLimit.blocked) {
+      console.warn("[send-deletion-request-email] Email throttle tripped:", normalizedEmail);
+      return new Response(
+        JSON.stringify({ success: true, message: "Your request has been received. We'll process it within 7 business days." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const ipLimit = await checkAndRecord(supabase, "deletion_request",
+      `ip:${getClientIp(req)}`, { maxPerWindow: 5, windowSeconds: 3600 });
+    if (ipLimit.blocked) {
+      console.warn("[send-deletion-request-email] IP throttle tripped:", getClientIp(req));
+      return new Response(
+        JSON.stringify({ success: true, message: "Your request has been received. We'll process it within 7 business days." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Resolve organizationId: use provided one, or look up from user's email via org_memberships
     let resolvedOrgId = organizationId;
