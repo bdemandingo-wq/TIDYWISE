@@ -57,8 +57,8 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
     setForm((f) => ({ ...f, [key]: val }));
 
   const MIN_BUDGETS: Record<AdServiceType, number> = {
-    google_search: 500,
-    google_lsa: 500,
+    google_search: 1500,
+    google_lsa: 1500,
     facebook: 1500,
   };
   const minBudget = serviceType ? MIN_BUDGETS[serviceType] : 0;
