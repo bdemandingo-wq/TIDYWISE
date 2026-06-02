@@ -56,9 +56,16 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
   const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: val }));
 
+  const MIN_BUDGETS: Record<AdServiceType, number> = {
+    google_search: 500,
+    google_lsa: 500,
+    facebook: 1500,
+  };
+  const minBudget = serviceType ? MIN_BUDGETS[serviceType] : 0;
   const isFacebook = serviceType === 'facebook';
   const budgetNum = Number(form.monthly_budget);
-  const budgetTooLow = isFacebook && form.monthly_budget !== '' && budgetNum < 1500;
+  const budgetTooLow =
+    !!serviceType && form.monthly_budget !== '' && budgetNum < minBudget;
 
   const handleSubmit = async () => {
     if (!serviceType) return;
