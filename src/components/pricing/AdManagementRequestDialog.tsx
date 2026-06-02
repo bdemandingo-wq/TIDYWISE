@@ -83,7 +83,9 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
       return;
     }
     if (budgetTooLow) {
-      toast.error('Facebook Ads requires a minimum $1500/mo ad budget');
+      toast.error(
+        `${SERVICE_LABEL[serviceType]} requires a minimum $${minBudget}/mo ad budget`,
+      );
       return;
     }
 
