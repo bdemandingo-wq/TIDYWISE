@@ -118,22 +118,14 @@ serve(async (req) => {
           };
           logStep("Authenticated flow", { userId: user.id, email: user.email });
         } else {
-          // A Bearer token was provided but didn't resolve to a user
-          // (expired session, revoked token, malformed JWT). Don't
-          // silently switch to anonymous mode — a logged-in user with
-          // a stale token would otherwise get a brand-new orphan
-          // Stripe customer + a "set your password" email for an
-          // account they already own. Force them to re-auth.
-          logStep("Bearer present but invalid — returning 401");
-          return new Response(
-            JSON.stringify({
-              error: "Your session has expired. Please refresh the page and try again.",
-            }),
-            {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 401,
-            },
-          );
+          // Bearer present but didn't resolve to a user (expired session,
+          // revoked token, or a stale JWT auto-attached by supabase-js
+          // from a previous session on the public pricing page). Don't
+          // 401 — that breaks anonymous checkout for visitors who just
+          // happen to have an old token in localStorage. Fall through to
+          // the anonymous flow; Stripe will collect their email at
+          // checkout and we link it to an account afterward.
+          logStep("Bearer present but invalid — continuing as anonymous");
         }
       } else {
         logStep("Anonymous flow (anon-key Bearer ignored)");
