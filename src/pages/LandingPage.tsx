@@ -332,6 +332,7 @@ export default function LandingPage() {
               <Button variant="ghost" asChild className="text-sm"><Link to="/staff/login">Staff Portal</Link></Button>
               <Button variant="ghost" asChild className="text-sm font-medium text-primary"><Link to="/demo">Schedule Demo</Link></Button>
               <Button variant="ghost" asChild className="text-sm"><Link to="/login">Log In</Link></Button>
+              <Button variant="ghost" asChild className="text-sm"><Link to="/signup">Sign Up</Link></Button>
               <Button variant="premium" asChild className="text-sm">
                 <Link to="/pricing">
                   See Plans
