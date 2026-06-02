@@ -56,9 +56,16 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
   const update = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: val }));
 
+  const MIN_BUDGETS: Record<AdServiceType, number> = {
+    google_search: 500,
+    google_lsa: 500,
+    facebook: 1500,
+  };
+  const minBudget = serviceType ? MIN_BUDGETS[serviceType] : 0;
   const isFacebook = serviceType === 'facebook';
   const budgetNum = Number(form.monthly_budget);
-  const budgetTooLow = isFacebook && form.monthly_budget !== '' && budgetNum < 1500;
+  const budgetTooLow =
+    !!serviceType && form.monthly_budget !== '' && budgetNum < minBudget;
 
   const handleSubmit = async () => {
     if (!serviceType) return;
@@ -76,7 +83,9 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
       return;
     }
     if (budgetTooLow) {
-      toast.error('Facebook Ads requires a minimum $1500/mo ad budget');
+      toast.error(
+        `${SERVICE_LABEL[serviceType]} requires a minimum $${minBudget}/mo ad budget`,
+      );
       return;
     }
 
@@ -154,10 +163,12 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
           <Info className="h-4 w-4" />
           <AlertDescription className="text-xs space-y-1">
             <p><strong>Requires an active paid TidyWise plan.</strong></p>
-            {isFacebook && (
+            {serviceType && (
               <p>
-                Facebook Ads requires a <strong>minimum $1500/mo ad budget</strong> paid
-                directly to Facebook (separate from the $400/mo management fee).
+                {SERVICE_LABEL[serviceType]} requires a{' '}
+                <strong>minimum ${minBudget}/mo ad budget</strong> paid directly to{' '}
+                {isFacebook ? 'Facebook' : 'Google'} (separate from the $400/mo
+                management fee).
               </p>
             )}
           </AlertDescription>
@@ -187,19 +198,19 @@ export function AdManagementRequestDialog({ open, onOpenChange, serviceType }: P
 
           <div>
             <Label htmlFor="budget">
-              Monthly ad budget (USD){isFacebook ? ' — min $1500' : ''}
+              Monthly ad budget (USD){serviceType ? ` — min $${minBudget}` : ''}
             </Label>
             <Input
               id="budget"
               type="number"
               min={0}
-              placeholder="1500"
+              placeholder={String(minBudget)}
               value={form.monthly_budget}
               onChange={(e) => update('monthly_budget', e.target.value)}
             />
-            {budgetTooLow && (
+            {budgetTooLow && serviceType && (
               <p className="text-xs text-destructive mt-1">
-                Facebook Ads requires a minimum $1500/mo budget.
+                {SERVICE_LABEL[serviceType]} requires a minimum ${minBudget}/mo budget.
               </p>
             )}
           </div>
