@@ -23,14 +23,14 @@ export function useOnboardingChecklist() {
       const [services, staff, sms, stripe, bookings] = await Promise.all([
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
         supabase.from('staff').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
-        supabase.from('organization_sms_settings').select('openphone_api_key').eq('organization_id', organizationId).maybeSingle(),
+        supabase.rpc('has_openphone_api_key', { _org_id: organizationId }),
         supabase.from('org_stripe_settings').select('stripe_account_id').eq('organization_id', organizationId).maybeSingle(),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
       ]);
 
       const hasServices = (services.count ?? 0) > 0;
       const hasStaff = (staff.count ?? 0) > 0;
-      const hasOpenPhone = !!(sms.data?.openphone_api_key);
+      const hasOpenPhone = sms.data === true;
       const hasStripe = !!(stripe.data?.stripe_account_id);
       const hasBookings = (bookings.count ?? 0) > 0;
 

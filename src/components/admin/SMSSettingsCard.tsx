@@ -40,6 +40,7 @@ export function SMSSettingsCard() {
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [hasExistingApiKey, setHasExistingApiKey] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -49,18 +50,25 @@ export function SMSSettingsCard() {
 
   const fetchSettings = async () => {
     try {
+      // Note: openphone_api_key is intentionally NOT selected — column access is
+      // revoked from the Data API. We only fetch a boolean indicator via RPC.
       const { data, error } = await supabase
         .from('organization_sms_settings')
-        .select('*')
+        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, reminder_hours_before')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
       if (error) throw error;
 
+      const { data: hasKey } = await supabase.rpc('has_openphone_api_key', {
+        _org_id: organization!.id,
+      });
+      setHasExistingApiKey(hasKey === true);
+
       if (data) {
         setSettings({
           id: data.id,
-          openphone_api_key: data.openphone_api_key || '',
+          openphone_api_key: '',
           openphone_phone_number_id: data.openphone_phone_number_id || '',
           sms_enabled: data.sms_enabled || false,
           sms_booking_confirmation: data.sms_booking_confirmation ?? true,
@@ -98,36 +106,43 @@ export function SMSSettingsCard() {
     try {
       // Extract/normalize values in case user pasted full URL or included prefix/whitespace
       const cleanPhoneNumberId = extractPhoneNumberId(settings.openphone_phone_number_id);
-      const cleanApiKey = settings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
+      const typedApiKey = settings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
-      const settingsData = {
+      // Only include the api key if the user actually typed a new value — we never
+      // read it back from the DB, so empty means "leave existing value alone".
+      const baseData: Record<string, unknown> = {
         organization_id: organization.id,
-        openphone_api_key: cleanApiKey,
         openphone_phone_number_id: cleanPhoneNumberId,
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
         sms_appointment_reminder: settings.sms_appointment_reminder,
         reminder_hours_before: settings.reminder_hours_before,
       };
+      if (typedApiKey) baseData.openphone_api_key = typedApiKey;
 
       if (settings.id) {
         const { error } = await supabase
           .from('organization_sms_settings')
-          .update(settingsData)
+          .update(baseData as any)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_sms_settings')
-          .insert(settingsData)
-          .select()
+          .insert(baseData as any)
+          .select('id')
           .single();
         if (error) throw error;
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
-      // Update local state with cleaned values
-      setSettings(prev => ({ ...prev, openphone_phone_number_id: cleanPhoneNumberId, openphone_api_key: cleanApiKey }));
+      // Clear the API key field after save and mark key as on file
+      if (typedApiKey) setHasExistingApiKey(true);
+      setSettings(prev => ({
+        ...prev,
+        openphone_phone_number_id: cleanPhoneNumberId,
+        openphone_api_key: '',
+      }));
       toast.success('SMS settings saved successfully');
     } catch (error) {
       console.error('Error saving SMS settings:', error);
@@ -143,7 +158,7 @@ export function SMSSettingsCard() {
       return;
     }
 
-    if (!settings.openphone_api_key || !settings.openphone_phone_number_id) {
+    if ((!settings.openphone_api_key && !hasExistingApiKey) || !settings.openphone_phone_number_id) {
       toast.error('Please configure your OpenPhone API Key and Phone Number ID first');
       return;
     }
@@ -238,7 +253,7 @@ export function SMSSettingsCard() {
                   type={showApiKey ? 'text' : 'password'}
                   value={settings.openphone_api_key}
                   onChange={(e) => setSettings(prev => ({ ...prev, openphone_api_key: e.target.value }))}
-                  placeholder="Enter your OpenPhone API key"
+                  placeholder={hasExistingApiKey ? '•••••••• (key on file — leave blank to keep)' : 'Enter your OpenPhone API key'}
                   className="pr-10"
                 />
                 <button
@@ -249,6 +264,11 @@ export function SMSSettingsCard() {
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {hasExistingApiKey && (
+                <p className="text-xs text-muted-foreground">
+                  For security, the saved API key is never displayed. Enter a new key only if you want to replace it.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -317,13 +337,13 @@ export function SMSSettingsCard() {
             <div className="flex items-end">
               <Button 
                 onClick={testSMS} 
-                disabled={testing || !settings.openphone_api_key || !settings.sms_enabled || !settings.id} 
+                disabled={testing || (!settings.openphone_api_key && !hasExistingApiKey) || !settings.sms_enabled || !settings.id} 
                 className="gap-2"
               >
                 {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Send Test
               </Button>
-              {(!settings.sms_enabled || !settings.id) && settings.openphone_api_key && (
+              {(!settings.sms_enabled || !settings.id) && (settings.openphone_api_key || hasExistingApiKey) && (
                 <p className="text-sm text-muted-foreground">
                   Enable SMS and save settings first
                 </p>
