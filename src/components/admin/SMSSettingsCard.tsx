@@ -158,7 +158,7 @@ export function SMSSettingsCard() {
       return;
     }
 
-    if (!settings.openphone_api_key || !settings.openphone_phone_number_id) {
+    if ((!settings.openphone_api_key && !hasExistingApiKey) || !settings.openphone_phone_number_id) {
       toast.error('Please configure your OpenPhone API Key and Phone Number ID first');
       return;
     }
