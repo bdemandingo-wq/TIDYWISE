@@ -9104,6 +9104,7 @@ export type Database = {
       }
       get_user_organization_id: { Args: never; Returns: string }
       has_active_subscription: { Args: { _org_id: string }; Returns: boolean }
+      has_openphone_api_key: { Args: { _org_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
