@@ -30,7 +30,7 @@ export function useOnboardingChecklist() {
 
       const hasServices = (services.count ?? 0) > 0;
       const hasStaff = (staff.count ?? 0) > 0;
-      const hasOpenPhone = !!(sms.data?.openphone_api_key);
+      const hasOpenPhone = sms.data === true;
       const hasStripe = !!(stripe.data?.stripe_account_id);
       const hasBookings = (bookings.count ?? 0) > 0;
 
