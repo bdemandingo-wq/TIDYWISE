@@ -106,36 +106,43 @@ export function SMSSettingsCard() {
     try {
       // Extract/normalize values in case user pasted full URL or included prefix/whitespace
       const cleanPhoneNumberId = extractPhoneNumberId(settings.openphone_phone_number_id);
-      const cleanApiKey = settings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
+      const typedApiKey = settings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
-      const settingsData = {
+      // Only include the api key if the user actually typed a new value — we never
+      // read it back from the DB, so empty means "leave existing value alone".
+      const baseData: Record<string, unknown> = {
         organization_id: organization.id,
-        openphone_api_key: cleanApiKey,
         openphone_phone_number_id: cleanPhoneNumberId,
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
         sms_appointment_reminder: settings.sms_appointment_reminder,
         reminder_hours_before: settings.reminder_hours_before,
       };
+      if (typedApiKey) baseData.openphone_api_key = typedApiKey;
 
       if (settings.id) {
         const { error } = await supabase
           .from('organization_sms_settings')
-          .update(settingsData)
+          .update(baseData)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_sms_settings')
-          .insert(settingsData)
-          .select()
+          .insert(baseData)
+          .select('id')
           .single();
         if (error) throw error;
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
-      // Update local state with cleaned values
-      setSettings(prev => ({ ...prev, openphone_phone_number_id: cleanPhoneNumberId, openphone_api_key: cleanApiKey }));
+      // Clear the API key field after save and mark key as on file
+      if (typedApiKey) setHasExistingApiKey(true);
+      setSettings(prev => ({
+        ...prev,
+        openphone_phone_number_id: cleanPhoneNumberId,
+        openphone_api_key: '',
+      }));
       toast.success('SMS settings saved successfully');
     } catch (error) {
       console.error('Error saving SMS settings:', error);
