@@ -253,7 +253,7 @@ export function SMSSettingsCard() {
                   type={showApiKey ? 'text' : 'password'}
                   value={settings.openphone_api_key}
                   onChange={(e) => setSettings(prev => ({ ...prev, openphone_api_key: e.target.value }))}
-                  placeholder="Enter your OpenPhone API key"
+                  placeholder={hasExistingApiKey ? '•••••••• (key on file — leave blank to keep)' : 'Enter your OpenPhone API key'}
                   className="pr-10"
                 />
                 <button
@@ -264,6 +264,11 @@ export function SMSSettingsCard() {
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {hasExistingApiKey && (
+                <p className="text-xs text-muted-foreground">
+                  For security, the saved API key is never displayed. Enter a new key only if you want to replace it.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
