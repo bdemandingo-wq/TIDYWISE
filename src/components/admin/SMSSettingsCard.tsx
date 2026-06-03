@@ -40,6 +40,7 @@ export function SMSSettingsCard() {
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [hasExistingApiKey, setHasExistingApiKey] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -49,18 +50,25 @@ export function SMSSettingsCard() {
 
   const fetchSettings = async () => {
     try {
+      // Note: openphone_api_key is intentionally NOT selected — column access is
+      // revoked from the Data API. We only fetch a boolean indicator via RPC.
       const { data, error } = await supabase
         .from('organization_sms_settings')
-        .select('*')
+        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, reminder_hours_before')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
       if (error) throw error;
 
+      const { data: hasKey } = await supabase.rpc('has_openphone_api_key', {
+        _org_id: organization!.id,
+      });
+      setHasExistingApiKey(hasKey === true);
+
       if (data) {
         setSettings({
           id: data.id,
-          openphone_api_key: data.openphone_api_key || '',
+          openphone_api_key: '',
           openphone_phone_number_id: data.openphone_phone_number_id || '',
           sms_enabled: data.sms_enabled || false,
           sms_booking_confirmation: data.sms_booking_confirmation ?? true,
