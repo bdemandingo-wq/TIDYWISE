@@ -123,13 +123,13 @@ export function SMSSettingsCard() {
       if (settings.id) {
         const { error } = await supabase
           .from('organization_sms_settings')
-          .update(baseData)
+          .update(baseData as any)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_sms_settings')
-          .insert(baseData)
+          .insert(baseData as any)
           .select('id')
           .single();
         if (error) throw error;
