@@ -337,13 +337,13 @@ export function SMSSettingsCard() {
             <div className="flex items-end">
               <Button 
                 onClick={testSMS} 
-                disabled={testing || !settings.openphone_api_key || !settings.sms_enabled || !settings.id} 
+                disabled={testing || (!settings.openphone_api_key && !hasExistingApiKey) || !settings.sms_enabled || !settings.id} 
                 className="gap-2"
               >
                 {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Send Test
               </Button>
-              {(!settings.sms_enabled || !settings.id) && settings.openphone_api_key && (
+              {(!settings.sms_enabled || !settings.id) && (settings.openphone_api_key || hasExistingApiKey) && (
                 <p className="text-sm text-muted-foreground">
                   Enable SMS and save settings first
                 </p>
