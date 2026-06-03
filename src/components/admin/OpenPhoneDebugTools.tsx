@@ -58,11 +58,14 @@ export function OpenPhoneDebugTools() {
 
     setIsCheckingConfig(true);
     try {
-      const { data: settings, error } = await supabase
-        .from('organization_sms_settings')
-        .select('sms_enabled, openphone_api_key, openphone_phone_number_id')
-        .eq('organization_id', organization.id)
-        .maybeSingle();
+      const [{ data: settings, error }, { data: hasKey }] = await Promise.all([
+        supabase
+          .from('organization_sms_settings')
+          .select('sms_enabled, openphone_phone_number_id')
+          .eq('organization_id', organization.id)
+          .maybeSingle(),
+        supabase.rpc('has_openphone_api_key', { _org_id: organization.id }),
+      ]);
 
       if (error) throw error;
 
@@ -82,23 +85,23 @@ export function OpenPhoneDebugTools() {
         return;
       }
 
-      const apiKey = settings.openphone_api_key || '';
+      const hasApiKey = hasKey === true;
       const phoneNumberId = settings.openphone_phone_number_id || '';
 
       setConfigStatus({
         smsEnabled: settings.sms_enabled ?? false,
-        hasApiKey: Boolean(apiKey),
+        hasApiKey,
         hasPhoneNumberId: Boolean(phoneNumberId),
-        apiKeyPreview: apiKey ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}` : null,
+        apiKeyPreview: hasApiKey ? '•••• configured (hidden for security)' : null,
         phoneNumberIdPreview: phoneNumberId ? (phoneNumberId.length > 20 ? `${phoneNumberId.substring(0, 20)}...` : phoneNumberId) : null,
       });
 
       addResult({
-        success: settings.sms_enabled && Boolean(apiKey) && Boolean(phoneNumberId),
+        success: settings.sms_enabled && hasApiKey && Boolean(phoneNumberId),
         message: 'Configuration check complete',
         details: {
           smsEnabled: settings.sms_enabled,
-          hasApiKey: Boolean(apiKey),
+          hasApiKey,
           hasPhoneNumberId: Boolean(phoneNumberId),
         }
       });
