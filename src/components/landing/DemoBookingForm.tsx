@@ -253,7 +253,6 @@ export function DemoBookingForm() {
         business_name: form.businessName.trim(),
         team_size: form.teamSize || null,
         biggest_challenge: form.biggestChallenge || null,
-        notes: form.additionalDetails.trim() || null,
         booked_date: bookedDate,
         booked_time: bookedTime,
         timezone: localTz,
