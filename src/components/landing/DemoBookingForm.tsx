@@ -270,7 +270,7 @@ export function DemoBookingForm() {
           business_name: form.businessName.trim(),
           team_size: form.teamSize || null,
           biggest_challenge: form.biggestChallenge || null,
-          
+          notes: form.additionalDetails.trim() || null,
           preferred_days: [format(selectedDate, "EEEE")],
           preferred_time: formatTimeEST(selectedTime) + " EST",
           status: "booked",
