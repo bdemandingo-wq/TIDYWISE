@@ -88,7 +88,6 @@ serve(async (req) => {
     const FREE_ACCOUNTS = new Set([
       "support@tidywisecleaning.com",
       "applereview@tidywise.com",
-      "info@openarmscleaning.com",
     ]);
     const isCreatorDomain = normalizedEmail.endsWith("@tidywise1.com");
     if (FREE_ACCOUNTS.has(normalizedEmail) || isCreatorDomain) {
