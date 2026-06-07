@@ -216,6 +216,12 @@ verify_jwt = true
   # forward the user's token; auth happens upstream in the cancel function.
   [functions.notify-tidywise-cancellation]
     verify_jwt = false
+
+  # One-shot recovery for orphaned Stripe subscriptions (jigdahifash
+  # incident). Self-gates via is_platform_admin RPC inside the handler,
+  # so verify_jwt is left off to keep that one source of truth.
+  [functions.recover-stripe-subscription]
+    verify_jwt = false
   [functions.notify-quote-accepted]
     verify_jwt = false
   [functions.notify-password-changed]
