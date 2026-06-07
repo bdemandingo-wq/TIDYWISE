@@ -11,7 +11,7 @@ export default function InvoicingSoftwareForCleaners() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="Invoicing Software for Cleaning Businesses Guide"
         description="Find the best invoicing software for cleaning businesses. Compare features, automation, and pricing to get paid faster and simplify your bookkeeping."
         canonical="/blog/invoicing-software-for-cleaning-business"

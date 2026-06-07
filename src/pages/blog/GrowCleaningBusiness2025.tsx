@@ -11,7 +11,7 @@ export default function GrowCleaningBusiness2025() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="How to Grow Your Cleaning Business in 2025"
         description="Proven strategies to grow your cleaning business in 2025. From marketing tips to software automation, learn how to scale your maid service profitably."
         canonical="/blog/how-to-grow-cleaning-business-2025"

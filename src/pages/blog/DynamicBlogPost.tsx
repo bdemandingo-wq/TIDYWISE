@@ -39,7 +39,7 @@ export default function DynamicBlogPost() {
   if (error || !post) {
     return (
       <div className="min-h-screen bg-background">
-        <SEOHead
+        <SEOHead ogType="article"
           title="Article not found | TidyWise Blog"
           description="The article you're looking for doesn't exist or has been removed."
           canonical={`/blog/post/${slug ?? ''}`}

@@ -11,7 +11,7 @@ export default function CleaningBusinessManagementSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="Cleaning Business Management Software: Complete Guide"
         description="Discover the best cleaning business management software. Compare features, pricing, and tools to streamline scheduling, payroll, and client management."
         canonical="/blog/cleaning-business-management-software"

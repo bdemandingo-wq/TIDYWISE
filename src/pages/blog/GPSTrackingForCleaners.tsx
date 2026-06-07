@@ -11,7 +11,7 @@ export default function GPSTrackingForCleaners() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="GPS Tracking for Cleaning Business Teams"
         description="Learn how GPS tracking helps cleaning businesses monitor crews, optimize routes, and improve accountability. See top features and benefits for owners."
         canonical="/blog/gps-tracking-cleaning-business"
