@@ -18,7 +18,7 @@ import {
 export default function HowToStartCleaningBusiness() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead 
+      <SEOHead ogType="article" 
         title="How to Start a Cleaning Business (2026)"
         description="Step-by-step guide to starting a cleaning business. Covers payroll, scheduling, inventory management, pricing, and lead generation for maid services."
         canonical="/blog/how-to-start-a-cleaning-business"

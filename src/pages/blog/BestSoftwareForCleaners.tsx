@@ -11,7 +11,7 @@ export default function BestSoftwareForCleaners() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="Best Software for Cleaning Business Owners (2025)"
         description="Compare the best cleaning business software in 2025. Scheduling, CRM, invoicing, and automation tools reviewed for maid services and janitorial companies."
         canonical="/blog/best-software-for-cleaning-business"

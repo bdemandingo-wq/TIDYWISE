@@ -11,7 +11,7 @@ export default function MaidServiceSoftware() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="Maid Service Software: Top Features & Benefits"
         description="Compare the best maid service software for scheduling, invoicing, payroll, and client management. Built for residential cleaning companies. "
         canonical="/blog/maid-service-software"

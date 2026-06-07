@@ -11,7 +11,7 @@ export default function AutomateCleaningCompany() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="How to Automate Your Cleaning Company (2025 Guide)"
         description="Learn how to automate booking, scheduling, invoicing, and client communication for your cleaning company. Save 15+ hours per week with the right tools."
         canonical="/blog/how-to-automate-cleaning-company"

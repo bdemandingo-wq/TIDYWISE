@@ -11,7 +11,7 @@ export default function PayrollSoftwareForCleaners() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead
+      <SEOHead ogType="article"
         title="Payroll Software for Cleaning Businesses Guide"
         description="Compare the best payroll software for cleaning businesses. Pay your team accurately, handle taxes, and simplify multi-cleaner splits with the right tool."
         canonical="/blog/payroll-software-for-cleaning-businesses"

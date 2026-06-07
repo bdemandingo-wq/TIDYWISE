@@ -43,7 +43,7 @@ const features = [
 export default function BookingKoalaVsJobberVsTidywise() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead 
+      <SEOHead ogType="article" 
         title="Booking Koala vs Jobber vs TIDYWISE (2026)"
         description="Side-by-side comparison of Booking Koala, Jobber, and TIDYWISE. Pricing, features, and support for cleaning businesses."
         canonical="/blog/booking-koala-vs-jobber-vs-tidywise"

@@ -164,7 +164,7 @@ const benefits = [
 export default function CleaningBusinessCRM() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead 
+      <SEOHead ogType="article" 
         title="Best CRM for Cleaning Business (2026)"
         description="Compare top cleaning business CRM software with scheduling, invoicing, GPS tracking, and customer management. Find the right fit for your maid service."
         canonical="/blog/crm-for-cleaning-business"
