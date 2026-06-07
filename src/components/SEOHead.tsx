@@ -77,11 +77,12 @@ export function SEOHead({
     setMetaContent('meta[property="og:description"]', description);
     setMetaContent('meta[property="og:image"]', imageUrl);
     setMetaContent('meta[property="og:url"]', canonicalUrl);
+    setMetaContent('meta[property="og:type"]', ogType);
 
     setMetaContent('meta[name="twitter:title"]', title);
     setMetaContent('meta[name="twitter:description"]', description);
     setMetaContent('meta[name="twitter:image"]', imageUrl);
-  }, [canonicalUrl, title, description, imageUrl, noIndex]);
+  }, [canonicalUrl, title, description, imageUrl, noIndex, ogType]);
 
   const jsonLdPayload = schemaJson
     ? Array.isArray(schemaJson)
