@@ -14,6 +14,7 @@ type SEOHeadProps = {
   description: string;
   canonical?: string;
   ogImage?: string;
+  ogType?: "website" | "article";
   noIndex?: boolean;
   schemaJson?: Record<string, unknown> | Record<string, unknown>[];
 };
@@ -23,6 +24,7 @@ export function SEOHead({
   description,
   canonical,
   ogImage,
+  ogType = "website",
   noIndex = false,
   schemaJson,
 }: SEOHeadProps) {
