@@ -234,12 +234,22 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Mirror this subscription into stripe_subscriptions so the org
       // immediately has an active row that the paywall gate can read.
+      // If we can't resolve an org, log an orphan + admin SMS instead of
+      // silently dropping (see jigdahifash incident).
       try {
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
           apiVersion: "2025-08-27.basil",
         });
-        const orgId = await resolveOrgIdForSubscription(supabase, stripe, subscription);
-        if (orgId) await upsertStripeSubscription(supabase, orgId, subscription);
+        const resolved = await resolveOrgIdForSubscription(supabase, stripe, subscription);
+        if (resolved.orgId) {
+          await upsertStripeSubscription(supabase, resolved.orgId, subscription);
+        } else {
+          await logSubscriptionOrphan(
+            supabase, supabaseUrl, supabaseServiceKey,
+            subscription, event.id, event.type,
+            resolved.customerEmail, resolved.attempts,
+          );
+        }
       } catch (mirrorErr) {
         console.error("[stripe-invoice-webhook] mirror to stripe_subscriptions failed:", mirrorErr);
       }
@@ -263,8 +273,16 @@ const handler = async (req: Request): Promise<Response> => {
         const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
           apiVersion: "2025-08-27.basil",
         });
-        const orgId = await resolveOrgIdForSubscription(supabase, stripe, subscription);
-        if (orgId) await upsertStripeSubscription(supabase, orgId, subscription);
+        const resolved = await resolveOrgIdForSubscription(supabase, stripe, subscription);
+        if (resolved.orgId) {
+          await upsertStripeSubscription(supabase, resolved.orgId, subscription);
+        } else {
+          await logSubscriptionOrphan(
+            supabase, supabaseUrl, supabaseServiceKey,
+            subscription, event.id, event.type,
+            resolved.customerEmail, resolved.attempts,
+          );
+        }
       } catch (e) {
         console.error("[stripe-invoice-webhook] subscription.updated mirror error:", e);
       }
@@ -367,7 +385,7 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: profile } = await supabase
             .from("profiles")
             .select("id")
-            .eq("email", email)
+            .ilike("email", email)
             .maybeSingle();
           if (profile?.id) {
             userId = profile.id;
@@ -586,12 +604,16 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: profile } = await supabase
             .from("profiles")
             .select("id")
-            .eq("email", checkoutEmail)
+            .ilike("email", checkoutEmail)
             .maybeSingle();
           if (profile?.id) {
             userId = profile.id;
-          } else if (signupFlow === "anonymous_checkout") {
-            // No profile → try to provision a new account by inviting.
+          } else {
+            // No profile → always try to provision. Previously this was
+            // gated on signupFlow === "anonymous_checkout" which meant
+            // any checkout with missing/wrong signupFlow metadata fell
+            // through silently (jigdahifash incident — paid customer
+            // never got a TidyWise account, sub orphaned).
             // inviteUserByEmail creates the auth user + sends a "set
             // your password" email. If the email already belongs to an
             // auth.users row (eg the profile row is missing but auth.users
@@ -1073,7 +1095,7 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: profile } = await supabase
             .from("profiles")
             .select("id")
-            .eq("email", email)
+            .ilike("email", email)
             .maybeSingle();
 
           if (profile?.id) {
@@ -1264,40 +1286,175 @@ async function sendAdminNotification(
 }
 
 /**
- * Resolve the TidyWise organization for a Stripe subscription by looking up
- * the customer's email → profile → org_memberships. Returns null when the
- * subscription is for an ad-management retainer (those don't grant TidyWise
- * access) or when no matching org can be found.
+ * Resolve the TidyWise organization for a Stripe subscription. Resilient
+ * lookup chain — tries multiple fallbacks before giving up so we don't
+ * silently drop subscriptions when one path breaks (eg email case
+ * mismatch between Stripe customer and profiles.email).
+ *
+ * Order:
+ *   1. metadata.organization_id (set by in-app upgrade paths)
+ *   2. metadata.account_id → org_memberships
+ *   3. Stripe customer email → profiles.email (case-insensitive ILIKE)
+ *   4. Stripe customer email → auth.users (then membership lookup),
+ *      catches the "auth user exists but profile row missing" case
+ *      that broke jigdahifash@gmail.com's subscription provisioning.
+ *
+ * Returns null for ad-management retainers and for genuinely
+ * unresolvable subscriptions. The caller is responsible for logging an
+ * orphan row + admin SMS in that case via logSubscriptionOrphan().
  */
 async function resolveOrgIdForSubscription(
   supabase: any,
   stripe: Stripe,
   subscription: Stripe.Subscription,
-): Promise<string | null> {
+): Promise<{ orgId: string | null; attempts: Array<{ step: string; result: string }>; customerEmail: string | null }> {
   const meta = (subscription.metadata ?? {}) as Record<string, string>;
-  if (meta.purpose === "tidywise_ad_management") return null;
-  if (meta.organization_id) return meta.organization_id;
+  const attempts: Array<{ step: string; result: string }> = [];
+
+  if (meta.purpose === "tidywise_ad_management") {
+    return { orgId: null, attempts: [{ step: "ad_management_skip", result: "not_a_tidywise_sub" }], customerEmail: null };
+  }
+
+  // 1. Direct organization_id on metadata (in-app upgrades).
+  if (meta.organization_id) {
+    attempts.push({ step: "metadata.organization_id", result: `hit:${meta.organization_id}` });
+    return { orgId: meta.organization_id, attempts, customerEmail: null };
+  }
+
+  let customerEmail: string | null = null;
 
   try {
+    // 2. metadata.account_id → membership (in-app upgrades that pass user id).
+    if (meta.account_id) {
+      const { data: byAccountId } = await supabase
+        .from("org_memberships")
+        .select("organization_id")
+        .eq("user_id", meta.account_id)
+        .limit(1)
+        .maybeSingle();
+      if (byAccountId?.organization_id) {
+        attempts.push({ step: "metadata.account_id->membership", result: `hit:${byAccountId.organization_id}` });
+        return { orgId: byAccountId.organization_id, attempts, customerEmail };
+      }
+      attempts.push({ step: "metadata.account_id->membership", result: "miss" });
+    }
+
+    // Pull the Stripe customer once so the rest of the steps can reuse it.
     const customer = await stripe.customers.retrieve(subscription.customer as string);
-    const email = (customer as Stripe.Customer).email?.toLowerCase();
-    if (!email) return null;
+    customerEmail = (customer as Stripe.Customer).email?.toLowerCase() ?? null;
+
+    if (!customerEmail) {
+      attempts.push({ step: "stripe_customer_email", result: "missing" });
+      return { orgId: null, attempts, customerEmail };
+    }
+
+    // 3. profiles.email (case-insensitive — fixes the jigdahifash bug
+    // where Stripe sent lowercase but profiles had mixed-case email).
     const { data: profile } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .ilike("email", customerEmail)
       .maybeSingle();
-    if (!profile?.id) return null;
-    const { data: membership } = await supabase
-      .from("org_memberships")
-      .select("organization_id")
-      .eq("user_id", profile.id)
-      .limit(1)
-      .maybeSingle();
-    return membership?.organization_id ?? null;
+    if (profile?.id) {
+      const { data: membership } = await supabase
+        .from("org_memberships")
+        .select("organization_id")
+        .eq("user_id", profile.id)
+        .limit(1)
+        .maybeSingle();
+      if (membership?.organization_id) {
+        attempts.push({ step: "profiles.email_ilike->membership", result: `hit:${membership.organization_id}` });
+        return { orgId: membership.organization_id, attempts, customerEmail };
+      }
+      attempts.push({ step: "profiles.email_ilike->membership", result: "profile_found_no_membership" });
+    } else {
+      attempts.push({ step: "profiles.email_ilike", result: "miss" });
+    }
+
+    // 4. Last-ditch: auth.users may exist even when profiles row is
+    // missing (eg invite-then-failed-profile-insert race). Look up via
+    // the admin client which has direct auth.users access.
+    try {
+      const { data: existing } = await (supabase.auth.admin as unknown as {
+        getUserByEmail: (e: string) => Promise<{ data: { user?: { id: string } | null } }>;
+      }).getUserByEmail(customerEmail);
+      const authUserId = existing?.user?.id;
+      if (authUserId) {
+        const { data: membership } = await supabase
+          .from("org_memberships")
+          .select("organization_id")
+          .eq("user_id", authUserId)
+          .limit(1)
+          .maybeSingle();
+        if (membership?.organization_id) {
+          attempts.push({ step: "auth.users.email->membership", result: `hit:${membership.organization_id}` });
+          return { orgId: membership.organization_id, attempts, customerEmail };
+        }
+        attempts.push({ step: "auth.users.email->membership", result: "user_found_no_membership" });
+      } else {
+        attempts.push({ step: "auth.users.email", result: "miss" });
+      }
+    } catch (e) {
+      attempts.push({ step: "auth.users.email", result: `error:${e instanceof Error ? e.message : "unknown"}` });
+    }
+
+    return { orgId: null, attempts, customerEmail };
   } catch (e) {
+    attempts.push({ step: "exception", result: e instanceof Error ? e.message : String(e) });
     console.error("[stripe-invoice-webhook] resolveOrgIdForSubscription failed:", e);
-    return null;
+    return { orgId: null, attempts, customerEmail };
+  }
+}
+
+/**
+ * Records a subscription that couldn't be linked to an org. Idempotent
+ * on stripe_subscription_id (unresolved unique index). Fires an admin
+ * SMS the first time the orphan is recorded so operators can fix it
+ * before the customer complains.
+ */
+async function logSubscriptionOrphan(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  subscription: Stripe.Subscription,
+  eventId: string | null,
+  eventType: string,
+  customerEmail: string | null,
+  attempts: Array<{ step: string; result: string }>,
+): Promise<void> {
+  try {
+    const { error: insertErr, data: insertedRows } = await supabase
+      .from("subscription_orphans")
+      .insert({
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: subscription.customer as string,
+        stripe_event_id: eventId,
+        stripe_event_type: eventType,
+        customer_email: customerEmail,
+        resolution_attempts: attempts,
+      })
+      .select("id");
+
+    // 23505 = already orphaned (the unique partial index on unresolved
+    // rows). No need to re-alert; the operator already knows.
+    if (insertErr && (insertErr as any).code !== "23505") {
+      console.error("[stripe-invoice-webhook] orphan log insert failed:", insertErr);
+      return;
+    }
+    if (!insertedRows || insertedRows.length === 0) return;
+
+    console.error(
+      "[stripe-invoice-webhook] ORPHAN SUBSCRIPTION — couldn't link to org:",
+      { sub: subscription.id, customer: subscription.customer, email: customerEmail, attempts },
+    );
+
+    await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+      organizationName: "ORPHAN SUBSCRIPTION",
+      ownerEmail: customerEmail || "unknown",
+      subscriptionType: `Couldn't auto-link ${subscription.id} (${subscription.customer}). Run fix-orphan SQL.`,
+    }).catch(() => {});
+  } catch (e) {
+    console.error("[stripe-invoice-webhook] logSubscriptionOrphan failed:", e);
   }
 }
 
