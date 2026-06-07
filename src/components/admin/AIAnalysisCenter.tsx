@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -388,10 +388,11 @@ export function AIAnalysisCenter() {
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftSending, setDraftSending] = useState(false);
   const [draftText, setDraftText] = useState('');
-  const [draftTarget, setDraftTarget] = useState<{ name: string; phone?: string | null; email?: string | null; channel: 'sms' | 'email' } | null>(null);
+  const [draftTarget, setDraftTarget] = useState<{ id?: string; name: string; phone?: string | null; email?: string | null; channel: 'sms' | 'email' } | null>(null);
+  const queryClient = useQueryClient();
 
   const openDraftMessage = useCallback(async (
-    target: { name: string; phone?: string | null; email?: string | null },
+    target: { id?: string; name: string; phone?: string | null; email?: string | null },
     prompt: string,
     channel: 'sms' | 'email' = 'sms'
   ) => {
@@ -425,6 +426,17 @@ export function AIAnalysisCenter() {
       });
       if (error) throw error;
       if ((data as any)?.success === false) throw new Error((data as any)?.error || 'Send failed');
+
+      // Mark the lead as contacted so it drops out of Hot & Stale.
+      if (draftTarget.id && orgId) {
+        await supabase
+          .from('leads')
+          .update({ status: 'contacted', updated_at: new Date().toISOString() })
+          .eq('id', draftTarget.id)
+          .eq('organization_id', orgId);
+        queryClient.invalidateQueries({ queryKey: ['ai-hot-leads', orgId] });
+      }
+
       toast.success(`Message sent to ${draftTarget.name}`);
       setDraftOpen(false);
     } catch (e: any) {
@@ -433,7 +445,7 @@ export function AIAnalysisCenter() {
     } finally {
       setDraftSending(false);
     }
-  }, [draftTarget, draftText, orgId]);
+  }, [draftTarget, draftText, orgId, queryClient]);
 
 
   const sendChat = useCallback(async (input: string) => {
@@ -684,7 +696,7 @@ export function AIAnalysisCenter() {
                     <Button
                       size="sm"
                       onClick={() => openDraftMessage(
-                        { name: lead.name, phone: lead.phone, email: lead.email },
+                        { id: lead.id, name: lead.name, phone: lead.phone, email: lead.email },
                         `Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`,
                         'sms',
                       )}

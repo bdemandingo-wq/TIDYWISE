@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageSkeleton, BookingCardSkeleton } from '@/components/ui/page-skeleton';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
-import { SubscriptionBanner } from '@/components/dashboard/SubscriptionBanner';
+
 
 // Lazy load the heavy ReportsOverview component
 const ReportsOverview = lazy(() => import('@/components/admin/ReportsOverview').then(m => ({ default: m.ReportsOverview })));
@@ -111,7 +111,6 @@ export default function AdminDashboard() {
       title="Dashboard"
       subtitle="Welcome back! Here's what's happening."
     >
-      <SubscriptionBanner />
       <OnboardingChecklist />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in">
         <div className="xl:col-span-2 space-y-6">
