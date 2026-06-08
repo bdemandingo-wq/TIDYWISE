@@ -161,8 +161,13 @@ serve(async (req) => {
       .order('created_at', { ascending: false });
 
     // Get subscription data - ONLY TidyWise CRM subscribers (filter by product ID)
-    // TIDYWISE Pro Subscription product ID - only count these as CRM subscribers
-    const TIDYWISE_CRM_PRODUCT_ID = "prod_Tg3zSKe9hRHLZy";
+    // Both legacy "TIDYWISE Pro Subscription" and current "TidyWise Pro" products
+    // count as CRM subscribers. Adding a new Pro price requires appending its
+    // product ID here or that customer will silently drop off the dashboard.
+    const TIDYWISE_CRM_PRODUCT_IDS = new Set([
+      "prod_Tg3zSKe9hRHLZy", // legacy TIDYWISE Pro Subscription
+      "prod_Uc5BhR3ZK0V6M8", // current TidyWise Pro ($97/mo)
+    ]);
     
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
