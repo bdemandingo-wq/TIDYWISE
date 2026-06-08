@@ -1473,7 +1473,11 @@ async function upsertStripeSubscription(
   const price = item?.price;
   const meta = (subscription.metadata ?? {}) as Record<string, string>;
 
-  const currentPeriodEndSec = (subscription as any).current_period_end as number | undefined;
+  // Stripe Basil (2025-08-27) moved current_period_end onto each subscription
+  // item. Fall back to the legacy root field for older API versions / events.
+  const currentPeriodEndSec =
+    ((item as any)?.current_period_end as number | undefined) ??
+    ((subscription as any).current_period_end as number | undefined);
   const trialEndSec = (subscription as any).trial_end as number | undefined;
 
   const row = {

@@ -161,8 +161,13 @@ serve(async (req) => {
       .order('created_at', { ascending: false });
 
     // Get subscription data - ONLY TidyWise CRM subscribers (filter by product ID)
-    // TIDYWISE Pro Subscription product ID - only count these as CRM subscribers
-    const TIDYWISE_CRM_PRODUCT_ID = "prod_Tg3zSKe9hRHLZy";
+    // Both legacy "TIDYWISE Pro Subscription" and current "TidyWise Pro" products
+    // count as CRM subscribers. Adding a new Pro price requires appending its
+    // product ID here or that customer will silently drop off the dashboard.
+    const TIDYWISE_CRM_PRODUCT_IDS = new Set([
+      "prod_Tg3zSKe9hRHLZy", // legacy TIDYWISE Pro Subscription
+      "prod_Uc5BhR3ZK0V6M8", // current TidyWise Pro ($97/mo)
+    ]);
     
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
@@ -175,7 +180,7 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
       console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscription data...");
-      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM product:", TIDYWISE_CRM_PRODUCT_ID);
+      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM products:", [...TIDYWISE_CRM_PRODUCT_IDS]);
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
       
@@ -187,10 +192,10 @@ serve(async (req) => {
         });
         console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptions.data.length);
         
-        // Filter to only TidyWise CRM subscriptions
+        // Filter to only TidyWise CRM subscriptions (any of the known Pro products)
         const crmSubscriptions = allSubscriptions.data.filter((sub: Stripe.Subscription) => {
-          const productId = sub.items.data[0]?.price?.product;
-          return productId === TIDYWISE_CRM_PRODUCT_ID;
+          const productId = sub.items.data[0]?.price?.product as string | undefined;
+          return !!productId && TIDYWISE_CRM_PRODUCT_IDS.has(productId);
         });
         console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
         
