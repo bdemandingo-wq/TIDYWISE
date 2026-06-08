@@ -180,7 +180,7 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
       console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscription data...");
-      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM product:", TIDYWISE_CRM_PRODUCT_ID);
+      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM products:", [...TIDYWISE_CRM_PRODUCT_IDS]);
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
       
@@ -192,10 +192,10 @@ serve(async (req) => {
         });
         console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptions.data.length);
         
-        // Filter to only TidyWise CRM subscriptions
+        // Filter to only TidyWise CRM subscriptions (any of the known Pro products)
         const crmSubscriptions = allSubscriptions.data.filter((sub: Stripe.Subscription) => {
-          const productId = sub.items.data[0]?.price?.product;
-          return productId === TIDYWISE_CRM_PRODUCT_ID;
+          const productId = sub.items.data[0]?.price?.product as string | undefined;
+          return !!productId && TIDYWISE_CRM_PRODUCT_IDS.has(productId);
         });
         console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
         
