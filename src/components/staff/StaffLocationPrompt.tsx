@@ -60,12 +60,23 @@ async function recordPermission(staffId: string, status: 'granted' | 'denied') {
   }
 }
 
+const DISMISS_KEY = 'staff_location_prompt_dismissed';
+
 export function StaffLocationPrompt({ staffId, onResolved }: Props) {
   const [status, setStatus] = useState<Status>('checking');
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     (async () => {
+      // Respect a per-session dismissal so the fullscreen blocker can't trap users.
+      try {
+        if (sessionStorage.getItem(DISMISS_KEY) === '1') {
+          setStatus('granted');
+          onResolved();
+          return;
+        }
+      } catch { /* ignore */ }
+
       const browserState = await checkBrowserPermission();
       if (browserState === 'granted') {
         await recordPermission(staffId, 'granted');
@@ -73,7 +84,6 @@ export function StaffLocationPrompt({ staffId, onResolved }: Props) {
         onResolved();
         return;
       }
-      // 'prompt' or 'denied' or unknown — show prompt
       setStatus(browserState === 'denied' ? 'denied' : 'prompt');
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,33 +103,42 @@ export function StaffLocationPrompt({ staffId, onResolved }: Props) {
     }
   };
 
+  const handleSkip = () => {
+    try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
+    setStatus('granted');
+    onResolved();
+  };
+
   if (status === 'checking' || status === 'granted') return null;
 
   return (
-    <div className="fixed inset-0 z-[200] bg-background flex items-center justify-center p-6">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="fixed inset-0 z-[200] bg-background flex items-center justify-center p-6 overflow-y-auto">
+      <div className="max-w-md w-full text-center space-y-6 my-auto">
         <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
           <MapPin className="h-10 w-10 text-primary" />
         </div>
 
         {status === 'denied' ? (
           <>
-            <h1 className="text-2xl font-bold">Location access is required</h1>
+            <h1 className="text-2xl font-bold">Location access is recommended</h1>
             <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-left text-sm space-y-2">
               <div className="flex items-start gap-2 text-destructive font-medium">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>Tracking features will not work without location access.</span>
+                <span>Tracking features won't work without location access.</span>
               </div>
               <p className="text-muted-foreground">
                 You won't be able to send "On My Way" notifications, GPS check-ins,
-                or arrival alerts to clients. Please enable location services in your
-                device or browser settings, then try again.
+                or arrival alerts to clients. Enable location in your device or
+                browser settings and try again — or continue without it for now.
               </p>
             </div>
             <div className="flex flex-col gap-2">
               <Button onClick={handleEnable} disabled={requesting} className="w-full" size="lg">
                 {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
                 Try Again
+              </Button>
+              <Button onClick={handleSkip} variant="ghost" className="w-full" size="lg">
+                Continue without location
               </Button>
               <p className="text-xs text-muted-foreground">
                 You'll be asked again next time you sign in.
@@ -134,10 +153,15 @@ export function StaffLocationPrompt({ staffId, onResolved }: Props) {
               you in when you arrive at a job, and share live ETA with clients.
               Your location is only tracked while you're en route to a job.
             </p>
-            <Button onClick={handleEnable} disabled={requesting} className="w-full" size="lg">
-              {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
-              Enable Location Access
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleEnable} disabled={requesting} className="w-full" size="lg">
+                {requesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
+                Enable Location Access
+              </Button>
+              <Button onClick={handleSkip} variant="ghost" className="w-full" size="lg">
+                Not now
+              </Button>
+            </div>
           </>
         )}
       </div>
