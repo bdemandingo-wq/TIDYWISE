@@ -565,6 +565,10 @@ export default function PricingPage() {
             No setup fees. Every plan includes Stripe payments, mobile-friendly web access,
             and real human support.
           </p>
+          <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+            Start with a 7-day free trial — card required, cancel anytime.
+          </p>
 
           <div
             role="group"
@@ -652,7 +656,7 @@ export default function PricingPage() {
                   </div>
                   <p className="text-sm text-muted-foreground mb-5">{tier.tagline}</p>
 
-                  <div className="mb-6">
+                  <div className="mb-2">
                     <span className="text-4xl font-semibold tracking-tight">
                       {price.display}
                     </span>
@@ -660,22 +664,28 @@ export default function PricingPage() {
                       {price.sub}
                     </span>
                   </div>
+                  <p className="text-xs font-medium text-primary mb-6">
+                    7 days free, then {price.display}{price.sub}
+                  </p>
 
                   <Button
                     onClick={() => startSubscriptionCheckout(tier.id)}
                     disabled={isBusy}
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
-                    className="w-full mb-6"
-                    aria-label={`${user ? 'Choose' : 'Start'} ${tier.name} plan, ${billingInterval === 'yearly' ? 'billed yearly' : 'billed monthly'}`}
+                    className="w-full mb-2"
+                    aria-label={`Start 7-day free trial of ${tier.name} plan, ${billingInterval === 'yearly' ? 'billed yearly after trial' : 'billed monthly after trial'}`}
                     aria-busy={isBusy}
                   >
                     {isBusy ? (
                       <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                     ) : (
-                      `Start ${tier.name}`
+                      `Start 7-day free trial`
                     )}
                   </Button>
+                  <p className="text-[11px] text-muted-foreground text-center mb-6">
+                    Card required. Cancel anytime before day 7 and you won't be charged.
+                  </p>
 
                   <ul className="space-y-2.5 text-sm">
                     {tier.features.map((feature) => (
