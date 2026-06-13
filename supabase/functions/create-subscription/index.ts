@@ -216,6 +216,13 @@ serve(async (req) => {
       "https://jointidywise.com";
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
+    // 7-day free trial on every new subscription. Card is collected
+    // upfront at Stripe Checkout (default in subscription mode) and
+    // billing automatically starts at $X/mo once the trial ends. If
+    // the saved card later fails or is removed before trial end, the
+    // subscription is cancelled instead of going unpaid.
+    const TRIAL_DAYS = 7;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user?.email,
@@ -225,11 +232,20 @@ serve(async (req) => {
 
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
+      // Force card collection even during the trial so the customer
+      // is auto-charged when the 7 days end.
+      payment_method_collection: "always",
       payment_method_options: {
         card: { request_three_d_secure: "automatic" },
       },
       metadata: evidenceMetadata,
-      subscription_data: { metadata: evidenceMetadata },
+      subscription_data: {
+        metadata: evidenceMetadata,
+        trial_period_days: TRIAL_DAYS,
+        trial_settings: {
+          end_behavior: { missing_payment_method: "cancel" },
+        },
+      },
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&plan=${requestedPlan}&interval=${requestedInterval}`,
       cancel_url: `${origin}/pricing?canceled=true`,
     });
