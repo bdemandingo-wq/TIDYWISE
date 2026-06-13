@@ -565,6 +565,10 @@ export default function PricingPage() {
             No setup fees. Every plan includes Stripe payments, mobile-friendly web access,
             and real human support.
           </p>
+          <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+            Start with a 7-day free trial — card required, cancel anytime.
+          </p>
 
           <div
             role="group"
