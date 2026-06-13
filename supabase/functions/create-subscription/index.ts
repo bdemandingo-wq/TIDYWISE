@@ -221,6 +221,8 @@ serve(async (req) => {
     // billing automatically starts at $X/mo once the trial ends. If
     // the saved card later fails or is removed before trial end, the
     // subscription is cancelled instead of going unpaid.
+    // Redeploy marker 2026-06-13: ensure trial is live (checkout was
+    // charging $49 immediately because the deployed function was stale).
     const TRIAL_DAYS = 7;
 
     const session = await stripe.checkout.sessions.create({
