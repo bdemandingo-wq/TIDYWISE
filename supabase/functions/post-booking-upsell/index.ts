@@ -31,6 +31,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Opt-in check: only send if org has enabled the post-booking upsell SMS
+    const { data: smsSettings } = await supabase
+      .from('organization_sms_settings')
+      .select('sms_enabled, sms_post_booking_upsell')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (!smsSettings?.sms_enabled || !smsSettings?.sms_post_booking_upsell) {
+      console.log('[post-booking-upsell] Skipped — upsell SMS not enabled for org', organizationId);
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: 'upsell_disabled' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')

@@ -19,6 +19,7 @@ interface SMSSettings {
   sms_enabled: boolean;
   sms_booking_confirmation: boolean;
   sms_appointment_reminder: boolean;
+  sms_post_booking_upsell: boolean;
   reminder_hours_before: number;
 }
 
@@ -28,6 +29,7 @@ const defaultSettings: SMSSettings = {
   sms_enabled: false,
   sms_booking_confirmation: true,
   sms_appointment_reminder: true,
+  sms_post_booking_upsell: false,
   reminder_hours_before: 24,
 };
 
@@ -54,7 +56,7 @@ export function SMSSettingsCard() {
       // revoked from the Data API. We only fetch a boolean indicator via RPC.
       const { data, error } = await supabase
         .from('organization_sms_settings')
-        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, reminder_hours_before')
+        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, sms_post_booking_upsell, reminder_hours_before')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
@@ -73,6 +75,7 @@ export function SMSSettingsCard() {
           sms_enabled: data.sms_enabled || false,
           sms_booking_confirmation: data.sms_booking_confirmation ?? true,
           sms_appointment_reminder: data.sms_appointment_reminder ?? true,
+          sms_post_booking_upsell: (data as any).sms_post_booking_upsell ?? false,
           reminder_hours_before: data.reminder_hours_before || 24,
         });
       }
@@ -116,6 +119,7 @@ export function SMSSettingsCard() {
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
         sms_appointment_reminder: settings.sms_appointment_reminder,
+        sms_post_booking_upsell: settings.sms_post_booking_upsell,
         reminder_hours_before: settings.reminder_hours_before,
       };
       if (typedApiKey) baseData.openphone_api_key = typedApiKey;
@@ -283,6 +287,21 @@ export function SMSSettingsCard() {
                 Just the ID (starts with PN...), not the full URL
               </p>
             </div>
+          </div>
+
+          {/* Post-booking upsell (opt-in) */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-0.5 pr-4">
+              <Label className="text-base font-medium">Post-Booking Upsell SMS</Label>
+              <p className="text-sm text-muted-foreground">
+                After a booking is confirmed, automatically text the customer suggesting add-ons
+                (Inside Oven, Inside Fridge, etc.). Off by default.
+              </p>
+            </div>
+            <Switch
+              checked={settings.sms_post_booking_upsell}
+              onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_post_booking_upsell: checked }))}
+            />
           </div>
 
           {/* Reminder schedule moved notice */}
