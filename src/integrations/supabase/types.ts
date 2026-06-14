@@ -5639,6 +5639,7 @@ export type Database = {
           sms_appointment_reminder: boolean | null
           sms_booking_confirmation: boolean | null
           sms_enabled: boolean | null
+          sms_post_booking_upsell: boolean
           updated_at: string
         }
         Insert: {
@@ -5657,6 +5658,7 @@ export type Database = {
           sms_appointment_reminder?: boolean | null
           sms_booking_confirmation?: boolean | null
           sms_enabled?: boolean | null
+          sms_post_booking_upsell?: boolean
           updated_at?: string
         }
         Update: {
@@ -5675,6 +5677,7 @@ export type Database = {
           sms_appointment_reminder?: boolean | null
           sms_booking_confirmation?: boolean | null
           sms_enabled?: boolean | null
+          sms_post_booking_upsell?: boolean
           updated_at?: string
         }
         Relationships: [

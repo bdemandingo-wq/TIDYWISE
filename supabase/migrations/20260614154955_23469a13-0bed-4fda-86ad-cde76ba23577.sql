@@ -1,0 +1,1 @@
+ALTER TABLE public.organization_sms_settings ADD COLUMN IF NOT EXISTS sms_post_booking_upsell boolean NOT NULL DEFAULT false;
