@@ -33,7 +33,22 @@ export default function SubscriptionPage() {
       toast.error(err?.message || "Could not resume subscription");
     } finally {
       setResuming(false);
+  }
+
+  async function openBillingPortal() {
+    setOpeningPortal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", { body: {} });
+      if (error) throw error;
+      const url = (data as any)?.url;
+      if (!url) throw new Error("Could not open billing portal");
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not open billing portal");
+    } finally {
+      setOpeningPortal(false);
     }
+  }
   }
 
   return (
