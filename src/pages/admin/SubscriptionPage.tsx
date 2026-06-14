@@ -6,13 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, PauseCircle, PlayCircle } from "lucide-react";
+import { Loader2, PauseCircle, PlayCircle, CreditCard } from "lucide-react";
 import CancellationFlowDialog from "@/components/subscription/CancellationFlowDialog";
 
 export default function SubscriptionPage() {
   const { subscription, checkSubscription } = useAuth();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
+
 
   const isSubscribed = subscription?.subscribed === true;
   const periodEnd = subscription?.subscription_end ?? null;
@@ -31,6 +33,21 @@ export default function SubscriptionPage() {
       toast.error(err?.message || "Could not resume subscription");
     } finally {
       setResuming(false);
+    }
+  }
+
+  async function openBillingPortal() {
+    setOpeningPortal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", { body: {} });
+      if (error) throw error;
+      const url = (data as any)?.url;
+      if (!url) throw new Error("Could not open billing portal");
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not open billing portal");
+    } finally {
+      setOpeningPortal(false);
     }
   }
 
@@ -74,6 +91,18 @@ export default function SubscriptionPage() {
                     Resume now
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={openBillingPortal}
+                    disabled={openingPortal}
+                  >
+                    {openingPortal ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="mr-1 h-4 w-4" />
+                    )}
+                    Update payment method
+                  </Button>
+                  <Button
                     variant="ghost"
                     onClick={() => setCancelOpen(true)}
                     className="text-muted-foreground"
@@ -84,17 +113,20 @@ export default function SubscriptionPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center">
-                Manage your TidyWise plan below. Existing subscribers can manage billing at{" "}
-                <a
-                  href="https://www.jointidywise.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-primary"
-                >
-                  www.jointidywise.com
-                </a>
-              </p>
+              <div className="space-y-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Your subscription isn't active. If your card on file expired or a payment
+                  failed, update your payment method to restore access.
+                </p>
+                <Button onClick={openBillingPortal} disabled={openingPortal}>
+                  {openingPortal ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-1 h-4 w-4" />
+                  )}
+                  Update payment method
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
