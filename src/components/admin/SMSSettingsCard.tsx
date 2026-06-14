@@ -56,7 +56,7 @@ export function SMSSettingsCard() {
       // revoked from the Data API. We only fetch a boolean indicator via RPC.
       const { data, error } = await supabase
         .from('organization_sms_settings')
-        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, reminder_hours_before')
+        .select('id, openphone_phone_number_id, sms_enabled, sms_booking_confirmation, sms_appointment_reminder, sms_post_booking_upsell, reminder_hours_before')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
@@ -75,6 +75,7 @@ export function SMSSettingsCard() {
           sms_enabled: data.sms_enabled || false,
           sms_booking_confirmation: data.sms_booking_confirmation ?? true,
           sms_appointment_reminder: data.sms_appointment_reminder ?? true,
+          sms_post_booking_upsell: (data as any).sms_post_booking_upsell ?? false,
           reminder_hours_before: data.reminder_hours_before || 24,
         });
       }
