@@ -119,6 +119,7 @@ export function SMSSettingsCard() {
         sms_enabled: settings.sms_enabled,
         sms_booking_confirmation: settings.sms_booking_confirmation,
         sms_appointment_reminder: settings.sms_appointment_reminder,
+        sms_post_booking_upsell: settings.sms_post_booking_upsell,
         reminder_hours_before: settings.reminder_hours_before,
       };
       if (typedApiKey) baseData.openphone_api_key = typedApiKey;
