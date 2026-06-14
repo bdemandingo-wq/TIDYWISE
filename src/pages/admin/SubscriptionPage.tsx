@@ -91,6 +91,18 @@ export default function SubscriptionPage() {
                     Resume now
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={openBillingPortal}
+                    disabled={openingPortal}
+                  >
+                    {openingPortal ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="mr-1 h-4 w-4" />
+                    )}
+                    Update payment method
+                  </Button>
+                  <Button
                     variant="ghost"
                     onClick={() => setCancelOpen(true)}
                     className="text-muted-foreground"
@@ -101,17 +113,20 @@ export default function SubscriptionPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center">
-                Manage your TidyWise plan below. Existing subscribers can manage billing at{" "}
-                <a
-                  href="https://www.jointidywise.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-primary"
-                >
-                  www.jointidywise.com
-                </a>
-              </p>
+              <div className="space-y-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Your subscription isn't active. If your card on file expired or a payment
+                  failed, update your payment method to restore access.
+                </p>
+                <Button onClick={openBillingPortal} disabled={openingPortal}>
+                  {openingPortal ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-1 h-4 w-4" />
+                  )}
+                  Update payment method
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
