@@ -6,13 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, PauseCircle, PlayCircle } from "lucide-react";
+import { Loader2, PauseCircle, PlayCircle, CreditCard } from "lucide-react";
 import CancellationFlowDialog from "@/components/subscription/CancellationFlowDialog";
 
 export default function SubscriptionPage() {
   const { subscription, checkSubscription } = useAuth();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
+
 
   const isSubscribed = subscription?.subscribed === true;
   const periodEnd = subscription?.subscription_end ?? null;
