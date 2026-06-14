@@ -289,6 +289,21 @@ export function SMSSettingsCard() {
             </div>
           </div>
 
+          {/* Post-booking upsell (opt-in) */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-0.5 pr-4">
+              <Label className="text-base font-medium">Post-Booking Upsell SMS</Label>
+              <p className="text-sm text-muted-foreground">
+                After a booking is confirmed, automatically text the customer suggesting add-ons
+                (Inside Oven, Inside Fridge, etc.). Off by default.
+              </p>
+            </div>
+            <Switch
+              checked={settings.sms_post_booking_upsell}
+              onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sms_post_booking_upsell: checked }))}
+            />
+          </div>
+
           {/* Reminder schedule moved notice */}
           <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
             <div className="space-y-0.5">
