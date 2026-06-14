@@ -19,6 +19,7 @@ interface SMSSettings {
   sms_enabled: boolean;
   sms_booking_confirmation: boolean;
   sms_appointment_reminder: boolean;
+  sms_post_booking_upsell: boolean;
   reminder_hours_before: number;
 }
 
@@ -28,6 +29,7 @@ const defaultSettings: SMSSettings = {
   sms_enabled: false,
   sms_booking_confirmation: true,
   sms_appointment_reminder: true,
+  sms_post_booking_upsell: false,
   reminder_hours_before: 24,
 };
 
