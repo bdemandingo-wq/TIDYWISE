@@ -33,6 +33,7 @@ export default function SubscriptionPage() {
       toast.error(err?.message || "Could not resume subscription");
     } finally {
       setResuming(false);
+    }
   }
 
   async function openBillingPortal() {
@@ -48,7 +49,6 @@ export default function SubscriptionPage() {
     } finally {
       setOpeningPortal(false);
     }
-  }
   }
 
   return (
