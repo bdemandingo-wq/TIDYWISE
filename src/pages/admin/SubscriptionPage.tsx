@@ -43,13 +43,23 @@ export default function SubscriptionPage() {
       if (error) throw error;
       const url = (data as any)?.url;
       if (!url) throw new Error("Could not open billing portal");
-      window.open(url, "_blank", "noopener,noreferrer");
+
+      // Use Capacitor Browser on native (iOS blocks window.open), fallback to window.open on web
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url, presentationStyle: "popover" });
+      } else {
+        const opened = window.open(url, "_blank", "noopener,noreferrer");
+        if (!opened) window.location.href = url;
+      }
     } catch (err: any) {
       toast.error(err?.message || "Could not open billing portal");
     } finally {
       setOpeningPortal(false);
     }
   }
+
 
   return (
     <AdminLayout title="Subscription" subtitle="Your TidyWise plan">
