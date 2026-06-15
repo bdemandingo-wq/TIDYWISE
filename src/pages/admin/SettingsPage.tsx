@@ -557,6 +557,13 @@ export default function SettingsPage() {
             
             <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
+            <TabsTrigger
+              className="shrink-0"
+              value="subscription"
+              onClick={(e) => { e.preventDefault(); navigate('/dashboard/subscription'); }}
+            >
+              Subscription
+            </TabsTrigger>
           </TabsList>
         </div>
 
