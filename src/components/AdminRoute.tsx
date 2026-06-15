@@ -30,11 +30,12 @@ const PAYWALL_ALLOWED_PATHS = [
  * the admin dashboard even if they have valid authentication.
  */
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, subscription } = useAuth();
   const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
+
   const switchedRef = useRef(false);
   // One-shot paywall redirect guard. Without this, AdminRoute returns a
   // fresh <Navigate to="/pricing"> on every re-render — and re-renders
