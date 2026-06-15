@@ -30,11 +30,12 @@ const PAYWALL_ALLOWED_PATHS = [
  * the admin dashboard even if they have valid authentication.
  */
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, subscription } = useAuth();
   const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
+
   const switchedRef = useRef(false);
   // One-shot paywall redirect guard. Without this, AdminRoute returns a
   // fresh <Navigate to="/pricing"> on every re-render — and re-renders
@@ -75,13 +76,24 @@ export function AdminRoute({ children }: AdminRouteProps) {
       (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
     );
 
+  // Existing customers (had a Stripe sub before, card expired, or payment failed)
+  // should go to /dashboard/subscription so they can update their card in one
+  // click. Brand-new users with no billing history go to /pricing to choose a plan.
+  const isExistingCustomer =
+    !!subscription?.payment_failed ||
+    !!subscription?.subscription_end ||
+    (!!subscription?.product_id && subscription.product_id !== 'org_trial');
+
+  const paywallDestination = isExistingCustomer ? '/dashboard/subscription' : '/pricing';
+
   // Imperative one-shot redirect, keyed on pathname.
   useEffect(() => {
     if (!needsPaywallRedirect) return;
     if (paywallRedirectRef.current === location.pathname) return;
     paywallRedirectRef.current = location.pathname;
-    navigate('/pricing', { replace: true, state: { from: location.pathname } });
-  }, [needsPaywallRedirect, location.pathname, navigate]);
+    navigate(paywallDestination, { replace: true, state: { from: location.pathname } });
+  }, [needsPaywallRedirect, location.pathname, navigate, paywallDestination]);
+
 
   if (authLoading || orgLoading) {
     return (
