@@ -1,0 +1,115 @@
+// Platform-admin only — proxy to Sentry Issues API.
+// Reads SENTRY_AUTH_TOKEN from edge function secrets. Never exposed to client.
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// Decode `sntrys_<base64payload>_<sig>` tokens to discover the org slug and
+// region URL, so we don't have to hardcode them.
+function decodeSentryToken(token: string): {
+  org?: string;
+  url?: string;
+  region_url?: string;
+} | null {
+  try {
+    if (!token.startsWith("sntrys_")) return null;
+    const parts = token.split("_");
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    // base64url -> base64
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: udata } = await userClient.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (!udata?.user) return json({ error: "Unauthorized" }, 401);
+
+    const { data: isAdmin, error: adminErr } = await userClient.rpc(
+      "is_platform_admin",
+    );
+    if (adminErr || !isAdmin) {
+      return json({ error: "Platform admin only" }, 403);
+    }
+
+    const token = Deno.env.get("SENTRY_AUTH_TOKEN");
+    if (!token) {
+      return json({ error: "SENTRY_AUTH_TOKEN not configured" }, 500);
+    }
+
+    const meta = decodeSentryToken(token);
+    const orgSlug = meta?.org ?? "jointidywise";
+    const base = meta?.region_url
+      ? `${meta.region_url.replace(/\/$/, "")}/api/0`
+      : "https://sentry.io/api/0";
+
+    const url = new URL(req.url);
+    const query = url.searchParams.get("query") ?? "is:unresolved";
+    const limit = url.searchParams.get("limit") ?? "25";
+
+    const sentryUrl =
+      `${base}/organizations/${orgSlug}/issues/?` +
+      new URLSearchParams({ query, limit }).toString();
+
+    const resp = await fetch(sentryUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const text = await resp.text();
+    if (!resp.ok) {
+      return json(
+        {
+          error: "Sentry API error",
+          status: resp.status,
+          detail: text,
+          hint:
+            resp.status === 403
+              ? "Token needs org:read, project:read, and event:read scopes."
+              : undefined,
+        },
+        502,
+      );
+    }
+
+    return new Response(text, {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log("[SENTRY-ISSUES] ERROR", msg);
+    return json({ error: msg }, 500);
+  }
+});
