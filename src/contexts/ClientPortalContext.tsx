@@ -99,22 +99,28 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     try {
-      // Call the RPC function to validate credentials using email
-      const { data: validationResult, error: validationError } = await supabase.rpc('validate_client_portal_login' as any, {
-        p_email: email.toLowerCase().trim(),
-        p_password: password,
-      });
+      // Call the rate-limited edge function instead of the RPC directly so
+      // brute-force attempts are throttled per-IP and per-email at the edge.
+      const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+        'client-portal-login',
+        { body: { email: email.toLowerCase().trim(), password } },
+      );
 
       if (validationError) {
         console.error('Login validation error:', validationError);
         return { error: 'Invalid email or password' };
       }
 
-      const validation = validationResult as { valid: boolean; reason?: string; user_id?: string } | null;
-      
+      const validation = validationResult as { valid: boolean; error?: string; user_id?: string } | null;
+
+      if (validation?.error === 'rate_limited') {
+        return { error: 'Too many attempts. Please wait a few minutes and try again.' };
+      }
+
       if (!validation || !validation.valid) {
         return { error: 'Invalid email or password' };
       }
+
 
       // Use the security definer function to get all user data by email
       const { data: userData, error: userDataError } = await supabase.rpc('get_client_portal_user_data' as any, {
