@@ -15,7 +15,6 @@ import {
   Loader2,
   Copy,
   Check,
-  X,
   RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
