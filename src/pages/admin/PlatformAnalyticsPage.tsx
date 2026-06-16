@@ -34,7 +34,8 @@ import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
 import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
 import ChurnRetentionTab from '@/components/admin/ChurnRetentionTab';
-import { TrendingDown } from 'lucide-react';
+import { ErrorsIncidentsPanel } from '@/components/admin/ErrorsIncidentsPanel';
+import { TrendingDown, Bug } from 'lucide-react';
 
 interface Subscriber {
   id: string;
@@ -420,7 +421,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-4">
+          <TabsList className="grid w-full grid-cols-9 mb-4">
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -455,6 +456,10 @@ export default function PlatformAnalyticsPage() {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
               <span className="hidden sm:inline">Feed</span>
+            </TabsTrigger>
+            <TabsTrigger value="errors" className="flex items-center gap-2">
+              <Bug className="w-4 h-4" />
+              <span className="hidden sm:inline">Errors</span>
             </TabsTrigger>
           </TabsList>
 
@@ -967,6 +972,9 @@ export default function PlatformAnalyticsPage() {
           </TabsContent>
           <DemoCalendarTab />
           <PlatformNotificationsLog />
+          <TabsContent value="errors">
+            <ErrorsIncidentsPanel />
+          </TabsContent>
         </Tabs>
       </div>
 
