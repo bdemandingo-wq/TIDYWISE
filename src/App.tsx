@@ -82,6 +82,7 @@ const SubscriptionPage = lazy(() =>
     : import("./pages/admin/SubscriptionPage")
 );
 const HelpPage = lazy(() => import("./pages/admin/HelpPage"));
+const ErrorsPage = lazy(() => import("./pages/admin/ErrorsPage"));
 const DiscountsPage = lazy(() => import("./pages/admin/DiscountsPage"));
 const PlatformAnalyticsPage = lazy(() => import("./pages/admin/PlatformAnalyticsPage"));
 const DisputesPage = lazy(() => import("./pages/admin/DisputesPage"));
@@ -270,6 +271,7 @@ const App = () => (
                       <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/errors" element={<AdminRoute><ErrorBoundary featureName="Errors & Incidents"><ErrorsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
@@ -407,6 +409,7 @@ const App = () => (
                     <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/errors" element={<AdminRoute><ErrorBoundary featureName="Errors & Incidents"><ErrorsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
