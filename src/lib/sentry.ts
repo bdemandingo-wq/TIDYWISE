@@ -93,6 +93,10 @@ export function initSentry(): void {
       "Error invoking postMessage",
       "sendDataToNative",
       "sendJsBlockingTimeMessage",
+      // Vite HMR transient: when a context module is hot-swapped in the
+      // Lovable preview, useQueryClient() can briefly fire before the
+      // parent QueryClientProvider re-attaches. Dev-only, self-recovers.
+      "No QueryClient set",
     ],
 
     // Drop events whose stack trace originates from in-app-browser
