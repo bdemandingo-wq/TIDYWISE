@@ -88,7 +88,7 @@ serve(async (req) => {
       : "https://sentry.io/api/0";
     console.log("[SENTRY-ISSUES] token prefix:", token.slice(0, 7), "org:", orgSlug, "base:", base);
 
-    const url = new URL(req.url);
+    const url = url0;
     const query = url.searchParams.get("query") ?? "is:unresolved";
     const limit = url.searchParams.get("limit") ?? "25";
 
