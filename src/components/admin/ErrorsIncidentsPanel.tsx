@@ -237,10 +237,13 @@ function InnerCard({
     try {
       await navigator.clipboard.writeText(buildFixPrompt(issue));
       setCopied(true);
-      toast.success('Prompt copied — paste in Lovable', {
+      toast.success('Prompt copied — auto-hides when fixed', {
         duration: 2000,
         style: { background: '#16a34a', color: '#fff', border: '1px solid #15803d' },
       });
+      // Auto-dismiss: assume the user is about to fix it. If it reappears
+      // in Sentry (lastSeen advances past dismissed_at), the card returns.
+      onDismiss(issue);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy prompt');
