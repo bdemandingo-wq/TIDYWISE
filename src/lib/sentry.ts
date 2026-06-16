@@ -89,6 +89,11 @@ export function initSentry(): void {
       // on iOS, Java postMessage on Android) and throw on every page load.
       // Not actionable on our side — we don't ship that code.
       "window.webkit.messageHandlers",
+      // Safari/iOS wording when an in-app browser injects a script that
+      // assumes the native bridge exists. Matches the exact TypeError
+      // value Sentry stores on the event, not just `message`.
+      /undefined is not an object \(evaluating 'window\.webkit/i,
+      /undefined is not an object \(evaluating '.*messageHandlers/i,
       "Java object is gone",
       "Error invoking postMessage",
       "sendDataToNative",
@@ -105,12 +110,17 @@ export function initSentry(): void {
     beforeSend(event, hint) {
       try {
         const ex = hint?.originalException as { stack?: string; message?: string } | undefined;
-        const stack = ex?.stack || "";
-        const msg = ex?.message || (event.message ?? "");
+        const stack =
+          ex?.stack ||
+          event.exception?.values?.map((v) => v.stacktrace?.frames?.map((f) => f.filename || "").join(" ")).join(" ") ||
+          "";
+        const exceptionValues = event.exception?.values?.map((v) => v.value || "").join(" | ") || "";
+        const msg = [ex?.message, event.message, exceptionValues].filter(Boolean).join(" | ");
         if (
           /iabjs:\/\//i.test(stack) ||
           /navigation_performance_logger/i.test(stack) ||
           /window\.webkit\.messageHandlers/i.test(msg) ||
+          /evaluating '.*messageHandlers/i.test(msg) ||
           /Java object is gone/i.test(msg)
         ) {
           return null;
