@@ -270,16 +270,6 @@ function InnerCard({
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDismiss(issue)}
-            title="Mark fixed and hide"
-            className="h-8 gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Mark Fixed</span>
-          </Button>
         </div>
       </div>
 
