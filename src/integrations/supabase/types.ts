@@ -7127,6 +7127,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sentry_dismissed_issues: {
+        Row: {
+          created_at: string
+          dismissed_at: string
+          dismissed_by: string | null
+          issue_id: string
+          last_seen_at_dismiss: string | null
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+          issue_id: string
+          last_seen_at_dismiss?: string | null
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+          issue_id?: string
+          last_seen_at_dismiss?: string | null
+        }
+        Relationships: []
+      }
       service_categories: {
         Row: {
           color: string | null

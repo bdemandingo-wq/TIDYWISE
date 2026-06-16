@@ -18,25 +18,30 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const DISMISSED_KEY = 'sentry-dismissed-issues-v1';
+// Dismissals are persisted in `public.sentry_dismissed_issues` so the
+// "Mark Fixed" state is shared across refreshes and browsers for the
+// platform admin. We keep a localStorage cache so the UI hides
+// known-dismissed cards instantly on first paint, before the DB query
+// resolves — but the DB row is the source of truth.
+const DISMISSED_CACHE_KEY = 'sentry-dismissed-issues-v1';
 
-function loadDismissed(): Record<string, string> {
+function loadDismissedCache(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
+    const raw = localStorage.getItem(DISMISSED_CACHE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function saveDismissed(map: Record<string, string>) {
+function saveDismissedCache(map: Record<string, string>) {
   try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
+    localStorage.setItem(DISMISSED_CACHE_KEY, JSON.stringify(map));
   } catch {
     /* ignore quota errors */
   }
@@ -368,12 +373,35 @@ export function ErrorsIncidentsPanel() {
     refetchOnWindowFocus: false,
   });
 
-  // Local dismissals: keyed by issue id, value = ISO timestamp of dismissal.
-  // If the issue's lastSeen later moves past this timestamp, it reappears.
-  const [dismissed, setDismissed] = useState<Record<string, string>>(() => loadDismissed());
+  // Dismissals persisted in `public.sentry_dismissed_issues`.
+  // Local state mirrors the DB row map: { [issue_id]: dismissed_at ISO }.
+  // We seed from localStorage so dismissals hide instantly on first paint,
+  // then reconcile with the DB (source of truth) once the query resolves.
+  const queryClient = useQueryClient();
+  const [dismissed, setDismissed] = useState<Record<string, string>>(() =>
+    loadDismissedCache(),
+  );
+
+  const { data: dbDismissed } = useQuery({
+    queryKey: ['sentry-dismissed-issues'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sentry_dismissed_issues')
+        .select('issue_id, dismissed_at');
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const row of data ?? []) map[row.issue_id] = row.dismissed_at;
+      return map;
+    },
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
-    saveDismissed(dismissed);
-  }, [dismissed]);
+    if (dbDismissed) {
+      setDismissed(dbDismissed);
+      saveDismissedCache(dbDismissed);
+    }
+  }, [dbDismissed]);
 
   const isDismissed = (issue: SentryIssue): boolean => {
     const at = dismissed[issue.id];
@@ -382,27 +410,69 @@ export function ErrorsIncidentsPanel() {
     return new Date(issue.lastSeen).getTime() <= new Date(at).getTime();
   };
 
-  const handleDismiss = (issue: SentryIssue) => {
-    const next = { ...dismissed, [issue.id]: new Date().toISOString() };
+  const persistDismissals = (next: Record<string, string>) => {
     setDismissed(next);
+    saveDismissedCache(next);
+  };
+
+  const handleDismiss = async (issue: SentryIssue) => {
+    const now = new Date().toISOString();
+    const previous = dismissed;
+    const next = { ...dismissed, [issue.id]: now };
+    persistDismissals(next);
+
+    const { error } = await supabase
+      .from('sentry_dismissed_issues')
+      .upsert(
+        {
+          issue_id: issue.id,
+          dismissed_at: now,
+          last_seen_at_dismiss: issue.lastSeen ?? null,
+        },
+        { onConflict: 'issue_id' },
+      );
+
+    if (error) {
+      persistDismissals(previous);
+      toast.error(`Couldn't save dismissal: ${error.message}`);
+      return;
+    }
+
     toast.success('Marked fixed — removed from dashboard', {
       duration: 4000,
       action: {
         label: 'Undo',
-        onClick: () => {
-          setDismissed((prev) => {
-            const copy = { ...prev };
-            delete copy[issue.id];
-            return copy;
-          });
+        onClick: async () => {
+          const copy = { ...next };
+          delete copy[issue.id];
+          persistDismissals(copy);
+          await supabase
+            .from('sentry_dismissed_issues')
+            .delete()
+            .eq('issue_id', issue.id);
+          queryClient.invalidateQueries({ queryKey: ['sentry-dismissed-issues'] });
         },
       },
     });
+    queryClient.invalidateQueries({ queryKey: ['sentry-dismissed-issues'] });
   };
 
-  const clearDismissed = () => {
-    setDismissed({});
+  const clearDismissed = async () => {
+    const previous = dismissed;
+    persistDismissals({});
+    const ids = Object.keys(previous);
+    if (ids.length === 0) return;
+    const { error } = await supabase
+      .from('sentry_dismissed_issues')
+      .delete()
+      .in('issue_id', ids);
+    if (error) {
+      persistDismissals(previous);
+      toast.error(`Couldn't restore: ${error.message}`);
+      return;
+    }
     toast.success('Restored all hidden issues');
+    queryClient.invalidateQueries({ queryKey: ['sentry-dismissed-issues'] });
   };
 
   const grouped = useMemo(() => {
