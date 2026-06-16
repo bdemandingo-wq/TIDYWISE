@@ -369,17 +369,57 @@ export function ErrorsIncidentsPanel() {
     refetchOnWindowFocus: false,
   });
 
+  // Local dismissals: keyed by issue id, value = ISO timestamp of dismissal.
+  // If the issue's lastSeen later moves past this timestamp, it reappears.
+  const [dismissed, setDismissed] = useState<Record<string, string>>(() => loadDismissed());
+  useEffect(() => {
+    saveDismissed(dismissed);
+  }, [dismissed]);
+
+  const isDismissed = (issue: SentryIssue): boolean => {
+    const at = dismissed[issue.id];
+    if (!at) return false;
+    if (!issue.lastSeen) return true;
+    return new Date(issue.lastSeen).getTime() <= new Date(at).getTime();
+  };
+
+  const handleDismiss = (issue: SentryIssue) => {
+    const next = { ...dismissed, [issue.id]: new Date().toISOString() };
+    setDismissed(next);
+    toast.success('Marked fixed — removed from dashboard', {
+      duration: 4000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setDismissed((prev) => {
+            const copy = { ...prev };
+            delete copy[issue.id];
+            return copy;
+          });
+        },
+      },
+    });
+  };
+
+  const clearDismissed = () => {
+    setDismissed({});
+    toast.success('Restored all hidden issues');
+  };
+
   const grouped = useMemo(() => {
     const buckets: Record<SeverityKey, SentryIssue[]> = { critical: [], warning: [], info: [] };
     for (const issue of data ?? []) {
       const level = (issue.level ?? 'error').toLowerCase();
       if (level === 'debug') continue;
+      if (isDismissed(issue)) continue;
       buckets[severityFor(level)].push(issue);
     }
     return buckets;
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, dismissed]);
 
   const total = grouped.critical.length + grouped.warning.length + grouped.info.length;
+  const hiddenCount = Object.keys(dismissed).length;
 
   // Silence unused-warning for legacy component kept for diff safety
   void IssueCard;
@@ -389,18 +429,34 @@ export function ErrorsIncidentsPanel() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Errors &amp; Incidents</h2>
-          <p className="text-sm text-slate-500">Unresolved Sentry issues</p>
+          <p className="text-sm text-slate-500">
+            Unresolved Sentry issues
+            {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+          </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="gap-1.5"
-        >
-          <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDismissed}
+              className="gap-1.5 text-slate-600"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Restore hidden
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -435,10 +491,16 @@ export function ErrorsIncidentsPanel() {
       {!isLoading && !isError && total > 0 && (
         <div className="space-y-4">
           {SECTIONS.map((config) => (
-            <Section key={config.key} config={config} issues={grouped[config.key]} />
+            <Section
+              key={config.key}
+              config={config}
+              issues={grouped[config.key]}
+              onDismiss={handleDismiss}
+            />
           ))}
         </div>
       )}
+
 
       {isFetching && !isLoading && (
         <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
