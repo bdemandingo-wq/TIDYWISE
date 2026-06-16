@@ -99,7 +99,7 @@ const defaultNavigation = [
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
   { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
-  { name: 'Errors & Incidents', href: '/dashboard/errors', icon: Bug },
+  
 ];
 
 const iconMap: Record<string, typeof Home> = {
@@ -462,9 +462,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           </DndContext>
         )}
 
-        {/* Platform Admin Link - Only visible for support@tidywisecleaning.com */}
+        {/* Platform Admin Links - Only visible for support@tidywisecleaning.com */}
         {user?.email === 'support@tidywisecleaning.com' && (
-          <div className="mt-4 pt-4 border-t border-sidebar-border">
+          <div className="mt-4 pt-4 border-t border-sidebar-border space-y-1">
             <Link
               to="/dashboard/platform-analytics"
               onClick={handleNavClick}
@@ -477,6 +477,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
             >
               <Activity className="w-5 h-5 flex-shrink-0 text-amber-500" />
               {(isOpen || isMobile) && <span className="text-amber-500 font-medium">Platform Analytics</span>}
+            </Link>
+            <Link
+              to="/dashboard/errors"
+              onClick={handleNavClick}
+              className={cn(
+                'sidebar-link min-h-[44px] pointer-events-auto touch-manipulation',
+                location.pathname === '/dashboard/errors' && 'active',
+                !isOpen && !isMobile && 'justify-center px-2'
+              )}
+              title={!isOpen && !isMobile ? 'Errors & Incidents' : undefined}
+            >
+              <Bug className="w-5 h-5 flex-shrink-0 text-amber-500" />
+              {(isOpen || isMobile) && <span className="text-amber-500 font-medium">Errors & Incidents</span>}
             </Link>
           </div>
         )}
