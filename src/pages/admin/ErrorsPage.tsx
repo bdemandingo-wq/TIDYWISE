@@ -42,6 +42,13 @@ interface Payload {
   warnings: Issue[];
 }
 
+interface FunctionErrorPayload {
+  error?: string;
+  status?: number;
+  detail?: string;
+  hint?: string;
+}
+
 const SECTIONS: Array<{
   key: 'critical' | 'errors' | 'warnings';
   label: string;
@@ -114,13 +121,19 @@ export default function ErrorsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke('sentry-issues');
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const { data, error } = await supabase.functions.invoke<Payload | FunctionErrorPayload>('sentry-issues');
+      if (error) {
+        const context = (error as any).context;
+        const body = typeof context?.json === 'function' ? await context.json().catch(() => null) : null;
+        throw new Error(body?.hint || body?.detail || error.message || 'Failed to load issues');
+      }
+      if (data && 'error' in data && data.error) {
+        throw new Error(data.hint || data.detail || data.error);
+      }
       setData(data as Payload);
     } catch (e: any) {
       setError(e.message || 'Failed to load issues');
-      toast.error('Could not load Sentry issues');
+      toast.error('Could not load error issues');
     } finally {
       setLoading(false);
     }
@@ -134,7 +147,7 @@ export default function ErrorsPage() {
   return (
     <AdminLayout
       title="Errors & Incidents"
-      subtitle="Live unresolved issues from Sentry"
+      subtitle="Live unresolved production issues"
     >
       <SEOHead title="Errors & Incidents | TidyWise" description="Monitor unresolved production errors" noIndex />
 
@@ -154,6 +167,11 @@ export default function ErrorsPage() {
         <Card className="p-4 mb-6 border-l-4 border-l-red-500 bg-red-50">
           <p className="text-sm text-red-800 font-medium">Error loading issues</p>
           <p className="text-xs text-red-700 mt-1">{error}</p>
+          {error.includes('org:read') && (
+            <p className="text-xs text-red-700 mt-2">
+              Create a fresh organization token with those scopes, then update the stored SENTRY_AUTH_TOKEN secret.
+            </p>
+          )}
         </Card>
       )}
 
