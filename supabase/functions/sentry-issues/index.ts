@@ -80,12 +80,15 @@ serve(async (req) => {
     }
 
     const meta = decodeSentryToken(token);
-    const orgSlug = meta?.org ?? "jointidywise";
+    const url0 = new URL(req.url);
+    const orgSlug =
+      url0.searchParams.get("org") ?? meta?.org ?? "jointidywise";
     const base = meta?.region_url
       ? `${meta.region_url.replace(/\/$/, "")}/api/0`
       : "https://sentry.io/api/0";
+    console.log("[SENTRY-ISSUES] token prefix:", token.slice(0, 7), "org:", orgSlug, "base:", base);
 
-    const url = new URL(req.url);
+    const url = url0;
     const query = url.searchParams.get("query") ?? "is:unresolved";
     const limit = url.searchParams.get("limit") ?? "25";
 
