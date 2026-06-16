@@ -65,7 +65,7 @@ serve(async (req) => {
       return json({ error: "Platform admin only" }, 403);
     }
 
-    const token = Deno.env.get("SENTRY_AUTH_TOKEN");
+    const token = Deno.env.get("SENTRY_AUTH_TOKEN")?.trim().replace(/\s+/g, "");
     if (!token) {
       return json({ error: "SENTRY_AUTH_TOKEN not configured" }, 500);
     }
