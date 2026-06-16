@@ -17,6 +17,15 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function safeParseSentryError(text: string): string {
+  try {
+    const parsed = JSON.parse(text) as { detail?: unknown };
+    return typeof parsed.detail === "string" ? parsed.detail : text;
+  } catch {
+    return text;
+  }
+}
+
 // Decode `sntrys_<base64payload>_<sig>` tokens to discover the org slug and
 // region URL, so we don't have to hardcode them.
 function decodeSentryToken(token: string): {
@@ -89,17 +98,19 @@ serve(async (req) => {
     });
     const text = await resp.text();
     if (!resp.ok) {
+      const detail = safeParseSentryError(text);
+      const hint =
+        resp.status === 403
+          ? "Create or update the Sentry auth token with org:read, project:read, and event:read scopes, then save it as SENTRY_AUTH_TOKEN."
+          : undefined;
       return json(
         {
           error: "Sentry API error",
           status: resp.status,
-          detail: text,
-          hint:
-            resp.status === 403
-              ? "Token needs org:read, project:read, and event:read scopes."
-              : undefined,
+          detail,
+          hint,
         },
-        502,
+        resp.status === 401 || resp.status === 403 ? 403 : 502,
       );
     }
 
