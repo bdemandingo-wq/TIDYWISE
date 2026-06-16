@@ -35,6 +35,13 @@ interface SentryIssue {
   project?: { slug?: string; name?: string };
 }
 
+interface SentryProxyError {
+  error?: string;
+  status?: number;
+  detail?: string;
+  hint?: string;
+}
+
 type SeverityKey = 'critical' | 'warning' | 'info';
 
 const SECTIONS: {
@@ -160,7 +167,11 @@ export function ErrorsIncidentsPanel() {
       if (error) throw error;
       // The proxy returns the raw Sentry array on success, or { error } on failure.
       if (data && !Array.isArray(data) && data.error) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Sentry request failed');
+        const proxyError = data as SentryProxyError;
+        const message = [proxyError.error, proxyError.detail, proxyError.hint]
+          .filter(Boolean)
+          .join(' — ');
+        throw new Error(message || 'Sentry request failed');
       }
       return (Array.isArray(data) ? data : []) as SentryIssue[];
     },
