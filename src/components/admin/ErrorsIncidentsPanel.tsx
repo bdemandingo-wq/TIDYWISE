@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,12 +15,34 @@ import {
   Loader2,
   Copy,
   Check,
+  X,
+  RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+const DISMISSED_KEY = 'sentry-dismissed-issues-v1';
+
+function loadDismissed(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDismissed(map: Record<string, string>) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 
 // Raw Sentry issue shape returned by the `sentry-issues` edge function (proxy).
 interface SentryIssue {
