@@ -18,25 +18,30 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const DISMISSED_KEY = 'sentry-dismissed-issues-v1';
+// Dismissals are persisted in `public.sentry_dismissed_issues` so the
+// "Mark Fixed" state is shared across refreshes and browsers for the
+// platform admin. We keep a localStorage cache so the UI hides
+// known-dismissed cards instantly on first paint, before the DB query
+// resolves — but the DB row is the source of truth.
+const DISMISSED_CACHE_KEY = 'sentry-dismissed-issues-v1';
 
-function loadDismissed(): Record<string, string> {
+function loadDismissedCache(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
+    const raw = localStorage.getItem(DISMISSED_CACHE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function saveDismissed(map: Record<string, string>) {
+function saveDismissedCache(map: Record<string, string>) {
   try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
+    localStorage.setItem(DISMISSED_CACHE_KEY, JSON.stringify(map));
   } catch {
     /* ignore quota errors */
   }
