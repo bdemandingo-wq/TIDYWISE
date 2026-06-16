@@ -12,6 +12,7 @@
  */
 
 import { useAuth } from './useAuth';
+import { usePlanState } from './usePlanFeature';
 import { Capacitor } from '@capacitor/core';
 
 const FREE_ACCOUNTS = [
