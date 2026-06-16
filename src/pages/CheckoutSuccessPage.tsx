@@ -43,11 +43,14 @@ const PLAN_LABELS: Record<string, string> = {
 export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, checkSubscription } = useAuth();
+  const { user, checkSubscription, subscription } = useAuth();
   const plan = searchParams.get('plan') ?? '';
   const interval = searchParams.get('interval');
   const planLabel = PLAN_LABELS[plan] ?? null;
   const intervalLabel = interval === 'yearly' ? 'yearly' : interval === 'monthly' ? 'monthly' : null;
+  // During the 7-day free trial Stripe does NOT generate a paid invoice
+  // yet, so we must not claim a receipt was emailed.
+  const isTrial = subscription?.trial_active === true;
   // Anonymous-checkout: the visitor paid without logging in. The webhook
   // emailed them a Supabase invite link to set their password. Until
   // they click that link and authenticate, useAuth().user is null and
