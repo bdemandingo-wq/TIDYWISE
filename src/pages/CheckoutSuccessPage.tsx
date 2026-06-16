@@ -157,10 +157,14 @@ export default function CheckoutSuccessPage() {
               : planLabel
                 ? `Welcome to TidyWise ${planLabel}${
                     intervalLabel ? ` (${intervalLabel})` : ''
-                  }. Your subscription is active${
-                    intervalLabel === 'yearly'
-                      ? ' — a receipt with your next billing date is on its way to your inbox.'
-                      : ' and a receipt has been emailed to you.'
+                  }. ${
+                    isTrial
+                      ? `Your 7-day free trial is active — you won't be charged until it ends${
+                          intervalLabel ? `, then billing starts ${intervalLabel}.` : '.'
+                        } We'll email a receipt the moment your first payment is processed.`
+                      : intervalLabel === 'yearly'
+                        ? 'Your subscription is active — a receipt with your next billing date is on its way to your inbox.'
+                        : 'Your subscription is active and a receipt has been emailed to you.'
                   }`
                 : 'Your TidyWise subscription is active. Welcome aboard.'}
           </p>
