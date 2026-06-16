@@ -295,7 +295,15 @@ function InnerCard({
 }
 
 
-function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues: SentryIssue[] }) {
+function Section({
+  config,
+  issues,
+  onDismiss,
+}: {
+  config: (typeof SECTIONS)[number];
+  issues: SentryIssue[];
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   const [open, setOpen] = useState(issues.length > 0);
 
   return (
@@ -328,7 +336,12 @@ function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues
             </p>
           ) : (
             issues.map((issue) => (
-              <IssueCardWrapper key={issue.id} issue={issue} border={config.border} />
+              <IssueCardWrapper
+                key={issue.id}
+                issue={issue}
+                border={config.border}
+                onDismiss={onDismiss}
+              />
             ))
           )}
         </div>
@@ -336,6 +349,7 @@ function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues
     </Collapsible>
   );
 }
+
 
 export function ErrorsIncidentsPanel() {
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
