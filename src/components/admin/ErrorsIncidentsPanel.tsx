@@ -201,16 +201,29 @@ function IssueCard({ issue, border }: { issue: SentryIssue; border: string }) {
   );
 }
 
-function IssueCardWrapper({ issue, border }: { issue: SentryIssue; border: string }) {
-  // Apply the colored left border via a wrapper so dynamic class lookup works.
+function IssueCardWrapper({
+  issue,
+  border,
+  onDismiss,
+}: {
+  issue: SentryIssue;
+  border: string;
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   return (
     <div className={cn('rounded-lg border-l-[6px]', border)} style={{ background: '#1a1a2e' }}>
-      <InnerCard issue={issue} />
+      <InnerCard issue={issue} onDismiss={onDismiss} />
     </div>
   );
 }
 
-function InnerCard({ issue }: { issue: SentryIssue }) {
+function InnerCard({
+  issue,
+  onDismiss,
+}: {
+  issue: SentryIssue;
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   const title = issue.title || issue.culprit || '(untitled issue)';
   const events = Number(issue.count ?? 0);
   const projectLabel = issue.project?.slug || issue.project?.name;
@@ -240,15 +253,27 @@ function InnerCard({ issue }: { issue: SentryIssue }) {
         >
           {truncate(title)}
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleCopy}
-          className="shrink-0 h-8 gap-1.5 text-xs bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
-        >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            className="h-8 gap-1.5 text-xs bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDismiss(issue)}
+            title="Mark fixed and hide"
+            className="h-8 gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mark Fixed</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/60">
@@ -268,6 +293,7 @@ function InnerCard({ issue }: { issue: SentryIssue }) {
     </div>
   );
 }
+
 
 function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues: SentryIssue[] }) {
   const [open, setOpen] = useState(issues.length > 0);
