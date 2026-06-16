@@ -84,7 +84,38 @@ export function initSentry(): void {
       "Loading chunk",
       "Loading CSS chunk",
       "Importing a module script failed",
+      // Facebook / Instagram / TikTok in-app browser noise. Their
+      // injected scripts assume native bridges (window.webkit.messageHandlers
+      // on iOS, Java postMessage on Android) and throw on every page load.
+      // Not actionable on our side — we don't ship that code.
+      "window.webkit.messageHandlers",
+      "Java object is gone",
+      "Error invoking postMessage",
+      "sendDataToNative",
+      "sendJsBlockingTimeMessage",
     ],
+
+    // Drop events whose stack trace originates from in-app-browser
+    // injected scripts (Facebook's `iabjs://...` frames, etc.). These
+    // are not part of our bundle and we can't fix them.
+    beforeSend(event, hint) {
+      try {
+        const ex = hint?.originalException as { stack?: string; message?: string } | undefined;
+        const stack = ex?.stack || "";
+        const msg = ex?.message || (event.message ?? "");
+        if (
+          /iabjs:\/\//i.test(stack) ||
+          /navigation_performance_logger/i.test(stack) ||
+          /window\.webkit\.messageHandlers/i.test(msg) ||
+          /Java object is gone/i.test(msg)
+        ) {
+          return null;
+        }
+      } catch {
+        // never let the filter itself break reporting
+      }
+      return event;
+    },
 
     // Capacitor wraps the JS runtime in a WebView — tag the platform
     // so the dashboard can filter "iOS issues" vs "web issues" cleanly.
