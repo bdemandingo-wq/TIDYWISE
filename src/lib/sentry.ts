@@ -89,6 +89,11 @@ export function initSentry(): void {
       // on iOS, Java postMessage on Android) and throw on every page load.
       // Not actionable on our side — we don't ship that code.
       "window.webkit.messageHandlers",
+      // Safari/iOS wording when an in-app browser injects a script that
+      // assumes the native bridge exists. Matches the exact TypeError
+      // value Sentry stores on the event, not just `message`.
+      /undefined is not an object \(evaluating 'window\.webkit/i,
+      /undefined is not an object \(evaluating '.*messageHandlers/i,
       "Java object is gone",
       "Error invoking postMessage",
       "sendDataToNative",
