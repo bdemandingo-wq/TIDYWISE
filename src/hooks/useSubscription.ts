@@ -54,6 +54,7 @@ export interface SubscriptionAccess {
 
 export function useSubscription(): SubscriptionAccess {
   const { user, subscription, loading } = useAuth();
+  const planState = usePlanState();
 
   // On native platforms (iOS/Android), all users get full access.
   // Subscription billing is managed on the web — App Store policy prevents
@@ -71,23 +72,41 @@ export function useSubscription(): SubscriptionAccess {
   //   • running on a native build (paywall doesn't apply there).
   const hasFullAccess = isNativeApp || isFreeAccount || isSubscribed;
 
+  // Tier-aware Pro-feature gate. Even during the 7-day trial, the
+  // user only gets access to the FEATURES of the plan they selected.
+  // Basic-plan users (paid or trialing) must NOT see Pro-only modules
+  // like AI, Campaigns, Reports, Inventory, etc.
+  // Demo accounts and native builds bypass tier gating entirely.
+  const bypassTier = isNativeApp || isFreeAccount || planState.grandfathered;
+  const proOrAbove = bypassTier || (hasFullAccess && (
+    planState.planType === 'pro' ||
+    planState.planType === 'custom' ||
+    planState.planType === 'lifetime' ||
+    planState.planType === 'standard' ||
+    planState.planType === 'enterprise' ||
+    planState.planType === 'trial'
+  ));
+
   return {
     isSubscribed,
     isTrialActive,
     hasFullAccess,
-    // While auth/subscription is still loading we don't know yet — keep
-    // isLoading true so route guards can wait instead of bouncing.
-    isLoading: loading || (!!user && subscription === null && !isFreeAccount && !isNativeApp),
+    // While auth/subscription/plan is still loading we don't know yet —
+    // keep isLoading true so route guards can wait instead of bouncing.
+    isLoading:
+      loading ||
+      planState.loading ||
+      (!!user && subscription === null && !isFreeAccount && !isNativeApp),
 
-    canAccessCampaigns: hasFullAccess,
-    canAccessOpenPhone: hasFullAccess,
-    canAccessAIIntelligence: hasFullAccess,
-    canAccessReports: hasFullAccess,
-    canAccessFinance: hasFullAccess,
-    canAccessClientPortal: hasFullAccess,
-    canAccessInventory: hasFullAccess,
-    canAccessExpenses: hasFullAccess,
-    canAccessBookingPhotos: hasFullAccess,
+    canAccessCampaigns: proOrAbove,
+    canAccessOpenPhone: proOrAbove,
+    canAccessAIIntelligence: proOrAbove,
+    canAccessReports: proOrAbove,
+    canAccessFinance: proOrAbove,
+    canAccessClientPortal: proOrAbove,
+    canAccessInventory: proOrAbove,
+    canAccessExpenses: proOrAbove,
+    canAccessBookingPhotos: proOrAbove,
 
     maxCustomers: hasFullAccess ? Infinity : 5,
   };
