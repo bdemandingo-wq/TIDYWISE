@@ -237,10 +237,13 @@ function InnerCard({
     try {
       await navigator.clipboard.writeText(buildFixPrompt(issue));
       setCopied(true);
-      toast.success('Prompt copied — paste in Lovable', {
+      toast.success('Prompt copied — auto-hides when fixed', {
         duration: 2000,
         style: { background: '#16a34a', color: '#fff', border: '1px solid #15803d' },
       });
+      // Auto-dismiss: assume the user is about to fix it. If it reappears
+      // in Sentry (lastSeen advances past dismissed_at), the card returns.
+      onDismiss(issue);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy prompt');
@@ -266,16 +269,6 @@ function InnerCard({
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDismiss(issue)}
-            title="Mark fixed and hide"
-            className="h-8 gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Mark Fixed</span>
           </Button>
         </div>
       </div>
