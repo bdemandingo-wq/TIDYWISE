@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,12 +15,33 @@ import {
   Loader2,
   Copy,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+const DISMISSED_KEY = 'sentry-dismissed-issues-v1';
+
+function loadDismissed(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDismissed(map: Record<string, string>) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 
 // Raw Sentry issue shape returned by the `sentry-issues` edge function (proxy).
 interface SentryIssue {
@@ -179,16 +200,29 @@ function IssueCard({ issue, border }: { issue: SentryIssue; border: string }) {
   );
 }
 
-function IssueCardWrapper({ issue, border }: { issue: SentryIssue; border: string }) {
-  // Apply the colored left border via a wrapper so dynamic class lookup works.
+function IssueCardWrapper({
+  issue,
+  border,
+  onDismiss,
+}: {
+  issue: SentryIssue;
+  border: string;
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   return (
     <div className={cn('rounded-lg border-l-[6px]', border)} style={{ background: '#1a1a2e' }}>
-      <InnerCard issue={issue} />
+      <InnerCard issue={issue} onDismiss={onDismiss} />
     </div>
   );
 }
 
-function InnerCard({ issue }: { issue: SentryIssue }) {
+function InnerCard({
+  issue,
+  onDismiss,
+}: {
+  issue: SentryIssue;
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   const title = issue.title || issue.culprit || '(untitled issue)';
   const events = Number(issue.count ?? 0);
   const projectLabel = issue.project?.slug || issue.project?.name;
@@ -218,15 +252,27 @@ function InnerCard({ issue }: { issue: SentryIssue }) {
         >
           {truncate(title)}
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleCopy}
-          className="shrink-0 h-8 gap-1.5 text-xs bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
-        >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            className="h-8 gap-1.5 text-xs bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDismiss(issue)}
+            title="Mark fixed and hide"
+            className="h-8 gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mark Fixed</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/60">
@@ -247,7 +293,16 @@ function InnerCard({ issue }: { issue: SentryIssue }) {
   );
 }
 
-function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues: SentryIssue[] }) {
+
+function Section({
+  config,
+  issues,
+  onDismiss,
+}: {
+  config: (typeof SECTIONS)[number];
+  issues: SentryIssue[];
+  onDismiss: (issue: SentryIssue) => void;
+}) {
   const [open, setOpen] = useState(issues.length > 0);
 
   return (
@@ -280,7 +335,12 @@ function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues
             </p>
           ) : (
             issues.map((issue) => (
-              <IssueCardWrapper key={issue.id} issue={issue} border={config.border} />
+              <IssueCardWrapper
+                key={issue.id}
+                issue={issue}
+                border={config.border}
+                onDismiss={onDismiss}
+              />
             ))
           )}
         </div>
@@ -288,6 +348,7 @@ function Section({ config, issues }: { config: (typeof SECTIONS)[number]; issues
     </Collapsible>
   );
 }
+
 
 export function ErrorsIncidentsPanel() {
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
@@ -307,17 +368,57 @@ export function ErrorsIncidentsPanel() {
     refetchOnWindowFocus: false,
   });
 
+  // Local dismissals: keyed by issue id, value = ISO timestamp of dismissal.
+  // If the issue's lastSeen later moves past this timestamp, it reappears.
+  const [dismissed, setDismissed] = useState<Record<string, string>>(() => loadDismissed());
+  useEffect(() => {
+    saveDismissed(dismissed);
+  }, [dismissed]);
+
+  const isDismissed = (issue: SentryIssue): boolean => {
+    const at = dismissed[issue.id];
+    if (!at) return false;
+    if (!issue.lastSeen) return true;
+    return new Date(issue.lastSeen).getTime() <= new Date(at).getTime();
+  };
+
+  const handleDismiss = (issue: SentryIssue) => {
+    const next = { ...dismissed, [issue.id]: new Date().toISOString() };
+    setDismissed(next);
+    toast.success('Marked fixed — removed from dashboard', {
+      duration: 4000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setDismissed((prev) => {
+            const copy = { ...prev };
+            delete copy[issue.id];
+            return copy;
+          });
+        },
+      },
+    });
+  };
+
+  const clearDismissed = () => {
+    setDismissed({});
+    toast.success('Restored all hidden issues');
+  };
+
   const grouped = useMemo(() => {
     const buckets: Record<SeverityKey, SentryIssue[]> = { critical: [], warning: [], info: [] };
     for (const issue of data ?? []) {
       const level = (issue.level ?? 'error').toLowerCase();
       if (level === 'debug') continue;
+      if (isDismissed(issue)) continue;
       buckets[severityFor(level)].push(issue);
     }
     return buckets;
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, dismissed]);
 
   const total = grouped.critical.length + grouped.warning.length + grouped.info.length;
+  const hiddenCount = Object.keys(dismissed).length;
 
   // Silence unused-warning for legacy component kept for diff safety
   void IssueCard;
@@ -327,18 +428,34 @@ export function ErrorsIncidentsPanel() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Errors &amp; Incidents</h2>
-          <p className="text-sm text-slate-500">Unresolved Sentry issues</p>
+          <p className="text-sm text-slate-500">
+            Unresolved Sentry issues
+            {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+          </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="gap-1.5"
-        >
-          <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDismissed}
+              className="gap-1.5 text-slate-600"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Restore hidden
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -373,10 +490,16 @@ export function ErrorsIncidentsPanel() {
       {!isLoading && !isError && total > 0 && (
         <div className="space-y-4">
           {SECTIONS.map((config) => (
-            <Section key={config.key} config={config} issues={grouped[config.key]} />
+            <Section
+              key={config.key}
+              config={config}
+              issues={grouped[config.key]}
+              onDismiss={handleDismiss}
+            />
           ))}
         </div>
       )}
+
 
       {isFetching && !isLoading && (
         <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
