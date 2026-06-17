@@ -103,8 +103,8 @@ export default function LeadsPage() {
 
   const { runSync, isSyncing, flaggedLeadIds } = useLeadSmartSync(organization?.id);
 
-  // Auto-run smart sync when leads load
-  const [hasSynced, setHasSynced] = useState(false);
+  // Auto-run smart sync when leads load (re-runs when the set of converted leads changes)
+  const lastSyncedKeyRef = useRef<string>('');
 
   // Fetch abandoned booking link tracking data — only actual booking links
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
