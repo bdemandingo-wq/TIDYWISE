@@ -104,21 +104,40 @@ export function initSentry(): void {
       "No QueryClient set",
     ],
 
-    // Drop events whose stack trace originates from in-app-browser
-    // injected scripts (Facebook's `iabjs://...` frames, etc.). These
-    // are not part of our bundle and we can't fix them.
+    // Drop events whose stack trace originates from code we don't ship:
+    // browser extensions (chrome-extension://, moz-extension://, …) and
+    // in-app-browser injected scripts (Facebook's `iabjs://…` frames). A
+    // very common one is "Cannot read properties of null (reading 'useRef'
+    // /'useMemo')" — that happens when an extension loads its OWN copy of
+    // React into our page; it is not a bug in our bundle. We only drop when
+    // the originating frames are external, so genuine hook bugs in our own
+    // code (frames on our https origin) still report.
     beforeSend(event, hint) {
       try {
         const ex = hint?.originalException as { stack?: string; message?: string } | undefined;
-        const stack =
-          ex?.stack ||
-          event.exception?.values?.map((v) => v.stacktrace?.frames?.map((f) => f.filename || "").join(" ")).join(" ") ||
-          "";
-        const exceptionValues = event.exception?.values?.map((v) => v.value || "").join(" | ") || "";
+
+        // Every frame filename Sentry parsed for this event — used to tell
+        // whether the error originates in OUR bundle or in code we don't ship.
+        const frameFiles = (event.exception?.values ?? [])
+          .flatMap((v) => v.stacktrace?.frames ?? [])
+          .map((f) => f.filename || "")
+          .join("\n");
+        const stack = ex?.stack || frameFiles || "";
+        const allStacks = `${stack}\n${frameFiles}`;
+
+        // The parsed exception text (e.g. the TypeError value) lives on
+        // event.exception.values[].value, not always on originalException.message.
+        const exceptionValues = (event.exception?.values ?? [])
+          .map((v) => v.value || "")
+          .join(" | ");
         const msg = [ex?.message, event.message, exceptionValues].filter(Boolean).join(" | ");
+
+        // Code we do not ship — extensions + in-app-browser bridges.
+        const EXTERNAL_ORIGIN =
+          /(chrome|moz|safari(?:-web)?|ms-browser)-extension:\/\/|^extensions::|iabjs:\/\/|navigation_performance_logger/im;
+
         if (
-          /iabjs:\/\//i.test(stack) ||
-          /navigation_performance_logger/i.test(stack) ||
+          EXTERNAL_ORIGIN.test(allStacks) ||
           /window\.webkit\.messageHandlers/i.test(msg) ||
           /evaluating '.*messageHandlers/i.test(msg) ||
           /Java object is gone/i.test(msg)
