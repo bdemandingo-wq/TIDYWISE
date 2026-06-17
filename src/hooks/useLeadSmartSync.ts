@@ -105,16 +105,19 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       const now = format(new Date(), 'MMM d, yyyy h:mm a');
 
       for (const lead of convertedLeads) {
-        const customerId = leadCustomerMap.get(lead.id);
+        const customerIdsForLead = leadCustomerMap.get(lead.id) || [];
 
-        if (!customerId) {
+        if (customerIdsForLead.length === 0) {
           // No customer found at all — flag it
           newFlagged.add(lead.id);
           result.flagged.push(lead.id);
           continue;
         }
 
-        const bookings = bookingsByCustomer.get(customerId) || [];
+        // Aggregate bookings across ALL matching (possibly duplicate) customer records
+        const bookings = customerIdsForLead.flatMap(
+          (cid) => bookingsByCustomer.get(cid) || []
+        );
 
         if (bookings.length === 0) {
           // Customer exists but no bookings — flag
