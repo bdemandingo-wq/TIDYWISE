@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
@@ -103,8 +103,8 @@ export default function LeadsPage() {
 
   const { runSync, isSyncing, flaggedLeadIds } = useLeadSmartSync(organization?.id);
 
-  // Auto-run smart sync when leads load
-  const [hasSynced, setHasSynced] = useState(false);
+  // Auto-run smart sync when leads load (re-runs when the set of converted leads changes)
+  const lastSyncedKeyRef = useRef<string>('');
 
   // Fetch abandoned booking link tracking data — only actual booking links
   const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
@@ -141,13 +141,20 @@ export default function LeadsPage() {
     enabled: !!organization?.id,
   });
 
-  // Auto-run smart sync when leads first load
+  // Auto-run smart sync when leads first load, and re-run whenever the set
+  // of converted leads changes (so the flagged badges stay in sync without
+  // requiring a hard refresh after data changes or a code update).
   useEffect(() => {
-    if (leads.length > 0 && !hasSynced && !isLoading) {
-      setHasSynced(true);
-      runSync(leads, true); // silent
-    }
-  }, [leads, hasSynced, isLoading, runSync]);
+    if (isLoading || leads.length === 0) return;
+    const key = leads
+      .filter(l => l.status === 'converted')
+      .map(l => `${l.id}:${l.email}:${l.phone ?? ''}`)
+      .sort()
+      .join('|');
+    if (key === lastSyncedKeyRef.current) return;
+    lastSyncedKeyRef.current = key;
+    runSync(leads, true); // silent
+  }, [leads, isLoading, runSync]);
 
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
