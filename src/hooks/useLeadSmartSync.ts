@@ -49,26 +49,40 @@ export function useLeadSmartSync(organizationId: string | undefined) {
         .select('id, email, phone')
         .eq('organization_id', organizationId);
 
-      const customerMap = new Map<string, string>(); // email/phone -> customer_id
+      // email/phone -> ALL matching customer_ids (handle duplicate customer records)
+      const customerMap = new Map<string, string[]>();
+      const addToMap = (key: string, id: string) => {
+        const existing = customerMap.get(key);
+        if (existing) {
+          if (!existing.includes(id)) existing.push(id);
+        } else {
+          customerMap.set(key, [id]);
+        }
+      };
       (customers || []).forEach(c => {
-        if (c.email) customerMap.set(c.email.toLowerCase(), c.id);
+        if (c.email) addToMap(c.email.toLowerCase(), c.id);
         if (c.phone) {
           const cleanPhone = c.phone.replace(/\D/g, '');
-          if (cleanPhone.length >= 7) customerMap.set(cleanPhone, c.id);
+          if (cleanPhone.length >= 7) addToMap(cleanPhone, c.id);
         }
       });
 
-      // Find customer IDs for converted leads
-      const leadCustomerMap = new Map<string, string | null>(); // lead.id -> customer_id
+      // Find ALL matching customer IDs for each converted lead
+      const leadCustomerMap = new Map<string, string[]>(); // lead.id -> customer_ids[]
       for (const lead of convertedLeads) {
+        const ids = new Set<string>();
         const byEmail = customerMap.get(lead.email.toLowerCase());
-        const byPhone = lead.phone ? customerMap.get(lead.phone.replace(/\D/g, '')) : undefined;
-        leadCustomerMap.set(lead.id, byEmail || byPhone || null);
+        byEmail?.forEach(id => ids.add(id));
+        if (lead.phone) {
+          const byPhone = customerMap.get(lead.phone.replace(/\D/g, ''));
+          byPhone?.forEach(id => ids.add(id));
+        }
+        leadCustomerMap.set(lead.id, [...ids]);
       }
 
       // Get all customer IDs that we found
       const customerIds = [...new Set(
-        [...leadCustomerMap.values()].filter((id): id is string => !!id)
+        [...leadCustomerMap.values()].flat()
       )];
 
       // Fetch bookings for these customers
@@ -91,16 +105,19 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       const now = format(new Date(), 'MMM d, yyyy h:mm a');
 
       for (const lead of convertedLeads) {
-        const customerId = leadCustomerMap.get(lead.id);
+        const customerIdsForLead = leadCustomerMap.get(lead.id) || [];
 
-        if (!customerId) {
+        if (customerIdsForLead.length === 0) {
           // No customer found at all — flag it
           newFlagged.add(lead.id);
           result.flagged.push(lead.id);
           continue;
         }
 
-        const bookings = bookingsByCustomer.get(customerId) || [];
+        // Aggregate bookings across ALL matching (possibly duplicate) customer records
+        const bookings = customerIdsForLead.flatMap(
+          (cid) => bookingsByCustomer.get(cid) || []
+        );
 
         if (bookings.length === 0) {
           // Customer exists but no bookings — flag
