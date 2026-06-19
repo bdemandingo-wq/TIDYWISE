@@ -633,6 +633,31 @@ export default function PlatformAnalyticsPage() {
             </AlertDialogContent>
           </AlertDialog>
 
+          {/* Send resubscribe email confirm dialog */}
+          <AlertDialog open={!!resubTarget} onOpenChange={(o) => !o && setResubTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send resubscribe email?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will email{' '}
+                  <span className="font-medium text-foreground">{resubTarget?.email}</span>{' '}
+                  a Stripe checkout link to restart the TidyWise Pro ($50/mo) subscription.
+                  They&apos;ll need to complete checkout themselves.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={sendingResub}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleSendResubscribeEmail(); }}
+                  disabled={sendingResub}
+                >
+                  {sendingResub ? 'Sending…' : 'Send email'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+
           <TabsContent value="signups">
             <Card>
               <CardHeader className="pb-3">
