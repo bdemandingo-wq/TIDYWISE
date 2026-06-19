@@ -43,6 +43,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const allResults: string[] = [];
+      // Throttle per-org sub-invocations to avoid Supabase edge function rate limits.
+      // Without spacing, iterating many orgs in a tight loop triggers RateLimitError
+      // and silently drops reminders for the orgs hit after the cap.
       for (const org of orgs) {
         try {
           const orgUrl = `${supabaseUrl}/functions/v1/send-booking-reminder`;
@@ -51,13 +54,26 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
             body: JSON.stringify({ organizationId: org.id }),
           });
-          const result = await resp.json();
-          if (result.reminders?.length) {
-            allResults.push(...result.reminders);
+          if (resp.status === 429) {
+            const retryAfter = parseInt(resp.headers.get("retry-after") || "15", 10);
+            console.warn(`[send-booking-reminder] 429 for org ${org.id}; backing off ${retryAfter}s`);
+            await new Promise((r) => setTimeout(r, retryAfter * 1000));
+            const retry = await fetch(orgUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
+              body: JSON.stringify({ organizationId: org.id }),
+            });
+            const retryResult = await retry.json().catch(() => ({} as any));
+            if (retryResult.reminders?.length) allResults.push(...retryResult.reminders);
+          } else {
+            const result = await resp.json().catch(() => ({} as any));
+            if (result.reminders?.length) allResults.push(...result.reminders);
           }
         } catch (e) {
           console.error(`[send-booking-reminder] Error for org ${org.id}:`, e);
         }
+        // Space requests ~400ms apart to stay under per-function invocation limits
+        await new Promise((r) => setTimeout(r, 400));
       }
 
       return new Response(JSON.stringify({ success: true, message: `Cron complete: ${allResults.length} reminders`, reminders: allResults }), {
