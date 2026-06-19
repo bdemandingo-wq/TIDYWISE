@@ -125,6 +125,26 @@ export default function PlatformAnalyticsPage() {
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
   const [cancelImmediate, setCancelImmediate] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
+  const [sendingResub, setSendingResub] = useState(false);
+
+  const handleSendResubscribeEmail = async () => {
+    if (!resubTarget) return;
+    setSendingResub(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-send-resubscribe-email', {
+        body: { customerEmail: resubTarget.email },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Resubscribe email sent to ${resubTarget.email}`);
+      setResubTarget(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send resubscribe email');
+    } finally {
+      setSendingResub(false);
+    }
+  };
   const [selectedSignups, setSelectedSignups] = useState<Set<string>>(new Set());
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
