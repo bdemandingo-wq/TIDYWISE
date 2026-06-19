@@ -262,8 +262,9 @@ export function BookingFormProvider({
   const [cleanerWage, setCleanerWage] = useState('');
   const [cleanerWageType, setCleanerWageType] = useState('hourly');
   const [cleanerOverrideHours, setCleanerOverrideHours] = useState('');
-  const [sendConfirmationEmail, setSendConfirmationEmail] = useState(false);
-  const [sendConfirmationSms, setSendConfirmationSms] = useState(false);
+  // Default ON so confirmation email + SMS auto-fire on booking create
+  const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true);
+  const [sendConfirmationSms, setSendConfirmationSms] = useState(true);
   const [sendQuoteSms, setSendQuoteSms] = useState(false);
   const [sendQuoteEmail, setSendQuoteEmail] = useState(false);
   
