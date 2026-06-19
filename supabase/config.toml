@@ -175,6 +175,8 @@ verify_jwt = true
     verify_jwt = false
   [functions.gmail-disconnect]
     verify_jwt = false
+  [functions.address-autocomplete]
+    verify_jwt = false
 
   [functions.get-portal-photo-journal]
     verify_jwt = false
