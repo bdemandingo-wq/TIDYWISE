@@ -30,6 +30,7 @@ async function fetchBusinessContext(supabaseAdmin: any, orgId: string) {
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
 
