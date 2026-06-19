@@ -182,17 +182,40 @@ export function AIAnalysisCenter() {
     queryKey: ['ai-churn', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data: customers } = await supabase.from('customers').select('id, first_name, last_name, email, phone').eq('organization_id', orgId);
+      const nowIso = now.toISOString();
+      // Batched to avoid an N+1 (previously one bookings query + one services
+      // query PER customer). Fetch customers and their PAST bookings together,
+      // newest first. Only bookings on/before today count — a future or
+      // recurring visit must NOT be treated as the "last visit", otherwise
+      // active customers can never register as churn risk.
+      const [{ data: customers }, { data: pastBookings }] = await Promise.all([
+        supabase.from('customers').select('id, first_name, last_name, email, phone').eq('organization_id', orgId),
+        supabase.from('bookings').select('customer_id, scheduled_at, service_id').eq('organization_id', orgId).lte('scheduled_at', nowIso).order('scheduled_at', { ascending: false }).limit(2000),
+      ]);
       if (!customers?.length) return [];
+
+      // First row per customer is their most recent past booking (desc order).
+      const lastByCustomer = new Map<string, { scheduled_at: string; service_id: string | null }>();
+      for (const b of pastBookings || []) {
+        if (!lastByCustomer.has(b.customer_id)) {
+          lastByCustomer.set(b.customer_id, { scheduled_at: b.scheduled_at, service_id: b.service_id });
+        }
+      }
+
+      // Resolve service names in a single query rather than one per customer.
+      const serviceIds = [...new Set([...lastByCustomer.values()].map(v => v.service_id).filter(Boolean) as string[])];
+      const { data: services } = serviceIds.length
+        ? await supabase.from('services').select('id, name').in('id', serviceIds)
+        : { data: [] as { id: string; name: string }[] };
+      const serviceName = new Map((services || []).map(s => [s.id, s.name]));
+
       const results: any[] = [];
       for (const c of customers) {
-        const { data: lastBooking } = await supabase.from('bookings').select('scheduled_at, service_id').eq('customer_id', c.id).eq('organization_id', orgId).order('scheduled_at', { ascending: false }).limit(1);
-        if (lastBooking?.length) {
-          const days = differenceInDays(now, new Date(lastBooking[0].scheduled_at));
-          if (days > 30) {
-            const { data: svc } = lastBooking[0].service_id ? await supabase.from('services').select('name').eq('id', lastBooking[0].service_id).single() : { data: null };
-            results.push({ ...c, daysSince: days, serviceName: svc?.name || 'General Cleaning' });
-          }
+        const last = lastByCustomer.get(c.id);
+        if (!last) continue;
+        const days = differenceInDays(now, new Date(last.scheduled_at));
+        if (days > 30) {
+          results.push({ ...c, daysSince: days, serviceName: serviceName.get(last.service_id || '') || 'General Cleaning' });
         }
       }
       return results.sort((a, b) => b.daysSince - a.daysSince).slice(0, 10);
