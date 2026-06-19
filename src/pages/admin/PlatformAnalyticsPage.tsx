@@ -125,6 +125,26 @@ export default function PlatformAnalyticsPage() {
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
   const [cancelImmediate, setCancelImmediate] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
+  const [sendingResub, setSendingResub] = useState(false);
+
+  const handleSendResubscribeEmail = async () => {
+    if (!resubTarget) return;
+    setSendingResub(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-send-resubscribe-email', {
+        body: { customerEmail: resubTarget.email },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Resubscribe email sent to ${resubTarget.email}`);
+      setResubTarget(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send resubscribe email');
+    } finally {
+      setSendingResub(false);
+    }
+  };
   const [selectedSignups, setSelectedSignups] = useState<Set<string>>(new Set());
   const [selectedOrgs, setSelectedOrgs] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -549,13 +569,22 @@ export default function PlatformAnalyticsPage() {
                                 >
                                   {subscriber.subscriptionStatus}
                                 </Badge>
-                                {canCancel && (
+                                {canCancel ? (
                                   <Button
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => { setCancelImmediate(false); setCancelTarget(subscriber); }}
                                   >
                                     Cancel
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setResubTarget(subscriber)}
+                                  >
+                                    <Mail className="w-3.5 h-3.5 mr-1.5" />
+                                    Send resubscribe email
                                   </Button>
                                 )}
                               </div>
@@ -603,6 +632,31 @@ export default function PlatformAnalyticsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Send resubscribe email confirm dialog */}
+          <AlertDialog open={!!resubTarget} onOpenChange={(o) => !o && setResubTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send resubscribe email?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will email{' '}
+                  <span className="font-medium text-foreground">{resubTarget?.email}</span>{' '}
+                  a Stripe checkout link to restart the TidyWise Pro ($50/mo) subscription.
+                  They&apos;ll need to complete checkout themselves.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={sendingResub}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleSendResubscribeEmail(); }}
+                  disabled={sendingResub}
+                >
+                  {sendingResub ? 'Sending…' : 'Send email'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
 
           <TabsContent value="signups">
             <Card>
