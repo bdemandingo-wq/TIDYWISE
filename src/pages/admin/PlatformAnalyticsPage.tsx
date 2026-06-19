@@ -569,13 +569,22 @@ export default function PlatformAnalyticsPage() {
                                 >
                                   {subscriber.subscriptionStatus}
                                 </Badge>
-                                {canCancel && (
+                                {canCancel ? (
                                   <Button
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => { setCancelImmediate(false); setCancelTarget(subscriber); }}
                                   >
                                     Cancel
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setResubTarget(subscriber)}
+                                  >
+                                    <Mail className="w-3.5 h-3.5 mr-1.5" />
+                                    Send resubscribe email
                                   </Button>
                                 )}
                               </div>
