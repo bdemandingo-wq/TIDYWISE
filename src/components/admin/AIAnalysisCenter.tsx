@@ -194,16 +194,20 @@ export function AIAnalysisCenter() {
       ]);
       if (!customers?.length) return [];
 
-      // First row per customer is their most recent past booking (desc order).
-      const lastByCustomer = new Map<string, { scheduled_at: string; service_id: string | null }>();
+      // Group every past booking per customer (desc order preserved, so the
+      // first entry is the most recent visit and its service).
+      const byCustomer = new Map<string, { dates: Date[]; latestServiceId: string | null }>();
       for (const b of pastBookings || []) {
-        if (!lastByCustomer.has(b.customer_id)) {
-          lastByCustomer.set(b.customer_id, { scheduled_at: b.scheduled_at, service_id: b.service_id });
+        const entry = byCustomer.get(b.customer_id);
+        if (entry) {
+          entry.dates.push(new Date(b.scheduled_at));
+        } else {
+          byCustomer.set(b.customer_id, { dates: [new Date(b.scheduled_at)], latestServiceId: b.service_id });
         }
       }
 
       // Resolve service names in a single query rather than one per customer.
-      const serviceIds = [...new Set([...lastByCustomer.values()].map(v => v.service_id).filter(Boolean) as string[])];
+      const serviceIds = [...new Set([...byCustomer.values()].map(v => v.latestServiceId).filter(Boolean) as string[])];
       const { data: services } = serviceIds.length
         ? await supabase.from('services').select('id, name').in('id', serviceIds)
         : { data: [] as { id: string; name: string }[] };
@@ -211,11 +215,28 @@ export function AIAnalysisCenter() {
 
       const results: any[] = [];
       for (const c of customers) {
-        const last = lastByCustomer.get(c.id);
-        if (!last) continue;
-        const days = differenceInDays(now, new Date(last.scheduled_at));
-        if (days > 30) {
-          results.push({ ...c, daysSince: days, serviceName: serviceName.get(last.service_id || '') || 'General Cleaning' });
+        const entry = byCustomer.get(c.id);
+        if (!entry) continue;
+        const daysSince = differenceInDays(now, entry.dates[0]);
+
+        // Cadence-aware threshold: a customer is "overdue" at 1.5x their own
+        // typical gap between visits — so a weekly customer flags fast while a
+        // quarterly one isn't a false positive. Needs >=3 visits (>=2 gaps) for
+        // a stable median; otherwise fall back to a flat 30 days. Floored at 30
+        // so frequent customers aren't flagged after a single missed week.
+        let threshold = 30;
+        if (entry.dates.length >= 3) {
+          const gaps: number[] = [];
+          for (let i = 0; i < entry.dates.length - 1; i++) {
+            gaps.push(differenceInDays(entry.dates[i], entry.dates[i + 1]));
+          }
+          gaps.sort((a, b) => a - b);
+          const medianGap = gaps[Math.floor(gaps.length / 2)];
+          threshold = Math.max(30, Math.round(medianGap * 1.5));
+        }
+
+        if (daysSince > threshold) {
+          results.push({ ...c, daysSince, serviceName: serviceName.get(entry.latestServiceId || '') || 'General Cleaning' });
         }
       }
       return results.sort((a, b) => b.daysSince - a.daysSince).slice(0, 10);
