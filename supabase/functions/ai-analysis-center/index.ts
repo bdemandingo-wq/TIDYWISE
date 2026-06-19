@@ -46,7 +46,7 @@ async function fetchBusinessContext(supabaseAdmin: any, orgId: string) {
     staff,
   ] = await Promise.all([
     supabaseAdmin.from("bookings").select("id, total_amount, scheduled_at, status, service_id, staff_id, customer_id, duration").eq("organization_id", orgId).gte("scheduled_at", ninetyDaysAgo).order("scheduled_at", { ascending: false }),
-    supabaseAdmin.from("bookings").select("total_amount, status").eq("organization_id", orgId).gte("scheduled_at", monthStart).in("status", ["confirmed", "completed"]),
+    supabaseAdmin.from("bookings").select("total_amount, status").eq("organization_id", orgId).gte("scheduled_at", monthStart).lte("scheduled_at", monthEnd).in("status", ["confirmed", "completed"]),
     supabaseAdmin.from("bookings").select("total_amount, status").eq("organization_id", orgId).gte("scheduled_at", prevMonthStart).lte("scheduled_at", prevMonthEnd).in("status", ["confirmed", "completed"]),
     supabaseAdmin.from("bookings").select("id, scheduled_at, customer_id, booking_number, status").eq("organization_id", orgId).in("status", ["cancelled", "no_show"]).gte("scheduled_at", ninetyDaysAgo),
     supabaseAdmin.from("customers").select("id, first_name, last_name, email, phone").eq("organization_id", orgId),
