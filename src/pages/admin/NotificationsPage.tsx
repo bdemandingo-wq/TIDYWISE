@@ -73,8 +73,19 @@ export default function NotificationsPage() {
     load();
   }, [organization?.id]);
 
-  const handleToggle = (key: keyof NotificationSettings) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleToggle = async (key: keyof NotificationSettings) => {
+    const next = { ...settings, [key]: !settings[key] };
+    setSettings(next);
+    if (!organization?.id) return;
+    const { error } = await supabase
+      .from('business_settings')
+      .update({ [key]: next[key] } as any)
+      .eq('organization_id', organization.id);
+    if (error) {
+      // revert on failure
+      setSettings(settings);
+      toast.error('Failed to update setting');
+    }
   };
 
   const handleSave = async () => {
