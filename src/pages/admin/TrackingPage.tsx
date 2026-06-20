@@ -209,15 +209,22 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
             <Clock className="h-3 w-3" />
             <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
           </div>
-          {eta && (
+          {eta && !isStale && (
             <span className="font-medium text-primary">
               {eta.distanceMiles} mi · ETA ~{eta.durationMinutes} min (driving)
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
-        </p>
+        {isStale ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Last seen {timeAgo < 1 ? 'less than a min' : `${timeAgo} min`} ago — cleaner's app may be in the background
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
+          </p>
+        )}
+
       </CardContent>
     </Card>
   );
