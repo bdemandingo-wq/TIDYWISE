@@ -7,8 +7,6 @@ import { Loader2, MapPin } from 'lucide-react';
 import { useBookingForm } from '../BookingFormContext';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Suggestion {
-
 function detectRegionCode(): string | undefined {
   const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
   for (const loc of locales) {
@@ -18,6 +16,7 @@ function detectRegionCode(): string | undefined {
   return undefined;
 }
 
+interface Suggestion {
   placeId: string;
   text: string;
   mainText: string;
