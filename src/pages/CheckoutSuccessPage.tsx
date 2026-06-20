@@ -84,11 +84,14 @@ export default function CheckoutSuccessPage() {
         /* no-op */
       }
     }
-    // Belt-and-suspenders: drop the grace flag after 30s no matter
-    // what, so a stuck state can't permanently hide the paywall.
+    // Belt-and-suspenders: drop the grace flag after 120s no matter
+    // what, so a stuck state can't permanently hide the paywall. The
+    // window is intentionally long enough to cover Stripe webhook
+    // delivery + our retry storms (lifetime purchases especially need
+    // time for the webhook to flip plan_type → 'lifetime').
     const graceTimer = window.setTimeout(() => {
       try { sessionStorage.removeItem('tw_post_checkout'); } catch { /* no-op */ }
-    }, 30000);
+    }, 120000);
     return () => window.clearTimeout(graceTimer);
   }, [plan, interval]);
 
@@ -97,11 +100,12 @@ export default function CheckoutSuccessPage() {
   // first paint (Supabase is processing the magic-link hash) and
   // becomes truthy ~50ms later. Old behavior (deps:[]) ran the poll
   // ONCE on mount and never again — user got stuck on "Check your
-  // email" forever.
+  // email" forever. Extended schedule covers slow webhook delivery
+  // (some Stripe events arrive 20-40s after the redirect).
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    const delays = [0, 1500, 4000, 8000];
+    const delays = [0, 1500, 4000, 8000, 15000, 30000, 60000, 90000];
     const timers = delays.map((ms) =>
       window.setTimeout(() => {
         if (cancelled) return;
