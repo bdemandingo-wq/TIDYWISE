@@ -305,7 +305,16 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival]);
+  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival, startWatch, acquireWakeLock]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && isTracking) void acquireWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [isTracking, acquireWakeLock]);
+
 
   // Cleanup on unmount AND on page-close. Previously only the interval was
   // cleared, which orphaned the cleaner_location_tracking row with
