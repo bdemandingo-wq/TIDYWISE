@@ -96,6 +96,7 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<{ durationMinutes: number; distanceMiles: number } | null>(null);
+  const [, setTick] = useState(0);
   // Supabase joins surface as either an object or a 1-element array depending
   // on the relation type — the original code did `array[0]` but Array.isArray
   // is true for empty arrays too (e.g. left-joins with no match), so [0] was
@@ -107,7 +108,16 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
 
   const addr = booking ? [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') : '';
   const startedAt = new Date(tracking.created_at);
-  const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
+  const ageSec = (Date.now() - new Date(tracking.recorded_at).getTime()) / 1000;
+  const isStale = ageSec > 90;
+  const timeAgo = Math.round(ageSec / 60);
+
+  // Tick every 30s so staleness / "X min ago" stays current.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
 
   // Geocode + ETA
   useEffect(() => {
@@ -157,16 +167,23 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {eta && (
+            {eta && !isStale && (
               <Badge variant="secondary" className="text-xs">
                 ~{eta.durationMinutes} min
               </Badge>
             )}
-            <Badge variant="default" className="text-xs">
-              <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
-              En Route
-            </Badge>
+            {isStale ? (
+              <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                Paused
+              </Badge>
+            ) : (
+              <Badge variant="default" className="text-xs">
+                <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
+                En Route
+              </Badge>
+            )}
           </div>
+
         </div>
 
         {service && (
@@ -192,15 +209,22 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
             <Clock className="h-3 w-3" />
             <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
           </div>
-          {eta && (
+          {eta && !isStale && (
             <span className="font-medium text-primary">
               {eta.distanceMiles} mi · ETA ~{eta.durationMinutes} min (driving)
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
-        </p>
+        {isStale ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Last seen {timeAgo < 1 ? 'less than a min' : `${timeAgo} min`} ago — cleaner's app may be in the background
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
+          </p>
+        )}
+
       </CardContent>
     </Card>
   );

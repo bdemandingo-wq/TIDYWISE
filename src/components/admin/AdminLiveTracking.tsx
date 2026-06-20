@@ -77,7 +77,15 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
+  const [, setTick] = useState(0);
   const orgTimezone = useOrgTimezone();
+
+  // Tick every 30s so "X min ago" / stale state updates without new GPS.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
 
   const isCompleted = bookingStatus === 'completed';
 
@@ -192,7 +200,9 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
 
   // GPS-based live tracking with map
   if (tracking) {
-    const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
+    const ageSec = (Date.now() - new Date(tracking.recorded_at).getTime()) / 1000;
+    const isStale = ageSec > 90;
+    const timeAgo = Math.round(ageSec / 60);
     const startedAtLabel = formatInTimezone(tracking.created_at, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true });
 
     return (
@@ -202,10 +212,16 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
             <Navigation className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">Live Tracking</span>
           </div>
-          <Badge variant="default" className="text-xs">
-            <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
-            En Route
-          </Badge>
+          {isStale ? (
+            <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+              Paused
+            </Badge>
+          ) : (
+            <Badge variant="default" className="text-xs">
+              <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
+              En Route
+            </Badge>
+          )}
         </div>
 
         <MiniMap
@@ -220,7 +236,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
             <Clock className="h-3 w-3" />
             <span>On the way since {startedAtLabel}</span>
           </div>
-          {drivingEta && (
+          {drivingEta && !isStale && (
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
               <span className="font-medium text-primary">
@@ -230,12 +246,19 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
-        </p>
+        {isStale ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Last seen {timeAgo < 1 ? 'less than a min' : `${timeAgo} min`} ago — cleaner's app may be in the background
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Updated {timeAgo < 1 ? 'just now' : `${timeAgo} min ago`}
+          </p>
+        )}
       </div>
     );
   }
+
 
   // Fallback: "on the way" status from SMS log (no GPS)
   if (onTheWay) {

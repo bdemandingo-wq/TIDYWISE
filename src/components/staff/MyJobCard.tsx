@@ -464,7 +464,14 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           </div>
         )}
 
+        {isTracking && (
+          <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs text-blue-800 dark:text-blue-200">
+            📍 Sharing your live location — keep this screen open so the client can see you on the way.
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 pt-2">
+
           {/* On The Way Button - only show for confirmed jobs */}
           {booking.status === 'confirmed' && booking.customer?.phone && (
             <Button

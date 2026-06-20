@@ -85,7 +85,19 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
   const trackingIdRef = useRef<string | null>(null);
   const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrivedRef = useRef<boolean>(false);
+  const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  const lastWriteRef = useRef<number>(0);
   const [isTracking, setIsTracking] = useState(false);
+
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (e) { console.warn('[GPS] wake lock failed', e); }
+  }, []);
+
 
   const stopTracking = useCallback(async () => {
     if (intervalRef.current) {
@@ -99,9 +111,13 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         .eq('id', trackingIdRef.current);
       trackingIdRef.current = null;
     }
+    if (watchIdRef.current !== null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
+    if (wakeLockRef.current) { try { await wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
     arrivedRef.current = false;
     setIsTracking(false);
   }, []);
+
+
 
   const checkArrival = useCallback(async (lat: number, lng: number) => {
     if (arrivedRef.current || !destCoordsRef.current) return;
@@ -143,6 +159,30 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       console.warn('[GPS] Periodic update failed:', err);
     }
   }, [checkArrival]);
+
+  const startWatch = useCallback(() => {
+    if (navigator.geolocation?.watchPosition) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (!trackingIdRef.current) return;
+          const now = Date.now();
+          if (now - lastWriteRef.current < 8000) return;
+          lastWriteRef.current = now;
+          const { latitude, longitude } = pos.coords;
+          void supabase.from('cleaner_location_tracking')
+            .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
+            .eq('id', trackingIdRef.current);
+          checkArrival(latitude, longitude);
+        },
+        (err) => console.warn('[GPS] watch error', err?.code, err?.message),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      );
+    } else {
+      intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+    }
+  }, [checkArrival, updatePosition]);
+
+
 
 
   const startTracking = useCallback(async (): Promise<{
@@ -203,8 +243,10 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
             }
 
             checkArrival(latitude, longitude);
-            intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+            startWatch();
+            void acquireWakeLock();
             setIsTracking(true);
+
 
 
             return {
@@ -236,8 +278,10 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
 
       checkArrival(latitude, longitude);
-      intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+      startWatch();
+      void acquireWakeLock();
       setIsTracking(true);
+
 
 
       return {
@@ -261,7 +305,16 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival]);
+  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival, startWatch, acquireWakeLock]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && isTracking) void acquireWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [isTracking, acquireWakeLock]);
+
 
   // Cleanup on unmount AND on page-close. Previously only the interval was
   // cleared, which orphaned the cleaner_location_tracking row with
