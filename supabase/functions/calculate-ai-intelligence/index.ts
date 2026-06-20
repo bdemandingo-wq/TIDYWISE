@@ -56,6 +56,15 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("organization_id is required");
     }
 
+    // Require service-role caller (internal cron) OR authenticated org member
+    const access = await verifyOrgAccess(req, organization_id);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log(`[calculate-ai-intelligence] Starting ${calculation_type} calculation for org: ${organization_id}`);
 
     // Log the calculation job
