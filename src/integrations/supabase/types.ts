@@ -6787,6 +6787,7 @@ export type Database = {
           google_review_url: string | null
           id: string
           opened_at: string | null
+          organization_id: string | null
           platform: string | null
           rating: number | null
           responded_at: string | null
@@ -6803,6 +6804,7 @@ export type Database = {
           google_review_url?: string | null
           id?: string
           opened_at?: string | null
+          organization_id?: string | null
           platform?: string | null
           rating?: number | null
           responded_at?: string | null
@@ -6819,6 +6821,7 @@ export type Database = {
           google_review_url?: string | null
           id?: string
           opened_at?: string | null
+          organization_id?: string | null
           platform?: string | null
           rating?: number | null
           responded_at?: string | null
