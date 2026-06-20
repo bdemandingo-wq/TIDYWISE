@@ -65,6 +65,22 @@ export function AdminRoute({ children }: AdminRouteProps) {
   // ── PAYWALL GATE ────────────────────────────────────────────────────────
   // Compute BEFORE any early returns so hook order stays stable across
   // renders (otherwise React error #310 — hooks called conditionally).
+  //
+  // Post-checkout grace window: when the user just completed Stripe
+  // Checkout, `tw_post_checkout` is set for ~2 minutes. During that
+  // window we suppress the paywall redirect entirely because the
+  // webhook (which flips plan_type → 'lifetime' / inserts the
+  // subscription row) can race the redirect by several seconds. Without
+  // this guard, lifetime buyers land on /dashboard and get bounced
+  // straight back to /pricing before check-subscription has caught up
+  // — exactly the complaint in the forwarded support email.
+  const inPostCheckoutGrace = (() => {
+    try {
+      return typeof window !== 'undefined' &&
+        window.sessionStorage?.getItem('tw_post_checkout') === '1';
+    } catch { return false; }
+  })();
+
   const needsPaywallRedirect =
     !!user &&
     !!organization &&
@@ -72,6 +88,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
     !Capacitor.isNativePlatform() &&
     !subLoading &&
     !hasFullAccess &&
+    !inPostCheckoutGrace &&
     !PAYWALL_ALLOWED_PATHS.some(
       (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
     );
