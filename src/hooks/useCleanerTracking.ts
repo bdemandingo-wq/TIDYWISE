@@ -117,8 +117,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     setIsTracking(false);
   }, []);
 
-    setIsTracking(false);
-  }, []);
+
 
   const checkArrival = useCallback(async (lat: number, lng: number) => {
     if (arrivedRef.current || !destCoordsRef.current) return;
