@@ -7,6 +7,15 @@ import { Loader2, MapPin } from 'lucide-react';
 import { useBookingForm } from '../BookingFormContext';
 import { supabase } from '@/integrations/supabase/client';
 
+function detectRegionCode(): string | undefined {
+  const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const loc of locales) {
+    const region = loc?.split('-')[1];
+    if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
+  }
+  return undefined;
+}
+
 interface Suggestion {
   placeId: string;
   text: string;
@@ -37,6 +46,7 @@ export function PropertyStep() {
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [skipNextFetch, setSkipNextFetch] = useState(false);
   const sessionTokenRef = useRef<string>(crypto.randomUUID());
+  const regionCodeRef = useRef<string | undefined>(detectRegionCode());
   const debounceRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +70,7 @@ export function PropertyStep() {
             action: 'suggest',
             input: q,
             sessionToken: sessionTokenRef.current,
+            regionCode: regionCodeRef.current,
           },
         });
         if (error) throw error;
