@@ -44,6 +44,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Require service-role caller (internal edge fn) OR authenticated org member
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!to || !message) {
       console.error("[send-openphone-sms] Missing required fields: to or message");
       return new Response(
