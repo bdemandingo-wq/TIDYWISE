@@ -142,11 +142,16 @@ serve(async (req: Request) => {
 
     // Build a map of staff -> booked time ranges (in org timezone minutes)
     const staffBookedRanges = new Map<string, Array<{ start: number; end: number }>>();
+    // Global booked ranges: bookings with no assignable staff still consume org capacity
+    const globalBookedRanges: Array<{ start: number; end: number }> = [];
 
     for (const booking of (existingBookings || [])) {
       const bookingTime = getTimeInTimezoneMinutes(booking.scheduled_at, orgTimezone);
       const bookingEnd = bookingTime + (booking.duration || 120) + bufferMinutes;
       const range = { start: bookingTime, end: bookingEnd };
+
+      // Always count toward global capacity
+      globalBookedRanges.push(range);
 
       // Assign to primary staff
       if (booking.staff_id) {
@@ -157,7 +162,6 @@ serve(async (req: Request) => {
 
     // Also assign team members
     for (const ta of teamAssignments) {
-      // Find the booking for this team assignment
       const booking = (existingBookings || []).find((b: any) => b.id === ta.booking_id);
       if (booking && ta.staff_id) {
         const bookingTime = getTimeInTimezoneMinutes(booking.scheduled_at, orgTimezone);
@@ -166,6 +170,9 @@ serve(async (req: Request) => {
         staffBookedRanges.get(ta.staff_id)!.push({ start: bookingTime, end: bookingEnd });
       }
     }
+
+    // Total active staff count = max concurrent jobs the org can take
+    const totalStaffCapacity = staffIds.length;
 
     // 8. Generate 30-minute slots and check availability
     const now = new Date();
@@ -181,6 +188,13 @@ serve(async (req: Request) => {
 
       // Check minimum notice
       if (isToday && slotMin <= nowInOrgTZ + (minimumNoticeHours * 60)) {
+        slots.push({ time: timeStr, available: false });
+        continue;
+      }
+
+      // Global capacity check: if concurrent bookings >= total staff, block the slot
+      const overlappingBookings = globalBookedRanges.filter(r => slotMin < r.end && slotEnd > r.start).length;
+      if (overlappingBookings >= totalStaffCapacity) {
         slots.push({ time: timeStr, available: false });
         continue;
       }
@@ -209,6 +223,7 @@ serve(async (req: Request) => {
 
       slots.push({ time: timeStr, available: anyStaffAvailable });
     }
+
 
     return new Response(
       JSON.stringify({ slots, timezone: orgTimezone }),
