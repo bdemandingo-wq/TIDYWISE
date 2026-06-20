@@ -243,8 +243,10 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
             }
 
             checkArrival(latitude, longitude);
-            intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+            startWatch();
+            void acquireWakeLock();
             setIsTracking(true);
+
 
 
             return {
