@@ -70,6 +70,7 @@ export function PropertyStep() {
             action: 'suggest',
             input: q,
             sessionToken: sessionTokenRef.current,
+            regionCode: regionCodeRef.current,
           },
         });
         if (error) throw error;
