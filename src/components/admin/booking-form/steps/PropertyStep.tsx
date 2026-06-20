@@ -46,6 +46,7 @@ export function PropertyStep() {
   const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [skipNextFetch, setSkipNextFetch] = useState(false);
   const sessionTokenRef = useRef<string>(crypto.randomUUID());
+  const regionCodeRef = useRef<string | undefined>(detectRegionCode());
   const debounceRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
