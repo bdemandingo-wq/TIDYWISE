@@ -96,6 +96,7 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<{ durationMinutes: number; distanceMiles: number } | null>(null);
+  const [, setTick] = useState(0);
   // Supabase joins surface as either an object or a 1-element array depending
   // on the relation type — the original code did `array[0]` but Array.isArray
   // is true for empty arrays too (e.g. left-joins with no match), so [0] was
@@ -107,7 +108,16 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
 
   const addr = booking ? [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ') : '';
   const startedAt = new Date(tracking.created_at);
-  const timeAgo = Math.round((Date.now() - new Date(tracking.recorded_at).getTime()) / 60000);
+  const ageSec = (Date.now() - new Date(tracking.recorded_at).getTime()) / 1000;
+  const isStale = ageSec > 90;
+  const timeAgo = Math.round(ageSec / 60);
+
+  // Tick every 30s so staleness / "X min ago" stays current.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
 
   // Geocode + ETA
   useEffect(() => {
