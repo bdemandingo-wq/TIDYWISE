@@ -111,7 +111,12 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         .eq('id', trackingIdRef.current);
       trackingIdRef.current = null;
     }
+    if (watchIdRef.current !== null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
+    if (wakeLockRef.current) { try { await wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
     arrivedRef.current = false;
+    setIsTracking(false);
+  }, []);
+
     setIsTracking(false);
   }, []);
 
