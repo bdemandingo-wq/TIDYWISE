@@ -234,17 +234,19 @@ const handler = async (req: Request): Promise<Response> => {
       const slotStartMs = slotStart.getTime();
       const slotEndMs = slotEnd.getTime();
 
-      const busyStaff = new Set<string>();
+      // Count ALL overlapping bookings — assigned or not — since each one
+      // consumes a unit of org capacity. Mirrors check-availability so the
+      // submit guard matches what the customer was shown.
+      let overlappingCount = 0;
       for (const cb of (conflictingBookings || [])) {
         const cbStart = new Date(cb.scheduled_at).getTime();
         const cbEnd = cbStart + ((cb.duration || 120) + bufferMinutes) * 60000;
         if (slotStartMs < cbEnd && slotEndMs > cbStart) {
-          if (cb.staff_id) busyStaff.add(cb.staff_id);
+          overlappingCount++;
         }
       }
 
-      const availableStaff = staffIds.filter(id => !busyStaff.has(id));
-      if (staffIds.length > 0 && availableStaff.length === 0) {
+      if (staffIds.length > 0 && overlappingCount >= staffIds.length) {
         console.log("[external-booking-webhook] Slot conflict detected, no available staff");
         return new Response(
           JSON.stringify({ 
