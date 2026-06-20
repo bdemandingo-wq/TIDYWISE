@@ -167,16 +167,23 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {eta && (
+            {eta && !isStale && (
               <Badge variant="secondary" className="text-xs">
                 ~{eta.durationMinutes} min
               </Badge>
             )}
-            <Badge variant="default" className="text-xs">
-              <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
-              En Route
-            </Badge>
+            {isStale ? (
+              <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                Paused
+              </Badge>
+            ) : (
+              <Badge variant="default" className="text-xs">
+                <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse mr-1" />
+                En Route
+              </Badge>
+            )}
           </div>
+
         </div>
 
         {service && (
