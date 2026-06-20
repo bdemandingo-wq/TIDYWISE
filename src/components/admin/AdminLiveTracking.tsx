@@ -77,7 +77,15 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
+  const [, setTick] = useState(0);
   const orgTimezone = useOrgTimezone();
+
+  // Tick every 30s so "X min ago" / stale state updates without new GPS.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
 
   const isCompleted = bookingStatus === 'completed';
 
