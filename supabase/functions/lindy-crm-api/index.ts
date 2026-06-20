@@ -931,13 +931,17 @@ serve(async (req) => {
         if (!phone_number || !message) throw new Error("Missing phone_number or message");
 
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const response = await fetch(`${supabaseUrl}/functions/v1/send-openphone-sms`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
           body: JSON.stringify({
             to: phone_number,
             message: String(message).slice(0, 1600),
-            organization_id,
+            organizationId: organization_id,
           }),
         });
 
