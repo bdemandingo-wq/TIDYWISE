@@ -85,7 +85,19 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
   const trackingIdRef = useRef<string | null>(null);
   const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrivedRef = useRef<boolean>(false);
+  const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  const lastWriteRef = useRef<number>(0);
   const [isTracking, setIsTracking] = useState(false);
+
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (e) { console.warn('[GPS] wake lock failed', e); }
+  }, []);
+
 
   const stopTracking = useCallback(async () => {
     if (intervalRef.current) {
