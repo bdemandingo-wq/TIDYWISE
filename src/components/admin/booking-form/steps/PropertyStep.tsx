@@ -8,6 +8,16 @@ import { useBookingForm } from '../BookingFormContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Suggestion {
+
+function detectRegionCode(): string | undefined {
+  const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const loc of locales) {
+    const region = loc?.split('-')[1];
+    if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
+  }
+  return undefined;
+}
+
   placeId: string;
   text: string;
   mainText: string;
