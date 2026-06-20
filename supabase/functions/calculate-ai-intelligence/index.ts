@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!organization_id) {
       throw new Error("organization_id is required");
+    }
+
+    // Require service-role caller (internal cron) OR authenticated org member
+    const access = await verifyOrgAccess(req, organization_id);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log(`[calculate-ai-intelligence] Starting ${calculation_type} calculation for org: ${organization_id}`);

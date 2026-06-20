@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -211,6 +212,15 @@ serve(async (req) => {
     const { type, messages, organizationId, businessSnapshot, prompt, channel } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // Require authenticated org membership before fetching org PII
+    if (!organizationId) {
+      return new Response(JSON.stringify({ error: "organizationId is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      return new Response(JSON.stringify({ error: access.error }), { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Create supabase admin client for data fetching
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";

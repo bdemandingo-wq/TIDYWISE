@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,6 +41,15 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ success: false, error: "Missing organizationId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Require service-role caller (internal edge fn) OR authenticated org member
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
