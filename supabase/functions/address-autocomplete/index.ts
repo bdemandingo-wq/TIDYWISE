@@ -42,18 +42,23 @@ Deno.serve(async (req) => {
       const input = String(body?.input ?? "").trim();
       if (!input) return json({ suggestions: [] });
 
+      const rawRegion = typeof body?.regionCode === "string" ? body.regionCode.trim() : "";
+      const regionCode = /^[A-Za-z]{2}$/.test(rawRegion) ? rawRegion.toLowerCase() : undefined;
+
+      const reqBody: Record<string, unknown> = {
+        input,
+        includedPrimaryTypes: ["street_address", "premise", "subpremise", "route"],
+      };
+      if (sessionToken) reqBody.sessionToken = sessionToken;
+      if (regionCode) reqBody.includedRegionCodes = [regionCode];
+
       const r = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": PLACES_KEY,
         },
-        body: JSON.stringify({
-          input,
-          sessionToken,
-          includedPrimaryTypes: ["street_address", "premise", "subpremise", "route"],
-          includedRegionCodes: ["us", "ca"],
-        }),
+        body: JSON.stringify(reqBody),
       });
 
       if (!r.ok) {
