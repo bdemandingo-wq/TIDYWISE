@@ -160,6 +160,30 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     }
   }, [checkArrival]);
 
+  const startWatch = useCallback(() => {
+    if (navigator.geolocation?.watchPosition) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (!trackingIdRef.current) return;
+          const now = Date.now();
+          if (now - lastWriteRef.current < 8000) return;
+          lastWriteRef.current = now;
+          const { latitude, longitude } = pos.coords;
+          void supabase.from('cleaner_location_tracking')
+            .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
+            .eq('id', trackingIdRef.current);
+          checkArrival(latitude, longitude);
+        },
+        (err) => console.warn('[GPS] watch error', err?.code, err?.message),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      );
+    } else {
+      intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+    }
+  }, [checkArrival, updatePosition]);
+
+
+
 
   const startTracking = useCallback(async (): Promise<{
     trackingToken: string | null;
