@@ -479,15 +479,14 @@ const handler = async (req: Request): Promise<Response> => {
               .maybeSingle();
 
             if (membership?.organization_id) {
-              // Flip plan_type to 'lifetime' AND set grandfathered_lifetime=true
-              // so the feature-gating layer never locks this customer out
-              // even if plan_type ever drifts. We promise lifetime = lifetime.
+              // Flip plan_type to 'lifetime'. Do NOT set
+              // grandfathered_lifetime — that flag is reserved for
+              // original launch/founder users only. plan_type='lifetime'
+              // alone grants full access through check-subscription.
               await supabase
                 .from("organizations")
                 .update({
                   plan_type: "lifetime",
-                  grandfathered_lifetime: true,
-                  grandfathered_at: new Date().toISOString(),
                 })
                 .eq("id", membership.organization_id);
 
