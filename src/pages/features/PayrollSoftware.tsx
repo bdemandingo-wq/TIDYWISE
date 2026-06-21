@@ -84,7 +84,7 @@ export default function PayrollSoftware() {
         title="Payroll Software for Cleaning Companies"
         description="Automate cleaner wages, tips, mileage & tax docs. Built for cleaning businesses — per-job pay, hourly, or % of service price. Included with the TIDYWISE Pro plan ($97/mo)."
         canonical="/features/payroll-software"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-payroll.png"
         schemaJson={featurePageSchemas({ featureName: 'Payroll Software', description: 'Automated payroll for cleaners with hourly, commission, and tipped wages.', path: '/features/payroll-software', crumbLabel: 'Payroll' })}
       />
 

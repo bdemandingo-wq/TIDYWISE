@@ -78,7 +78,7 @@ export default function RouteOptimization() {
         title="Route Optimization Software for Cleaning Businesses"
         description="AI-powered route optimization for cleaning businesses. Cut drive time 30%, reduce fuel costs 25%, and fit more jobs per day. Included with the TIDYWISE Pro plan."
         canonical="/features/route-optimization"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-routes.png"
         schemaJson={featurePageSchemas({ featureName: 'Route Optimization', description: 'Sequence jobs by driving time and reduce windshield time across your team.', path: '/features/route-optimization', crumbLabel: 'Route Optimization' })}
       />
 

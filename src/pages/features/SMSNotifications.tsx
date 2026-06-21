@@ -77,7 +77,7 @@ export default function SMSNotifications() {
         title="SMS Notifications for Cleaning Businesses | TidyWise"
         description="Automated SMS notifications for cleaning companies. Booking confirmations, reminders, on-my-way alerts, and review requests. Reduce no-shows by 80%."
         canonical="/features/sms-notifications"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-sms.png"
         schemaJson={featurePageSchemas({ featureName: 'SMS Notifications', description: 'Two-way SMS via OpenPhone for booking confirmations, reminders, and on-the-way alerts.', path: '/features/sms-notifications', crumbLabel: 'SMS Notifications' })}
       />
 

@@ -78,7 +78,7 @@ export default function InvoicingSoftware() {
         title="Invoicing Software for Cleaning Businesses | TidyWise"
         description="Create branded invoices, accept online payments, and automate reminders. Get paid 2x faster with TidyWise invoicing for cleaning companies."
         canonical="/features/invoicing-software"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-invoicing.png"
         schemaJson={featurePageSchemas({ featureName: 'Invoicing Software', description: 'Create branded invoices, accept card payments, and auto-charge recurring clients.', path: '/features/invoicing-software', crumbLabel: 'Invoicing' })}
       />
 

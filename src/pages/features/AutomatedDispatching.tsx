@@ -78,7 +78,7 @@ export default function AutomatedDispatching() {
         title="Automated Dispatching for Cleaning Businesses | TIDYWISE"
         description="Smart dispatching software for cleaning companies. GPS-based cleaner assignment, route optimization, and real-time job tracking. See pricing."
         canonical="/features/automated-dispatching"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-dispatch.png"
         schemaJson={featurePageSchemas({ featureName: 'Automated Job Dispatching', description: 'Auto-assign jobs to the right cleaner using availability, skills, location, and route.', path: '/features/automated-dispatching', crumbLabel: 'Automated Dispatching' })}
       />
 

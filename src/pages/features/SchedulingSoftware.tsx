@@ -39,7 +39,7 @@ export default function SchedulingSoftware() {
         title="Cleaning Business Scheduling Software | TidyWise"
         description="Schedule your cleaning team in minutes with TidyWise. Drag-and-drop scheduling, automatic reminders, and real-time updates for your whole team."
         canonical="/features/scheduling-software"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-scheduling.png"
         schemaJson={featurePageSchemas({ featureName: 'Scheduling Software', description: 'Drag-and-drop scheduling with recurring jobs, staff availability, and conflict checks.', path: '/features/scheduling-software', crumbLabel: 'Scheduling' })}
       />
 
