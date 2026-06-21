@@ -1,8 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Lock, Sparkles, Zap } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Check,
+  Crown,
+  Lock,
+  Sparkles,
+  Zap,
+  CalendarClock,
+  Loader2,
+} from "lucide-react";
 import { usePlanState } from "@/hooks/usePlanFeature";
 import {
   UpgradePlanDialog,
@@ -10,6 +19,9 @@ import {
   type PlanInfo,
 } from "./PlanChangeDialogs";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrgId } from "@/hooks/useOrgId";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const PLANS: PlanInfo[] = [
   {
@@ -64,11 +76,19 @@ const PLANS: PlanInfo[] = [
 const RANK: Record<string, number> = { basic: 1, pro: 2, custom: 3, lifetime: 99 };
 const ICONS = { basic: Sparkles, pro: Zap, custom: Crown } as const;
 
+interface DowngradeState {
+  to: string | null;
+  date: string | null;
+}
+
 export function PlanSwitcher() {
   const planState = usePlanState();
   const { subscription, checkSubscription } = useAuth();
+  const { organizationId } = useOrgId();
   const [upgradeTarget, setUpgradeTarget] = useState<PlanInfo | null>(null);
   const [downgradeTarget, setDowngradeTarget] = useState<PlanInfo | null>(null);
+  const [downgrade, setDowngrade] = useState<DowngradeState>({ to: null, date: null });
+  const [cancellingDowngrade, setCancellingDowngrade] = useState(false);
 
   const currentPlanId = planState.planType;
   const isLifetime =
@@ -79,12 +99,58 @@ export function PlanSwitcher() {
     [currentPlanId],
   );
 
+  const targetDowngradePlan = useMemo(
+    () => PLANS.find((p) => p.id === downgrade.to) ?? null,
+    [downgrade.to],
+  );
+
+  async function refreshDowngrade() {
+    if (!organizationId) return;
+    const { data } = await (supabase as any)
+      .from("organizations")
+      .select("plan_downgrade_scheduled_to, plan_downgrade_date")
+      .eq("id", organizationId)
+      .maybeSingle();
+    setDowngrade({
+      to: data?.plan_downgrade_scheduled_to ?? null,
+      date: data?.plan_downgrade_date ?? null,
+    });
+  }
+
+  useEffect(() => {
+    void refreshDowngrade();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId]);
+
   function action(plan: PlanInfo) {
     const targetRank = RANK[plan.id] ?? 0;
     const curRank = RANK[currentPlanId] ?? 0;
     if (targetRank > curRank) setUpgradeTarget(plan);
     else if (targetRank < curRank) setDowngradeTarget(plan);
   }
+
+  async function cancelDowngrade() {
+    setCancellingDowngrade(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "change-subscription-plan",
+        { body: { mode: "cancel_downgrade" } },
+      );
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Downgrade cancelled. You'll stay on your current plan.");
+      setDowngrade({ to: null, date: null });
+      await checkSubscription();
+      await refreshDowngrade();
+    } catch (err: any) {
+      toast.error(err?.message || "Could not cancel downgrade");
+    } finally {
+      setCancellingDowngrade(false);
+    }
+  }
+
+  const hasScheduledDowngrade =
+    !!downgrade.to && !!targetDowngradePlan && !isLifetime;
 
   return (
     <Card className="p-5">
@@ -108,6 +174,38 @@ export function PlanSwitcher() {
         )}
       </div>
 
+      {hasScheduledDowngrade && (
+        <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-600">
+          <CalendarClock className="h-4 w-4" />
+          <AlertTitle>Downgrade scheduled</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Your plan will change to{" "}
+              <span className="font-semibold">{targetDowngradePlan!.name}</span>
+              {downgrade.date ? (
+                <>
+                  {" "}on{" "}
+                  <span className="font-semibold">
+                    {new Date(downgrade.date).toLocaleDateString()}
+                  </span>
+                </>
+              ) : null}
+              .
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelDowngrade}
+              disabled={cancellingDowngrade}
+              className="self-start sm:self-auto"
+            >
+              {cancellingDowngrade && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              Cancel downgrade
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         {PLANS.map((plan) => {
           const Icon = ICONS[plan.id];
@@ -115,7 +213,7 @@ export function PlanSwitcher() {
           const targetRank = RANK[plan.id] ?? 0;
           const curRank = RANK[currentPlanId] ?? 0;
           const isUpgrade = targetRank > curRank;
-          const isDowngrade = targetRank < curRank;
+          const isPendingTarget = downgrade.to === plan.id;
 
           return (
             <div
@@ -127,6 +225,14 @@ export function PlanSwitcher() {
               {isCurrent && (
                 <Badge className="absolute -top-2 right-3" variant="default">
                   Current
+                </Badge>
+              )}
+              {isPendingTarget && !isCurrent && (
+                <Badge
+                  className="absolute -top-2 right-3 bg-amber-500 hover:bg-amber-500"
+                  variant="default"
+                >
+                  Scheduled
                 </Badge>
               )}
               <div className="mb-2 flex items-center gap-2">
@@ -158,12 +264,17 @@ export function PlanSwitcher() {
                 <Button variant="outline" size="sm" disabled className="w-full">
                   No active subscription
                 </Button>
+              ) : isPendingTarget ? (
+                <Button variant="outline" size="sm" disabled className="w-full">
+                  Pending downgrade
+                </Button>
               ) : (
                 <Button
                   size="sm"
                   variant={isUpgrade ? "default" : "outline"}
                   className="w-full"
                   onClick={() => action(plan)}
+                  disabled={hasScheduledDowngrade && !isUpgrade}
                 >
                   {isUpgrade ? `Upgrade to ${plan.name}` : `Downgrade to ${plan.name}`}
                 </Button>
@@ -177,7 +288,10 @@ export function PlanSwitcher() {
         open={!!upgradeTarget}
         onOpenChange={(o) => !o && setUpgradeTarget(null)}
         targetPlan={upgradeTarget}
-        onCompleted={() => checkSubscription()}
+        onCompleted={async () => {
+          await checkSubscription();
+          await refreshDowngrade();
+        }}
       />
       <DowngradePlanDialog
         open={!!downgradeTarget}
@@ -185,7 +299,10 @@ export function PlanSwitcher() {
         targetPlan={downgradeTarget}
         currentPlan={currentPlan}
         periodEnd={subscription?.subscription_end ?? null}
-        onCompleted={() => checkSubscription()}
+        onCompleted={async () => {
+          await checkSubscription();
+          await refreshDowngrade();
+        }}
       />
     </Card>
   );
