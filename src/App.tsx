@@ -40,6 +40,8 @@ const LogoutPage = lazy(() => import("./pages/LogoutPage"));
 // Legacy auth page (kept for backwards compatibility)
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
+const SetPasswordPage = lazy(() => import("./pages/SetPasswordPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 
 // Lazy-loaded page skeleton for loading states
@@ -208,6 +210,10 @@ const App = () => (
                           <Route path="/auth" element={<LoginPage />} />
                          <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
                          <Route path="/reset-password" element={<Navigate to="/login" replace />} />
+                         {/* Supabase auth redirect target for invite / recovery / magiclink */}
+                         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                         <Route path="/auth/confirm" element={<AuthCallbackPage />} />
+                         <Route path="/set-password" element={<SetPasswordPage />} />
                          <Route path="/contact" element={<ContactPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
