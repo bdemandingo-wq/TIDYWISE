@@ -31,7 +31,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SEOHead } from '@/components/SEOHead';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
 import { CheckCircle2, ArrowLeft, LayoutDashboard, Mail } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, string> = {
@@ -45,7 +44,6 @@ export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, checkSubscription, subscription } = useAuth();
-  const sessionId = searchParams.get('session_id');
   const plan = searchParams.get('plan') ?? '';
   const interval = searchParams.get('interval');
   const planLabel = PLAN_LABELS[plan] ?? null;
@@ -96,32 +94,6 @@ export default function CheckoutSuccessPage() {
     }, 120000);
     return () => window.clearTimeout(graceTimer);
   }, [plan, interval]);
-
-  // Synchronously reconcile the Stripe Checkout session — bypasses the
-  // webhook race so the user is provisioned the moment they hit this
-  // page, regardless of how long Stripe takes to deliver the event.
-  // Safe to call repeatedly (idempotent on the server).
-  useEffect(() => {
-    if (!sessionId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        await supabase.functions.invoke('reconcile-checkout-session', {
-          body: { session_id: sessionId },
-        });
-      } catch (err) {
-        console.warn('[checkout-success] reconcile failed (webhook will retry)', err);
-      }
-      if (!cancelled) {
-        // Re-pull subscription state now that the server has had a
-        // chance to flag the org lifetime/active.
-        try { await checkSubscription(); } catch { /* polling loop covers it */ }
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
 
   // Polling loop — re-fires whenever the auth state changes. When the
   // visitor arrives from the Supabase invite email, `user` is null at

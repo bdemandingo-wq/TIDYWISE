@@ -414,16 +414,13 @@ const handler = async (req: Request): Promise<Response> => {
                 // = lifetime, forever" promise applies to paying
                 // customers too, not just launch grandfathers.
                 const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
-                // NOTE: grandfathered_lifetime is reserved for original
-                // launch/founder users — NOT for new lifetime buyers.
-                // plan_type='lifetime' alone grants full access through
-                // check-subscription; we don't tag new buyers as
-                // grandfathered.
                 const { data: newOrg } = await supabase
                   .from("organizations")
                   .insert({
                     name: orgName,
                     plan_type: "lifetime",
+                    grandfathered_lifetime: true,
+                    grandfathered_at: new Date().toISOString(),
                   })
                   .select("id")
                   .single();
@@ -479,14 +476,15 @@ const handler = async (req: Request): Promise<Response> => {
               .maybeSingle();
 
             if (membership?.organization_id) {
-              // Flip plan_type to 'lifetime'. Do NOT set
-              // grandfathered_lifetime — that flag is reserved for
-              // original launch/founder users only. plan_type='lifetime'
-              // alone grants full access through check-subscription.
+              // Flip plan_type to 'lifetime' AND set grandfathered_lifetime=true
+              // so the feature-gating layer never locks this customer out
+              // even if plan_type ever drifts. We promise lifetime = lifetime.
               await supabase
                 .from("organizations")
                 .update({
                   plan_type: "lifetime",
+                  grandfathered_lifetime: true,
+                  grandfathered_at: new Date().toISOString(),
                 })
                 .eq("id", membership.organization_id);
 
