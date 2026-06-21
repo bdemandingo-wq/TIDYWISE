@@ -45,9 +45,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Welcome emails for NEW signups use the main TidyWise account
     // This is a platform-level email, not organization-specific
     // (Users create their organization AFTER signup, so no org context exists yet)
-    const TIDYWISE_DEFAULT_EMAIL = "support@jointidywise.com";
+    // Using Resend's shared sender until jointidywise.com is verified on Resend.
+    const TIDYWISE_DEFAULT_EMAIL = "onboarding@resend.dev";
     const TIDYWISE_DEFAULT_NAME = "TidyWise";
-    
+
     const senderEmail = TIDYWISE_DEFAULT_EMAIL;
     const companyName = TIDYWISE_DEFAULT_NAME;
     const primaryColor = "#1e5bb0";
