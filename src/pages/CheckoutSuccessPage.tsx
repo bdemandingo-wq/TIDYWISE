@@ -236,12 +236,12 @@ export default function CheckoutSuccessPage() {
                   size="lg"
                   className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
-                  <Link to="/login" aria-label="I already set my password">
-                    I already set my password
+                  <Link to="/login" aria-label="Log in to your account">
+                    Log In
                   </Link>
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Need help?{' '}
+                  Already set your password? Use the button above. Need help?{' '}
                   <a
                     href="mailto:support@tidywisecleaning.com"
                     className="underline hover:text-foreground"
