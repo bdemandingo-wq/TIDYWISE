@@ -2,14 +2,16 @@
  * useLifetimeCounter – returns the live state of the founding lifetime
  * offer (how many of the 50 spots are claimed, sold-out flag).
  *
- * Reads from lifetime_offer_state (public SELECT policy). Used by both
- * the dedicated pricing page and the homepage hero so the "X of 50
- * left" hook is consistent everywhere.
+ * Source of truth: the `organizations` table. We count rows where
+ * `plan_type = 'lifetime'` via the SECURITY DEFINER RPC
+ * `get_lifetime_spots_remaining()` so anonymous visitors on the
+ * landing/pricing page can read the live number without exposing the
+ * organizations table publicly. The reconcile-checkout-session edge
+ * function flips an org's `plan_type` to `'lifetime'` the moment a
+ * Lifetime checkout completes, so the counter ticks down in real time.
  *
  * Cached via React Query with a 30s stale time so the same data isn't
- * re-fetched on every mount — visiting / then /pricing was doing two
- * round-trips for the same row. With this cache the second mount
- * resolves instantly from memory.
+ * re-fetched on every mount.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -23,55 +25,46 @@ export interface LifetimeState {
   loading: boolean;
 }
 
+const TOTAL_SPOTS = 50;
+
 const DEFAULT: LifetimeState = {
-  total: 50,
+  total: TOTAL_SPOTS,
   sold: 0,
-  spotsLeft: 50,
+  spotsLeft: TOTAL_SPOTS,
   soldOut: false,
   loading: true,
 };
 
-interface LifetimeRow {
-  total_spots: number | null;
-  sold_spots: number | null;
-  sold_out_at: string | null;
-}
-
 async function fetchLifetimeState(): Promise<LifetimeState> {
-  const { data } = await (supabase as unknown as {
-    from: (t: string) => {
-      select: (cols: string) => {
-        eq: (col: string, val: number) => {
-          maybeSingle: () => Promise<{ data: LifetimeRow | null }>;
-        };
-      };
-    };
-  })
-    .from('lifetime_offer_state')
-    .select('total_spots, sold_spots, sold_out_at')
-    .eq('id', 1)
-    .maybeSingle();
-  const total = data?.total_spots ?? 50;
-  const sold = data?.sold_spots ?? 0;
+  const { data, error } = await (supabase as unknown as {
+    rpc: (fn: string) => Promise<{
+      data: Array<{ total: number; sold: number; remaining: number; sold_out: boolean }> | null;
+      error: unknown;
+    }>;
+  }).rpc('get_lifetime_spots_remaining');
+
+  if (error || !data || data.length === 0) {
+    return { ...DEFAULT, loading: false };
+  }
+
+  const row = data[0];
+  const total = row.total ?? TOTAL_SPOTS;
+  const sold = row.sold ?? 0;
+  const remaining = row.remaining ?? Math.max(0, total - sold);
   return {
     total,
     sold,
-    spotsLeft: Math.max(0, total - sold),
-    soldOut: !!data?.sold_out_at || sold >= total,
+    spotsLeft: remaining,
+    soldOut: row.sold_out || remaining <= 0,
     loading: false,
   };
 }
 
 export function useLifetimeCounter(): LifetimeState {
   const { data, isLoading } = useQuery({
-    queryKey: ['lifetime-offer-state'],
+    queryKey: ['lifetime-spots-remaining'],
     queryFn: fetchLifetimeState,
-    // Counter doesn't change often. 30s is more than fast enough for
-    // the social-proof use case ("X of 50 left") and avoids extra
-    // round-trips when the user navigates between landing/pricing.
     staleTime: 30_000,
-    // If the query errors, fall back to the default rather than
-    // showing a permanent loading state on the pricing page.
     placeholderData: DEFAULT,
   });
   if (isLoading || !data) return DEFAULT;
