@@ -40,6 +40,8 @@ const LogoutPage = lazy(() => import("./pages/LogoutPage"));
 // Legacy auth page (kept for backwards compatibility)
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
+const SetPasswordPage = lazy(() => import("./pages/SetPasswordPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 
 // Lazy-loaded page skeleton for loading states
