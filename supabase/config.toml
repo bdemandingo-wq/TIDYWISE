@@ -211,6 +211,12 @@ verify_jwt = true
   [functions.buy-lifetime]
     verify_jwt = false
 
+  # Called from /checkout/success with the Stripe session_id so the user's
+  # access is provisioned synchronously — independent of webhook delivery
+  # timing. Anonymous-checkout buyers have no session yet, so JWT off.
+  [functions.reconcile-checkout-session]
+    verify_jwt = false
+
   # Public contact form on /contact — anonymous visitors hit it.
   [functions.notify-contact-form]
     verify_jwt = false
