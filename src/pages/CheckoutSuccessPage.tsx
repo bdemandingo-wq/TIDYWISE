@@ -32,7 +32,8 @@ import { Card } from '@/components/ui/card';
 import { SEOHead } from '@/components/SEOHead';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { CheckCircle2, ArrowLeft, LayoutDashboard, Mail } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, LayoutDashboard, Mail, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const PLAN_LABELS: Record<string, string> = {
   basic: 'Basic',
