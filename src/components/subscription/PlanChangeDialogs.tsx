@@ -105,7 +105,9 @@ export function UpgradePlanDialog({
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success(`Upgraded to ${targetPlan.name}`);
+      toast.success(
+        `You've been upgraded to ${targetPlan.name}. Your new features are now active.`,
+      );
       onOpenChange(false);
       onCompleted();
     } catch (err: any) {
@@ -237,10 +239,12 @@ export function DowngradePlanDialog({
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
+      const scheduled = (data as any)?.scheduled_at || periodEnd;
+      const dateStr = scheduled
+        ? new Date(scheduled).toLocaleDateString()
+        : "your next billing date";
       toast.success(
-        `Downgrade scheduled. You'll switch to ${targetPlan.name} on ${
-          periodEnd ? new Date(periodEnd).toLocaleDateString() : "your next billing date"
-        }.`,
+        `Your plan will downgrade to ${targetPlan.name} on ${dateStr}.`,
       );
       onOpenChange(false);
       onCompleted();

@@ -5699,8 +5699,11 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_id: string
+          plan_downgrade_date: string | null
+          plan_downgrade_scheduled_to: string | null
           plan_type: string | null
           slug: string | null
+          stripe_schedule_id: string | null
           updated_at: string
         }
         Insert: {
@@ -5711,8 +5714,11 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_id: string
+          plan_downgrade_date?: string | null
+          plan_downgrade_scheduled_to?: string | null
           plan_type?: string | null
           slug?: string | null
+          stripe_schedule_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -5723,8 +5729,11 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_id?: string
+          plan_downgrade_date?: string | null
+          plan_downgrade_scheduled_to?: string | null
           plan_type?: string | null
           slug?: string | null
+          stripe_schedule_id?: string | null
           updated_at?: string
         }
         Relationships: []

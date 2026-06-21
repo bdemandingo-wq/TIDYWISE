@@ -65,19 +65,27 @@ serve(async (req) => {
       mode?: string;
       discount_code?: string;
     };
-    const plan = body.plan;
     const interval = body.interval === "yearly" ? "yearly" : "monthly";
-    const mode = body.mode === "downgrade" ? "downgrade" : "upgrade";
+    const mode =
+      body.mode === "downgrade"
+        ? "downgrade"
+        : body.mode === "cancel_downgrade"
+          ? "cancel_downgrade"
+          : "upgrade";
+    const plan = body.plan;
 
-    if (!plan || !["basic", "pro", "custom"].includes(plan)) {
-      return new Response(JSON.stringify({ error: "Invalid plan" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // For upgrade/downgrade, plan is required. cancel_downgrade doesn't need it.
+    if (mode !== "cancel_downgrade") {
+      if (!plan || !["basic", "pro", "custom"].includes(plan)) {
+        return new Response(JSON.stringify({ error: "Invalid plan" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    const newPriceId = PRICE_IDS[plan]?.[interval];
-    if (!newPriceId) {
+    const newPriceId = plan ? PRICE_IDS[plan]?.[interval] : undefined;
+    if (mode !== "cancel_downgrade" && !newPriceId) {
       return new Response(
         JSON.stringify({ error: `Stripe price for ${plan} ${interval} is not configured.` }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -112,7 +120,7 @@ serve(async (req) => {
     // Block lifetime / grandfathered orgs from changing plan
     const { data: membership } = await supabase
       .from("org_memberships")
-      .select("organization_id, organizations(plan_type, grandfathered_lifetime)")
+      .select("organization_id, organizations(plan_type, grandfathered_lifetime, stripe_schedule_id)")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -141,6 +149,39 @@ serve(async (req) => {
       promotionCodeId = promos.data[0].id;
     }
 
+    const orgId = (membership as any)?.organization_id;
+
+    if (mode === "cancel_downgrade") {
+      // Release the schedule so the subscription continues on its
+      // current price indefinitely, and clear the org's pending fields.
+      const scheduleId =
+        (subscription.schedule as string | null) ||
+        (org as any)?.stripe_schedule_id ||
+        null;
+      if (scheduleId) {
+        try {
+          await stripe.subscriptionSchedules.release(scheduleId);
+        } catch (e) {
+          console.error("[CHANGE-SUB-PLAN] release schedule failed:", e);
+        }
+      }
+      if (orgId) {
+        await supabase
+          .from("organizations")
+          .update({
+            plan_downgrade_scheduled_to: null,
+            plan_downgrade_date: null,
+            stripe_schedule_id: null,
+          })
+          .eq("id", orgId);
+      }
+      log("downgrade cancelled", { scheduleId });
+      return new Response(
+        JSON.stringify({ success: true, mode: "cancel_downgrade" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     if (mode === "upgrade") {
       // Immediate switch with proration; Stripe will create + attempt to
       // pay the proration invoice automatically.
@@ -151,17 +192,22 @@ serve(async (req) => {
         ...(promotionCodeId ? { promotion_code: promotionCodeId } : {}),
         metadata: {
           ...(subscription.metadata || {}),
-          plan_tier: plan,
+          plan_tier: plan!,
           plan_interval: interval,
+          tidywise_plan: plan!,
         },
       });
 
-      // Reflect new plan immediately
-      const orgId = (membership as any)?.organization_id;
+      // Reflect new plan immediately + clear any prior pending downgrade.
       if (orgId) {
         await supabase
           .from("organizations")
-          .update({ plan_type: plan })
+          .update({
+            plan_type: plan,
+            plan_downgrade_scheduled_to: null,
+            plan_downgrade_date: null,
+            stripe_schedule_id: null,
+          })
           .eq("id", orgId);
       }
 
@@ -173,10 +219,6 @@ serve(async (req) => {
     }
 
     // ── Downgrade: schedule at period end via subscription schedule ──
-    // Strategy: create a schedule from the current subscription, then
-    // append a future phase starting at period_end with the new price.
-    // proration_behavior: 'none' so no immediate charge/credit changes.
-
     let scheduleId = subscription.schedule as string | null;
     if (!scheduleId) {
       const schedule = await stripe.subscriptionSchedules.create({
@@ -187,6 +229,7 @@ serve(async (req) => {
 
     const existing = await stripe.subscriptionSchedules.retrieve(scheduleId);
     const currentPhase = existing.phases[existing.phases.length - 1];
+    const periodEndSec = currentPhase.end_date as number | null;
 
     await stripe.subscriptionSchedules.update(scheduleId, {
       end_behavior: "release",
@@ -201,23 +244,39 @@ serve(async (req) => {
           end_date: currentPhase.end_date,
         },
         {
-          items: [{ price: newPriceId, quantity: 1 }],
+          items: [{ price: newPriceId!, quantity: 1 }],
           iterations: 1,
           proration_behavior: "none",
           ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
-          metadata: { plan_tier: plan, plan_interval: interval },
+          metadata: { plan_tier: plan!, plan_interval: interval, tidywise_plan: plan! },
         },
       ],
     });
 
-    log("downgrade scheduled", { scheduleId, plan });
+    const scheduledAtIso = periodEndSec
+      ? new Date(periodEndSec * 1000).toISOString()
+      : null;
+
+    // Persist the pending downgrade so the UI can show a banner and
+    // offer a cancel action.
+    if (orgId) {
+      await supabase
+        .from("organizations")
+        .update({
+          plan_downgrade_scheduled_to: plan,
+          plan_downgrade_date: scheduledAtIso,
+          stripe_schedule_id: scheduleId,
+        })
+        .eq("id", orgId);
+    }
+
+    log("downgrade scheduled", { scheduleId, plan, scheduledAtIso });
     return new Response(
       JSON.stringify({
         success: true,
         mode: "downgrade",
-        scheduled_at: new Date(
-          (subscription.current_period_end ?? 0) * 1000,
-        ).toISOString(),
+        scheduled_at: scheduledAtIso,
+        target_plan: plan,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
