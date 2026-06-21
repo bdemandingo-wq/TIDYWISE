@@ -149,6 +149,20 @@ export default function CheckoutSuccessPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Auto-redirect authenticated, provisioned users straight to the
+  // dashboard — they shouldn't have to click anything after paying.
+  // Waits for subscription to flip to subscribed=true (or trial_active)
+  // so AdminRoute's paywall gate doesn't bounce them back to /pricing.
+  useEffect(() => {
+    if (!user) return;
+    const active = subscription?.subscribed === true || subscription?.trial_active === true;
+    if (!active) return;
+    const t = window.setTimeout(() => {
+      navigate('/dashboard', { replace: true });
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [user?.id, subscription?.subscribed, subscription?.trial_active, navigate]);
+
   const headingId = 'checkout-success-heading';
 
   return (
