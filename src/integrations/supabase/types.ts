@@ -6307,6 +6307,8 @@ export type Database = {
           billing_cycle: string | null
           created_at: string
           email: string | null
+          email_unsubscribed: boolean
+          email_unsubscribed_at: string | null
           full_name: string | null
           id: string
           phone: string | null
@@ -6320,6 +6322,8 @@ export type Database = {
           billing_cycle?: string | null
           created_at?: string
           email?: string | null
+          email_unsubscribed?: boolean
+          email_unsubscribed_at?: string | null
           full_name?: string | null
           id: string
           phone?: string | null
@@ -6333,6 +6337,8 @@ export type Database = {
           billing_cycle?: string | null
           created_at?: string
           email?: string | null
+          email_unsubscribed?: boolean
+          email_unsubscribed_at?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
