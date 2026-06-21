@@ -25,6 +25,7 @@ import {
   Crown
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
+import { localBusinessSchema } from '@/lib/seo/schemas';
 import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { SiteFooter } from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/use-mobile";
