@@ -156,6 +156,16 @@ serve(async (req) => {
             });
             log("provisioned new account", { userId, orgId: newOrg.id, plan: planTypeForNewOrg });
           }
+          // Fire-and-forget welcome email (with "Book a demo" CTA) for
+          // every brand-new account provisioned via Stripe checkout.
+          // The set-password invite goes out separately via Supabase Auth.
+          try {
+            await supabase.functions.invoke("send-welcome-email", {
+              body: { email, fullName, userId },
+            });
+          } catch (welcomeErr) {
+            console.error("[reconcile] send-welcome-email failed:", welcomeErr);
+          }
         } else if (inviteErr) {
           console.error("[reconcile] inviteUserByEmail failed:", inviteErr);
         }
