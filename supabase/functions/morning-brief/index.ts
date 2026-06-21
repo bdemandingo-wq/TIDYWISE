@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     const results: Array<{ org_id: string; ok: boolean; status: number }> = [];
     for (const o of orgs ?? []) {
       const bs: any = (o as any).business_settings;
-      const enabled = Array.isArray(bs) ? (bs[0]?.notify_morning_brief ?? true) : (bs?.notify_morning_brief ?? true);
+      const enabled = Array.isArray(bs) ? bs[0]?.notify_morning_brief === true : bs?.notify_morning_brief === true;
       if (!enabled) {
         results.push({ org_id: o.id, ok: true, status: 204 });
         continue;
