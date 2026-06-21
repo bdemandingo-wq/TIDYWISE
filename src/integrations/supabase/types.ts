@@ -9083,6 +9083,15 @@ export type Database = {
           token: string
         }[]
       }
+      get_lifetime_spots_remaining: {
+        Args: never
+        Returns: {
+          remaining: number
+          sold: number
+          sold_out: boolean
+          total: number
+        }[]
+      }
       get_loyalty_tier_info: {
         Args: { p_organization_id: string }
         Returns: {
