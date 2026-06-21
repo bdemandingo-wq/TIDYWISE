@@ -127,12 +127,14 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
         if (membership?.organization_id) {
+          // NOTE: do NOT set grandfathered_lifetime here. That flag is
+          // reserved for original launch/founder users. New lifetime
+          // BUYERS get plan_type='lifetime' (which already grants full
+          // access via check-subscription) — nothing more.
           await supabase
             .from("organizations")
             .update({
               plan_type: "lifetime",
-              grandfathered_lifetime: true,
-              grandfathered_at: new Date().toISOString(),
             })
             .eq("id", membership.organization_id);
           await supabase
