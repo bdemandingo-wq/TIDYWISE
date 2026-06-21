@@ -103,6 +103,7 @@ export default function CheckoutSuccessPage() {
   // page, regardless of how long Stripe takes to deliver the event.
   // Safe to call repeatedly (idempotent on the server).
   const [buyerEmail, setBuyerEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
