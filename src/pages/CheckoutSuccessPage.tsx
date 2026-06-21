@@ -236,7 +236,10 @@ export default function CheckoutSuccessPage() {
                   size="lg"
                   className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
-                  <Link to="/login" aria-label="Log in to your account">
+                  <Link
+                    to={`/set-password${buyerEmail ? `?email=${encodeURIComponent(buyerEmail)}` : ''}`}
+                    aria-label="Set your password and log in"
+                  >
                     Log In
                   </Link>
                 </Button>
