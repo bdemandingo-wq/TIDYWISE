@@ -78,7 +78,8 @@ export function organizationSchema() {
  * physical storefront), so we describe the service area as the United
  * States rather than fabricating an address.
  */
-export function localBusinessSchema() {
+export function localBusinessSchema(opts?: { withRating?: boolean }) {
+  const withRating = opts?.withRating ?? true;
   return {
     "@type": "LocalBusiness",
     "@id": `${SITE}#localbusiness`,
@@ -94,14 +95,26 @@ export function localBusinessSchema() {
       name: "United States",
     },
     serviceType: "Cleaning business management software",
+    ...(withRating ? { aggregateRating: AGGREGATE_RATING } : {}),
   };
 }
+
+const PRICING_OFFERS = [
+  { name: "Basic", price: "49", interval: "month" },
+  { name: "Pro", price: "97", interval: "month" },
+  { name: "Custom", price: "197", interval: "month" },
+  { name: "Lifetime", price: "300", interval: "lifetime" },
+];
 
 export function softwareApplicationSchema(opts?: {
   name?: string;
   description?: string;
   featureList?: string[];
+  withRating?: boolean;
+  withOfferList?: boolean;
 }) {
+  const withRating = opts?.withRating ?? true;
+  const withOfferList = opts?.withOfferList ?? false;
   return {
     "@type": "SoftwareApplication",
     name: opts?.name ?? "TIDYWISE",
@@ -111,13 +124,23 @@ export function softwareApplicationSchema(opts?: {
       opts?.description ??
       "All-in-one cleaning business software: booking, scheduling, CRM, invoicing, payroll, and GPS tracking. Plans from $49/mo.",
     featureList: opts?.featureList ?? CORE_FEATURES,
-    offers: {
-      "@type": "AggregateOffer",
-      lowPrice: PRICE_LOW,
-      highPrice: PRICE_HIGH,
-      priceCurrency: "USD",
-      offerCount: "4",
-    },
+    offers: withOfferList
+      ? PRICING_OFFERS.map((o) => ({
+          "@type": "Offer",
+          name: o.name,
+          price: o.price,
+          priceCurrency: "USD",
+          category: o.interval === "lifetime" ? "OneTimePayment" : "Subscription",
+          url: `${SITE}/pricing`,
+        }))
+      : {
+          "@type": "AggregateOffer",
+          lowPrice: PRICE_LOW,
+          highPrice: PRICE_HIGH,
+          priceCurrency: "USD",
+          offerCount: "4",
+        },
+    ...(withRating ? { aggregateRating: AGGREGATE_RATING } : {}),
   };
 }
 
