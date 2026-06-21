@@ -30,19 +30,36 @@ export default function SetPasswordPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Give supabase-js time to parse any #access_token=... hash from
-      // an invite/recovery deep-link before deciding there's no session.
-      const hasHashToken = window.location.hash.includes('access_token');
-      if (hasHashToken) {
-        await new Promise((r) => setTimeout(r, 250));
+      // 1) Try to consume tokens from URL hash (Supabase invite/recovery deep-link)
+      const hash = window.location.hash.startsWith('#')
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const access_token = hashParams.get('access_token');
+      const refresh_token = hashParams.get('refresh_token');
+      const errDesc = hashParams.get('error_description');
+
+      if (errDesc) {
+        setError(decodeURIComponent(errDesc.replace(/\+/g, ' ')));
       }
-      let { data: { session } } = await supabase.auth.getSession();
-      // Retry once more for slow hash processing.
-      if (!session && hasHashToken) {
-        await new Promise((r) => setTimeout(r, 500));
-        ({ data: { session } } = await supabase.auth.getSession());
+
+      if (access_token && refresh_token) {
+        const { error: setErr } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (setErr) {
+          if (!cancelled) {
+            setError('Your invite link has expired. Please request a new one.');
+            setChecking(false);
+          }
+          return;
+        }
+        // Clean the hash so a refresh doesn't re-process tokens
+        try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* no-op */ }
       }
+
+      // 2) Check for an active session
+      const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
+
       if (!session) {
         const emailHint = searchParams.get('email');
         const loginUrl = emailHint
