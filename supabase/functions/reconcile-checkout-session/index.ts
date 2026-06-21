@@ -109,8 +109,8 @@ serve(async (req) => {
       if (userId || !email) return;
       try {
         const appUrl = Deno.env.get("APP_URL") || "https://jointidywise.com";
-        const nextUrl = `/checkout/success?from_invite=1&session_id=${session.id}`;
-        const inviteUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
+        const nextUrl = `/dashboard`;
+        const inviteUrl = `${appUrl}/set-password?next=${encodeURIComponent(nextUrl)}`;
         const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
           email,
           {
