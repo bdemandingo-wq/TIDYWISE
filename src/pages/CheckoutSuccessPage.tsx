@@ -97,6 +97,32 @@ export default function CheckoutSuccessPage() {
     return () => window.clearTimeout(graceTimer);
   }, [plan, interval]);
 
+  // Synchronously reconcile the Stripe Checkout session — bypasses the
+  // webhook race so the user is provisioned the moment they hit this
+  // page, regardless of how long Stripe takes to deliver the event.
+  // Safe to call repeatedly (idempotent on the server).
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await supabase.functions.invoke('reconcile-checkout-session', {
+          body: { session_id: sessionId },
+        });
+      } catch (err) {
+        console.warn('[checkout-success] reconcile failed (webhook will retry)', err);
+      }
+      if (!cancelled) {
+        // Re-pull subscription state now that the server has had a
+        // chance to flag the org lifetime/active.
+        try { await checkSubscription(); } catch { /* polling loop covers it */ }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+
   // Polling loop — re-fires whenever the auth state changes. When the
   // visitor arrives from the Supabase invite email, `user` is null at
   // first paint (Supabase is processing the magic-link hash) and
