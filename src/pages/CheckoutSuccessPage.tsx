@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SEOHead } from '@/components/SEOHead';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { CheckCircle2, ArrowLeft, LayoutDashboard, Mail } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, string> = {
