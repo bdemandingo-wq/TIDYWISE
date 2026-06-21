@@ -134,7 +134,15 @@ export default function ContactPage() {
         title="Contact TidyWise CRM | Cleaning Business Software Support"
         description="Reach the TidyWise team for sales, support, or partnership questions. We reply to most messages within one business day."
         canonical="/contact"
-        schemaJson={contactSchema}
+        ogImage="/images/og/og-contact.png"
+        schemaJson={[
+          contactSchema,
+          localBusinessSchema(),
+          breadcrumbSchema([
+            { name: 'Home', path: '/' },
+            { name: 'Contact', path: '/contact' },
+          ]),
+        ]}
       />
 
       {/* Hero */}
