@@ -33,7 +33,7 @@ export default function PaymentProcessing() {
         title="Automated Payments for Cleaning Businesses | TidyWise"
         description="Get paid faster with TidyWise. Send invoices, accept online payments, and set up recurring billing — all in one place."
         canonical="/features/payment-processing"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-payments.png"
         schemaJson={featurePageSchemas({ featureName: 'Payment Processing', description: 'Accept cards, ACH, and saved payment methods with Stripe Connect built in.', path: '/features/payment-processing', crumbLabel: 'Payments' })}
       />
 

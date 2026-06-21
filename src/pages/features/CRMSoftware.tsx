@@ -33,7 +33,7 @@ export default function CRMSoftware() {
         title="CRM Software for Cleaning Businesses"
         description="TidyWise CRM keeps all your cleaning clients, job history, and notes in one place. Stay organized and grow your cleaning business faster."
         canonical="/features/crm"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-crm.png"
         schemaJson={featurePageSchemas({ featureName: 'Cleaning CRM Software', description: 'Track every customer, job history, photos, payments, and messages in one place.', path: '/features/crm', crumbLabel: 'CRM' })}
       />
 

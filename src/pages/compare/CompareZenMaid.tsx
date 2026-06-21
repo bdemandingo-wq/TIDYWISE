@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import {
   CheckCircle2,
@@ -77,6 +78,7 @@ export default function CompareZenMaid() {
         ogImage="/images/tidywise-og.png"
       />
 
+      <BreadcrumbJsonLd crumbs={[{ name: "Home", path: "/" }, { name: "Compare", path: "/#compare" }, { name: 'TidyWise vs ZenMaid 2026: Better Cleaning Software?', path: '/compare/zenmaid' }]} />
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">

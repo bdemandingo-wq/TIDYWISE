@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { Button } from "@/components/ui/button";
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
@@ -59,6 +60,7 @@ export default function BookingKoalaVsJobberVsTidywise() {
         }}
       />
 
+      <BreadcrumbJsonLd crumbs={[{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }, { name: 'Booking Koala vs Jobber vs TIDYWISE (2026)', path: '/blog/booking-koala-vs-jobber-vs-tidywise' }]} />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

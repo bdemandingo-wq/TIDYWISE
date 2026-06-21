@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SEOHead } from '@/components/SEOHead';
+import { localBusinessSchema, breadcrumbSchema } from '@/lib/seo/schemas';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,7 +135,15 @@ export default function ContactPage() {
         title="Contact TidyWise CRM | Cleaning Business Software Support"
         description="Reach the TidyWise team for sales, support, or partnership questions. We reply to most messages within one business day."
         canonical="/contact"
-        schemaJson={contactSchema}
+        ogImage="/images/og/og-contact.png"
+        schemaJson={[
+          contactSchema,
+          localBusinessSchema(),
+          breadcrumbSchema([
+            { name: 'Home', path: '/' },
+            { name: 'Contact', path: '/contact' },
+          ]),
+        ]}
       />
 
       {/* Hero */}

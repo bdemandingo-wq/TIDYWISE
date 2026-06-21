@@ -244,7 +244,14 @@ export default function BlogIndex() {
         title="Cleaning Business Resources & Guides | TIDYWISE Blog"
         description="Tips, guides, and insights for cleaning business owners. Learn how to grow your company, manage your team, and run smarter operations with TidyWise."
         canonical="/blog"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-blog.png"
+        schemaJson={{
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://www.jointidywise.com/" },
+            { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.jointidywise.com/blog" },
+          ],
+        }}
       />
 
       {/* Navigation */}

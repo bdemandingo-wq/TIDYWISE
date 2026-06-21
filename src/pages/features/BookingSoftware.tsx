@@ -32,7 +32,7 @@ export default function BookingSoftware() {
         title="Online Booking Software for Cleaning Businesses | TidyWise"
         description="Let clients book cleaning services online 24/7. TidyWise automates your booking process so you never miss a job. See pricing."
         canonical="/features/booking"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-booking.png"
         schemaJson={featurePageSchemas({ featureName: 'Online Booking Software', description: '24/7 online booking with custom services, real-time calendar, and automated confirmations.', path: '/features/booking', crumbLabel: 'Online Booking' })}
       />
 
