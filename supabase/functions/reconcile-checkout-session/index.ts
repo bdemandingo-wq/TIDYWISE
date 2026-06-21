@@ -4,10 +4,11 @@
 //   The Stripe webhook is the authoritative provisioner, but webhook
 //   delivery can lag 5–60s (sometimes longer). During that window a
 //   freshly-paid customer can hit AdminRoute / check-subscription and
-//   get bounced to /pricing because their org isn't flagged lifetime
-//   yet. This function lets the CheckoutSuccessPage pull the session
-//   directly from Stripe and provision access immediately — fully
-//   idempotent, safe to run before/after the webhook fires.
+//   get bounced to /pricing because their org isn't flagged yet. This
+//   function lets the CheckoutSuccessPage pull the session directly
+//   from Stripe and provision access immediately for ALL paid plans
+//   (Lifetime, Basic, Pro, Custom) — fully idempotent, safe to run
+//   before/after the webhook fires.
 //
 // Inputs: { session_id: string }
 // Outputs: { ok, provisioned, plan, email, hasAccount }
@@ -63,7 +64,7 @@ serve(async (req) => {
     }
 
     // Only act on paid sessions. Subscriptions count as "paid" once
-    // status flips to active/trialing.
+    // status flips to active/trialing OR the session is complete.
     const paid =
       session.payment_status === "paid" ||
       session.payment_status === "no_payment_required" ||
@@ -77,13 +78,17 @@ serve(async (req) => {
     }
 
     const plan = (session.metadata?.plan as string | undefined) ?? "unknown";
-    const email =
+    const email = (
       session.customer_details?.email ??
       session.customer_email ??
       (session.metadata?.email as string | undefined) ??
-      null;
+      ""
+    ).toLowerCase() || null;
 
-    let userId: string | null = (session.metadata?.user_id as string | undefined) ?? null;
+    let userId: string | null =
+      (session.metadata?.user_id as string | undefined) ||
+      (session.metadata?.account_id as string | undefined) ||
+      null;
 
     // Resolve user by email if metadata didn't carry an id
     if (!userId && email) {
@@ -95,6 +100,79 @@ serve(async (req) => {
       if (profile?.id) userId = profile.id;
     }
 
+    // Provision a brand-new account if needed (anonymous checkout for
+    // any paid plan — Lifetime/Basic/Pro/Custom). The invite email
+    // doubles as the "set your password" link.
+    const fullName = session.customer_details?.name ?? null;
+    let isNewAccount = false;
+    const ensureAccount = async (planTypeForNewOrg: string) => {
+      if (userId || !email) return;
+      try {
+        const inviteUrl = `${Deno.env.get("APP_URL") || "https://jointidywise.com"}/checkout/success?from_invite=1&session_id=${session.id}`;
+        const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
+          email,
+          {
+            redirectTo: inviteUrl,
+            data: fullName ? { full_name: fullName } : undefined,
+          },
+        );
+        const inviteErrMsg = inviteErr?.message?.toLowerCase() ?? "";
+        const alreadyRegistered =
+          inviteErr && (
+            inviteErrMsg.includes("already") ||
+            inviteErrMsg.includes("registered") ||
+            inviteErrMsg.includes("exists")
+          );
+        if (alreadyRegistered) {
+          try {
+            const { data: existing } = await (supabase.auth.admin as unknown as {
+              getUserByEmail: (e: string) => Promise<{ data: { user?: { id: string } | null } }>
+            }).getUserByEmail(email);
+            if (existing?.user?.id) userId = existing.user.id;
+          } catch (e) {
+            console.error("[reconcile] getUserByEmail failed:", e);
+          }
+        } else if (!inviteErr && invited?.user?.id) {
+          userId = invited.user.id;
+          isNewAccount = true;
+          await supabase.from("profiles").insert({
+            id: userId,
+            email,
+            full_name: fullName,
+          });
+          const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
+          const { data: newOrg } = await supabase
+            .from("organizations")
+            .insert({ name: orgName, plan_type: planTypeForNewOrg })
+            .select("id")
+            .single();
+          if (newOrg?.id) {
+            await supabase.from("org_memberships").insert({
+              organization_id: newOrg.id,
+              user_id: userId,
+              role: "owner",
+            });
+            log("provisioned new account", { userId, orgId: newOrg.id, plan: planTypeForNewOrg });
+          }
+        } else if (inviteErr) {
+          console.error("[reconcile] inviteUserByEmail failed:", inviteErr);
+        }
+      } catch (e) {
+        console.error("[reconcile] account provisioning error:", e);
+      }
+    };
+
+    const getOrgId = async (): Promise<string | null> => {
+      if (!userId) return null;
+      const { data: mem } = await supabase
+        .from("org_memberships")
+        .select("organization_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      return mem?.organization_id ?? null;
+    };
+
     // ── Lifetime branch ────────────────────────────────────────────────
     if (plan === "lifetime") {
       if (!email) {
@@ -104,7 +182,8 @@ serve(async (req) => {
         });
       }
 
-      // Insert purchase record (idempotent on stripe_session_id)
+      await ensureAccount("lifetime");
+
       await supabase
         .from("lifetime_access_purchases")
         .upsert(
@@ -118,47 +197,34 @@ serve(async (req) => {
           { onConflict: "stripe_session_id", ignoreDuplicates: true },
         );
 
-      // If user exists, flip their org to lifetime
-      if (userId) {
-        const { data: membership } = await supabase
-          .from("org_memberships")
-          .select("organization_id")
-          .eq("user_id", userId)
-          .limit(1)
-          .maybeSingle();
-        if (membership?.organization_id) {
-          // NOTE: do NOT set grandfathered_lifetime here. That flag is
-          // reserved for original launch/founder users. New lifetime
-          // BUYERS get plan_type='lifetime' (which already grants full
-          // access via check-subscription) — nothing more.
-          await supabase
-            .from("organizations")
-            .update({
-              plan_type: "lifetime",
-            })
-            .eq("id", membership.organization_id);
-          await supabase
-            .from("lifetime_access_purchases")
-            .update({ organization_id: membership.organization_id })
-            .eq("stripe_session_id", session.id);
-          await supabase.from("stripe_subscriptions").upsert(
-            {
-              organization_id: membership.organization_id,
-              stripe_subscription_id: `lifetime_${session.id}`,
-              stripe_customer_id: (session.customer as string) || null,
-              status: "active",
-              plan: "lifetime",
-              current_period_end: null,
-            },
-            { onConflict: "stripe_subscription_id", ignoreDuplicates: true },
-          );
-        }
+      const orgId = await getOrgId();
+      if (orgId) {
+        // NOTE: do NOT set grandfathered_lifetime here. That flag is
+        // reserved for original launch/founder users.
+        await supabase
+          .from("organizations")
+          .update({ plan_type: "lifetime" })
+          .eq("id", orgId);
+        await supabase
+          .from("lifetime_access_purchases")
+          .update({ organization_id: orgId })
+          .eq("stripe_session_id", session.id);
+        await supabase.from("stripe_subscriptions").upsert(
+          {
+            organization_id: orgId,
+            stripe_subscription_id: `lifetime_${session.id}`,
+            stripe_customer_id: (session.customer as string) || null,
+            status: "active",
+            plan: "lifetime",
+            current_period_end: null,
+          },
+          { onConflict: "stripe_subscription_id", ignoreDuplicates: true },
+        );
       }
 
-      // Best-effort claim — webhook also claims; the SQL is idempotent.
       try { await supabase.rpc("claim_lifetime_spot"); } catch (_) { /* ignored */ }
 
-      log("lifetime reconciled", { email, userId });
+      log("lifetime reconciled", { email, userId, isNewAccount });
       return new Response(
         JSON.stringify({
           ok: true,
@@ -166,16 +232,82 @@ serve(async (req) => {
           plan: "lifetime",
           email,
           hasAccount: !!userId,
+          isNewAccount,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // ── Subscription / other paid sessions ─────────────────────────────
-    // For subscription mode the invoice webhook already handles
-    // org provisioning; this is just a verification path that returns
-    // success so the client can stop polling.
-    log("non-lifetime session ack'd", { plan, email });
+    // ── Subscription branch (Basic / Pro / Custom / Standard) ──────────
+    if (session.mode === "subscription" && session.subscription) {
+      const planFromMetadata = session.metadata?.tidywise_plan as string | undefined;
+      const targetPlanType =
+        planFromMetadata && ["basic", "pro", "custom"].includes(planFromMetadata)
+          ? planFromMetadata
+          : (plan && ["basic", "pro", "custom"].includes(plan) ? plan : "standard");
+
+      if (!email) {
+        log("subscription session has no email — skipping provisioning");
+        return new Response(
+          JSON.stringify({ ok: true, provisioned: false, plan: targetPlanType, reason: "no_email" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      await ensureAccount(targetPlanType);
+
+      const orgId = await getOrgId();
+      if (orgId) {
+        // Always set the org's plan_type so feature gates open
+        // immediately — even if the org already existed.
+        await supabase
+          .from("organizations")
+          .update({ plan_type: targetPlanType })
+          .eq("id", orgId);
+
+        // Mirror the live Stripe subscription into stripe_subscriptions
+        // so the paywall opens before the webhook arrives.
+        try {
+          const stripeSubId = typeof session.subscription === "string"
+            ? session.subscription
+            : (session.subscription as { id?: string })?.id;
+          if (stripeSubId) {
+            const fullSub = await stripe.subscriptions.retrieve(stripeSubId);
+            const currentPeriodEnd = fullSub.current_period_end
+              ? new Date(fullSub.current_period_end * 1000).toISOString()
+              : null;
+            await supabase.from("stripe_subscriptions").upsert(
+              {
+                organization_id: orgId,
+                stripe_subscription_id: fullSub.id,
+                stripe_customer_id: (fullSub.customer as string) || null,
+                status: fullSub.status,
+                plan: targetPlanType,
+                current_period_end: currentPeriodEnd,
+              },
+              { onConflict: "stripe_subscription_id", ignoreDuplicates: false },
+            );
+          }
+        } catch (mirrorErr) {
+          console.error("[reconcile] mirror sub failed:", mirrorErr);
+        }
+      }
+
+      log("subscription reconciled", { email, userId, plan: targetPlanType, isNewAccount });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          provisioned: true,
+          plan: targetPlanType,
+          email,
+          hasAccount: !!userId,
+          isNewAccount,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    log("session ack'd (no provisioning needed)", { plan, email });
     return new Response(
       JSON.stringify({
         ok: true,
@@ -183,7 +315,6 @@ serve(async (req) => {
         plan,
         email,
         hasAccount: !!userId,
-        note: "webhook handles subscription provisioning",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
