@@ -142,7 +142,22 @@ const handler = async (req: Request): Promise<Response> => {
                   </td>
                 </tr>
               </table>
-              
+
+              <!-- Book a Demo Card -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:linear-gradient(135deg,#f0fdfa 0%,#eff6ff 100%);border-radius:12px;border:1px solid #99f6e4;margin-bottom:25px;">
+                <tr>
+                  <td style="padding:28px;text-align:center;">
+                    <div style="font-size:30px;margin-bottom:6px;">🎥</div>
+                    <h3 style="margin:0 0 10px 0;color:${primaryColor};font-size:20px;font-weight:700;">Want a personal walkthrough?</h3>
+                    <p style="margin:0 0 18px 0;font-size:15px;color:#4b5563;line-height:1.5;">
+                      Book a free 1-on-1 demo with our team. We'll show you how to set up your services, import customers, automate reminders, and start taking bookings — all in about 20 minutes.
+                    </p>
+                    <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/demo" style="display:inline-block;background-color:${accentColor};color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;box-shadow:0 4px 12px rgba(20,184,166,0.3);">Book My Free Demo</a>
+                    <p style="margin:14px 0 0 0;font-size:12px;color:#6b7280;">No card required • Pick any time that works for you</p>
+                  </td>
+                </tr>
+              </table>
+
               <!-- Tips Box -->
               <div style="background-color:#eff6ff;padding:20px;border-radius:8px;border-left:4px solid ${primaryColor};margin-bottom:30px;">
                 <h4 style="margin:0 0 10px 0;color:${primaryColor};font-size:14px;">💡 Quick Tip</h4>
