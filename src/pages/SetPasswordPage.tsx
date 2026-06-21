@@ -30,17 +30,32 @@ export default function SetPasswordPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Give supabase-js time to parse any #access_token=... hash from
+      // an invite/recovery deep-link before deciding there's no session.
+      const hasHashToken = window.location.hash.includes('access_token');
+      if (hasHashToken) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      let { data: { session } } = await supabase.auth.getSession();
+      // Retry once more for slow hash processing.
+      if (!session && hasHashToken) {
+        await new Promise((r) => setTimeout(r, 500));
+        ({ data: { session } } = await supabase.auth.getSession());
+      }
       if (cancelled) return;
       if (!session) {
-        navigate('/login', { replace: true });
+        const emailHint = searchParams.get('email');
+        const loginUrl = emailHint
+          ? `/login?email=${encodeURIComponent(emailHint)}`
+          : '/login';
+        navigate(loginUrl, { replace: true });
         return;
       }
       setEmail(session.user.email ?? null);
       setChecking(false);
     })();
     return () => { cancelled = true; };
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
