@@ -414,13 +414,16 @@ const handler = async (req: Request): Promise<Response> => {
                 // = lifetime, forever" promise applies to paying
                 // customers too, not just launch grandfathers.
                 const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
+                // NOTE: grandfathered_lifetime is reserved for original
+                // launch/founder users — NOT for new lifetime buyers.
+                // plan_type='lifetime' alone grants full access through
+                // check-subscription; we don't tag new buyers as
+                // grandfathered.
                 const { data: newOrg } = await supabase
                   .from("organizations")
                   .insert({
                     name: orgName,
                     plan_type: "lifetime",
-                    grandfathered_lifetime: true,
-                    grandfathered_at: new Date().toISOString(),
                   })
                   .select("id")
                   .single();
