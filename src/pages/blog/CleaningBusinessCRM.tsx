@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, 
@@ -171,6 +172,7 @@ export default function CleaningBusinessCRM() {
         ogImage="/images/tidywise-og.png"
       />
 
+      <BreadcrumbJsonLd crumbs={[{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }, { name: 'Best CRM for Cleaning Business (2026)', path: '/blog/crm-for-cleaning-business' }]} />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">

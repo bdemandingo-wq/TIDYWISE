@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { ArrowRight, ArrowLeft, Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -25,6 +26,7 @@ export default function BestSoftwareForCleaners() {
         }}
       />
 
+      <BreadcrumbJsonLd crumbs={[{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }, { name: 'Best Software for Cleaning Business Owners (2025)', path: '/blog/best-software-for-cleaning-business' }]} />
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
