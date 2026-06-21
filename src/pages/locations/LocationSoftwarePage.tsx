@@ -106,6 +106,14 @@ export default function LocationSoftwarePage() {
         },
       })),
     },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.jointidywise.com/" },
+        { "@type": "ListItem", position: 2, name: "Locations", item: "https://www.jointidywise.com/cleaning-business-software" },
+        { "@type": "ListItem", position: 3, name: data.name, item: `https://www.jointidywise.com${canonicalPath}` },
+      ],
+    },
   ];
 
   const relatedForLocation = allArticles.filter(

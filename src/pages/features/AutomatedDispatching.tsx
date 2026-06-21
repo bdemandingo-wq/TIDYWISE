@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
@@ -77,6 +78,8 @@ export default function AutomatedDispatching() {
         title="Automated Dispatching for Cleaning Businesses | TIDYWISE"
         description="Smart dispatching software for cleaning companies. GPS-based cleaner assignment, route optimization, and real-time job tracking. See pricing."
         canonical="/features/automated-dispatching"
+        ogImage="/images/tidywise-og.png"
+        schemaJson={featurePageSchemas({ featureName: 'Automated Job Dispatching', description: 'Auto-assign jobs to the right cleaner using availability, skills, location, and route.', path: '/features/automated-dispatching', crumbLabel: 'Automated Dispatching' })}
       />
 
       {/* Navigation */}

@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, CreditCard, Shield, DollarSign, CheckCircle2,
@@ -33,14 +34,7 @@ export default function PaymentProcessing() {
         description="Get paid faster with TidyWise. Send invoices, accept online payments, and set up recurring billing — all in one place."
         canonical="/features/payment-processing"
         ogImage="/images/tidywise-og.png"
-        schemaJson={{
-          "@type": "SoftwareApplication",
-          "name": "TidyWise Payment Processing",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Web, iOS, Android",
-          "offers": { "@type": "Offer", "price": "50", "priceCurrency": "USD" },
-          "description": "Automated payment processing for cleaning businesses with Stripe, invoicing, and recurring billing."
-        }}
+        schemaJson={featurePageSchemas({ featureName: 'Payment Processing', description: 'Accept cards, ACH, and saved payment methods with Stripe Connect built in.', path: '/features/payment-processing', crumbLabel: 'Payments' })}
       />
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">

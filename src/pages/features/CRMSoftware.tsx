@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, Users, Target, BarChart3, CheckCircle2,
@@ -33,13 +34,7 @@ export default function CRMSoftware() {
         description="TidyWise CRM keeps all your cleaning clients, job history, and notes in one place. Stay organized and grow your cleaning business faster."
         canonical="/features/crm"
         ogImage="/images/tidywise-og.png"
-        schemaJson={{
-          "@type": "SoftwareApplication",
-          "name": "TidyWise CRM",
-          "applicationCategory": "BusinessApplication",
-          "description": "CRM software designed for cleaning companies to manage clients, track leads, and automate communication.",
-          "offers": { "@type": "Offer", "price": "49", "priceCurrency": "USD", "description": "30-day money-back guarantee" }
-        }}
+        schemaJson={featurePageSchemas({ featureName: 'Cleaning CRM Software', description: 'Track every customer, job history, photos, payments, and messages in one place.', path: '/features/crm', crumbLabel: 'CRM' })}
       />
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">

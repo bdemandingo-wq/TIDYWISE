@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
@@ -76,6 +77,8 @@ export default function SMSNotifications() {
         title="SMS Notifications for Cleaning Businesses | TidyWise"
         description="Automated SMS notifications for cleaning companies. Booking confirmations, reminders, on-my-way alerts, and review requests. Reduce no-shows by 80%."
         canonical="/features/sms-notifications"
+        ogImage="/images/tidywise-og.png"
+        schemaJson={featurePageSchemas({ featureName: 'SMS Notifications', description: 'Two-way SMS via OpenPhone for booking confirmations, reminders, and on-the-way alerts.', path: '/features/sms-notifications', crumbLabel: 'SMS Notifications' })}
       />
 
       {/* Navigation */}

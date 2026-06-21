@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
@@ -76,6 +77,8 @@ export default function QuoteSoftware() {
         title="Cleaning Quote Software | Instant Estimates | TIDYWISE"
         description="Professional quote software for cleaning businesses. Auto-calculate prices, send branded estimates, and convert leads to bookings. Get started trial."
         canonical="/features/quote-software"
+        ogImage="/images/tidywise-og.png"
+        schemaJson={featurePageSchemas({ featureName: 'Quote & Estimate Software', description: 'Send branded estimates with one-click acceptance and convert quotes to confirmed jobs.', path: '/features/quote-software', crumbLabel: 'Quotes' })}
       />
 
       {/* Navigation */}

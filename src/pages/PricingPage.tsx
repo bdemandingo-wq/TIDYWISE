@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
+import { softwareApplicationSchema, breadcrumbSchema } from '@/lib/seo/schemas';
 import { SiteFooter } from '@/components/SiteFooter';
 import {
   AdManagementRequestDialog,
@@ -518,6 +519,14 @@ export default function PricingPage() {
         title="Pricing | TidyWise — Cleaning Business Software"
         description="Four plans for cleaning businesses of every size. Basic $49, Pro $97, Custom $197, or a one-time Lifetime deal at $300 (50 spots only)."
         canonical="/pricing"
+        ogImage="/images/tidywise-og.png"
+        schemaJson={[
+          softwareApplicationSchema(),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Pricing", path: "/pricing" },
+          ]),
+        ]}
       />
 
       <main className="min-h-screen bg-background">

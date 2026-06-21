@@ -25,6 +25,7 @@ import {
   Crown
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
+import { localBusinessSchema } from '@/lib/seo/schemas';
 import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { SiteFooter } from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -231,6 +232,7 @@ export default function LandingPage() {
             "logo": "https://www.jointidywise.com/images/tidywise-logo.png",
             "sameAs": []
           },
+          localBusinessSchema(),
           {
             "@type": "SoftwareApplication",
             "name": "TIDYWISE",
