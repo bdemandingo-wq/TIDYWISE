@@ -519,9 +519,9 @@ export default function PricingPage() {
         title="Pricing | TidyWise — Cleaning Business Software"
         description="Four plans for cleaning businesses of every size. Basic $49, Pro $97, Custom $197, or a one-time Lifetime deal at $300 (50 spots only)."
         canonical="/pricing"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-pricing.png"
         schemaJson={[
-          softwareApplicationSchema(),
+          softwareApplicationSchema({ withOfferList: true }),
           breadcrumbSchema([
             { name: "Home", path: "/" },
             { name: "Pricing", path: "/pricing" },

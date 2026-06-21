@@ -25,7 +25,7 @@ import {
   Crown
 } from "lucide-react";
 import { SEOHead } from '@/components/SEOHead';
-import { localBusinessSchema } from '@/lib/seo/schemas';
+import { localBusinessSchema, softwareApplicationSchema, faqSchema, HOME_FAQS, organizationSchema } from '@/lib/seo/schemas';
 import { AuthSEOContent } from '@/components/seo/AuthSEOContent';
 import { SiteFooter } from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -223,91 +223,12 @@ export default function LandingPage() {
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
         description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
         canonical="/"
-        ogImage="/images/tidywise-og.png"
+        ogImage="/images/og/og-home.png"
         schemaJson={[
-          {
-            "@type": "Organization",
-            "name": "TIDYWISE",
-            "url": "https://www.jointidywise.com",
-            "logo": "https://www.jointidywise.com/images/tidywise-logo.png",
-            "sameAs": []
-          },
+          organizationSchema(),
           localBusinessSchema(),
-          {
-            "@type": "SoftwareApplication",
-            "name": "TIDYWISE",
-            "applicationCategory": "BusinessApplication",
-            "operatingSystem": "Web (mobile-friendly)",
-            "offers": {
-              "@type": "AggregateOffer",
-              "lowPrice": "49",
-              "highPrice": "300",
-              "priceCurrency": "USD",
-              "offerCount": "4"
-            },
-            "description": "All-in-one cleaning business management software with scheduling, CRM, payments, and staff management. Plans from $49/mo."
-          },
-          {
-            "@type": "FAQPage",
-            "mainEntity": [
-              {
-                "@type": "Question",
-                "name": "How much does TidyWise cost?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "TidyWise's Basic plan ($49/mo) includes unlimited users, bookings, scheduling, invoicing, payments, and the cleaner mobile app. The Pro plan is $97/month and unlocks automated payroll, P&L reporting, AI pricing tools, inventory, route optimization, the in-app SMS inbox, loyalty programs, and priority support."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "What does TidyWise do for cleaning businesses?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "TidyWise is an all-in-one platform for cleaning businesses. It handles online booking, team scheduling, client CRM, automated invoicing, payroll calculation, GPS tracking, route optimization, and staff management — all from one mobile-friendly dashboard."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "How does TidyWise compare to Jobber?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "TidyWise starts at $49/mo vs Jobber's $69/month entry plan. Both offer scheduling, invoicing, and client management. TidyWise also includes a client self-service portal, GPS check-ins, and SMS reminders at no cost — and Pro at $97/mo adds built-in payroll, AI business intelligence, automations, and route optimization, all of which require paid add-ons or higher tiers on Jobber."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Does TidyWise work for small cleaning businesses?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. TidyWise is designed for cleaning businesses of all sizes — from solo operators to multi-team companies. Setup takes about 5 minutes and there are no minimums or seat limits. It scales with your business without ever charging you."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Does TidyWise have GPS tracking for cleaners?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. TidyWise Pro and above include real-time GPS tracking for cleaning teams. See where every cleaner is, verify job arrival times, give customers accurate ETAs, and generate automatic mileage reports for reimbursements."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Can I manage payroll with TidyWise?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. TidyWise includes built-in payroll for cleaning businesses. It automatically calculates wages from completed jobs — flat per-job rates, hourly, or a percentage of the service price. Tips, mileage reimbursements, and pay period reports are all handled inside the platform."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Can I use TidyWise on my phone?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. TidyWise is a mobile-friendly web app that works on any phone or tablet (iPhone, Android, iPad) — staff can see their schedules, document jobs with photos, and send updates right from the browser. Native iOS and Android apps are on the roadmap."
-                }
-              }
-            ]
-          }
+          softwareApplicationSchema(),
+          faqSchema(HOME_FAQS),
         ]}
       />
 
