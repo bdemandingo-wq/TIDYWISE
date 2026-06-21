@@ -237,8 +237,8 @@ export default function CheckoutSuccessPage() {
                   className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <Link
-                    to={`/set-password${buyerEmail ? `?email=${encodeURIComponent(buyerEmail)}` : ''}`}
-                    aria-label="Set your password and log in"
+                    to={`/login${buyerEmail ? `?email=${encodeURIComponent(buyerEmail)}` : ''}`}
+                    aria-label="Log in to your account"
                   >
                     Log In
                   </Link>
