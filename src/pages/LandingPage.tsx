@@ -232,6 +232,7 @@ export default function LandingPage() {
             "logo": "https://www.jointidywise.com/images/tidywise-logo.png",
             "sameAs": []
           },
+          localBusinessSchema(),
           {
             "@type": "SoftwareApplication",
             "name": "TIDYWISE",
