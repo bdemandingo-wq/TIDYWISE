@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
+import { softwareApplicationSchema, breadcrumbSchema } from '@/lib/seo/schemas';
 import { SiteFooter } from '@/components/SiteFooter';
 import {
   AdManagementRequestDialog,
