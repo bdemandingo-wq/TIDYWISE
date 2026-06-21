@@ -233,19 +233,49 @@ export default function CheckoutSuccessPage() {
             {isAnonymousCheckout ? (
               <>
                 <Button
+                  size="lg"
+                  className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  disabled={!buyerEmail || resending}
+                  onClick={async () => {
+                    if (!buyerEmail) return;
+                    setResending(true);
+                    try {
+                      const origin = window.location.origin;
+                      const { error } = await supabase.auth.resetPasswordForEmail(buyerEmail, {
+                        redirectTo: `${origin}/set-password?next=/dashboard`,
+                      });
+                      if (error) throw error;
+                      toast.success(`Setup link sent to ${buyerEmail}`);
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : 'Could not resend link';
+                      toast.error(msg);
+                    } finally {
+                      setResending(false);
+                    }
+                  }}
+                  aria-label="Resend account setup email"
+                >
+                  {resending ? (
+                    <><Loader2 aria-hidden="true" className="h-4 w-4 mr-2 animate-spin" /> Sending…</>
+                  ) : (
+                    <><Mail aria-hidden="true" className="h-4 w-4 mr-2" /> Resend setup email</>
+                  )}
+                </Button>
+                <Button
                   asChild
+                  variant="ghost"
                   size="lg"
                   className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <Link
                     to={`/login${buyerEmail ? `?email=${encodeURIComponent(buyerEmail)}` : ''}`}
-                    aria-label="Log in to your account"
+                    aria-label="Already set your password? Log in"
                   >
-                    Log In
+                    Already set your password? Log in
                   </Link>
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Already set your password? Use the button above. Need help?{' '}
+                  Need help?{' '}
                   <a
                     href="mailto:support@tidywisecleaning.com"
                     className="underline hover:text-foreground"
@@ -254,6 +284,7 @@ export default function CheckoutSuccessPage() {
                   </a>
                 </p>
               </>
+
             ) : (
               <>
                 <Button
