@@ -250,11 +250,20 @@ export function BookingActionSheet({
           </Button>
           <Button
             className="w-full justify-start gap-2.5 h-11 bg-teal-500 hover:bg-teal-600 text-white font-semibold text-[13px] rounded-lg shadow-sm disabled:opacity-40"
+            onClick={() => onMarkCompleteAdjustPay(booking)}
+            disabled={booking.status === 'completed'}
+          >
+            <CheckCircle className="w-4 h-4" /> Mark Complete & Adjust Pay
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2.5 h-11 font-semibold text-[13px] rounded-lg disabled:opacity-40"
             onClick={() => onMarkComplete(booking)}
             disabled={booking.status === 'completed'}
           >
             <CheckCircle className="w-4 h-4" /> Mark Complete
           </Button>
+
         </div>
 
         {/* ── Sections ── */}
