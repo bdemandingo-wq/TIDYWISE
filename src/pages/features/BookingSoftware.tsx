@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, Calendar, Globe, CheckCircle2,
@@ -32,13 +33,7 @@ export default function BookingSoftware() {
         description="Let clients book cleaning services online 24/7. TidyWise automates your booking process so you never miss a job. See pricing."
         canonical="/features/booking"
         ogImage="/images/tidywise-og.png"
-        schemaJson={{
-          "@type": "SoftwareApplication",
-          "name": "TidyWise Booking Software",
-          "applicationCategory": "BusinessApplication",
-          "description": "Online booking software designed for cleaning businesses with smart scheduling and automated confirmations.",
-          "offers": { "@type": "Offer", "price": "49", "priceCurrency": "USD", "description": "30-day money-back guarantee" }
-        }}
+        schemaJson={featurePageSchemas({ featureName: 'Online Booking Software', description: '24/7 online booking with custom services, real-time calendar, and automated confirmations.', path: '/features/booking', crumbLabel: 'Online Booking' })}
       />
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">

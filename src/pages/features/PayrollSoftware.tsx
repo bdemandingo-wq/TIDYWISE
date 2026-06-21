@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import {
   ArrowRight,
@@ -84,14 +85,7 @@ export default function PayrollSoftware() {
         description="Automate cleaner wages, tips, mileage & tax docs. Built for cleaning businesses — per-job pay, hourly, or % of service price. Included with the TIDYWISE Pro plan ($97/mo)."
         canonical="/features/payroll-software"
         ogImage="/images/tidywise-og.png"
-        schemaJson={{
-          "@type": "SoftwareApplication",
-          "name": "TidyWise Payroll Software",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Web, iOS, Android",
-          "offers": { "@type": "Offer", "price": "97", "priceCurrency": "USD", "category": "subscription", "description": "Included with Pro plan" },
-          "description": "Payroll software for cleaning businesses. Automate wages, tips, mileage reimbursements, and generate W-2/1099 documentation. Included with the TIDYWISE Pro plan."
-        }}
+        schemaJson={featurePageSchemas({ featureName: 'Payroll Software', description: 'Automated payroll for cleaners with hourly, commission, and tipped wages.', path: '/features/payroll-software', crumbLabel: 'Payroll' })}
       />
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">

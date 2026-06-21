@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, 
@@ -77,6 +78,8 @@ export default function InvoicingSoftware() {
         title="Invoicing Software for Cleaning Businesses | TidyWise"
         description="Create branded invoices, accept online payments, and automate reminders. Get paid 2x faster with TidyWise invoicing for cleaning companies."
         canonical="/features/invoicing-software"
+        ogImage="/images/tidywise-og.png"
+        schemaJson={featurePageSchemas({ featureName: 'Invoicing Software', description: 'Create branded invoices, accept card payments, and auto-charge recurring clients.', path: '/features/invoicing-software', crumbLabel: 'Invoicing' })}
       />
 
       {/* Navigation */}

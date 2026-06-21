@@ -1,6 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from '@/components/SEOHead';
+import { featurePageSchemas } from '@/lib/seo/schemas';
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
 import { 
   ArrowRight, Calendar, Clock, Users, CheckCircle2,
@@ -39,14 +40,7 @@ export default function SchedulingSoftware() {
         description="Schedule your cleaning team in minutes with TidyWise. Drag-and-drop scheduling, automatic reminders, and real-time updates for your whole team."
         canonical="/features/scheduling-software"
         ogImage="/images/tidywise-og.png"
-        schemaJson={{
-          "@type": "SoftwareApplication",
-          "name": "TidyWise Scheduling Software",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Web, iOS, Android",
-          "offers": { "@type": "Offer", "price": "50", "priceCurrency": "USD" },
-          "description": "Cleaning scheduling software with visual calendar, recurring bookings, and automatic SMS reminders."
-        }}
+        schemaJson={featurePageSchemas({ featureName: 'Scheduling Software', description: 'Drag-and-drop scheduling with recurring jobs, staff availability, and conflict checks.', path: '/features/scheduling-software', crumbLabel: 'Scheduling' })}
       />
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
