@@ -256,15 +256,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Handle subscription updates (plan changes, renewals, cancellation
-    // scheduled at period end, etc.) — keep stripe_subscriptions in sync.
+    // scheduled at period end, etc.) — keep stripe_subscriptions in sync
+    // AND mirror the resolved plan into organizations.plan_type so the
+    // app's feature gates respect the latest Stripe state.
     if (event.type === "customer.subscription.updated") {
       try {
         const subscription = event.data.object as Stripe.Subscription;
         const subMetaUpdate = (subscription.metadata ?? {}) as Record<string, string>;
-        // Ad-management retainers live in their own ad_management_subscriptions
-        // table — don't mirror them into stripe_subscriptions (which tracks
-        // only the main TidyWise plan). Without this early-return, the
-        // updated row would pollute the customer's primary plan record.
         if (subMetaUpdate.purpose === "tidywise_ad_management") {
           return new Response(JSON.stringify({ received: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -276,6 +274,7 @@ const handler = async (req: Request): Promise<Response> => {
         const resolved = await resolveOrgIdForSubscription(supabase, stripe, subscription);
         if (resolved.orgId) {
           await upsertStripeSubscription(supabase, resolved.orgId, subscription);
+          await syncOrgPlanFromSubscription(supabase, resolved.orgId, subscription);
         } else {
           await logSubscriptionOrphan(
             supabase, supabaseUrl, supabaseServiceKey,
@@ -1510,6 +1509,81 @@ async function upsertStripeSubscription(
       subId: subscription.id,
       status: subscription.status,
     });
+  }
+}
+
+// Resolve the active TidyWise plan tier ("basic" | "pro" | "custom") from
+// a Stripe subscription. We prefer metadata (set by change-subscription-plan
+// and reconcile-checkout-session) and fall back to matching the price id
+// against the env-configured price ids.
+function resolvePlanTierFromSubscription(
+  subscription: Stripe.Subscription,
+): "basic" | "pro" | "custom" | null {
+  const meta = (subscription.metadata ?? {}) as Record<string, string>;
+  const fromMeta =
+    meta.tidywise_plan || meta.plan_tier || meta.plan || null;
+  if (fromMeta && ["basic", "pro", "custom"].includes(fromMeta)) {
+    return fromMeta as "basic" | "pro" | "custom";
+  }
+  const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
+  if (!priceId) return null;
+  const priceMap: Record<string, "basic" | "pro" | "custom"> = {};
+  for (const [tier, ids] of [
+    ["basic", [Deno.env.get("STRIPE_BASIC_MONTHLY_PRICE_ID"), Deno.env.get("STRIPE_BASIC_YEARLY_PRICE_ID")]],
+    ["pro", [Deno.env.get("STRIPE_PRO_MONTHLY_PRICE_ID"), Deno.env.get("STRIPE_PRO_YEARLY_PRICE_ID")]],
+    ["custom", [Deno.env.get("STRIPE_CUSTOM_MONTHLY_PRICE_ID"), Deno.env.get("STRIPE_CUSTOM_YEARLY_PRICE_ID")]],
+  ] as const) {
+    for (const id of ids) {
+      if (id) priceMap[id] = tier as "basic" | "pro" | "custom";
+    }
+  }
+  return priceMap[priceId] ?? null;
+}
+
+// Push the resolved plan from a Stripe subscription onto organizations.
+// Also clears the scheduled-downgrade fields once the org reaches the
+// previously scheduled tier (the schedule has rolled over).
+async function syncOrgPlanFromSubscription(
+  supabase: any,
+  orgId: string,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  // Don't downgrade a Lifetime/grandfathered org from Stripe updates.
+  const { data: existingOrg } = await supabase
+    .from("organizations")
+    .select("plan_type, grandfathered_lifetime, plan_downgrade_scheduled_to")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (
+    existingOrg?.grandfathered_lifetime ||
+    existingOrg?.plan_type === "lifetime"
+  ) {
+    return;
+  }
+
+  const tier = resolvePlanTierFromSubscription(subscription);
+  if (!tier) return;
+  if (!["active", "trialing", "past_due"].includes(subscription.status)) return;
+
+  const update: Record<string, unknown> = { plan_type: tier };
+  // If we reached the scheduled tier, clear pending-downgrade markers.
+  if (
+    existingOrg?.plan_downgrade_scheduled_to &&
+    existingOrg.plan_downgrade_scheduled_to === tier
+  ) {
+    update.plan_downgrade_scheduled_to = null;
+    update.plan_downgrade_date = null;
+    update.stripe_schedule_id = null;
+  }
+
+  const { error } = await supabase
+    .from("organizations")
+    .update(update)
+    .eq("id", orgId);
+  if (error) {
+    console.error("[stripe-invoice-webhook] syncOrgPlanFromSubscription failed:", error);
+  } else {
+    console.log("[stripe-invoice-webhook] organization plan_type synced", { orgId, tier });
   }
 }
 
