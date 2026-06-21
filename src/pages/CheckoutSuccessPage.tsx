@@ -25,7 +25,7 @@
  *   - All decorative icons are `aria-hidden`.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -101,20 +101,20 @@ export default function CheckoutSuccessPage() {
   // webhook race so the user is provisioned the moment they hit this
   // page, regardless of how long Stripe takes to deliver the event.
   // Safe to call repeatedly (idempotent on the server).
+  const [buyerEmail, setBuyerEmail] = useState<string | null>(null);
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
     (async () => {
       try {
-        await supabase.functions.invoke('reconcile-checkout-session', {
+        const { data } = await supabase.functions.invoke('reconcile-checkout-session', {
           body: { session_id: sessionId },
         });
+        if (!cancelled && data?.email) setBuyerEmail(data.email as string);
       } catch (err) {
         console.warn('[checkout-success] reconcile failed (webhook will retry)', err);
       }
       if (!cancelled) {
-        // Re-pull subscription state now that the server has had a
-        // chance to flag the org lifetime/active.
         try { await checkSubscription(); } catch { /* polling loop covers it */ }
       }
     })();
@@ -236,7 +236,10 @@ export default function CheckoutSuccessPage() {
                   size="lg"
                   className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
-                  <Link to="/login" aria-label="Log in to your account">
+                  <Link
+                    to={`/set-password${buyerEmail ? `?email=${encodeURIComponent(buyerEmail)}` : ''}`}
+                    aria-label="Set your password and log in"
+                  >
                     Log In
                   </Link>
                 </Button>
