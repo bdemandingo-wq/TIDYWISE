@@ -45,6 +45,7 @@ export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, checkSubscription, subscription } = useAuth();
+  const sessionId = searchParams.get('session_id');
   const plan = searchParams.get('plan') ?? '';
   const interval = searchParams.get('interval');
   const planLabel = PLAN_LABELS[plan] ?? null;
