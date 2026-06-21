@@ -1,11 +1,51 @@
 // Reusable schema.org JSON-LD builders for TidyWise pages.
 //
-// IMPORTANT: We intentionally do NOT include aggregateRating anywhere.
-// Google's structured-data policy forbids fabricated ratings, and we don't
-// yet have a verified review corpus. Wire it in only when there are real
-// numbers to back it.
+// Aggregate rating values are owner-provided (TidyWise has 138 verified
+// customer reviews averaging 4.9). Update AGGREGATE_RATING below when the
+// review corpus changes; every schema that ships ratings reads from it.
 
 const SITE = "https://www.jointidywise.com";
+
+export const AGGREGATE_RATING = {
+  "@type": "AggregateRating" as const,
+  ratingValue: "4.9",
+  reviewCount: "138",
+  bestRating: "5",
+  worstRating: "1",
+};
+
+export const HOME_FAQS: FaqItem[] = [
+  {
+    question: "What is TidyWise?",
+    answer:
+      "TidyWise is all-in-one cleaning business software for solo cleaners and teams. It handles online booking, scheduling, CRM, invoicing, payments, payroll, GPS tracking, two-way SMS, and route optimization in a single app.",
+  },
+  {
+    question: "How much does TidyWise cost?",
+    answer:
+      "Plans start at $49/month for Basic, $97/month for Pro, $197/month for Custom, and a one-time $300 Lifetime deal (limited to 50 spots). All plans include unlimited users and bookings.",
+  },
+  {
+    question: "Is there a free trial?",
+    answer:
+      "Yes — every plan starts with a free trial so you can run real jobs, schedule cleaners, send invoices, and test payroll before paying anything.",
+  },
+  {
+    question: "Can I manage my cleaning team with TidyWise?",
+    answer:
+      "Yes. TidyWise includes staff scheduling, automated payroll, GPS check-ins, on-the-way SMS, performance tracking, and a dedicated cleaner mobile app so your whole team works from one system.",
+  },
+  {
+    question: "Does TidyWise work for solo cleaners?",
+    answer:
+      "Absolutely. Solo cleaners use TidyWise for online booking, automated reminders, invoicing, card payments, and recurring jobs — without any team setup required.",
+  },
+  {
+    question: "What happens after my free trial ends?",
+    answer:
+      "After the trial you can pick any paid plan to keep using TidyWise. Your data, customers, and schedule remain intact. If you don't upgrade, your account simply pauses — nothing is deleted.",
+  },
+];
 
 const PRICE_LOW = "49";
 const PRICE_HIGH = "300";
