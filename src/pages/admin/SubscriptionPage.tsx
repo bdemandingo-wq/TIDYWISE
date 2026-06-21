@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, PauseCircle, PlayCircle, CreditCard } from "lucide-react";
 import CancellationFlowDialog from "@/components/subscription/CancellationFlowDialog";
+import { PlanSwitcher } from "@/components/subscription/PlanSwitcher";
 
 export default function SubscriptionPage() {
   const { subscription, checkSubscription } = useAuth();
@@ -66,6 +67,8 @@ export default function SubscriptionPage() {
       <SEOHead title="Subscription | TidyWise" description="TidyWise subscription" noIndex />
 
       <div className="mx-auto max-w-2xl space-y-4">
+        <PlanSwitcher />
+
         <Card>
           <CardHeader>
             <CardTitle>TidyWise CRM</CardTitle>
