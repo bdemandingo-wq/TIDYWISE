@@ -45,7 +45,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    email: searchParams.get('email') ?? '',
     password: '',
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
