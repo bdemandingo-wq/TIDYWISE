@@ -1,0 +1,1 @@
+ALTER TABLE public.business_settings ALTER COLUMN notify_morning_brief SET DEFAULT false; ALTER TABLE public.business_settings ALTER COLUMN notify_evening_brief SET DEFAULT false; UPDATE public.business_settings SET notify_morning_brief = false, notify_evening_brief = false WHERE notify_morning_brief = true OR notify_evening_brief = true;
