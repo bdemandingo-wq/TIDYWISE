@@ -17,6 +17,8 @@ interface EmailSettings {
   from_email: string;
   reply_to_email: string;
   email_footer: string;
+  // Write-only: never returned by the API for security reasons.
+  // We only know whether one is configured via the org_has_resend_api_key RPC.
   resend_api_key: string;
 }
 
@@ -33,6 +35,7 @@ export function EmailSettingsCard() {
   const [settings, setSettings] = useState<EmailSettings>(defaultEmailSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasResendKey, setHasResendKey] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -44,7 +47,7 @@ export function EmailSettingsCard() {
     try {
       const { data, error } = await supabase
         .from('organization_email_settings')
-        .select('*')
+        .select('id, organization_id, from_name, from_email, reply_to_email, email_footer')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
@@ -57,15 +60,23 @@ export function EmailSettingsCard() {
           from_email: data.from_email || '',
           reply_to_email: data.reply_to_email || '',
           email_footer: data.email_footer || '',
-          resend_api_key: data.resend_api_key || '',
+          resend_api_key: '',
         });
       }
+
+      // Whether a Resend API key is already saved — the value itself is
+      // never returned to the client; we only get a boolean.
+      const { data: hasKey } = await supabase.rpc('org_has_resend_api_key' as never, {
+        p_org_id: organization!.id,
+      } as never);
+      setHasResendKey(Boolean(hasKey));
     } catch (error) {
       console.error('Error fetching email settings:', error);
     } finally {
       setLoading(false);
     }
   };
+
 
   const validateEmail = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -87,32 +98,45 @@ export function EmailSettingsCard() {
 
     setSaving(true);
     try {
-      const emailData = {
+      const trimmedKey = settings.resend_api_key.trim();
+      const baseData: Record<string, unknown> = {
         organization_id: organization!.id,
         from_name: settings.from_name.trim(),
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
-        resend_api_key: settings.resend_api_key.trim() || null,
       };
+      // Only write the Resend API key when the admin actually typed one.
+      // The stored value is never read back, so an empty input means
+      // "leave the existing key alone."
+      if (trimmedKey.length > 0) {
+        baseData.resend_api_key = trimmedKey;
+      }
+      const emailData = baseData;
 
       if (settings.id) {
         const { error } = await supabase
           .from('organization_email_settings')
-          .update(emailData)
+          .update(emailData as never)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_email_settings')
-          .insert(emailData)
-          .select()
+          .insert(emailData as never)
+          .select('id')
           .single();
         if (error) throw error;
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
       toast.success('Email settings saved successfully');
+      if (trimmedKey.length > 0) {
+        setHasResendKey(true);
+        // Clear the input so it doesn't render the value the user just typed.
+        setSettings(prev => ({ ...prev, resend_api_key: '' }));
+      }
+
     } catch (error: any) {
       console.error('Error saving email settings:', error);
       toast.error(error.message || 'Failed to save email settings');
@@ -218,22 +242,26 @@ export function EmailSettingsCard() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="resendApiKey">Resend API Key (optional)</Label>
+          <Label htmlFor="resendApiKey">
+            Resend API Key (optional){hasResendKey ? ' — saved' : ''}
+          </Label>
           <Input
             id="resendApiKey"
             type="password"
-            placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            placeholder={hasResendKey ? '••••••••  (leave blank to keep current key)' : 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
             value={settings.resend_api_key}
             onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+            autoComplete="new-password"
           />
           <p className="text-xs text-muted-foreground">
             Your organization's own Resend API key. Get one at{' '}
             <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
               resend.com/api-keys
             </a>
-            . The domain in your "From Email" must be verified in this Resend account.
+            . The domain in your "From Email" must be verified in this Resend account. For security, the saved key is never displayed — type a new one to replace it.
           </p>
         </div>
+
 
         <Button onClick={saveEmailSettings} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
