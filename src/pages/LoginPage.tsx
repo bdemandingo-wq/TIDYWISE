@@ -208,7 +208,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
-      <SEOHead title={seoTitle} description={seoDescription} canonical="/login" />
+      <SEOHead title={seoTitle} description={seoDescription} canonical={isAuthPath ? "/auth" : "/login"} />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
