@@ -1,14 +1,10 @@
-// Optional Prerender.io recache trigger fired when a blog post is published.
-// Future-proofed: if PRERENDER_TOKEN is not set, logs a warning and exits 200
-// silently so the publish flow never fails because of missing CDN config.
-//
-// Setup later (when Cloudflare/Prerender CDN is in front of jointidywise.com):
-//   1. Add PRERENDER_TOKEN as an edge function secret.
-//   2. This function will start recaching on every publish automatically.
-
+// Recache trigger fired when a blog post is published or edited.
+// Tells Encited (the pre-render layer in front of jointidywise.com) to re-render
+// a single URL so crawlers/AI engines immediately see fresh content.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const SITE_DOMAIN = "https://jointidywise.com";
+const SITE_DOMAIN = "https://www.jointidywise.com";
+const DEFAULT_ENCITED_ENDPOINT = "https://encited.com/api/prerender/cache/invalidate-page-cache";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,69 +12,60 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-interface RecacheBody {
-  slug?: string;
-  url?: string;
+interface RecacheBody { slug?: string; url?: string; }
+interface RecacheResult { ok: boolean; status?: number; response?: string; }
+
+async function recacheViaEncited(targetUrl: string, token: string): Promise<RecacheResult> {
+  const endpoint = Deno.env.get("ENCITED_RECACHE_ENDPOINT") || DEFAULT_ENCITED_ENDPOINT;
+  const parsed = new URL(targetUrl);
+  const domain = Deno.env.get("ENCITED_DOMAIN") || parsed.host;
+  const path = parsed.pathname;
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-lovablehtml-api-key": token },
+    body: JSON.stringify({ domain, path, prewarm: true }),
+  });
+  const text = await res.text().catch(() => "");
+  return { ok: res.ok, status: res.status, response: text.slice(0, 500) };
+}
+
+async function recacheViaPrerender(targetUrl: string, token: string): Promise<RecacheResult> {
+  const res = await fetch("https://api.prerender.io/recache", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prerenderToken: token, url: targetUrl }),
+  });
+  const text = await res.text().catch(() => "");
+  return { ok: res.ok, status: res.status, response: text.slice(0, 500) };
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = (await req.json().catch(() => ({}))) as RecacheBody;
-    const targetUrl =
-      body.url ||
-      (body.slug ? `${SITE_DOMAIN}/blog/post/${body.slug}` : null);
-
+    const targetUrl = body.url || (body.slug ? `${SITE_DOMAIN}/blog/post/${body.slug}` : null);
     if (!targetUrl) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Missing slug or url" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ ok: false, error: "Missing slug or url" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const token = Deno.env.get("PRERENDER_TOKEN");
-    if (!token) {
-      console.warn("[recache-blog-post] PRERENDER_TOKEN not configured — skipping recache for", targetUrl);
-      return new Response(
-        JSON.stringify({ ok: true, skipped: true, reason: "PRERENDER_TOKEN not set", url: targetUrl }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const encitedToken = Deno.env.get("ENCITED_API_TOKEN");
+    const prerenderToken = Deno.env.get("PRERENDER_TOKEN");
+    let provider: string; let result: RecacheResult;
+    if (encitedToken) { provider = "encited"; result = await recacheViaEncited(targetUrl, encitedToken); }
+    else if (prerenderToken) { provider = "prerender"; result = await recacheViaPrerender(targetUrl, prerenderToken); }
+    else {
+      console.warn("[recache-blog-post] No recache provider configured — skipping for", targetUrl);
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "no recache provider configured", url: targetUrl }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    const res = await fetch("https://api.prerender.io/recache", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prerenderToken: token, url: targetUrl }),
-    });
-
-    const ok = res.ok;
-    const text = await res.text().catch(() => "");
-    if (!ok) {
-      console.error("[recache-blog-post] Prerender API error", res.status, text);
-    } else {
-      console.log("[recache-blog-post] Recached", targetUrl);
-    }
-
-    return new Response(
-      JSON.stringify({ ok, status: res.status, url: targetUrl, response: text.slice(0, 500) }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    if (!result.ok) console.error(`[recache-blog-post] ${provider} error`, result.status, result.response);
+    else console.log(`[recache-blog-post] Recached via ${provider}:`, targetUrl);
+    return new Response(JSON.stringify({ ok: result.ok, provider, status: result.status, url: targetUrl, response: result.response }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[recache-blog-post] error:", msg);
-    return new Response(
-      JSON.stringify({ ok: false, error: msg }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ ok: false, error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
-
-// NOTE: A "prerender-proxy" middleware function (to forward bot user-agents to
-// service.prerender.io) cannot work on Lovable hosting because per-route
-// edge middleware in front of the React SPA is not supported. To enable bot
-// prerendering, route /blog/* through Cloudflare Workers (or migrate hosting
-// to Vercel/Netlify) and proxy bot traffic there. The recache flow above will
-// keep Prerender's cache warm regardless of which proxy you choose.
