@@ -17,6 +17,8 @@ interface EmailSettings {
   from_email: string;
   reply_to_email: string;
   email_footer: string;
+  // Write-only: never returned by the API for security reasons.
+  // We only know whether one is configured via the org_has_resend_api_key RPC.
   resend_api_key: string;
 }
 
@@ -33,6 +35,7 @@ export function EmailSettingsCard() {
   const [settings, setSettings] = useState<EmailSettings>(defaultEmailSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasResendKey, setHasResendKey] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -44,7 +47,7 @@ export function EmailSettingsCard() {
     try {
       const { data, error } = await supabase
         .from('organization_email_settings')
-        .select('*')
+        .select('id, organization_id, from_name, from_email, reply_to_email, email_footer')
         .eq('organization_id', organization!.id)
         .maybeSingle();
 
@@ -57,15 +60,23 @@ export function EmailSettingsCard() {
           from_email: data.from_email || '',
           reply_to_email: data.reply_to_email || '',
           email_footer: data.email_footer || '',
-          resend_api_key: data.resend_api_key || '',
+          resend_api_key: '',
         });
       }
+
+      // Whether a Resend API key is already saved — the value itself is
+      // never returned to the client; we only get a boolean.
+      const { data: hasKey } = await supabase.rpc('org_has_resend_api_key' as never, {
+        p_org_id: organization!.id,
+      } as never);
+      setHasResendKey(Boolean(hasKey));
     } catch (error) {
       console.error('Error fetching email settings:', error);
     } finally {
       setLoading(false);
     }
   };
+
 
   const validateEmail = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
