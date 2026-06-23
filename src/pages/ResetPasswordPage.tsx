@@ -477,6 +477,8 @@ export default function ResetPasswordPage() {
               <li><Link to="/staff/login" className="text-primary hover:underline">Staff portal login →</Link></li>
               <li><Link to="/portal/login" className="text-primary hover:underline">Client portal login →</Link></li>
               <li><Link to="/pricing" className="text-primary hover:underline">TidyWise pricing →</Link></li>
+              <li><Link to="/demo" className="text-primary hover:underline">Book a demo →</Link></li>
+              <li><Link to="/cleaning-business-software" className="text-primary hover:underline">Cleaning business software →</Link></li>
               <li><Link to="/contact" className="text-primary hover:underline">Contact support →</Link></li>
               <li><Link to="/privacy-policy" className="text-primary hover:underline">Privacy policy →</Link></li>
             </ul>
