@@ -9207,6 +9207,7 @@ export type Database = {
         }
         Returns: number
       }
+      org_has_resend_api_key: { Args: { p_org_id: string }; Returns: boolean }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
