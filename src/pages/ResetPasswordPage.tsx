@@ -341,8 +341,9 @@ export default function ResetPasswordPage() {
             About setting a new TidyWise password
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            This page is the second step of the TidyWise password recovery flow. You should
-            already have a numeric reset code in your inbox — it was sent the moment you
+            This page is the second step of the{" "}
+            <Link to="/forgot-password" className="text-primary hover:underline">TidyWise password recovery flow</Link>.
+            You should already have a numeric reset code in your inbox — it was sent the moment you
             submitted the email lookup form. Codes expire after 15 minutes and are single-
             use, so if you wait too long or try to reuse one, you'll need to request a
             fresh one from the previous step.
