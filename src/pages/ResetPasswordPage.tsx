@@ -397,6 +397,70 @@ export default function ResetPasswordPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-foreground mb-3">
+              Why password security matters for cleaning businesses
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Your TidyWise account holds scheduling data, customer addresses, payment
+              information, staff details, and proprietary pricing. A compromised
+              password could expose client homes, interrupt daily routes, or allow
+              unauthorized invoice changes. That is why we enforce strong passwords,
+              single-use reset codes, and automatic security notifications every time
+              credentials change. Treat your TidyWise login with the same care you give
+              physical office keys — it protects your entire operation.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              What to do if the reset code never arrives
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Start by checking spam, junk, and promotions folders. Corporate email
+              filters sometimes delay automated messages by a few minutes. If you still
+              do not see the code after five minutes, click the resend button above —
+              there is no penalty for requesting another. Make sure the email address
+              you entered matches the one on your TidyWise account exactly; typos are
+              the most common reason a code fails to deliver. If repeated attempts fail,
+              reach out to{" "}
+              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
+              with the email you believe is registered and we will verify it manually.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Team access and shared accounts
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              If multiple people in your company share one TidyWise login, a password
+              reset locks everyone out until the new credentials are shared. We strongly
+              recommend creating individual admin accounts through Settings → Staff
+              instead of sharing passwords. Individual accounts let you assign roles,
+              track who changed what, and revoke access instantly when someone leaves —
+              without forcing a company-wide password reset. If you must share temporarily,
+              reset the password during off-hours and distribute the new credentials
+              through a secure channel, never in plain text messages or emails.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              Protecting your account going forward
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              After you reset, enable any additional security features available in your
+              dashboard, such as session monitoring and two-factor authentication if
+              offered. Review active devices monthly and sign out anything unrecognized.
+              Avoid accessing TidyWise from public computers or unsecured networks when
+              possible. If you use a shared office computer, always sign out when finished
+              rather than relying on the browser to remember the session. These habits take
+              seconds but prevent hours of damage control if an unauthorized user ever
+              gains access.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">
               Related TidyWise pages
             </h3>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm">

@@ -29,13 +29,16 @@ export function HealthMonitorTab() {
     queryKey: ['health-openphone', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { connected: false, lastMessage: null as string | null };
-      const { data, error } = await supabase
-        .from('organization_sms_settings')
-        .select('sms_enabled, openphone_api_key')
-        .eq('organization_id', organization.id)
-        .maybeSingle();
+      const [{ data, error }, { data: hasKey }] = await Promise.all([
+        supabase
+          .from('organization_sms_settings')
+          .select('sms_enabled')
+          .eq('organization_id', organization.id)
+          .maybeSingle(),
+        supabase.rpc('has_openphone_api_key', { _org_id: organization.id }),
+      ]);
       if (error || !data) return { connected: false, lastMessage: null };
-      
+
       // Check last SMS
       const { data: lastSms } = await supabase
         .from('sms_conversations')
@@ -43,9 +46,9 @@ export function HealthMonitorTab() {
         .eq('organization_id', organization.id)
         .order('last_message_at', { ascending: false })
         .limit(1);
-      
+
       return {
-        connected: !!data.sms_enabled && !!data.openphone_api_key,
+        connected: !!data.sms_enabled && hasKey === true,
         lastMessage: lastSms?.[0]?.last_message_at || null,
       };
     },
