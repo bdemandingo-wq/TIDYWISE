@@ -98,14 +98,21 @@ export function EmailSettingsCard() {
 
     setSaving(true);
     try {
-      const emailData = {
+      const trimmedKey = settings.resend_api_key.trim();
+      const baseData: Record<string, unknown> = {
         organization_id: organization!.id,
         from_name: settings.from_name.trim(),
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
-        resend_api_key: settings.resend_api_key.trim() || null,
       };
+      // Only write the Resend API key when the admin actually typed one.
+      // The stored value is never read back, so an empty input means
+      // "leave the existing key alone."
+      if (trimmedKey.length > 0) {
+        baseData.resend_api_key = trimmedKey;
+      }
+      const emailData = baseData;
 
       if (settings.id) {
         const { error } = await supabase
@@ -117,13 +124,19 @@ export function EmailSettingsCard() {
         const { data, error } = await supabase
           .from('organization_email_settings')
           .insert(emailData)
-          .select()
+          .select('id')
           .single();
         if (error) throw error;
         setSettings(prev => ({ ...prev, id: data.id }));
       }
 
       toast.success('Email settings saved successfully');
+      if (trimmedKey.length > 0) {
+        setHasResendKey(true);
+        // Clear the input so it doesn't render the value the user just typed.
+        setSettings(prev => ({ ...prev, resend_api_key: '' }));
+      }
+
     } catch (error: any) {
       console.error('Error saving email settings:', error);
       toast.error(error.message || 'Failed to save email settings');
