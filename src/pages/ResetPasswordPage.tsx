@@ -429,6 +429,8 @@ export default function ResetPasswordPage() {
               you entered matches the one on your TidyWise account exactly; typos are
               the most common reason a code fails to deliver. If repeated attempts fail,
               reach out to{" "}
+              <Link to="/contact" className="text-primary hover:underline">support</Link>{" "}
+              or email{" "}
               <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
               with the email you believe is registered and we will verify it manually.
             </p>
