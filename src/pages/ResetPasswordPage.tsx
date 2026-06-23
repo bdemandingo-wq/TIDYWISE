@@ -373,13 +373,14 @@ export default function ResetPasswordPage() {
               After you set a new password
             </h3>
             <p className="text-muted-foreground leading-relaxed">
-              You'll be signed into your TidyWise dashboard automatically and your old
-              password stops working everywhere. Other devices that were signed in stay
+              You'll be signed into your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise dashboard</Link>{" "}
+              automatically and your old password stops working everywhere. Other devices that were signed in stay
               signed in — they trust the existing session token. If you suspect another
               device shouldn't have access, head to{" "}
               <Link to="/login" className="text-primary hover:underline">login</Link>{" "}
-              then Settings → Active Sessions to revoke them, or contact{" "}
-              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
+              then Settings → Active Sessions to revoke them, or{" "}
+              <Link to="/contact" className="text-primary hover:underline">contact support</Link>{" "}
               and we'll force-sign-out everything for you.
             </p>
           </div>
