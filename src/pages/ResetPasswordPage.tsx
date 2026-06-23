@@ -194,8 +194,10 @@ export default function ResetPasswordPage() {
         canonical="/reset-password"
       />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
-      <h1 className="sr-only">Set a new password for your TidyWise account</h1>
       <div className="w-full max-w-md">
+        <h1 className="text-3xl font-bold text-foreground text-center mb-2">
+          Set a new password for your TidyWise account
+        </h1>
         <Link
           to="/login"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
