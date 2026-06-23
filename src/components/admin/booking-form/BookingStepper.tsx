@@ -1127,21 +1127,26 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               try {
                 // Parse 24h time format (HH:mm)
                 const [hours, minutes] = selectedTime.split(':').map(Number);
-                
+
                 const scheduledDate = new Date(selectedDate!);
                 scheduledDate.setHours(hours, minutes, 0, 0);
-                
-                const response = await supabase.functions.invoke('send-booking-reminder', {
+
+                const formattedDate = format(scheduledDate, 'MMMM d, yyyy');
+                const formattedTime = format(scheduledDate, 'h:mm a');
+                const serviceName = selectedService?.name || 'cleaning';
+                const fullAddress = `${address}${city ? `, ${city}` : ''}`;
+
+                const confirmationMessage =
+                  `Hi ${customerName}! Your ${serviceName} appointment is confirmed for ${formattedDate} at ${formattedTime}.` +
+                  `${fullAddress ? ` Address: ${fullAddress}.` : ''}` +
+                  ` Reply to this message with any questions!`;
+
+                // Use send-openphone-sms directly so manual confirmation sends are
+                // not throttled by the send-booking-reminder cron fan-out pool.
+                const response = await supabase.functions.invoke('send-openphone-sms', {
                   body: {
-                    bookingId: persistedBookingId,
-                    customerPhone,
-                    customerName,
-                    serviceName: selectedService?.name || 'cleaning',
-                    scheduledAt: bookingData.scheduled_at,
-                    formattedDate: format(scheduledDate, 'MMMM d, yyyy'),
-                    formattedTime: format(scheduledDate, 'h:mm a'),
-                    address: `${address}${city ? `, ${city}` : ''}`,
-                    messageType: 'confirmation',
+                    to: customerPhone,
+                    message: confirmationMessage,
                     organizationId: organizationId ?? undefined,
                   },
                 });
