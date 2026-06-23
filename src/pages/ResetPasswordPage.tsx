@@ -393,9 +393,10 @@ export default function ResetPasswordPage() {
               If a code arrived unexpectedly, no action is needed — codes expire on their
               own and an unused code does not change your password. If this happens
               repeatedly, someone may have your email address; consider rotating the
-              password from inside your dashboard once you're back in. Report suspicious
-              activity to{" "}
-              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>.
+              password from inside your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise dashboard</Link>{" "}
+              once you're back in. Report suspicious activity to{" "}
+              <Link to="/contact" className="text-primary hover:underline">contact support</Link>.
             </p>
           </div>
 
