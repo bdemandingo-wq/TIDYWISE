@@ -409,8 +409,10 @@ export default function ResetPasswordPage() {
               password could expose client homes, interrupt daily routes, or allow
               unauthorized invoice changes. That is why we enforce strong passwords,
               single-use reset codes, and automatic security notifications every time
-              credentials change. Treat your TidyWise login with the same care you give
-              physical office keys — it protects your entire operation.
+              credentials change. Treat your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise login</Link>{" "}
+              with the same care you give physical office keys — it protects your entire{" "}
+              <Link to="/cleaning-business-software" className="text-primary hover:underline">cleaning business operation</Link>.
             </p>
           </div>
 
