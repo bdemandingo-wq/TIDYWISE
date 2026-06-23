@@ -341,8 +341,9 @@ export default function ResetPasswordPage() {
             About setting a new TidyWise password
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            This page is the second step of the TidyWise password recovery flow. You should
-            already have a numeric reset code in your inbox — it was sent the moment you
+            This page is the second step of the{" "}
+            <Link to="/forgot-password" className="text-primary hover:underline">TidyWise password recovery flow</Link>.
+            You should already have a numeric reset code in your inbox — it was sent the moment you
             submitted the email lookup form. Codes expire after 15 minutes and are single-
             use, so if you wait too long or try to reuse one, you'll need to request a
             fresh one from the previous step.
@@ -372,13 +373,14 @@ export default function ResetPasswordPage() {
               After you set a new password
             </h3>
             <p className="text-muted-foreground leading-relaxed">
-              You'll be signed into your TidyWise dashboard automatically and your old
-              password stops working everywhere. Other devices that were signed in stay
+              You'll be signed into your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise dashboard</Link>{" "}
+              automatically and your old password stops working everywhere. Other devices that were signed in stay
               signed in — they trust the existing session token. If you suspect another
               device shouldn't have access, head to{" "}
               <Link to="/login" className="text-primary hover:underline">login</Link>{" "}
-              then Settings → Active Sessions to revoke them, or contact{" "}
-              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
+              then Settings → Active Sessions to revoke them, or{" "}
+              <Link to="/contact" className="text-primary hover:underline">contact support</Link>{" "}
               and we'll force-sign-out everything for you.
             </p>
           </div>
@@ -391,9 +393,10 @@ export default function ResetPasswordPage() {
               If a code arrived unexpectedly, no action is needed — codes expire on their
               own and an unused code does not change your password. If this happens
               repeatedly, someone may have your email address; consider rotating the
-              password from inside your dashboard once you're back in. Report suspicious
-              activity to{" "}
-              <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>.
+              password from inside your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise dashboard</Link>{" "}
+              once you're back in. Report suspicious activity to{" "}
+              <Link to="/contact" className="text-primary hover:underline">contact support</Link>.
             </p>
           </div>
 
@@ -407,8 +410,10 @@ export default function ResetPasswordPage() {
               password could expose client homes, interrupt daily routes, or allow
               unauthorized invoice changes. That is why we enforce strong passwords,
               single-use reset codes, and automatic security notifications every time
-              credentials change. Treat your TidyWise login with the same care you give
-              physical office keys — it protects your entire operation.
+              credentials change. Treat your{" "}
+              <Link to="/login" className="text-primary hover:underline">TidyWise login</Link>{" "}
+              with the same care you give physical office keys — it protects your entire{" "}
+              <Link to="/cleaning-business-software" className="text-primary hover:underline">cleaning business operation</Link>.
             </p>
           </div>
 
@@ -424,6 +429,8 @@ export default function ResetPasswordPage() {
               you entered matches the one on your TidyWise account exactly; typos are
               the most common reason a code fails to deliver. If repeated attempts fail,
               reach out to{" "}
+              <Link to="/contact" className="text-primary hover:underline">support</Link>{" "}
+              or email{" "}
               <a href="mailto:Support@tidywisecleaning.com" className="text-primary hover:underline">Support@tidywisecleaning.com</a>{" "}
               with the email you believe is registered and we will verify it manually.
             </p>
@@ -472,6 +479,8 @@ export default function ResetPasswordPage() {
               <li><Link to="/staff/login" className="text-primary hover:underline">Staff portal login →</Link></li>
               <li><Link to="/portal/login" className="text-primary hover:underline">Client portal login →</Link></li>
               <li><Link to="/pricing" className="text-primary hover:underline">TidyWise pricing →</Link></li>
+              <li><Link to="/demo" className="text-primary hover:underline">Book a demo →</Link></li>
+              <li><Link to="/cleaning-business-software" className="text-primary hover:underline">Cleaning business software →</Link></li>
               <li><Link to="/contact" className="text-primary hover:underline">Contact support →</Link></li>
               <li><Link to="/privacy-policy" className="text-primary hover:underline">Privacy policy →</Link></li>
             </ul>
