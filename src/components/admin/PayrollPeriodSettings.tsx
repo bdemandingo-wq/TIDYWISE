@@ -98,19 +98,23 @@ export function PayrollPeriodSettings() {
       if (!organizationId) return false;
       const { data, error } = await supabase
         .from('organization_email_settings')
-        .select('from_name, from_email, resend_api_key')
+        .select('from_name, from_email')
         .eq('organization_id', organizationId)
         .maybeSingle();
       if (error) throw error;
       if (!data) return false;
-      return Boolean(
-        (data.from_name ?? '').trim() &&
-          (data.from_email ?? '').trim() &&
-          (data.resend_api_key ?? '').trim()
-      );
+      const hasNames = Boolean((data.from_name ?? '').trim() && (data.from_email ?? '').trim());
+      if (!hasNames) return false;
+      // The Resend API key value is never returned via the API for security.
+      // Use the security-definer RPC to check whether one is configured.
+      const { data: hasKey } = await supabase.rpc('org_has_resend_api_key' as never, {
+        p_org_id: organizationId,
+      } as never);
+      return Boolean(hasKey);
     },
     enabled: !!organizationId,
   });
+
 
   const [frequency, setFrequency] = useState<'weekly' | 'biweekly'>('weekly');
   const [startDay, setStartDay] = useState(1);

@@ -242,22 +242,26 @@ export function EmailSettingsCard() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="resendApiKey">Resend API Key (optional)</Label>
+          <Label htmlFor="resendApiKey">
+            Resend API Key (optional){hasResendKey ? ' — saved' : ''}
+          </Label>
           <Input
             id="resendApiKey"
             type="password"
-            placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            placeholder={hasResendKey ? '••••••••  (leave blank to keep current key)' : 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
             value={settings.resend_api_key}
             onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+            autoComplete="new-password"
           />
           <p className="text-xs text-muted-foreground">
             Your organization's own Resend API key. Get one at{' '}
             <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
               resend.com/api-keys
             </a>
-            . The domain in your "From Email" must be verified in this Resend account.
+            . The domain in your "From Email" must be verified in this Resend account. For security, the saved key is never displayed — type a new one to replace it.
           </p>
         </div>
+
 
         <Button onClick={saveEmailSettings} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
