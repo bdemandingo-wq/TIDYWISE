@@ -117,13 +117,13 @@ export function EmailSettingsCard() {
       if (settings.id) {
         const { error } = await supabase
           .from('organization_email_settings')
-          .update(emailData)
+          .update(emailData as never)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_email_settings')
-          .insert(emailData)
+          .insert(emailData as never)
           .select('id')
           .single();
         if (error) throw error;
