@@ -2,7 +2,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from "@/components/SEOHead";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
-import { CheckCircle2, Minus, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle2, Minus, ArrowRight, Sparkles, Download } from "lucide-react";
 
 type Cell = boolean | string;
 const rows: { area: string; task: string; standard: Cell; deep: Cell }[] = [
