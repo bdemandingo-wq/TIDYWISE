@@ -462,20 +462,11 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't throw - admin notification is secondary
     }
 
-    // Send SMS confirmation if enabled
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      await sendBookingSMS(
-        supabase,
-        booking.organizationId,
-        booking.customerPhone || "",
-        customerName,
-        booking.appointmentDate || "",
-        booking.appointmentTime || "",
-        booking.serviceName || "Cleaning",
-        companyName
-      );
-    }
+    // NOTE: Confirmation SMS is intentionally NOT sent here to avoid duplicate texts.
+    // The booking form (BookingStepper) and public booking flow send their own
+    // confirmation SMS via send-openphone-sms when the "Send confirmation SMS"
+    // toggle is enabled. This function is responsible for the EMAIL only.
+    void sendBookingSMS; // keep helper available for future use
 
     // Audit log: successful email send
     logAudit({
