@@ -2,7 +2,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SEOHead } from "@/components/SEOHead";
 import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
-import { CheckCircle2, Minus, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle2, Minus, ArrowRight, Sparkles, Download } from "lucide-react";
 
 type Cell = boolean | string;
 const rows: { area: string; task: string; standard: Cell; deep: Cell }[] = [
@@ -142,6 +142,27 @@ export default function DeepVsStandardClean() {
           </p>
         </div>
       </section>
+
+      <section className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto bg-card border border-border rounded-2xl p-8 sm:p-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="flex-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-3">
+              <Download className="h-3.5 w-3.5" /> Free download
+            </div>
+            <h3 className="text-2xl font-bold text-foreground mb-2">Fort Lauderdale Move-Out Cleaning Checklist</h3>
+            <p className="text-muted-foreground">
+              The exact PDF checklist our crews use to help South Florida renters get 100% of their security deposit back.
+            </p>
+          </div>
+          <Button asChild size="lg" className="h-12 px-6 shrink-0">
+            <a href="/fort-lauderdale-move-out-checklist.pdf" download>
+              Download PDF <Download className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        </div>
+      </section>
+
+
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-secondary/30">
         <div className="max-w-5xl mx-auto">
