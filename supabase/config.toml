@@ -121,6 +121,8 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.send-card-collection-link]
     verify_jwt = false
+  [functions.send-card-link-sms]
+    verify_jwt = false
   [functions.send-cleaner-notification]
     verify_jwt = false
   [functions.send-deposit-request]
