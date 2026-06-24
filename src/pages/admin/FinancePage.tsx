@@ -475,17 +475,14 @@ export default function FinancePage() {
               {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
             </div>
             <p className="text-xl font-bold text-green-600">
-              {isTestMode
-                ? '$X,XXX.XX'
-                : `${fmt((stripeConnected ? stripeData.total_revenue : metrics.totalSales) + metrics.portalRevenue)}`}
+              {isTestMode ? '$X,XXX.XX' : fmt(metrics.totalSales)}
             </p>
-            {stripeConnected ? (
-              <p className="text-[10px] text-muted-foreground">
-                Stripe {fmt(stripeData.total_revenue)} + Portal {fmt(metrics.portalRevenue)}
-              </p>
-            ) : (
-              <p className="text-[10px] text-muted-foreground">
-                Includes {fmt(metrics.portalRevenue)} portal payments
+            <p className="text-[10px] text-muted-foreground">
+              {metrics.transactionCount} paid bookings (gross)
+            </p>
+            {stripeConnected && !isTestMode && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Stripe processed {fmt(stripeData.total_revenue)} in window
               </p>
             )}
           </CardContent>
