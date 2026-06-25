@@ -198,9 +198,34 @@ serve(async (req) => {
           return !!productId && TIDYWISE_CRM_PRODUCT_IDS.has(productId);
         });
         console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
-        
+
+        // Build a set of emails belonging to staff-only users (not org owners/admins).
+        // We hide them from the Subscribers tab because they appear via their
+        // personal trial sub but are really cleaners, not paying customers.
+        const { data: staffRows } = await supabaseClient
+          .from('staff')
+          .select('email, user_id');
+        const staffEmails = new Set<string>();
+        const staffUserIds = new Set<string>();
+        for (const s of (staffRows || [])) {
+          if (s.email) staffEmails.add(String(s.email).toLowerCase());
+          if (s.user_id) staffUserIds.add(s.user_id);
+        }
+        // Owners/admins always count as subscribers even if also listed as staff.
+        const { data: ownerMems } = await supabaseClient
+          .from('org_memberships')
+          .select('user_id')
+          .in('role', ['owner', 'admin']);
+        const ownerUserIds = new Set((ownerMems || []).map((m: any) => m.user_id));
+        const { data: ownerProfiles } = ownerUserIds.size
+          ? await supabaseClient.from('profiles').select('email').in('id', Array.from(ownerUserIds))
+          : { data: [] as any[] };
+        const ownerEmails = new Set((ownerProfiles || []).map((p: any) => String(p.email || '').toLowerCase()).filter(Boolean));
+
         // Track unique customers with subscriptions
         const subscriberEmails = new Set<string>();
+
+
         
         for (const sub of crmSubscriptions) {
           // Get customer details first so any account overrides can apply to metrics and badges
