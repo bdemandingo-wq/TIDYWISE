@@ -309,13 +309,7 @@ serve(async (req) => {
       return dateB - dateA;
     });
 
-        
-      } catch (stripeError) {
-        console.error("[PLATFORM-ANALYTICS] Stripe error:", stripeError);
-      }
-    } else {
-      console.log("[PLATFORM-ANALYTICS] No Stripe key found");
-    }
+
 
     console.log("[PLATFORM-ANALYTICS] Returning data...");
     return new Response(JSON.stringify({
