@@ -258,14 +258,57 @@ serve(async (req) => {
           }
         }
 
-        console.log("[PLATFORM-ANALYTICS] Total TidyWise subscribers:", totalSubscribers);
-        
-        // Sort by subscription created date (most recent first)
-        subscribersList.sort((a, b) => {
-          const dateA = a.subscriptionCreated !== 'Unknown' ? new Date(a.subscriptionCreated).getTime() : 0;
-          const dateB = b.subscriptionCreated !== 'Unknown' ? new Date(b.subscriptionCreated).getTime() : 0;
-          return dateB - dateA;
+        console.log("[PLATFORM-ANALYTICS] Total TidyWise subscribers (Stripe):", totalSubscribers);
+      } catch (stripeError) {
+        console.error("[PLATFORM-ANALYTICS] Stripe error:", stripeError);
+      }
+    } else {
+      console.log("[PLATFORM-ANALYTICS] No Stripe key found");
+    }
+
+    // Also include DB trial users (signed up, in trial window, no Stripe sub yet)
+    try {
+      const nowIso = new Date().toISOString();
+      const { data: trialProfiles } = await supabaseClient
+        .from('profiles')
+        .select('id, email, full_name, created_at, trial_ends_at, subscription_status')
+        .eq('subscription_status', 'trial')
+        .gt('trial_ends_at', nowIso);
+
+      const existingEmails = new Set(subscribersList.map((s) => (s.email || '').toLowerCase()));
+      const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
+
+      for (const p of trialProfiles || []) {
+        const email = (p.email || '').toLowerCase();
+        if (!email || existingEmails.has(email)) continue;
+        existingEmails.add(email);
+        totalSubscribers++;
+        const createdMs = p.created_at ? new Date(p.created_at).getTime() : 0;
+        if (createdMs / 1000 >= thirtyDaysAgoTimestamp) recentSubscribers++;
+        trialSubscriptions++;
+        subscribersList.push({
+          id: p.id,
+          email: p.email,
+          name: p.full_name,
+          created: p.created_at || 'Unknown',
+          subscriptionStatus: 'trialing',
+          subscriptionCreated: p.created_at || 'Unknown',
+          subscriptionId: null,
+          trialEndsAt: p.trial_ends_at,
+          source: 'tidywise_trial',
         });
+      }
+    } catch (e) {
+      console.error("[PLATFORM-ANALYTICS] Trial profile fetch error:", e);
+    }
+
+    // Sort by created date (most recent first)
+    subscribersList.sort((a, b) => {
+      const dateA = a.subscriptionCreated && a.subscriptionCreated !== 'Unknown' ? new Date(a.subscriptionCreated).getTime() : 0;
+      const dateB = b.subscriptionCreated && b.subscriptionCreated !== 'Unknown' ? new Date(b.subscriptionCreated).getTime() : 0;
+      return dateB - dateA;
+    });
+
         
       } catch (stripeError) {
         console.error("[PLATFORM-ANALYTICS] Stripe error:", stripeError);
