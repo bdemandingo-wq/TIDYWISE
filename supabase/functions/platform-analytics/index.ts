@@ -248,11 +248,21 @@ serve(async (req) => {
             }
           }
 
+          const emailLower = customerEmail.toLowerCase();
+          const isStaffOnly = staffEmails.has(emailLower) && !ownerEmails.has(emailLower);
+          if (isStaffOnly) {
+            // Skip staff members entirely from the Subscribers tab — they
+            // appear here only because they self-signed-up with a trial.
+            continue;
+          }
+
           const resolvedStatus = resolveSubscriptionStatus(customerEmail, sub.status);
 
           if (resolvedStatus === 'active') activeSubscriptions++;
           if (resolvedStatus === 'trialing') trialSubscriptions++;
           if (resolvedStatus === 'canceled') canceledSubscriptions++;
+
+
           
           subscriptionList.push({
             id: sub.id,
