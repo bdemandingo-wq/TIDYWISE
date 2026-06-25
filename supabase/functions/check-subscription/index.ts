@@ -104,6 +104,33 @@ serve(async (req) => {
       });
     }
 
+    // ── Owner bypass: any user who owns (or admins) an organization gets
+    // full access for free. Staff added as owners qualify here too.
+    const { data: ownerMembership } = await supabaseClient
+      .from("org_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["owner", "admin"])
+      .limit(1)
+      .maybeSingle();
+
+    if (ownerMembership) {
+      logStep("Owner/admin bypass - granting full access", { email: user.email, role: ownerMembership.role });
+      return new Response(JSON.stringify({
+        subscribed: true,
+        trial_active: false,
+        product_id: "owner_free",
+        plan_type: "owner",
+        subscription_end: null,
+        trial_end: null,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+
+
     // ── Step 0: Check for lifetime access ──────────────────────────────────
     // Two sources mean "lifetime":
     //   (a) a row in lifetime_access_purchases for this email (new buyers), OR
