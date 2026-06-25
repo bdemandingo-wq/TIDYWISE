@@ -140,11 +140,27 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Block self-signup for emails already attached as staff on an org —
+      // staff must use the staff portal invite, not the public pricing signup.
+      try {
+        const { data: staffCheck } = await supabaseNoSession.functions.invoke('check-email-staff', {
+          body: { email: formData.email },
+        });
+        if (staffCheck?.is_staff) {
+          toast.error("This email is registered as staff. Ask your manager to invite you through the staff portal.");
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.log('staff check failed (non-blocking):', err);
+      }
+
       const { data, error } = await signUp(
         formData.email,
         formData.password,
         { full_name: formData.fullName, phone: formData.phone }
       );
+
       
       if (error) {
         if (error.message.includes('already registered')) {
