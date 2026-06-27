@@ -268,19 +268,22 @@ async function syncOrganization(
         for (const existing of existingMessages || []) existingMessageIds.add(existing.openphone_message_id);
       }
 
-      const { error: upsertError } = await supabase
-        .from("sms_messages")
-        .upsert(rows, { onConflict: "openphone_message_id", ignoreDuplicates: true });
+      const newlyInserted = rows.filter((row: any) =>
+        row.openphone_message_id && !existingMessageIds.has(row.openphone_message_id)
+      );
 
-      if (upsertError) {
-        console.error("[sync-openphone-messages] message upsert error", upsertError);
-        summary.errors++;
-        continue;
+      if (newlyInserted.length > 0) {
+        const { error: insertError } = await supabase
+          .from("sms_messages")
+          .insert(newlyInserted);
+
+        if (insertError) {
+          console.error("[sync-openphone-messages] message insert error", insertError);
+          summary.errors++;
+          continue;
+        }
       }
 
-      const newlyInserted = rows.filter((row: any) =>
-        !row.openphone_message_id || !existingMessageIds.has(row.openphone_message_id)
-      );
       summary.inserted += newlyInserted.length;
 
       const unreadDelta = newlyInserted.filter((row: any) => row.direction === "inbound").length;
