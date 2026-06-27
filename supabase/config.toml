@@ -139,6 +139,8 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.send-openphone-sms]
     verify_jwt = false
+  [functions.sync-openphone-messages]
+    verify_jwt = false
   [functions.send-payment-link]
     verify_jwt = false
   [functions.send-referral-invite]
