@@ -38,6 +38,7 @@ import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicato
 import { BookOpen, Filter } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { hapticImpact } from '@/lib/haptics';
+import { MessagesHealthBanner } from '@/components/admin/MessagesHealthBanner';
 
 // ─── Types ──────────────────────────────────────────
 interface Conversation {
@@ -1491,6 +1492,7 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
+        {!isMobile && <MessagesHealthBanner />}
         {isMobile ? (
           <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
