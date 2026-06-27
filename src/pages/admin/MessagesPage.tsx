@@ -1103,6 +1103,23 @@ export default function MessagesPage() {
           ) : (
             <>
               <button
+                onClick={async () => {
+                  if (!organizationId) return;
+                  const { error } = await supabase
+                    .from('sms_conversations')
+                    .update({ unread_count: 0 })
+                    .eq('organization_id', organizationId)
+                    .gt('unread_count', 0);
+                  if (error) { toast.error('Failed to mark all read'); return; }
+                  setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                  toast.success('All conversations marked as read');
+                }}
+                title="Mark all as read"
+                className="text-[#007AFF]"
+              >
+                <CheckCheck className="h-5 w-5" />
+              </button>
+              <button
                 onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
                 className="text-[#007AFF]"
               >
