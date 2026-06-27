@@ -356,9 +356,14 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const visibleNavigation = navigation
     .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
     .map(item => {
-      // Add badge to Client Portal if there are pending requests
       if (item.href === '/dashboard/client-portal' && pendingRequestsCount > 0) {
         return { ...item, badge: pendingRequestsCount };
+      }
+      if (item.href === '/dashboard/messages' && unreadMessagesCount > 0) {
+        return { ...item, badge: unreadMessagesCount };
+      }
+      if (item.href === '/dashboard/tasks' && openTasksCount > 0) {
+        return { ...item, badge: openTasksCount };
       }
       return item;
     });
