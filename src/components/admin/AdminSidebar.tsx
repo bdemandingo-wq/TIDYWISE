@@ -262,7 +262,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         .from('tasks_and_notes')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .neq('type', 'note')
+        .in('type', ['daily', 'weekly', 'monthly'])
         .eq('is_completed', false);
       if (error) return 0;
       return count || 0;
