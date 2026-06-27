@@ -31,6 +31,9 @@ function formatRelative(iso: string | null): string {
   return `${days}d ago`;
 }
 
+const isInboundStale = (report: HealthReport) =>
+  report.hours_since_inbound === null || report.hours_since_inbound > 24;
+
 export function MessagesHealthBanner() {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<HealthReport | null>(null);
@@ -72,14 +75,20 @@ export function MessagesHealthBanner() {
     report.api_key_valid &&
     report.phone_number_id_valid &&
     report.sms_enabled &&
+    !hasIssues &&
+    !isInboundStale(report);
+  const credentialsValid =
+    report.api_key_valid &&
+    report.phone_number_id_valid &&
+    report.sms_enabled &&
     !hasIssues;
 
-  if (allGood) {
+  if (allGood || credentialsValid) {
     return (
       <div className="flex items-center justify-between gap-2 px-4 py-1.5 text-xs text-muted-foreground border-b">
         <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-          OpenPhone connected
+          <CheckCircle2 className={`w-3.5 h-3.5 ${allGood ? "text-green-600" : "text-amber-600"}`} />
+          {allGood ? "OpenPhone messages synced" : "OpenPhone connected · sync needed"}
           {report.phone_number && (
             <span className="font-mono"> · {report.phone_number}</span>
           )}
