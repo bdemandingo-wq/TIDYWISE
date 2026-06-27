@@ -237,6 +237,40 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Unread SMS messages count (sum of unread_count across conversations)
+  const { data: unreadMessagesCount = 0 } = useQuery({
+    queryKey: ['unread-messages-count', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return 0;
+      const { data, error } = await supabase
+        .from('sms_conversations')
+        .select('unread_count')
+        .eq('organization_id', organization.id);
+      if (error || !data) return 0;
+      return data.reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
+    },
+    enabled: !!organization?.id,
+    refetchInterval: 30000,
+  });
+
+  // Incomplete tasks count (badge disappears once task is checked off)
+  const { data: openTasksCount = 0 } = useQuery({
+    queryKey: ['open-tasks-count', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return 0;
+      const { count, error } = await supabase
+        .from('tasks_and_notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id)
+        .eq('type', 'task')
+        .eq('is_completed', false);
+      if (error) return 0;
+      return count || 0;
+    },
+    enabled: !!organization?.id,
+    refetchInterval: 30000,
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
