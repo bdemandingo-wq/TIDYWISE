@@ -1104,11 +1104,11 @@ export default function MessagesPage() {
             <>
               <button
                 onClick={async () => {
-                  if (!orgId) return;
+                  if (!organizationId) return;
                   const { error } = await supabase
                     .from('sms_conversations')
                     .update({ unread_count: 0 })
-                    .eq('organization_id', orgId)
+                    .eq('organization_id', organizationId)
                     .gt('unread_count', 0);
                   if (error) { toast.error('Failed to mark all read'); return; }
                   setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
