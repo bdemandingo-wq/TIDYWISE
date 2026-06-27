@@ -1492,6 +1492,7 @@ export default function MessagesPage() {
       }
     >
       <SubscriptionGate feature="Messages">
+        {!isMobile && <MessagesHealthBanner />}
         {isMobile ? (
           <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
