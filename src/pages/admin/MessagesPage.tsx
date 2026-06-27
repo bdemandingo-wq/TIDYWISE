@@ -38,6 +38,7 @@ import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicato
 import { BookOpen, Filter } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { hapticImpact } from '@/lib/haptics';
+import { MessagesHealthBanner } from '@/components/admin/MessagesHealthBanner';
 
 // ─── Types ──────────────────────────────────────────
 interface Conversation {
