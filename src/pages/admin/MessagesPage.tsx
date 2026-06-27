@@ -121,6 +121,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
   const [sending, setSending] = useState(false);
+  const [syncingMessages, setSyncingMessages] = useState(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
@@ -287,7 +288,7 @@ export default function MessagesPage() {
 
   // ─── Pull to refresh ─────────────────────────────
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
-    await fetchConversations(false);
+    await syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
   });
 
   // ─── Fetch contacts ──────────────────────────────
@@ -318,6 +319,7 @@ export default function MessagesPage() {
     // Initial fetch — only this one shows the loading spinner
     fetchConversations(true);
     fetchContacts();
+    syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
 
     const channel = supabase
       .channel('sms-messages')
@@ -441,6 +443,37 @@ export default function MessagesPage() {
       await supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', conversationId);
       // Immediately update local state so the blue dot disappears
       setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
+    }
+  };
+
+  const syncOpenPhoneMessages = async (
+    showToast = true,
+    options: { daysBack?: number; maxConversations?: number } = {},
+  ) => {
+    if (!organizationId || syncingMessages) return;
+    setSyncingMessages(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-openphone-messages', {
+        body: {
+          organizationId,
+          daysBack: options.daysBack ?? 90,
+          maxConversations: options.maxConversations ?? 75,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      await fetchConversations(false);
+      if (selectedConversation) await fetchMessages(selectedConversation.id);
+
+      if (showToast) {
+        const inserted = data?.inserted || 0;
+        toast.success(inserted > 0 ? `Synced ${inserted} message${inserted === 1 ? '' : 's'}` : 'Messages are up to date');
+      }
+    } catch (err: any) {
+      if (showToast) toast.error(err?.message || 'Failed to sync OpenPhone messages');
+    } finally {
+      setSyncingMessages(false);
     }
   };
 
@@ -1047,12 +1080,12 @@ export default function MessagesPage() {
         !isMobile && "border-b pb-2"
       )}>
         {isMobile ? (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchConversations(false)}>
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
           </Button>
         ) : (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchConversations(false)}>
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
           </Button>
         )}
         <h1 className={cn(
@@ -1135,6 +1168,11 @@ export default function MessagesPage() {
       {/* Conversation rows */}
       <div className="flex-1 overflow-y-auto" {...(bulkEditMode ? {} : pullHandlers)}>
         {!bulkEditMode && <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />}
+        {syncingMessages && !loading && (
+          <div className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground border-b">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing OpenPhone messages…
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center p-12">
             <Loader2 className="h-6 w-6 animate-spin text-[#8E8E93]" />
