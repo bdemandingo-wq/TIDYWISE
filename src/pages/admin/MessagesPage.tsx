@@ -1112,6 +1112,20 @@ export default function MessagesPage() {
             </button>
           ) : (
             <>
+              {organizationId && (
+                <AIInboxSummaryButton
+                  organizationId={organizationId}
+                  getNeedsReplyConversations={() =>
+                    conversations
+                      .filter(c => c.unread_count > 0)
+                      .map(c => ({
+                        name: c.customer_name || c.customer_phone,
+                        lastMessage: c.last_message_preview || '',
+                        hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
+                      }))
+                  }
+                />
+              )}
               <button
                 onClick={async () => {
                   if (!organizationId) return;
