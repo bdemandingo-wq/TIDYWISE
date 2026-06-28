@@ -39,6 +39,8 @@ import { BookOpen, Filter } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { hapticImpact } from '@/lib/haptics';
 import { MessagesHealthBanner } from '@/components/admin/MessagesHealthBanner';
+import { AISuggestReplyButton } from '@/components/admin/AISuggestReplyButton';
+import { AIInboxSummaryButton } from '@/components/admin/AIInboxSummaryButton';
 
 // ─── Types ──────────────────────────────────────────
 interface Conversation {
