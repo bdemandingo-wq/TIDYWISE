@@ -36,6 +36,7 @@ import {
   Navigation as NavigationIcon,
   Gauge,
   Bug,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
