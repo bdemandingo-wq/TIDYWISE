@@ -161,9 +161,39 @@ No markdown, no commentary, just JSON.`;
     }
 
     if (body.mode === "inbox_summary") {
-      const items = body.unreadConversations || [];
+      // Always re-compute server-side: find conversations where the LAST
+      // message is inbound (customer waiting on a reply) within last 30 days.
+      // This is more reliable than the client's unread_count which can drift.
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: convs } = await supabase
+        .from("sms_conversations")
+        .select("id, customer_name, customer_phone, last_message_at, last_message_preview")
+        .eq("organization_id", body.organizationId)
+        .gte("last_message_at", cutoff)
+        .order("last_message_at", { ascending: false })
+        .limit(50);
+
+      const needsReply: Array<{ name: string; lastMessage: string; hoursSinceLastInbound: number }> = [];
+      for (const c of convs || []) {
+        const { data: lastMsg } = await supabase
+          .from("sms_messages")
+          .select("direction, content, sent_at")
+          .eq("conversation_id", c.id)
+          .order("sent_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastMsg && lastMsg.direction === "inbound") {
+          needsReply.push({
+            name: c.customer_name || c.customer_phone,
+            lastMessage: lastMsg.content || c.last_message_preview || "",
+            hoursSinceLastInbound: (Date.now() - new Date(lastMsg.sent_at).getTime()) / 3_600_000,
+          });
+        }
+      }
+
+      const items = needsReply.sort((a, b) => b.hoursSinceLastInbound - a.hoursSinceLastInbound).slice(0, 15);
       if (items.length === 0) {
-        return new Response(JSON.stringify({ success: true, summary: "Inbox is clear — no unread messages." }), {
+        return new Response(JSON.stringify({ success: true, summary: "✅ All clear — every customer has gotten a reply. Nice work!", count: 0 }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -186,7 +216,7 @@ No markdown, no commentary, just JSON.`;
       }
       const aiData = await aiRes.json();
       const summary = aiData.choices?.[0]?.message?.content || "Could not generate summary.";
-      return new Response(JSON.stringify({ success: true, summary }), {
+      return new Response(JSON.stringify({ success: true, summary, count: items.length }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
