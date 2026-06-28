@@ -20,6 +20,8 @@ interface ReqBody {
   mode: "suggest_reply" | "inbox_summary";
   organizationId: string;
   conversationId?: string;
+  contactType?: "client" | "cleaner";
+  contactName?: string;
   customInstruction?: string;
   unreadConversations?: Array<{
     name: string;
@@ -114,7 +116,22 @@ serve(async (req) => {
         .map((b: any) => new Date(b.scheduled_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))
         .join(", ");
 
-      const systemPrompt = `You are an SMS reply assistant for ${companyName}, a cleaning business. Generate 3 brief, friendly reply options to send to the customer. Each reply must be:
+      const isCleaner = body.contactType === "cleaner";
+      const recipientLabel = isCleaner ? "cleaner/staff member" : "customer/client";
+      const firstName = (body.contactName || "").split(" ")[0] || "";
+
+      const systemPrompt = isCleaner
+        ? `You are an SMS reply assistant helping the OWNER of ${companyName} (a cleaning business) message ${firstName ? firstName : "a cleaner on their team"}. The recipient is a CLEANER/STAFF MEMBER, NOT a customer. Generate 3 brief reply options FROM the owner TO the cleaner. Each reply must be:
+- Under 280 characters
+- Manager-to-staff tone: clear, supportive, professional (not customer-service-y)
+- Never say "thanks for letting us know" or treat them like a paying client
+- If they declined a job / can't make it: acknowledge, confirm you'll reassign, optionally ask about future availability
+- If they're asking about a job, schedule, pay, or address: answer directly. Upcoming jobs on the schedule: ${bookedSlots || "(none scheduled)"}
+- Match the context of the conversation
+
+Return STRICT JSON: {"suggestions":[{"label":"Quick","text":"..."},{"label":"Supportive","text":"..."},{"label":"Direct","text":"..."}]}
+No markdown, no commentary, just JSON.`
+        : `You are an SMS reply assistant for ${companyName}, a cleaning business. The recipient is a CUSTOMER/CLIENT. Generate 3 brief, friendly reply options to send to the customer. Each reply must be:
 - Under 280 characters
 - Professional but warm (no robotic tone)
 - Match the context of the conversation
@@ -123,8 +140,10 @@ serve(async (req) => {
 Return STRICT JSON: {"suggestions":[{"label":"Friendly","text":"..."},{"label":"Direct","text":"..."},{"label":"With availability","text":"..."}]}
 No markdown, no commentary, just JSON.`;
 
+      const youLabel = "Owner";
+      const themLabel = isCleaner ? "Cleaner" : "Customer";
       const conversation = history.map((m: any) =>
-        `${m.direction === "inbound" ? "Customer" : "You"}: ${m.content}`,
+        `${m.direction === "inbound" ? themLabel : youLabel}: ${m.content}`,
       ).join("\n");
 
       const userMsg = `Conversation so far:\n${conversation}\n\n${body.customInstruction ? `Additional instruction: ${body.customInstruction}` : "Generate 3 reply suggestions."}`;

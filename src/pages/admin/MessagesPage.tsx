@@ -1448,6 +1448,8 @@ export default function MessagesPage() {
               <AISuggestReplyButton
                 organizationId={organizationId}
                 conversationId={selectedConversation.id}
+                contactType={selectedConversation.conversation_type === 'cleaner' ? 'cleaner' : 'client'}
+                contactName={selectedConversation.customer_name || ''}
                 onPick={(text) => { setNewMessage(text); setTimeout(() => textareaRef.current?.focus(), 50); }}
               />
             )}
