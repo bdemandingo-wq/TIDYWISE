@@ -165,31 +165,34 @@ No markdown, no commentary, just JSON.`;
       // message is inbound (customer waiting on a reply) within last 30 days.
       // This is more reliable than the client's unread_count which can drift.
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: convs } = await supabase
+      const { data: convs, error: convsErr } = await supabase
         .from("sms_conversations")
-        .select("id, customer_name, customer_phone, last_message_at, last_message_preview")
+        .select("id, customer_name, customer_phone, last_message_at")
         .eq("organization_id", body.organizationId)
         .gte("last_message_at", cutoff)
         .order("last_message_at", { ascending: false })
         .limit(50);
+      if (convsErr) console.error("[ai-message-assist] convs query err:", convsErr);
 
       const needsReply: Array<{ name: string; lastMessage: string; hoursSinceLastInbound: number }> = [];
       for (const c of convs || []) {
-        const { data: lastMsg } = await supabase
+        const { data: lastMsg, error: msgErr } = await supabase
           .from("sms_messages")
           .select("direction, content, sent_at")
           .eq("conversation_id", c.id)
           .order("sent_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+        if (msgErr) { console.error("[ai-message-assist] msg query err:", msgErr); continue; }
         if (lastMsg && lastMsg.direction === "inbound") {
           needsReply.push({
-            name: c.customer_name || c.customer_phone,
-            lastMessage: lastMsg.content || c.last_message_preview || "",
+            name: c.customer_name || c.customer_phone || "Unknown",
+            lastMessage: lastMsg.content || "",
             hoursSinceLastInbound: (Date.now() - new Date(lastMsg.sent_at).getTime()) / 3_600_000,
           });
         }
       }
+      console.log(`[ai-message-assist] inbox_summary: scanned ${convs?.length || 0} conversations, ${needsReply.length} need reply`);
 
       const items = needsReply.sort((a, b) => b.hoursSinceLastInbound - a.hoursSinceLastInbound).slice(0, 15);
       if (items.length === 0) {
