@@ -36,6 +36,7 @@ import {
   Navigation as NavigationIcon,
   Gauge,
   Bug,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -46,8 +47,19 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SignedImage } from '@/components/ui/signed-image';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePlatform } from '@/hooks/usePlatform';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import {
   DndContext,
@@ -219,6 +231,36 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
   const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingOrg, setIsDeletingOrg] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleDeleteOrg = async () => {
+    if (!orgToDelete) return;
+    setIsDeletingOrg(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-my-organization', {
+        body: { organizationId: orgToDelete.id },
+      });
+      if (error || (data && data.error)) {
+        throw new Error(error?.message || data?.error || 'Delete failed');
+      }
+      toast({ title: 'Business deleted', description: `${orgToDelete.name} was removed.` });
+      setOrgToDelete(null);
+      // Refresh the org list so the switcher updates immediately.
+      await queryClient.invalidateQueries();
+      window.location.reload();
+    } catch (e: any) {
+      toast({
+        title: 'Could not delete business',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingOrg(false);
+    }
+  };
 
   // Get pending booking requests count for badge
   const { data: pendingRequestsCount = 0 } = useQuery({
@@ -574,31 +616,47 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                   const initials = orgItem.organization.name.substring(0, 2).toUpperCase();
                   const roleLabel = orgItem.role === 'owner' ? 'Owner' : orgItem.role === 'admin' ? 'Admin' : 'Member';
                   return (
-                    <button
+                    <div
                       key={orgItem.organization.id}
-                      onClick={() => {
-                        if (!isActive) {
-                          switchOrganization(orgItem.organization.id);
-                        }
-                      }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors min-h-[44px] pointer-events-auto touch-manipulation",
+                        "group w-full flex items-center gap-2 pr-1 rounded-lg transition-colors",
                         isActive
                           ? "bg-sidebar-accent text-sidebar-foreground"
                           : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                       )}
                     >
-                      <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                        {initials}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="text-sm font-medium truncate">{orgItem.organization.name}</p>
-                        <p className="text-[10px] text-sidebar-foreground/50">{roleLabel}</p>
-                      </div>
-                      {isActive && (
-                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                      <button
+                        onClick={() => {
+                          if (!isActive) {
+                            switchOrganization(orgItem.organization.id);
+                          }
+                        }}
+                        className="flex-1 flex items-center gap-3 pl-3 py-2 rounded-lg min-h-[44px] pointer-events-auto touch-manipulation text-left"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                          {initials}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="text-sm font-medium truncate">{orgItem.organization.name}</p>
+                          <p className="text-[10px] text-sidebar-foreground/50">{roleLabel}</p>
+                        </div>
+                        {isActive && (
+                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                        )}
+                      </button>
+                      {!isActive && orgItem.role === 'owner' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOrgToDelete({ id: orgItem.organization.id, name: orgItem.organization.name });
+                          }}
+                          aria-label={`Delete ${orgItem.organization.name}`}
+                          className="p-2 rounded-md text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -689,6 +747,27 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
         <SidebarContent />
       </aside>
+
+      <AlertDialog open={!!orgToDelete} onOpenChange={(open) => !open && !isDeletingOrg && setOrgToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {orgToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes this business and all of its bookings, customers, invoices, messages, and settings. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingOrg}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrg}
+              disabled={isDeletingOrg}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingOrg ? 'Deleting…' : 'Delete business'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
