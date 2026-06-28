@@ -1444,6 +1444,13 @@ export default function MessagesPage() {
             {organizationId && (
               <MessageTemplatesPicker organizationId={organizationId} onSelect={(content) => setNewMessage(content)} />
             )}
+            {organizationId && selectedConversation && (
+              <AISuggestReplyButton
+                organizationId={organizationId}
+                conversationId={selectedConversation.id}
+                onPick={(text) => { setNewMessage(text); setTimeout(() => textareaRef.current?.focus(), 50); }}
+              />
+            )}
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
