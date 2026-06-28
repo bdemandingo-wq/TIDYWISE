@@ -46,34 +46,46 @@ const handler = async (req: Request): Promise<Response> => {
       // Throttle per-org sub-invocations to avoid Supabase edge function rate limits.
       // Without spacing, iterating many orgs in a tight loop triggers RateLimitError
       // and silently drops reminders for the orgs hit after the cap.
-      for (const org of orgs) {
+      const orgUrl = `${supabaseUrl}/functions/v1/send-booking-reminder`;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+      // Invoke one org with up to 2 retries when the runtime throws
+      // RateLimitError. The previous implementation only handled HTTP
+      // 429 responses, so thrown rate-limit errors silently dropped
+      // reminders for any org hit after the per-function cap.
+      const invokeOrg = async (orgId: string, attempt = 0): Promise<string[]> => {
         try {
-          const orgUrl = `${supabaseUrl}/functions/v1/send-booking-reminder`;
           const resp = await fetch(orgUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
-            body: JSON.stringify({ organizationId: org.id }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+            body: JSON.stringify({ organizationId: orgId }),
           });
-          if (resp.status === 429) {
+          if (resp.status === 429 && attempt < 2) {
             const retryAfter = parseInt(resp.headers.get("retry-after") || "15", 10);
-            console.warn(`[send-booking-reminder] 429 for org ${org.id}; backing off ${retryAfter}s`);
+            console.warn(`[send-booking-reminder] 429 for org ${orgId}; backing off ${retryAfter}s`);
             await new Promise((r) => setTimeout(r, retryAfter * 1000));
-            const retry = await fetch(orgUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
-              body: JSON.stringify({ organizationId: org.id }),
-            });
-            const retryResult = await retry.json().catch(() => ({} as any));
-            if (retryResult.reminders?.length) allResults.push(...retryResult.reminders);
-          } else {
-            const result = await resp.json().catch(() => ({} as any));
-            if (result.reminders?.length) allResults.push(...result.reminders);
+            return invokeOrg(orgId, attempt + 1);
           }
-        } catch (e) {
-          console.error(`[send-booking-reminder] Error for org ${org.id}:`, e);
+          const result = await resp.json().catch(() => ({} as any));
+          return Array.isArray(result.reminders) ? result.reminders : [];
+        } catch (e: any) {
+          const isRateLimit = e?.name === "RateLimitError" || /rate limit/i.test(String(e?.message || ""));
+          if (isRateLimit && attempt < 2) {
+            const waitMs = Math.max(1000, Number(e?.retryAfterMs) || 15000);
+            console.warn(`[send-booking-reminder] RateLimitError for org ${orgId}; retry in ${waitMs}ms (attempt ${attempt + 1})`);
+            await new Promise((r) => setTimeout(r, waitMs));
+            return invokeOrg(orgId, attempt + 1);
+          }
+          console.error(`[send-booking-reminder] Error for org ${orgId}:`, e);
+          return [];
         }
-        // Space requests ~400ms apart to stay under per-function invocation limits
-        await new Promise((r) => setTimeout(r, 400));
+      };
+
+      for (const org of orgs) {
+        const reminders = await invokeOrg(org.id);
+        if (reminders.length) allResults.push(...reminders);
+        // Space requests ~750ms apart to stay under per-function invocation limits
+        await new Promise((r) => setTimeout(r, 750));
       }
 
       return new Response(JSON.stringify({ success: true, message: `Cron complete: ${allResults.length} reminders`, reminders: allResults }), {
