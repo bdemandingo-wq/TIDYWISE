@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   Upload, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle,
   FileText, Users, Briefcase, Calendar, Wrench, Loader2, X,
-  RotateCcw, Download,
+  RotateCcw, Download, Repeat, StickyNote,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
