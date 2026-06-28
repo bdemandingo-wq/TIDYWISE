@@ -28,6 +28,7 @@ import {
   CreditCard,
   Lock,
   Globe,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
