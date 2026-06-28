@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,7 +15,7 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
-  AlertTriangle, MessageSquare,
+  AlertTriangle, MessageSquare, Plus, Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -31,36 +32,38 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
   const [reminderIntervals, setReminderIntervals] = useState<ReminderInterval[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [newLabel, setNewLabel] = useState('');
+  const [newHours, setNewHours] = useState<string>('');
+
+  const fetchIntervals = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('appointment_reminder_intervals')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('hours_before', { ascending: false });
+      if (error) throw error;
+      if (data) {
+        setReminderIntervals(data.map(d => ({
+          id: d.id,
+          label: d.label,
+          hours_before: Number(d.hours_before),
+          is_active: d.is_active,
+          send_to_client: d.send_to_client,
+          send_to_cleaner: d.send_to_cleaner,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching reminder intervals:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId]);
 
   React.useEffect(() => {
-    const fetchIntervals = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('appointment_reminder_intervals')
-          .select('*')
-          .eq('organization_id', organizationId)
-          .order('hours_before', { ascending: false });
-        if (error) throw error;
-        if (data) {
-          setReminderIntervals(data.map(d => ({
-            id: d.id,
-            label: d.label,
-            hours_before: Number(d.hours_before),
-            is_active: d.is_active,
-            send_to_client: d.send_to_client,
-            send_to_cleaner: d.send_to_cleaner,
-          })));
-        }
-      } catch (error) {
-        console.error('Error fetching reminder intervals:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchIntervals();
-  }, [organizationId]);
+  }, [fetchIntervals]);
 
   const updateInterval = (index: number, updater: (interval: ReminderInterval) => ReminderInterval) => {
     setReminderIntervals((prev) => prev.map((interval, currentIndex) => (
@@ -93,6 +96,55 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
     }
   };
 
+  const addInterval = async () => {
+    const hours = Number(newHours);
+    if (!newLabel.trim() || !Number.isFinite(hours) || hours <= 0) {
+      toast.error('Enter a label and a positive hours value');
+      return;
+    }
+    if (reminderIntervals.some((i) => Number(i.hours_before) === hours)) {
+      toast.error('An interval with that hours value already exists');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('appointment_reminder_intervals')
+        .insert({
+          organization_id: organizationId,
+          label: newLabel.trim(),
+          hours_before: hours,
+          is_active: true,
+          send_to_client: true,
+          send_to_cleaner: true,
+        });
+      if (error) throw error;
+      toast.success('Reminder interval added');
+      setNewLabel('');
+      setNewHours('');
+      fetchIntervals();
+    } catch (error) {
+      console.error('Failed to add interval:', error);
+      toast.error('Failed to add interval');
+    }
+  };
+
+  const deleteInterval = async (id?: string) => {
+    if (!id) return;
+    if (!confirm('Delete this reminder interval?')) return;
+    try {
+      const { error } = await supabase
+        .from('appointment_reminder_intervals')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      toast.success('Reminder interval deleted');
+      fetchIntervals();
+    } catch (error) {
+      console.error('Failed to delete interval:', error);
+      toast.error('Failed to delete interval');
+    }
+  };
+
   const saveIntervals = async () => {
     setSaving(true);
     try {
@@ -102,6 +154,8 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
           .map((interval) => supabase
             .from('appointment_reminder_intervals')
             .update({
+              label: interval.label,
+              hours_before: interval.hours_before,
               is_active: interval.is_active,
               send_to_client: interval.send_to_client,
               send_to_cleaner: interval.send_to_cleaner,
@@ -113,6 +167,7 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
       if (failedResult?.error) throw failedResult.error;
 
       toast.success('Reminder schedule saved');
+      fetchIntervals();
     } catch (error) {
       console.error('Failed to save reminder schedule:', error);
       toast.error('Failed to save reminder schedule');
@@ -125,32 +180,50 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
     return <div className="flex items-center justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>;
   }
 
-  if (reminderIntervals.length === 0) {
-    return <p className="text-sm text-muted-foreground py-2">No reminder intervals configured.</p>;
-  }
-
   return (
     <div className="space-y-3 pt-3 border-t">
       <div className="flex items-center gap-2">
         <Clock className="w-4 h-4 text-muted-foreground" />
         <Label className="font-medium text-sm">Reminder Schedule</Label>
       </div>
+
+      {reminderIntervals.length === 0 && (
+        <p className="text-sm text-muted-foreground py-2">No reminder intervals yet — add one below.</p>
+      )}
+
       {reminderIntervals.map((interval, index) => (
         <div key={interval.id || index} className="space-y-3 rounded-lg border bg-muted/30 p-3">
-          <div
-            role="button"
-            tabIndex={0}
-            className="flex cursor-pointer items-center justify-between gap-3 rounded-md"
-            onClick={() => toggleIntervalEnabled(index)}
-            onKeyDown={(event) => handleKeyToggle(event, () => toggleIntervalEnabled(index))}
-          >
-            <span className="text-sm font-medium">{interval.label}</span>
+          <div className="flex items-center gap-2">
+            <Input
+              value={interval.label}
+              onChange={(e) => updateInterval(index, (i) => ({ ...i, label: e.target.value }))}
+              placeholder="Label (e.g. 24 hours before)"
+              className="flex-1 h-9"
+            />
+            <Input
+              type="number"
+              min={0.25}
+              step={0.25}
+              value={interval.hours_before}
+              onChange={(e) => updateInterval(index, (i) => ({ ...i, hours_before: Number(e.target.value) }))}
+              className="w-24 h-9"
+              aria-label="Hours before"
+            />
+            <span className="text-xs text-muted-foreground">hrs</span>
             <Switch
               checked={interval.is_active}
-              onClick={(event) => event.stopPropagation()}
               onCheckedChange={(checked) => toggleIntervalEnabled(index, checked)}
               aria-label={`Toggle ${interval.label}`}
             />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-destructive hover:text-destructive"
+              onClick={() => deleteInterval(interval.id)}
+              aria-label="Delete interval"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
 
           {interval.is_active && (
@@ -190,6 +263,28 @@ function AppointmentReminderSettings({ organizationId }: { organizationId: strin
           )}
         </div>
       ))}
+
+      <div className="flex items-center gap-2 rounded-lg border border-dashed bg-background/60 p-3">
+        <Input
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder="New interval label"
+          className="flex-1 h-9"
+        />
+        <Input
+          type="number"
+          min={0.25}
+          step={0.25}
+          value={newHours}
+          onChange={(e) => setNewHours(e.target.value)}
+          placeholder="Hours"
+          className="w-24 h-9"
+        />
+        <Button size="sm" onClick={addInterval} className="gap-1">
+          <Plus className="w-3 h-3" /> Add
+        </Button>
+      </div>
+
       <Button variant="outline" size="sm" onClick={saveIntervals} disabled={saving} className="gap-2 w-full">
         {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
         Save Reminder Schedule
