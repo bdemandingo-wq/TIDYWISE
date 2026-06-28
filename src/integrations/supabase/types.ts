@@ -6349,6 +6349,59 @@ export type Database = {
         }
         Relationships: []
       }
+      property_notes: {
+        Row: {
+          access_instructions: string | null
+          alarm_code: string | null
+          created_at: string
+          customer_id: string
+          gate_code: string | null
+          has_pets: boolean
+          id: string
+          notes: string | null
+          organization_id: string
+          parking_notes: string | null
+          pet_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_instructions?: string | null
+          alarm_code?: string | null
+          created_at?: string
+          customer_id: string
+          gate_code?: string | null
+          has_pets?: boolean
+          id?: string
+          notes?: string | null
+          organization_id: string
+          parking_notes?: string | null
+          pet_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_instructions?: string | null
+          alarm_code?: string | null
+          created_at?: string
+          customer_id?: string
+          gate_code?: string | null
+          has_pets?: boolean
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          parking_notes?: string | null
+          pet_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_notes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           accepted_at: string | null
