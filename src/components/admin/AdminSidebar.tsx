@@ -231,6 +231,36 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
   const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingOrg, setIsDeletingOrg] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleDeleteOrg = async () => {
+    if (!orgToDelete) return;
+    setIsDeletingOrg(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-my-organization', {
+        body: { organizationId: orgToDelete.id },
+      });
+      if (error || (data && data.error)) {
+        throw new Error(error?.message || data?.error || 'Delete failed');
+      }
+      toast({ title: 'Business deleted', description: `${orgToDelete.name} was removed.` });
+      setOrgToDelete(null);
+      // Refresh the org list so the switcher updates immediately.
+      await queryClient.invalidateQueries();
+      window.location.reload();
+    } catch (e: any) {
+      toast({
+        title: 'Could not delete business',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingOrg(false);
+    }
+  };
 
   // Get pending booking requests count for badge
   const { data: pendingRequestsCount = 0 } = useQuery({
