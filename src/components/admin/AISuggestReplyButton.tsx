@@ -10,10 +10,12 @@ interface Suggestion { label: string; text: string }
 interface Props {
   organizationId: string;
   conversationId: string;
+  contactType?: 'client' | 'cleaner';
+  contactName?: string;
   onPick: (text: string) => void;
 }
 
-export function AISuggestReplyButton({ organizationId, conversationId, onPick }: Props) {
+export function AISuggestReplyButton({ organizationId, conversationId, contactType = 'client', contactName, onPick }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -22,7 +24,7 @@ export function AISuggestReplyButton({ organizationId, conversationId, onPick }:
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-message-assist', {
-        body: { mode: 'suggest_reply', organizationId, conversationId },
+        body: { mode: 'suggest_reply', organizationId, conversationId, contactType, contactName },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
