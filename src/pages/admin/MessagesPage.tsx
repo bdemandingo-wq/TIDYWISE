@@ -992,6 +992,9 @@ export default function MessagesPage() {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
     const hasMessages = !!conv.last_message_preview;
+    // "Needs reply" heuristic: unread inbound message waiting >4 hours.
+    const hoursSinceLast = (Date.now() - new Date(conv.last_message_at).getTime()) / 3_600_000;
+    const needsReply = isUnread && hoursSinceLast > 4;
 
     const rowContent = (
       <button
