@@ -39,6 +39,8 @@ import { BookOpen, Filter } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { hapticImpact } from '@/lib/haptics';
 import { MessagesHealthBanner } from '@/components/admin/MessagesHealthBanner';
+import { AISuggestReplyButton } from '@/components/admin/AISuggestReplyButton';
+import { AIInboxSummaryButton } from '@/components/admin/AIInboxSummaryButton';
 
 // ─── Types ──────────────────────────────────────────
 interface Conversation {
@@ -990,6 +992,9 @@ export default function MessagesPage() {
     const isUnread = conv.unread_count > 0;
     const isPinned = pinnedIds.has(conv.id);
     const hasMessages = !!conv.last_message_preview;
+    // "Needs reply" heuristic: unread inbound message waiting >4 hours.
+    const hoursSinceLast = (Date.now() - new Date(conv.last_message_at).getTime()) / 3_600_000;
+    const needsReply = isUnread && hoursSinceLast > 4;
 
     const rowContent = (
       <button
@@ -1061,6 +1066,11 @@ export default function MessagesPage() {
           <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
+          {needsReply && (
+            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
+              ⏰ Needs reply · {hoursSinceLast >= 24 ? `${Math.round(hoursSinceLast / 24)}d` : `${Math.round(hoursSinceLast)}h`}
+            </span>
+          )}
         </div>
       </button>
     );
@@ -1102,6 +1112,20 @@ export default function MessagesPage() {
             </button>
           ) : (
             <>
+              {organizationId && (
+                <AIInboxSummaryButton
+                  organizationId={organizationId}
+                  getNeedsReplyConversations={() =>
+                    conversations
+                      .filter(c => c.unread_count > 0)
+                      .map(c => ({
+                        name: c.customer_name || c.customer_phone,
+                        lastMessage: c.last_message_preview || '',
+                        hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
+                      }))
+                  }
+                />
+              )}
               <button
                 onClick={async () => {
                   if (!organizationId) return;
@@ -1419,6 +1443,13 @@ export default function MessagesPage() {
           <div className="flex items-end gap-2">
             {organizationId && (
               <MessageTemplatesPicker organizationId={organizationId} onSelect={(content) => setNewMessage(content)} />
+            )}
+            {organizationId && selectedConversation && (
+              <AISuggestReplyButton
+                organizationId={organizationId}
+                conversationId={selectedConversation.id}
+                onPick={(text) => { setNewMessage(text); setTimeout(() => textareaRef.current?.focus(), 50); }}
+              />
             )}
             <div className="flex-1 relative">
               <Textarea
