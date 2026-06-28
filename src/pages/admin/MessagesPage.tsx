@@ -1066,6 +1066,11 @@ export default function MessagesPage() {
           <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
+          {needsReply && (
+            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
+              ⏰ Needs reply · {hoursSinceLast >= 24 ? `${Math.round(hoursSinceLast / 24)}d` : `${Math.round(hoursSinceLast)}h`}
+            </span>
+          )}
         </div>
       </button>
     );
