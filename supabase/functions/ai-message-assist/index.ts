@@ -20,6 +20,8 @@ interface ReqBody {
   mode: "suggest_reply" | "inbox_summary";
   organizationId: string;
   conversationId?: string;
+  contactType?: "client" | "cleaner";
+  contactName?: string;
   customInstruction?: string;
   unreadConversations?: Array<{
     name: string;
