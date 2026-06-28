@@ -16,7 +16,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type DataType = 'customers' | 'staff' | 'bookings' | 'services';
+type DataType = 'customers' | 'staff' | 'bookings' | 'services' | 'recurring_plans' | 'property_notes';
 type Source = 'bookingkoala' | 'jobber';
 
 interface ParseResult {
@@ -36,10 +36,12 @@ interface ImportResult {
 }
 
 const DATA_TYPE_CONFIG: Record<DataType, { label: string; icon: any; description: string }> = {
-  customers: { label: 'Customers', icon: Users, description: 'Client names, emails, phones, addresses' },
+  customers: { label: 'Customers', icon: Users, description: 'Clients with contact info, tags, and notes' },
   staff: { label: 'Staff', icon: Briefcase, description: 'Team members, pay rates, contact info' },
-  bookings: { label: 'Bookings', icon: Calendar, description: 'Past and recurring appointments' },
-  services: { label: 'Services & Pricing', icon: Wrench, description: 'Service types and their pricing' },
+  bookings: { label: 'Bookings & History', icon: Calendar, description: 'Past + upcoming jobs with payment, status, extras' },
+  recurring_plans: { label: 'Recurring Plans', icon: Repeat, description: 'Weekly / biweekly / monthly schedules' },
+  services: { label: 'Services & Pricing', icon: Wrench, description: 'Service types, durations, and base pricing' },
+  property_notes: { label: 'Property Notes', icon: StickyNote, description: 'Gate codes, alarm, pets, parking, access' },
 };
 
 const TARGET_FIELDS: Record<DataType, { value: string; label: string }[]> = {
@@ -54,6 +56,10 @@ const TARGET_FIELDS: Record<DataType, { value: string; label: string }[]> = {
     { value: 'state', label: 'State' },
     { value: 'zip_code', label: 'Zip Code' },
     { value: 'notes', label: 'Notes' },
+    { value: 'tags', label: 'Tags' },
+    { value: 'company_name', label: 'Company Name' },
+    { value: 'customer_status', label: 'Status (lead/active/inactive)' },
+    { value: 'lifetime_value', label: 'Lifetime Value' },
     { value: '', label: '— Skip this column —' },
   ],
   staff: [
@@ -64,18 +70,34 @@ const TARGET_FIELDS: Record<DataType, { value: string; label: string }[]> = {
     { value: 'phone', label: 'Phone' },
     { value: 'pay_rate', label: 'Pay Rate' },
     { value: 'role', label: 'Role' },
+    { value: 'is_active', label: 'Active' },
     { value: '', label: '— Skip this column —' },
   ],
   bookings: [
     { value: 'customer_name', label: 'Customer Name' },
+    { value: 'customer_email', label: 'Customer Email' },
+    { value: 'customer_phone', label: 'Customer Phone' },
     { value: 'service_name', label: 'Service Name' },
     { value: 'scheduled_date', label: 'Date' },
     { value: 'scheduled_time', label: 'Time' },
     { value: 'duration', label: 'Duration (min)' },
+    { value: 'duration_hours', label: 'Duration (hours)' },
     { value: 'total_amount', label: 'Total Amount' },
+    { value: 'subtotal', label: 'Subtotal' },
+    { value: 'tax_amount', label: 'Tax' },
+    { value: 'tip_amount', label: 'Tip' },
+    { value: 'discount_amount', label: 'Discount' },
     { value: 'status', label: 'Status' },
+    { value: 'payment_status', label: 'Payment Status' },
     { value: 'address', label: 'Address' },
+    { value: 'city', label: 'City' },
+    { value: 'state', label: 'State' },
+    { value: 'zip_code', label: 'Zip Code' },
     { value: 'staff_name', label: 'Assigned Staff' },
+    { value: 'bedrooms', label: 'Bedrooms' },
+    { value: 'bathrooms', label: 'Bathrooms' },
+    { value: 'square_footage', label: 'Square Footage' },
+    { value: 'extras', label: 'Extras / Add-ons' },
     { value: 'frequency', label: 'Frequency' },
     { value: 'notes', label: 'Notes' },
     { value: '', label: '— Skip this column —' },
@@ -86,6 +108,41 @@ const TARGET_FIELDS: Record<DataType, { value: string; label: string }[]> = {
     { value: 'price', label: 'Price' },
     { value: 'duration', label: 'Duration (min)' },
     { value: 'category', label: 'Category' },
+    { value: 'is_active', label: 'Active' },
+    { value: '', label: '— Skip this column —' },
+  ],
+  recurring_plans: [
+    { value: 'customer_name', label: 'Customer Name' },
+    { value: 'customer_email', label: 'Customer Email' },
+    { value: 'customer_phone', label: 'Customer Phone' },
+    { value: 'service_name', label: 'Service Name' },
+    { value: 'frequency', label: 'Frequency (weekly/biweekly/monthly)' },
+    { value: 'preferred_day', label: 'Preferred Day' },
+    { value: 'preferred_time', label: 'Preferred Time' },
+    { value: 'start_date', label: 'Start / Next Date' },
+    { value: 'total_amount', label: 'Total Amount' },
+    { value: 'address', label: 'Address' },
+    { value: 'city', label: 'City' },
+    { value: 'state', label: 'State' },
+    { value: 'zip_code', label: 'Zip Code' },
+    { value: 'bedrooms', label: 'Bedrooms' },
+    { value: 'bathrooms', label: 'Bathrooms' },
+    { value: 'square_footage', label: 'Square Footage' },
+    { value: 'staff_name', label: 'Assigned Staff' },
+    { value: 'notes', label: 'Notes' },
+    { value: '', label: '— Skip this column —' },
+  ],
+  property_notes: [
+    { value: 'customer_name', label: 'Customer Name' },
+    { value: 'customer_email', label: 'Customer Email' },
+    { value: 'customer_phone', label: 'Customer Phone' },
+    { value: 'notes', label: 'General Notes' },
+    { value: 'access_instructions', label: 'Access Instructions' },
+    { value: 'gate_code', label: 'Gate Code' },
+    { value: 'alarm_code', label: 'Alarm Code' },
+    { value: 'has_pets', label: 'Has Pets (yes/no)' },
+    { value: 'pet_notes', label: 'Pet Notes' },
+    { value: 'parking_notes', label: 'Parking Notes' },
     { value: '', label: '— Skip this column —' },
   ],
 };
