@@ -747,6 +747,27 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
         <SidebarContent />
       </aside>
+
+      <AlertDialog open={!!orgToDelete} onOpenChange={(open) => !open && !isDeletingOrg && setOrgToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {orgToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes this business and all of its bookings, customers, invoices, messages, and settings. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingOrg}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrg}
+              disabled={isDeletingOrg}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingOrg ? 'Deleting…' : 'Delete business'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
