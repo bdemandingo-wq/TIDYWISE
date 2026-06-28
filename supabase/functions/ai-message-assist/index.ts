@@ -216,7 +216,7 @@ No markdown, no commentary, just JSON.`;
       }
       const aiData = await aiRes.json();
       const summary = aiData.choices?.[0]?.message?.content || "Could not generate summary.";
-      return new Response(JSON.stringify({ success: true, summary }), {
+      return new Response(JSON.stringify({ success: true, summary, count: items.length }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
