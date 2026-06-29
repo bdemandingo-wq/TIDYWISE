@@ -146,6 +146,13 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
     enabled: !!staffId && !!organizationId,
   });
 
+  useEffect(() => {
+    if (!selectedBookingId && bookings.length > 0) {
+      setSelectedBookingId(bookings[0].id);
+    }
+  }, [bookings, selectedBookingId]);
+
+
   const { data: photos = [], isLoading: loadingPhotos } = useQuery({
     queryKey: ['staff-uploaded-photos', staffId, organizationId],
     queryFn: async () => {
