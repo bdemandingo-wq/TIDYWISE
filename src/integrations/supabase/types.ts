@@ -6349,6 +6349,59 @@ export type Database = {
         }
         Relationships: []
       }
+      property_notes: {
+        Row: {
+          access_instructions: string | null
+          alarm_code: string | null
+          created_at: string
+          customer_id: string
+          gate_code: string | null
+          has_pets: boolean
+          id: string
+          notes: string | null
+          organization_id: string
+          parking_notes: string | null
+          pet_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_instructions?: string | null
+          alarm_code?: string | null
+          created_at?: string
+          customer_id: string
+          gate_code?: string | null
+          has_pets?: boolean
+          id?: string
+          notes?: string | null
+          organization_id: string
+          parking_notes?: string | null
+          pet_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_instructions?: string | null
+          alarm_code?: string | null
+          created_at?: string
+          customer_id?: string
+          gate_code?: string | null
+          has_pets?: boolean
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          parking_notes?: string | null
+          pet_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_notes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           accepted_at: string | null
@@ -9116,6 +9169,34 @@ export type Database = {
           min_spending: number
           tier_name: string
           tier_order: number
+        }[]
+      }
+      get_my_staff_profile: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          base_wage: number
+          bio: string
+          default_hours: number
+          email: string
+          home_address: string
+          home_latitude: number
+          home_longitude: number
+          hourly_rate: number
+          id: string
+          name: string
+          organization_id: string
+          percentage_rate: number
+          phone: string
+          tax_classification: string
+        }[]
+      }
+      get_my_wage_rates_for_booking: {
+        Args: { _booking_id: string }
+        Returns: {
+          base_wage: number
+          hourly_rate: number
+          percentage_rate: number
         }[]
       }
       get_org_benchmarks: {

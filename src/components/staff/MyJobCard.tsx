@@ -559,10 +559,10 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               />
               {photoReqs.required && (
                 <p className="text-xs text-muted-foreground">
-                  {photoCount}/{photoReqs.min} photos uploaded
-                  {photoCount < photoReqs.min ? ' — required to complete job' : ' ✓'}
+                  {photoCount} photo{photoCount === 1 ? '' : 's'} uploaded (optional)
                 </p>
               )}
+
             </div>
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (
@@ -575,26 +575,17 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               Start Job
             </Button>
           )}
-          {booking.status === 'in_progress' && onUpdateStatus && (() => {
-            const blocked = photoReqs.required && photoCount < photoReqs.min;
-            return (
-              <Button
-                size="sm"
-                className="flex-1"
-                onClick={() => {
-                  if (blocked) {
-                    toast.error(`Upload at least ${photoReqs.min} photos before completing this job.`);
-                    return;
-                  }
-                  onUpdateStatus(booking.id, 'completed');
-                }}
-                disabled={isUpdating || blocked}
-                title={blocked ? `Requires ${photoReqs.min} photos` : undefined}
-              >
-                {blocked ? `Need ${photoReqs.min - photoCount} more photo${photoReqs.min - photoCount === 1 ? '' : 's'}` : 'Complete Job'}
-              </Button>
-            );
-          })()}
+          {booking.status === 'in_progress' && onUpdateStatus && (
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => onUpdateStatus(booking.id, 'completed')}
+              disabled={isUpdating}
+            >
+              Complete Job
+            </Button>
+          )}
+
         </div>
       </CardContent>
     </Card>
