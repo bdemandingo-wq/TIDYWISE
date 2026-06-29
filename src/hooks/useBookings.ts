@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Json } from '@/integrations/supabase/types';
+import { dispatchZapier } from '@/lib/zapier';
 
 export interface TeamAssignment {
   staff_id: string;
@@ -264,6 +265,7 @@ export function useCreateBooking() {
         throw error;
       }
 
+      dispatchZapier('booking.created', organization.id, booking as Record<string, unknown>);
       return booking;
     },
     onSuccess: () => {
@@ -293,6 +295,12 @@ export function useUpdateBooking() {
       if (error) {
         console.error('Error updating booking:', error);
         throw error;
+      }
+
+      if (data.status === 'completed' && booking?.organization_id) {
+        dispatchZapier('booking.completed', booking.organization_id, booking as Record<string, unknown>);
+      } else if (data.status === 'cancelled' && booking?.organization_id) {
+        dispatchZapier('booking.cancelled', booking.organization_id, booking as Record<string, unknown>);
       }
 
       return booking;
@@ -389,6 +397,9 @@ export function useCreateCustomer() {
         console.error('Error creating customer:', error);
         throw error;
       }
+
+      dispatchZapier('customer.created', organization.id, customer as Record<string, unknown>);
+
 
       // Auto-create a corresponding lead entry
       const leadData = {
