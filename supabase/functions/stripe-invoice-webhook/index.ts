@@ -10,6 +10,32 @@ const corsHeaders = {
 // Platform admin phone number for notifications
 const PLATFORM_ADMIN_PHONE = "+18137356859";
 
+// Fire-and-forget Zapier dispatch. Never throws into the webhook flow.
+async function fireZapier(
+  supabase: any,
+  orgId: string | null | undefined,
+  invoiceId: string | undefined,
+  stripeRef: string,
+) {
+  if (!orgId || !invoiceId) return;
+  try {
+    const { data: invoice } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    await supabase.functions.invoke("zapier-dispatch", {
+      body: {
+        organization_id: orgId,
+        event_type: "invoice.paid",
+        payload: { invoice, stripe_reference: stripeRef },
+      },
+    });
+  } catch (e) {
+    console.error("[stripe-invoice-webhook] zapier dispatch failed:", e);
+  }
+}
+
 /**
  * STRIPE INVOICE WEBHOOK
  * 
