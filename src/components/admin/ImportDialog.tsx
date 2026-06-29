@@ -353,6 +353,35 @@ export function ImportDialog({
                   <span>Showing first 5 of {csvRows.length} records. Review before importing.</span>
                 </div>
 
+                {columnMapping['first_name'] &&
+                  columnMapping['last_name'] &&
+                  columnMapping['first_name'] === columnMapping['last_name'] && (
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm">
+                      <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">
+                          Splitting "{columnMapping['first_name']}" into First Name / Last Name
+                        </p>
+                        <p className="text-muted-foreground text-xs mt-1">
+                          First word becomes First Name, the rest becomes Last Name.
+                          Examples below show how each row will be split.
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {previewRecords.slice(0, 3).map((r, i) => {
+                            const idx = csvHeaders.indexOf(columnMapping['first_name']);
+                            const original = idx !== -1 ? (csvRows[i]?.[idx] || '') : '';
+                            return (
+                              <div key={i} className="font-mono text-xs">
+                                "{original}" → First: <span className="font-semibold">{r.first_name || '-'}</span>
+                                {' '}· Last: <span className="font-semibold">{r.last_name || '-'}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 <Table>
                   <TableHeader>
                     <TableRow>
