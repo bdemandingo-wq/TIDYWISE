@@ -443,10 +443,15 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                   )}
                 </div>
               ))}
+              {!selectedBookingId && (
+                <p className="text-xs text-amber-500 text-center">
+                  ⚠️ Pick a booking from the dropdown above before uploading.
+                </p>
+              )}
               <Button
                 className="w-full gap-2"
                 onClick={uploadAll}
-                disabled={isUploading || !selectedBookingId || uploads.filter((upload) => upload.status === 'pending').length === 0}
+                disabled={isUploading || uploads.filter((upload) => upload.status === 'pending').length === 0}
               >
                 {isUploading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</>
@@ -454,6 +459,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                   <><CheckCircle className="w-4 h-4" />Upload All ({uploads.filter((upload) => upload.status === 'pending').length})</>
                 )}
               </Button>
+
             </div>
           )}
         </CardContent>
