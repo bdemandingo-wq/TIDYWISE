@@ -113,6 +113,36 @@ export function ZapierSetupGuide() {
             </AccordionContent>
           </AccordionItem>
 
+          <AccordionItem value="ghl">
+            <AccordionTrigger>
+              <span className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-orange-500" />
+                Can I send these events into GoHighLevel (GHL)?
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Yes — use the same Zap. After the <strong>Webhooks by Zapier</strong> trigger, add
+                a <strong>Lead Connector (GoHighLevel)</strong> action and pick what you want to
+                happen in GHL: <em>Create/Update Contact</em>, <em>Add Contact to Workflow</em>,{' '}
+                <em>Create Opportunity</em>, <em>Create Appointment</em>, or{' '}
+                <em>Send SMS/Email</em>.
+              </p>
+              <p>
+                Map fields from the webhook payload (e.g. <code>customer.email</code>,{' '}
+                <code>customer.phone</code>, <code>booking.scheduled_at</code>) onto the matching
+                GHL fields. Use Zapier <strong>Filter</strong> steps if you only want certain
+                events to flow into GHL (for example, only <code>booking.completed</code> for a
+                review-request workflow).
+              </p>
+              <p>
+                Prefer a direct connection without Zapier? Tell us and we can add a native GHL
+                webhook destination.
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+
+
           <AccordionItem value="custom-events">
             <AccordionTrigger>
               <span className="flex items-center gap-2">
