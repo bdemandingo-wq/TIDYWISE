@@ -13,26 +13,26 @@ export const SMS_ERROR_CODES = {
  * Parses SMS edge function responses and shows appropriate toasts
  * Returns true if there was an error that was handled
  */
-export function handleSmsError(response: { data?: any; error?: any }): boolean {
+export async function handleSmsError(response: { data?: any; error?: any }): Promise<boolean> {
   const { data, error } = response;
-  
+
   // Check for edge function error
   if (error) {
-    const { message, code } = extractEdgeFunctionError(error, data);
+    const { message, code } = await extractEdgeFunctionError(error, data);
     return showSmsErrorToast(message, code);
   }
-  
+
   // Check for error in response data (edge functions return 200 with error in body)
   if (data && data.success === false) {
     const errorMessage = data.error || 'SMS sending failed';
     const errorCode = data.errorCode;
     return showSmsErrorToast(errorMessage, errorCode);
   }
-  
+
   return false;
 }
 
-function extractEdgeFunctionError(error: any, data?: any): { message: string; code?: string } {
+async function extractEdgeFunctionError(error: any, data?: any): Promise<{ message: string; code?: string }> {
   // Prefer explicit error payloads if they were parsed.
   if (data?.error) {
     return {
@@ -41,19 +41,43 @@ function extractEdgeFunctionError(error: any, data?: any): { message: string; co
     };
   }
 
-  // Supabase FunctionsHttpError usually includes a context.body string.
-  const body = error?.context?.body;
-  if (typeof body === "string" && body.trim().length > 0) {
-    try {
-      const parsed = JSON.parse(body);
-      if (parsed?.error) {
-        return {
-          message: String(parsed.error),
-          code: parsed?.errorCode ? String(parsed.errorCode) : undefined,
-        };
+  // Supabase FunctionsHttpError exposes the raw Response via `context`.
+  const ctx = error?.context;
+  if (ctx) {
+    // Newer supabase-js: context is a Response object — read the body.
+    if (typeof ctx.clone === 'function' && typeof ctx.text === 'function') {
+      try {
+        const text = await ctx.clone().text();
+        if (text && text.trim().length > 0) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed?.error) {
+              return {
+                message: String(parsed.error),
+                code: parsed?.errorCode ? String(parsed.errorCode) : undefined,
+              };
+            }
+          } catch {
+            return { message: text.slice(0, 300) };
+          }
+        }
+      } catch {
+        // ignore read errors
       }
-    } catch {
-      // ignore parse errors
+    }
+    // Older shape: context.body is a string.
+    if (typeof ctx.body === 'string' && ctx.body.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(ctx.body);
+        if (parsed?.error) {
+          return {
+            message: String(parsed.error),
+            code: parsed?.errorCode ? String(parsed.errorCode) : undefined,
+          };
+        }
+      } catch {
+        return { message: ctx.body.slice(0, 300) };
+      }
     }
   }
 
