@@ -322,7 +322,8 @@ export default function MessagesPage() {
     // Initial fetch — only this one shows the loading spinner
     fetchConversations(true);
     fetchContacts();
-    syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
+    // Live updates flow in via the realtime channel below (OpenPhone webhook → sms_messages).
+    // No initial backfill sync — use the manual Sync button if you need to pull older history.
 
     const channel = supabase
       .channel('sms-messages')
