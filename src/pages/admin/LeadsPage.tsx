@@ -48,6 +48,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { fmt } from '@/lib/activeCurrency';
+import { dispatchZapier } from '@/lib/zapier';
 
 
 
