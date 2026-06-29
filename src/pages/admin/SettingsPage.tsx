@@ -1192,8 +1192,11 @@ export default function SettingsPage() {
 
           <ZapierSetupGuide />
           <ZapierWebhooksCard />
+          <ZapierWebhookHealthCard />
+          <ZapierAlertSettingsCard />
           <ZapierEventTester />
           <ZapierDispatchLogCard />
+
 
 
 
