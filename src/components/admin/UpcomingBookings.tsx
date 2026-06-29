@@ -139,7 +139,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
           });
 
           // Handle SMS-specific errors
-          if (handleSmsError(response)) {
+          if ((await handleSmsError(response))) {
             failCount++;
             continue;
           }
@@ -190,7 +190,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
           organizationId: organization?.id,
         },
       });
-      if (handleSmsError(response)) return;
+      if ((await handleSmsError(response))) return;
       toast.success(`Reminder sent to ${booking.customer.first_name}`);
     } catch (err: any) {
       toast.error('Failed to notify client: ' + (err.message || 'Unknown error'));

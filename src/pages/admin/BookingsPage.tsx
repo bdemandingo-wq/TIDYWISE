@@ -1050,7 +1050,7 @@ export default function BookingsPage() {
       });
 
       // Handle SMS-specific errors
-      if (handleSmsError(response)) {
+      if ((await handleSmsError(response))) {
         return;
       }
       toast({ title: "Reminder Sent", description: `SMS sent to ${booking.customer.phone}` });
@@ -1123,7 +1123,7 @@ export default function BookingsPage() {
           });
 
           // Handle SMS-specific errors
-          if (handleSmsError(response)) {
+          if ((await handleSmsError(response))) {
             failCount++;
             continue;
           }
@@ -1469,7 +1469,7 @@ export default function BookingsPage() {
           });
 
           // Handle SMS-specific errors
-          if (handleSmsError(response)) {
+          if ((await handleSmsError(response))) {
             failCount++;
             continue;
           }
@@ -1618,7 +1618,7 @@ export default function BookingsPage() {
       });
 
       // Handle SMS-specific errors
-      if (handleSmsError(response)) {
+      if ((await handleSmsError(response))) {
         return;
       }
       toast({ title: "Review Request Sent", description: `SMS sent to ${booking.customer.phone}` });

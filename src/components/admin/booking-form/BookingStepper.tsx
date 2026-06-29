@@ -381,7 +381,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       });
       
       // Handle SMS-specific errors
-      if (handleSmsError(response)) {
+      if ((await handleSmsError(response))) {
         return;
       }
       toast.success('Quote saved and sent via SMS!');
@@ -1151,7 +1151,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                   },
                 });
                 // Handle SMS-specific errors
-                if (!handleSmsError(response)) {
+                if (!(await handleSmsError(response))) {
                   toast.success('Confirmation text sent to customer');
                 }
               } catch (smsError: any) {
