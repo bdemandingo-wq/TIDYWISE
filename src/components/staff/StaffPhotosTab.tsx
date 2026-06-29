@@ -122,6 +122,10 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
     };
   }, [uploads]);
 
+  // Auto-select the most recent booking so cleaners don't get stuck
+  // wondering why "Upload All" is disabled when they only have one job.
+
+
   const { data: bookings = [] } = useQuery({
     queryKey: ['staff-photo-bookings', staffId, organizationId],
     queryFn: async () => {
@@ -141,6 +145,13 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
     },
     enabled: !!staffId && !!organizationId,
   });
+
+  useEffect(() => {
+    if (!selectedBookingId && bookings.length > 0) {
+      setSelectedBookingId(bookings[0].id);
+    }
+  }, [bookings, selectedBookingId]);
+
 
   const { data: photos = [], isLoading: loadingPhotos } = useQuery({
     queryKey: ['staff-uploaded-photos', staffId, organizationId],
@@ -443,10 +454,15 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                   )}
                 </div>
               ))}
+              {!selectedBookingId && (
+                <p className="text-xs text-amber-500 text-center">
+                  ⚠️ Pick a booking from the dropdown above before uploading.
+                </p>
+              )}
               <Button
                 className="w-full gap-2"
                 onClick={uploadAll}
-                disabled={isUploading || !selectedBookingId || uploads.filter((upload) => upload.status === 'pending').length === 0}
+                disabled={isUploading || uploads.filter((upload) => upload.status === 'pending').length === 0}
               >
                 {isUploading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</>
@@ -454,6 +470,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                   <><CheckCircle className="w-4 h-4" />Upload All ({uploads.filter((upload) => upload.status === 'pending').length})</>
                 )}
               </Button>
+
             </div>
           )}
         </CardContent>
