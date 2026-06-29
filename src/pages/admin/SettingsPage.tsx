@@ -51,6 +51,8 @@ import { ZapierWebhooksCard } from '@/components/admin/ZapierWebhooksCard';
 import { ZapierSetupGuide } from '@/components/admin/ZapierSetupGuide';
 import { ZapierEventTester } from '@/components/admin/ZapierEventTester';
 import { ZapierDispatchLogCard } from '@/components/admin/ZapierDispatchLogCard';
+import { ZapierAlertSettingsCard } from '@/components/admin/ZapierAlertSettingsCard';
+import { ZapierWebhookHealthCard } from '@/components/admin/ZapierWebhookHealthCard';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
