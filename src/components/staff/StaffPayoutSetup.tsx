@@ -245,8 +245,11 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       });
 
       if (error) {
-        const edgeError = await extractFunctionErrorMessage(error);
-        throw new Error(edgeError);
+        const payload = await extractEdgeError(error);
+        const ui = buildUserFacingError(payload);
+        const err = new Error(ui.title) as Error & { ui?: { title: string; description: string } };
+        err.ui = ui;
+        throw err;
       }
 
       if (!data?.url) {
@@ -261,11 +264,15 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       toast.success('Redirecting to secure payout setup...');
       window.location.href = data.url;
     },
-    onError: (error: Error) => {
-      const msg = mapErrorMessage(error.message);
-      toast.error(msg, { duration: 6000 });
+    onError: (error: Error & { ui?: { title: string; description: string } }) => {
+      if (error.ui) {
+        toast.error(error.ui.title, { description: error.ui.description, duration: 8000 });
+      } else {
+        toast.error(mapErrorMessage(error.message), { duration: 6000 });
+      }
     },
   });
+
 
   // Direct redirect handler — called from a real user tap
   const handleOpenStripeSetup = () => {
