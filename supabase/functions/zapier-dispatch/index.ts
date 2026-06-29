@@ -8,7 +8,45 @@ interface DispatchBody {
   organization_id: string;
   event_type: string;
   payload: Record<string, unknown>;
-  test_webhook_id?: string; // when set, only dispatches to this webhook (used by "Send test")
+  test_webhook_id?: string; // when set, only dispatches to this webhook
+}
+
+const MAX_ATTEMPTS = 4;
+// Exponential backoff with jitter: ~0.5s, 1.5s, 4s
+const BACKOFF_MS = [500, 1500, 4000];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function deliverWithRetry(url: string, body: string) {
+  let lastStatus: number | null = null;
+  let lastError: string | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      lastStatus = resp.status;
+      if (resp.ok) {
+        return { success: true, status: resp.status, attempts: attempt, error: null as string | null };
+      }
+      // Retry on 5xx and 429; give up on other 4xx
+      if (resp.status < 500 && resp.status !== 429) {
+        lastError = await resp.text().catch(() => null);
+        return { success: false, status: resp.status, attempts: attempt, error: lastError };
+      }
+      lastError = await resp.text().catch(() => null);
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+    }
+    if (attempt < MAX_ATTEMPTS) {
+      const base = BACKOFF_MS[attempt - 1] ?? 4000;
+      const jitter = Math.floor(Math.random() * 250);
+      await sleep(base + jitter);
+    }
+  }
+  return { success: false, status: lastStatus, attempts: MAX_ATTEMPTS, error: lastError };
 }
 
 Deno.serve(async (req) => {
@@ -54,46 +92,36 @@ Deno.serve(async (req) => {
       occurred_at: new Date().toISOString(),
       data: payload ?? {},
     };
+    const envelopeBody = JSON.stringify(envelope);
 
     const results = await Promise.all(
       (hooks ?? []).map(async (hook) => {
-        try {
-          const resp = await fetch(hook.webhook_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(envelope),
-          });
-          const success = resp.ok;
-          await supabase.from('zapier_dispatch_log').insert({
-            organization_id,
-            webhook_id: hook.id,
-            event_type,
-            status_code: resp.status,
-            success,
-            error_message: success ? null : await resp.text().catch(() => null),
-            payload: envelope,
-          });
-          return { webhook_id: hook.id, status: resp.status, success };
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          await supabase.from('zapier_dispatch_log').insert({
-            organization_id,
-            webhook_id: hook.id,
-            event_type,
-            status_code: null,
-            success: false,
-            error_message: msg,
-            payload: envelope,
-          });
-          return { webhook_id: hook.id, success: false, error: msg };
-        }
+        const r = await deliverWithRetry(hook.webhook_url, envelopeBody);
+        await supabase.from('zapier_dispatch_log').insert({
+          organization_id,
+          webhook_id: hook.id,
+          event_type,
+          status_code: r.status,
+          success: r.success,
+          error_message: r.success
+            ? null
+            : `[attempts:${r.attempts}] ${r.error ?? 'delivery failed'}`,
+          payload: envelope,
+        });
+        return {
+          webhook_id: hook.id,
+          status: r.status,
+          success: r.success,
+          attempts: r.attempts,
+          error: r.error,
+        };
       }),
     );
 
-    return new Response(JSON.stringify({ dispatched: results.length, results }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ dispatched: results.length, envelope, results }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('zapier-dispatch error', msg);
