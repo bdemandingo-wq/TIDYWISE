@@ -5331,6 +5331,50 @@ export type Database = {
           },
         ]
       }
+      org_zapier_webhooks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+          webhook_url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+          webhook_url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_zapier_webhooks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_automations: {
         Row: {
           automation_type: string
@@ -8852,6 +8896,57 @@ export type Database = {
           },
         ]
       }
+      zapier_dispatch_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          organization_id: string
+          payload: Json | null
+          status_code: number | null
+          success: boolean
+          webhook_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          organization_id: string
+          payload?: Json | null
+          status_code?: number | null
+          success?: boolean
+          webhook_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          organization_id?: string
+          payload?: Json | null
+          status_code?: number | null
+          success?: boolean
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zapier_dispatch_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zapier_dispatch_log_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "org_zapier_webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       client_portal_users_safe: {
@@ -9282,8 +9377,12 @@ export type Database = {
         Args: { _client_user_id: string; _user_id: string }
         Returns: boolean
       }
-      is_org_admin: { Args: { _org_id: string }; Returns: boolean }
-      is_org_member: { Args: { _org_id: string }; Returns: boolean }
+      is_org_admin:
+        | { Args: { _org_id: string }; Returns: boolean }
+        | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
+      is_org_member:
+        | { Args: { _org_id: string }; Returns: boolean }
+        | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_platform_blog_admin: { Args: never; Returns: boolean }

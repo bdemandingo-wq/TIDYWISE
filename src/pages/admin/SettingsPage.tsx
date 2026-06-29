@@ -47,6 +47,7 @@ import { DomainVerificationCard } from '@/components/admin/DomainVerificationCar
 import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
+import { ZapierWebhooksCard } from '@/components/admin/ZapierWebhooksCard';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -1183,6 +1184,10 @@ export default function SettingsPage() {
           <div data-tour-id="stripe-connect">
             <StripeConnectHealthPanel />
           </div>
+
+          <ZapierWebhooksCard />
+
+
 
           <Card>
             <CardHeader>
