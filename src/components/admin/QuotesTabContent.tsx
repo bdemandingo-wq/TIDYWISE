@@ -257,7 +257,7 @@ export function QuotesTabContent() {
       });
 
       // Handle SMS-specific errors
-      if (handleSmsError(response)) {
+      if ((await handleSmsError(response))) {
         return;
       }
 

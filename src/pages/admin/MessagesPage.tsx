@@ -281,7 +281,7 @@ export default function MessagesPage() {
       const response = await supabase.functions.invoke('send-openphone-sms', {
         body: { to: forwardSelectedContact.phone, message: messageText, organizationId }
       });
-      if (handleSmsError(response)) { setForwardSending(false); return; }
+      if ((await handleSmsError(response))) { setForwardSending(false); return; }
       toast.success(`Photo forwarded to ${forwardSelectedContact.name}`);
       setForwardOpen(false);
     } catch (error: any) {
@@ -510,7 +510,7 @@ export default function MessagesPage() {
       const response = await supabase.functions.invoke('send-openphone-sms', {
         body: { to: selectedConversation.customer_phone, message: newMessage.trim(), organizationId }
       });
-      if (handleSmsError(response)) return;
+      if ((await handleSmsError(response))) return;
       await supabase.from('sms_messages').insert({
         conversation_id: selectedConversation.id, organization_id: organizationId,
         direction: 'outbound', content: newMessage.trim(), status: 'sent',
