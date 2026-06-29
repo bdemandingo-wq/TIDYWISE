@@ -122,6 +122,10 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
     };
   }, [uploads]);
 
+  // Auto-select the most recent booking so cleaners don't get stuck
+  // wondering why "Upload All" is disabled when they only have one job.
+
+
   const { data: bookings = [] } = useQuery({
     queryKey: ['staff-photo-bookings', staffId, organizationId],
     queryFn: async () => {
