@@ -849,6 +849,8 @@ const handler = async (req: Request): Promise<Response> => {
           supabase.functions.invoke("notify-invoice-paid", {
             body: { invoice_id: invoiceId, organization_id: organizationId },
           }).catch((e) => console.error("[stripe-invoice-webhook] notify-invoice-paid failed:", e));
+
+          await fireZapier(supabase, organizationId, invoiceId, paymentIntent.id);
         }
       }
     }
