@@ -30,6 +30,7 @@ import { format, parseISO } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
+import { dispatchZapier } from '@/lib/zapier';
 
 interface FeedbackEntry {
   id: string;
@@ -69,8 +70,13 @@ export default function ClientFeedbackPage() {
       if (!organization?.id) {
         throw new Error('No organization found');
       }
-      const { error } = await supabase.from('client_feedback').insert([{ ...data, organization_id: organization.id }]);
+      const { data: row, error } = await supabase
+        .from('client_feedback')
+        .insert([{ ...data, organization_id: organization.id }])
+        .select()
+        .single();
       if (error) throw error;
+      dispatchZapier('review.received', organization.id, row as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
