@@ -173,6 +173,10 @@ export function ImportDialog({
   };
 
   const getMappedRecords = (): Record<string, any>[] => {
+    const firstCol = columnMapping['first_name'];
+    const lastCol = columnMapping['last_name'];
+    const splitName = !!firstCol && !!lastCol && firstCol === lastCol;
+
     return csvRows.map(row => {
       const record: Record<string, any> = {};
       fields.forEach(field => {
@@ -181,7 +185,18 @@ export function ImportDialog({
           const headerIndex = csvHeaders.indexOf(csvHeader);
           if (headerIndex !== -1) {
             let value = row[headerIndex] || '';
-            
+
+            // Split a single full-name column into first/last
+            if (splitName && (field.dbField === 'first_name' || field.dbField === 'last_name')) {
+              const parts = String(value).trim().split(/\s+/);
+              if (field.dbField === 'first_name') {
+                record.first_name = parts[0] || '';
+              } else {
+                record.last_name = parts.length > 1 ? parts.slice(1).join(' ') : '';
+              }
+              return;
+            }
+
             // Type conversion
             if (field.type === 'number' && value) {
               record[field.dbField] = parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0;
