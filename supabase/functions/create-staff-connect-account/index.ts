@@ -138,13 +138,6 @@ serve(async (req: Request) => {
     }
 
 
-    // Verify org matches
-    if (staffRecord.organization_id !== organizationId) {
-      return new Response(JSON.stringify({ error: "Organization mismatch" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Use PLATFORM Stripe key for creating Connect Express accounts
     // Org keys are connected accounts themselves and cannot create sub-accounts
