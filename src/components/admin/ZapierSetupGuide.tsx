@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Zap, ExternalLink, Lightbulb } from 'lucide-react';
 
 export function ZapierSetupGuide() {
@@ -22,6 +23,36 @@ export function ZapierSetupGuide() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
+          <Button asChild className="flex-1">
+            <a
+              href="https://zapier.com/app/editor?create=true"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Open Zapier Editor
+              <ExternalLink className="h-3 w-3 ml-2" />
+            </a>
+          </Button>
+          <Button asChild variant="outline" className="flex-1">
+            <a
+              href="https://zapier.com/apps/leadconnector/integrations"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Zap className="h-4 w-4 mr-2 text-orange-500" />
+              Connect GoHighLevel
+              <ExternalLink className="h-3 w-3 ml-2" />
+            </a>
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Tip: pick <strong>Webhooks by Zapier → Catch Hook</strong> as the trigger, then add a{' '}
+          <strong>Lead Connector (GHL)</strong> action — Create/Update Contact, Add Tag, or
+          Trigger Workflow.
+        </p>
+
         <Accordion type="single" collapsible defaultValue="step-1" className="w-full">
           <AccordionItem value="step-1">
             <AccordionTrigger>
