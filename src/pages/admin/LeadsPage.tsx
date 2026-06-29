@@ -161,8 +161,13 @@ export default function LeadsPage() {
       if (!organization?.id) {
         throw new Error('No organization found');
       }
-      const { error } = await supabase.from('leads').insert([{ ...data, organization_id: organization.id }]);
+      const { data: lead, error } = await supabase
+        .from('leads')
+        .insert([{ ...data, organization_id: organization.id }])
+        .select()
+        .single();
       if (error) throw error;
+      dispatchZapier('lead.created', organization.id, lead as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
