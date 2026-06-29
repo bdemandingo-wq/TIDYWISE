@@ -129,11 +129,10 @@ export default function StaffPortal() {
     const fetchStaffRecord = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, name, email, phone, bio, avatar_url, hourly_rate, base_wage, percentage_rate, tax_classification, default_hours, home_address, home_latitude, home_longitude, organization_id')
-        .eq('user_id', user.id)
-        .single();
+      const { data, error } = await (supabase as any)
+        .rpc('get_my_staff_profile')
+        .maybeSingle();
+
 
       if (error) {
         console.error('Error fetching staff record:', error);
@@ -450,12 +449,17 @@ export default function StaffPortal() {
             id, organization_id, cleaner_checkin_at, cleaner_wage, cleaner_wage_type, 
             total_amount, duration, staff_id,
             customer:customers(id, email, first_name, last_name),
-            service:services(name),
-            staff:staff(hourly_rate, percentage_rate, base_wage)
+            service:services(name)
           `)
           .eq('id', bookingId)
           .single();
-          
+
+        // Wage rates for this staff member fetched via a security-definer RPC
+        // so non-admin members can't read peers' pay through a join.
+        const { data: wageRow } = await (supabase as any)
+          .rpc('get_my_wage_rates_for_booking', { _booking_id: bookingId })
+          .maybeSingle();
+
         if (bookingData) {
           // Calculate actual hours worked
           let actualHours = bookingData.duration / 60; // Default to scheduled duration
@@ -467,7 +471,8 @@ export default function StaffPortal() {
           
           // Calculate payment based on wage type
           let calculatedPayment = 0;
-          const staff = bookingData.staff as { hourly_rate: number | null; percentage_rate: number | null; base_wage: number | null } | null;
+          const staff = wageRow as { hourly_rate: number | null; percentage_rate: number | null; base_wage: number | null } | null;
+
           
           if (bookingData.cleaner_wage && bookingData.cleaner_wage_type) {
             if (bookingData.cleaner_wage_type === 'percentage') {
