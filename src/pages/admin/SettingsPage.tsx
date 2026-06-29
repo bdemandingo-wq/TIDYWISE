@@ -1200,6 +1200,10 @@ export default function SettingsPage() {
           <ZapierEventTester />
           <ZapierDispatchLogCard />
 
+          <GHLSettingsCard />
+          <GHLDispatchLogCard />
+
+
 
 
 
