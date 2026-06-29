@@ -67,6 +67,8 @@ export const AdminPayoutResetButton = forwardRef<HTMLButtonElement, AdminPayoutR
   return (
     <>
       <Button
+        ref={ref}
+
         variant="ghost"
         size="sm"
         className="text-destructive hover:text-destructive hover:bg-destructive/10"
