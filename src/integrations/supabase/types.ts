@@ -9309,6 +9309,14 @@ export type Database = {
         Returns: number
       }
       org_has_resend_api_key: { Args: { p_org_id: string }; Returns: boolean }
+      org_stripe_has_secrets: {
+        Args: { _org_id: string }
+        Returns: {
+          has_access_token: boolean
+          has_refresh_token: boolean
+          has_secret_key: boolean
+        }[]
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
