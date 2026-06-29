@@ -3811,6 +3811,62 @@ export type Database = {
         }
         Relationships: []
       }
+      ghl_dispatch_log: {
+        Row: {
+          attempt: number
+          created_at: string
+          error_code: string | null
+          error_hint: string | null
+          event_type: string
+          http_status: number | null
+          id: string
+          latency_ms: number | null
+          organization_id: string
+          payload: Json | null
+          response_snippet: string | null
+          status: string
+          webhook_url: string | null
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          error_code?: string | null
+          error_hint?: string | null
+          event_type: string
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          organization_id: string
+          payload?: Json | null
+          response_snippet?: string | null
+          status: string
+          webhook_url?: string | null
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          error_code?: string | null
+          error_hint?: string | null
+          event_type?: string
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          organization_id?: string
+          payload?: Json | null
+          response_snippet?: string | null
+          status?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ghl_dispatch_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_videos: {
         Row: {
           created_at: string
@@ -5171,6 +5227,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "org_feature_flags_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_ghl_settings: {
+        Row: {
+          auth_header_name: string
+          auth_token: string | null
+          created_at: string
+          enabled: boolean
+          event_config: Json
+          id: string
+          organization_id: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          auth_header_name?: string
+          auth_token?: string | null
+          created_at?: string
+          enabled?: boolean
+          event_config?: Json
+          id?: string
+          organization_id: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          auth_header_name?: string
+          auth_token?: string | null
+          created_at?: string
+          enabled?: boolean
+          event_config?: Json
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_ghl_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
@@ -9353,6 +9453,16 @@ export type Database = {
       get_org_benchmarks: {
         Args: { p_cohort?: string; p_org_id: string }
         Returns: Json
+      }
+      get_org_ghl_dispatch_config: {
+        Args: { _org_id: string }
+        Returns: {
+          auth_header_name: string
+          auth_token: string
+          enabled: boolean
+          event_config: Json
+          webhook_url: string
+        }[]
       }
       get_org_stripe_public_settings: {
         Args: { p_org_id: string }

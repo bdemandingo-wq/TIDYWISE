@@ -1,105 +1,60 @@
-## Zapier Integration Plan
+## Goal
 
-Goal: let each organization's admin paste one or more Zapier webhook URLs and have the CRM POST event data to them when key things happen. Purely additive — no existing flow changes.
+Add a first-class **GoHighLevel (GHL)** destination in Settings → Integrations that runs in parallel with Zapier. You'll be able to paste a GHL webhook URL + auth token, choose which events fire, map which fields each event sends, fire a test, and see every delivery attempt with retry buttons.
 
----
+## What gets built
 
-### 1. Database (1 new table)
+### 1. GHL Settings card
+- Webhook URL field (validated — must look like a GHL inbound webhook / custom URL).
+- Optional `Authorization` header / bearer token field (stored encrypted server-side, never returned to the client).
+- Master enable/disable switch.
+- Inline step-by-step setup guide (create a Workflow → add "Inbound Webhook" trigger → copy URL → optionally enable auth → paste here).
 
-`org_zapier_webhooks`
-- `id` uuid pk
-- `organization_id` uuid (FK, indexed)
-- `name` text (admin label, e.g. "New customer → Google Sheet")
-- `webhook_url` text (the Zapier catch hook URL)
-- `event_type` text (which event triggers this hook)
-- `is_active` boolean default true
-- `created_by` uuid, `created_at`, `updated_at`
+### 2. Event mapper
+For each of the 8 event types (`customer.created`, `booking.created`, `booking.completed`, `booking.cancelled`, `invoice.paid`, `lead.created`, `estimate.sent`, `review.received`):
+- Toggle to enable/disable that event for GHL.
+- A field-mapping table: source field (from our payload, e.g. `customer.email`) → GHL field (e.g. `email`, `phone`, `firstName`, `tags[]`, custom field key). Pre-filled with sensible defaults per event.
+- Live JSON preview of what will be sent.
 
-RLS:
-- SELECT/INSERT/UPDATE/DELETE only for users in the same `organization_id` via `org_memberships` (admin role).
-- `service_role` full access (edge function dispatcher).
-- GRANTs to `authenticated` + `service_role` (no `anon`).
+### 3. "Test GHL Webhook" button
+- One button per event type that fires the sample payload through the real dispatch pipeline (using the saved mapping + auth) and shows the response status, body, latency, and any error inline.
 
-Optional `zapier_dispatch_log` (event, url, status, payload hash, ts) for audit — recommended.
+### 4. Delivery log
+- New `ghl_dispatch_log` table (org-scoped, RLS).
+- UI card mirroring the Zapier log: search, filters (event type, status), latency column, response snippet on hover, **Retry** button per failed row.
 
----
+### 5. Dispatch engine
+- New edge function `ghl-dispatch` (mirrors `zapier-dispatch`): exponential backoff (4 retries on 5xx/429), structured error messages (network / 4xx / 5xx / auth / rate-limit), and friendly troubleshooting hints stored on the failed log row (e.g. "401 → token rejected, regenerate in GHL → Settings → Private Integrations").
+- Wired into the same 8 emission points already firing Zapier, so when GHL is enabled it dispatches in parallel — Zapier failures don't block GHL and vice-versa.
 
-### 2. Supported event types (v1)
+## Technical details
 
-Toggleable per webhook:
-- `customer.created`
-- `booking.created`
-- `booking.completed`
-- `booking.cancelled`
-- `invoice.paid`
-- `lead.created`
-- `estimate.sent`
-- `review.received`
+**New table `org_ghl_settings`** (one row per org)
+- `organization_id`, `enabled`, `webhook_url`, `auth_header_name`, `auth_token` (REVOKE column-level SELECT on `auth_token` — only edge functions read it via SECURITY DEFINER RPC), `event_config` (JSONB: `{ "lead.created": { enabled: true, fields: { email: "customer.email", ... } }, ... }`).
 
-(Easy to add more later — just a string enum on the frontend.)
+**New table `ghl_dispatch_log`**
+- `organization_id`, `event_type`, `status` (`success`|`failed`|`retrying`), `http_status`, `attempt`, `latency_ms`, `payload` (JSONB), `response_snippet`, `error_code`, `error_hint`.
+- RLS: org admins read; service role writes.
 
----
+**Edge function `ghl-dispatch`** modes:
+- `dispatch` (called from existing emission points + `dispatchGhlEvent` helper).
+- `test` (fires sample payload, returns full response).
+- `validate_webhook` (HEAD/POST ping for the health UI).
+- `retry_log_id` (re-fires a stored failed payload).
 
-### 3. Edge function: `zapier-dispatch`
+**Frontend files**
+- `src/lib/ghl.ts` — `dispatchGhlEvent(eventType, payload)` helper.
+- `src/components/admin/GHLSettingsCard.tsx`
+- `src/components/admin/GHLEventMapper.tsx`
+- `src/components/admin/GHLEventTester.tsx`
+- `src/components/admin/GHLDispatchLogCard.tsx`
+- Wired into `src/pages/admin/SettingsPage.tsx` Integrations tab, directly under the Zapier section.
 
-- Input: `{ organization_id, event_type, payload }`
-- Looks up active webhooks for that org + event_type
-- POSTs JSON to each URL with `Content-Type: application/json`
-- Logs result to `zapier_dispatch_log`
-- Never throws back into the caller — fire-and-forget so it can't break CRM flows
-- `verify_jwt = false` (called internally from other edge functions / DB triggers via service role)
+**Wiring existing emission points** (already calling `dispatchZapierEvent`): add a parallel `dispatchGhlEvent` call in the same 5 source files — `useBookings.ts`, `QuotesTabContent.tsx`, `LeadsPage.tsx`, `ClientFeedbackPage.tsx`, `stripe-invoice-webhook/index.ts`.
 
----
+## What I will NOT do (call out if you want it)
+- Two-way sync from GHL back into the CRM (would need GHL Private Integration token + polling/webhooks back — separate build).
+- Per-user GHL OAuth (workspace-level token only).
+- Custom field discovery from the GHL API (mapper uses free-text GHL field names you type in).
 
-### 4. Trigger points (where to call the dispatcher)
-
-Add a single helper `dispatchZapier(event, payload)` invoked from the existing flows — no logic changes, just one extra call:
-- customer create handler
-- booking create / complete / cancel handlers
-- invoice paid webhook (Stripe)
-- lead create handler
-- estimate send handler
-- review intake handler
-
-Each call is wrapped in try/catch so a Zapier failure never affects the real action.
-
----
-
-### 5. Admin UI
-
-New page: **Settings → Integrations → Zapier**
-- List of configured webhooks (name, event, active toggle, test button, delete)
-- "Add webhook" dialog: name, paste URL, pick event from dropdown
-- "Send test" button → fires a sample payload to that URL so user can finish their Zap setup
-- Link to Zapier "Webhooks by Zapier" docs
-
-Only visible to org admins (checked via `org_memberships.role`).
-
----
-
-### 6. Security / isolation (matches project rules)
-
-- All reads/writes scoped to `organization_id` via RLS
-- Webhook URL validated server-side (must be `https://hooks.zapier.com/...`)
-- Dispatch function rejects if `organization_id` missing
-- All sends logged with org_id + user_id (where applicable)
-- No secrets needed — webhook URL is the auth token
-
----
-
-### 7. Rollout order
-
-1. Migration: table + RLS + grants
-2. Edge function `zapier-dispatch` + log table
-3. Admin Settings UI (list / add / test / delete)
-4. Wire dispatch calls into the 8 event sources one by one
-
----
-
-### Technical notes
-
-- Payload shape per event will mirror the existing DB row plus an `event` and `occurred_at` field for consistency.
-- Retries: v1 = no retries (Zapier itself retries on its side); log failures for visibility.
-- Future: signed payloads (HMAC), per-webhook field filtering, GHL as a separate integration project.
-
-Approve and I'll start with step 1 (migration).
+Ready to build?
