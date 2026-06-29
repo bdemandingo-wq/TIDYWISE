@@ -785,6 +785,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("[stripe-invoice-webhook] Failed to update invoice status:", updateError);
         } else {
           console.log("[stripe-invoice-webhook] Invoice marked as paid:", invoiceId);
+          await fireZapier(supabase, organizationId, invoiceId, session.id);
         }
       }
     }
@@ -813,6 +814,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("[stripe-invoice-webhook] Failed to update invoice status:", updateError);
         } else {
           console.log("[stripe-invoice-webhook] Invoice marked as paid:", invoiceId);
+          await fireZapier(supabase, organizationId, invoiceId, stripeInvoice.id);
         }
       }
     }
