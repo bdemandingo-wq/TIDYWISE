@@ -1115,6 +1115,7 @@ export default function BookingsPage() {
               serviceName: booking.service?.name || 'Cleaning Service',
               appointmentDate: format(scheduledDate, 'EEEE, MMMM d, yyyy'),
               appointmentTime: format(scheduledDate, 'h:mm a'),
+              scheduledAt: booking.scheduled_at,
               address: fullAddress || 'Address not provided',
               bookingNumber: booking.booking_number,
               organizationId: organization?.id,
