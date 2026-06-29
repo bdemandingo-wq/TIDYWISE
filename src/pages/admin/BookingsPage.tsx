@@ -1032,19 +1032,10 @@ export default function BookingsPage() {
     setSendingReminder(booking.id);
     
     try {
-      // Format date/time on client-side for timezone accuracy
-      const scheduledDate = new Date(booking.scheduled_at);
-      const formattedDate = scheduledDate.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-      const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-
+      // IMPORTANT: do NOT pre-format date/time here — toLocale* uses the
+      // admin's *device* timezone, which can flip AM↔PM if the admin is in
+      // a different zone than the business. Let the edge function format
+      // using the organization's timezone (single source of truth).
       const response = await supabase.functions.invoke('send-booking-reminder', {
         body: {
           bookingId: booking.id,
@@ -1052,8 +1043,6 @@ export default function BookingsPage() {
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
           serviceName: booking.service?.name || 'Cleaning Service',
           scheduledAt: booking.scheduled_at,
-          formattedDate,
-          formattedTime,
           address: booking.address || '',
           totalAmount: booking.total_amount,
           organizationId: organization?.id,
