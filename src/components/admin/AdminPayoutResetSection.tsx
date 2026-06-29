@@ -23,7 +23,7 @@ const RESET_REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
-export function AdminPayoutResetButton({ staffId, staffName, organizationId, currentStatus }: AdminPayoutResetSectionProps) {
+export const AdminPayoutResetButton = forwardRef<HTMLButtonElement, AdminPayoutResetSectionProps>(function AdminPayoutResetButton({ staffId, staffName, organizationId, currentStatus }, ref) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [reason, setReason] = useState('');
   const queryClient = useQueryClient();
