@@ -460,7 +460,7 @@ export default function FinancePage() {
           <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none min-h-[44px]" onClick={exportSalesTaxByZip}>
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Sales Tax by Zip</span>
-            <span className="sm:hidden">Tax</span>
+            <span className="sm:hidden">Sales Tax</span>
           </Button>
         </div>
       </div>

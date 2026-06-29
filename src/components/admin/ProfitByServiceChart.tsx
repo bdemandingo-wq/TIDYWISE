@@ -201,12 +201,17 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    innerRadius={38}
+                    outerRadius={68}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, percentage }) => `${name} (${percentage.toFixed(0)}%)`}
-                    labelLine={false}
+                    label={({ name, percentage }) => {
+                      if (percentage < 7) return '';
+                      const short = name.length > 9 ? name.slice(0, 8) + '…' : name;
+                      return `${short} (${percentage.toFixed(0)}%)`;
+                    }}
+                    labelLine={true}
+                    fontSize={10}
                   >
                   {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.isRefund ? REFUND_COLOR : COLORS[index % COLORS.length]} />
@@ -275,8 +280,8 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
 
         {/* Summary Table */}
         <div className="mt-4 pt-4 border-t border-border">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            {serviceData.slice(0, 4).map((service, idx) => (
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {serviceData.map((service, idx) => (
               <div key={service.name} className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full" 

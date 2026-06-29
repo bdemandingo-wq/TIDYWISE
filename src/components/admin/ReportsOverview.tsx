@@ -183,18 +183,18 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
   }, [filteredBookings, filteredCustomers]);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+    <div className="min-w-0 overflow-hidden bg-card border border-border rounded-xl p-3 shadow-sm md:p-4">
+      <div className="flex min-w-0 items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">Reports overview</h3>
       </div>
       
       {/* Time period tabs */}
-      <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2">
+      <div className="no-scrollbar -mx-1 mb-4 flex max-w-full items-center gap-1 overflow-x-auto px-1 pb-2">
         {periods.map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+            className={`min-h-10 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
               period === p
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted'
@@ -206,7 +206,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       </div>
 
       {/* Metric charts */}
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <MetricChart
           title="Gross volume"
           value={isTestMode ? 'X.XK' : totals.grossVolume}

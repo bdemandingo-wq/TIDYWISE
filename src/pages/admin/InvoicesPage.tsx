@@ -222,6 +222,21 @@ export default function InvoicesPage() {
     onError: (error: any) => toast.error(error.message),
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Invoice marked as paid');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
   const sendInvoiceEmail = async (invoice: Invoice) => {
     const contact = getInvoiceContact(invoice);
 
@@ -412,6 +427,9 @@ export default function InvoicesPage() {
 
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }}><Eye className="w-4 h-4 mr-2" />View</Button>
+                      {['sent', 'overdue'].includes(invoice.status) && (
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white border-0" onClick={() => markPaidMutation.mutate(invoice.id)} disabled={markPaidMutation.isPending}><CheckCircle2 className="w-4 h-4 mr-2" />Mark Paid</Button>
+                      )}
                       {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                         <Button variant="outline" size="sm" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id}>
                           {sendingInvoice === invoice.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}

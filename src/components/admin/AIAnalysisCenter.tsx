@@ -19,6 +19,7 @@ import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfW
 import ReactMarkdown from 'react-markdown';
 import { useQuery as useRQ } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; cardStyle: React.CSSProperties }) {
@@ -56,7 +57,7 @@ function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; car
   const TEAL = '#00E5C3'; const AMBER = '#FFB547'; const RED = '#FF4B6E'; const BLUE = '#4A9EFF';
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-full space-y-4 overflow-x-hidden">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total Calls', value: s.total, color: TEAL },
@@ -141,9 +142,17 @@ interface ProactiveInsight {
 }
 
 export function AIAnalysisCenter() {
+  const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgId = organization?.id;
   const [activeTab, setActiveTab] = useState('overview');
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const openAskAI = useCallback((prompt: string) => {
+    setActiveTab('ask-ai');
+    setChatInput(prompt);
+    setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }, []);
 
   // ─── Data queries ───
   const now = new Date();
@@ -599,7 +608,7 @@ export function AIAnalysisCenter() {
   const maxBookings = Math.max(...Object.values(weeklyData), 1);
 
   return (
-    <div style={{ background: DARK_BG, minHeight: '100vh', color: '#fff', fontFamily: labelFont }} className="-m-6 p-6">
+    <div style={{ background: DARK_BG, minHeight: '100dvh', color: '#fff', fontFamily: labelFont }} className="-mx-3 -mt-3 px-3 pt-5 pb-4 overflow-x-hidden md:-mx-4 md:-mt-4 md:px-6 md:pt-6">
       <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* ─── Proactive Insights Feed ─── */}
@@ -627,11 +636,12 @@ export function AIAnalysisCenter() {
                       <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4, lineHeight: 1.3 }}>{ins.title}</p>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{ins.body}</p>
                       <button
-                        onClick={() => { setActiveTab('ask-ai'); setChatInput(ins.action); }}
-                        style={{ fontSize: 11, color: TEAL, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: labelFont }}
-                        className="hover:opacity-80"
+                        onClick={() => openAskAI(ins.action)}
+                        style={{ fontSize: 11, color: TEAL, marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 4, cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: labelFont, flexWrap: 'wrap', wordBreak: 'break-word', textAlign: 'left' }}
+                        className="hover:opacity-80 w-full"
                       >
-                        {ins.action} <ArrowUpRight size={10} />
+                        <span style={{ flex: 1, minWidth: 0 }}>{ins.action}</span>
+                        <ArrowUpRight size={10} style={{ flexShrink: 0, marginTop: 2 }} />
                       </button>
                     </div>
                   </div>
@@ -657,15 +667,17 @@ export function AIAnalysisCenter() {
               </div>
               <span style={{ fontFamily: labelFont, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{kpi.label}</span>
             </div>
-            <p style={{ fontFamily: monoFont, fontSize: 28, fontWeight: 500, color: '#fff', lineHeight: 1 }}>{kpi.value}</p>
+            <p style={{ fontFamily: monoFont, fontSize: isMobile ? 22 : 28, fontWeight: 500, color: '#fff', lineHeight: 1 }}>{kpi.value}</p>
             <p style={{ fontFamily: labelFont, fontSize: 12, color: kpi.color, marginTop: 6 }}>{kpi.sub}</p>
           </div>
         ))}
       </div>
 
       {/* ─── Tabs ─── */}
+      <div ref={tabsRef} />
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-6 overflow-x-auto scrollbar-hide flex-nowrap">
+        <div className="sticky top-0 z-10 -mx-3 px-3 md:-mx-4 md:px-6" style={{ background: DARK_BG }}>
+        <TabsList className="bg-transparent border-b border-white/5 rounded-none w-full justify-start gap-1 px-0 mb-0 overflow-x-auto scrollbar-hide flex-nowrap" style={{ touchAction: 'pan-x' }}>
           {[
             { value: 'overview', label: 'Overview', icon: Brain },
             { value: 'leads', label: 'Leads', icon: Flame },
@@ -685,6 +697,7 @@ export function AIAnalysisCenter() {
             </TabsTrigger>
           ))}
         </TabsList>
+        </div>
 
         {/* ─── Tab 1: Overview ─── */}
         <TabsContent value="overview">
@@ -713,11 +726,12 @@ export function AIAnalysisCenter() {
                   <p className="break-words" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, wordBreak: 'break-word' }}>{ins.insight}</p>
                   <Button
                     size="sm"
-                    onClick={() => { setActiveTab('ask-ai'); setChatInput(ins.promptText || ''); }}
+                    onClick={() => openAskAI(ins.promptText || ins.action || '')}
                     style={{ background: `${s.text}20`, color: s.text, border: `1px solid ${s.border}`, fontSize: 12, fontFamily: labelFont, marginTop: 8 }}
-                    className="hover:opacity-80"
+                    className="hover:opacity-80 w-full h-auto whitespace-normal text-left justify-start items-start"
                   >
-                    {ins.action} <ArrowUpRight size={12} className="ml-1" />
+                    <span className="break-words min-w-0 flex-1">{ins.action}</span>
+                    <ArrowUpRight size={12} className="ml-1 shrink-0 mt-0.5" />
                   </Button>
                 </div>
               );
@@ -897,21 +911,21 @@ export function AIAnalysisCenter() {
         </TabsContent>
 
         {/* ─── Tab 6: Ask AI ─── */}
-        <TabsContent value="ask-ai">
-          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Ask TidyWise AI</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
+        <TabsContent value="ask-ai" className="max-w-full" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - env(safe-area-inset-top) - 7rem - env(safe-area-inset-bottom))' }}>
+          <h3 style={{ fontFamily: labelFont, fontSize: 16, fontWeight: 600, marginBottom: 12, flexShrink: 0 }}>Ask TidyWise AI</h3>
+          <div className="flex max-w-full flex-wrap gap-2 mb-3" style={{ flexShrink: 0, overflowX: 'hidden' }}>
             {dynamicChips.map((q, i) => (
               <button
                 key={i}
                 onClick={() => sendChat(q)}
                 style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 20, padding: '8px 16px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: labelFont, cursor: 'pointer', minHeight: 44 }}
-                className="hover:bg-white/10 transition-colors"
+                className="max-w-full break-words hover:bg-white/10 transition-colors"
               >
                 {q}
               </button>
             ))}
           </div>
-          <div style={{ ...cardStyle, maxHeight: 450, overflowY: 'auto', marginBottom: 16 }} className="p-4">
+          <div style={{ ...cardStyle, flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', marginBottom: 12 }} className="max-w-full p-4">
             {chatMessages.length === 0 ? (
               <div className="text-center py-8">
                 <Brain size={32} style={{ color: TEAL, margin: '0 auto 12px' }} />
@@ -921,10 +935,12 @@ export function AIAnalysisCenter() {
             ) : (
               <div className="space-y-4">
                 {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={i} className={`flex min-w-0 max-w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div
                       style={{
-                        maxWidth: '80%',
+                        maxWidth: 'min(80%, calc(100vw - 5rem))',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
                         padding: '10px 14px',
                         borderRadius: 12,
                         fontSize: 13,
@@ -933,7 +949,7 @@ export function AIAnalysisCenter() {
                         border: `1px solid ${msg.role === 'user' ? `${BLUE}30` : BORDER}`,
                         color: 'rgba(255,255,255,0.85)',
                       }}
-                      className={msg.role === 'assistant' ? 'prose prose-invert prose-sm max-w-none [&_strong]:text-white [&_ul]:space-y-0.5 [&_ol]:space-y-0.5 [&_li]:text-white/80 [&_p]:text-white/80 [&_p]:mb-2 [&_h3]:text-white [&_h3]:text-sm [&_h3]:font-semibold' : ''}
+                      className={msg.role === 'assistant' ? 'min-w-0 overflow-hidden prose prose-invert prose-sm max-w-none [&_strong]:text-white [&_ul]:space-y-0.5 [&_ol]:space-y-0.5 [&_li]:text-white/80 [&_p]:text-white/80 [&_p]:mb-2 [&_h3]:text-white [&_h3]:text-sm [&_h3]:font-semibold' : ''}
                     >
                       {msg.role === 'assistant' ? (
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -947,14 +963,14 @@ export function AIAnalysisCenter() {
               </div>
             )}
           </div>
-          <div className="flex gap-2 sticky bottom-0 pt-2" style={{ background: DARK_BG }}>
+          <div className="flex w-full max-w-full min-w-0 gap-2 pt-2" style={{ flexShrink: 0 }}>
             <Input
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChat(chatInput)}
               placeholder="Ask about your business..."
               style={{ background: CARD_BG, border: `1px solid ${BORDER}`, color: '#fff', fontFamily: labelFont, fontSize: 15, minHeight: 44 }}
-              className="flex-1"
+              className="min-w-0 flex-1"
             />
             <Button
               onClick={() => sendChat(chatInput)}

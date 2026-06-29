@@ -37,11 +37,11 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   // App.tsx so the CopilotProvider survives route changes — otherwise every
   // navigation would remount the provider and clear the conversation.
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={cn(
-        "transition-all duration-300 min-h-screen",
+        "transition-all duration-300 min-h-screen w-full max-w-full overflow-x-hidden",
         "pl-0 md:pl-16",
         sidebarOpen && "md:pl-64"
       )}>
@@ -49,8 +49,8 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
 
         <main
           className={cn(
-            "animate-page-enter flex-1",
-            "p-1.5 md:p-4 pt-1.5 md:pt-4 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-4"
+            "animate-page-enter flex-1 w-full max-w-full overflow-x-hidden",
+            "px-3 py-3 md:p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-4"
           )}
         >
           {children}

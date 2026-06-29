@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { Capacitor } from '@capacitor/core';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { PropertyNotesEditor } from '@/components/admin/PropertyNotesEditor';
 
 interface Customer {
@@ -74,6 +74,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   
   const [submitting, setSubmitting] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
+  const [removingCard, setRemovingCard] = useState(false);
 
   // --- Addresses state ---
   const [newAddress, setNewAddress] = useState({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
@@ -115,6 +116,93 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
     enabled: !!customer && !!organization?.id && open,
   });
 
+  // Check if customer has a Stripe card on file
+  const { data: cardOnFile, isLoading: loadingCard, refetch: refetchCard } = useQuery({
+    queryKey: ['customer-card', customer?.email, organization?.id],
+    queryFn: async () => {
+      if (!customer?.email || !organization?.id) return null;
+      const { data, error } = await supabase.functions.invoke('get-customer-card', {
+        body: { email: customer.email, organizationId: organization.id },
+      });
+      if (error || !data?.hasCard) return null;
+      return data as { hasCard: boolean; last4: string; brand: string; expMonth: number; expYear: number; paymentMethodId: string };
+    },
+    enabled: !!customer?.email && !!organization?.id && open,
+  });
+
+  const handleRemoveCard = async () => {
+    if (!customer?.email || !organization?.id || !cardOnFile?.paymentMethodId) return;
+    setRemovingCard(true);
+    try {
+      const { error } = await supabase.functions.invoke('remove-customer-card', {
+        body: { email: customer.email, organizationId: organization.id, paymentMethodId: cardOnFile.paymentMethodId },
+      });
+      if (error) throw error;
+      toast.success('Card removed');
+      void refetchCard();
+    } catch {
+      toast.error('Failed to remove card');
+    } finally {
+      setRemovingCard(false);
+    }
+  };
+
+  // Fetch actual bookings for this customer — used to auto-compute status and surface addresses
+  const { data: customerBookings = [] } = useQuery({
+    queryKey: ['customer-bookings-for-edit', customer?.id, organization?.id],
+    queryFn: async () => {
+      if (!customer?.id || !organization?.id) return [];
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('id, address, city, state, zip_code, apt_suite, scheduled_at, status')
+        .eq('customer_id', customer.id)
+        .eq('organization_id', organization.id)
+        .order('scheduled_at', { ascending: false })
+        .limit(20);
+      if (error) return [];
+      return (data || []) as Array<{ id: string; address: string | null; city: string | null; state: string | null; zip_code: string | null; apt_suite: string | null; scheduled_at: string; status: string }>;
+    },
+    enabled: !!customer?.id && !!organization?.id && open,
+  });
+
+  // Unique addresses found in bookings (for display when no saved locations exist)
+  const bookingAddresses = useMemo(() => {
+    const seen = new Set<string>();
+    return customerBookings.filter(b => b.address?.trim()).filter(b => {
+      const key = `${b.address}|${b.city}|${b.state}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [customerBookings]);
+
+  const [savingBookingAddress, setSavingBookingAddress] = useState<string | null>(null);
+
+  const handleSaveBookingAddress = async (booking: typeof customerBookings[0]) => {
+    if (!customer || !organization?.id || !booking.address) return;
+    setSavingBookingAddress(booking.id);
+    try {
+      const isFirst = savedAddresses.length === 0;
+      await supabase.from('locations').insert({
+        customer_id: customer.id,
+        organization_id: organization.id,
+        name: 'Home',
+        address: booking.address,
+        apt_suite: booking.apt_suite || null,
+        city: booking.city || null,
+        state: booking.state || null,
+        zip_code: booking.zip_code || null,
+        is_primary: isFirst,
+      });
+      await refetchAddresses();
+      toast.success('Address saved to profile');
+    } catch {
+      toast.error('Failed to save address');
+    } finally {
+      setSavingBookingAddress(null);
+    }
+  };
+
   useEffect(() => {
     if (customer) {
       setFormData({
@@ -134,6 +222,20 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
       setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
     }
   }, [customer]);
+
+  // Auto-correct status: if stored as 'lead' but customer has real bookings, update to active/inactive
+  useEffect(() => {
+    if (!customer || !organization?.id || customerBookings.length === 0) return;
+    if (formData.customer_status !== 'lead') return;
+    const lastBookingDate = new Date(customerBookings[0].scheduled_at);
+    const computedStatus = differenceInDays(new Date(), lastBookingDate) > 90 ? 'inactive' : 'active';
+    setFormData(prev => ({ ...prev, customer_status: computedStatus }));
+    // Persist the corrected status silently
+    void supabase.from('customers')
+      .update({ customer_status: computedStatus })
+      .eq('id', customer.id)
+      .eq('organization_id', organization.id);
+  }, [customerBookings, customer, organization?.id, formData.customer_status]);
 
   const handleAddAddress = async () => {
     if (!customer || !organization?.id || !newAddress.address.trim()) {
@@ -323,9 +425,29 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             </div>
 
             {/* Saved Addresses */}
-            {savedAddresses.length === 0 && !showAddForm && (
+            {savedAddresses.length === 0 && !showAddForm && bookingAddresses.length === 0 && (
               <p className="text-sm text-muted-foreground py-2">No saved addresses. Add one below.</p>
             )}
+            {/* Addresses from bookings (shown when no saved locations yet) */}
+            {savedAddresses.length === 0 && !showAddForm && bookingAddresses.map((b) => (
+              <div key={b.id} className="p-3 bg-secondary/30 rounded-lg border border-border/50 space-y-1">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="text-xs">From booking</Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={savingBookingAddress === b.id}
+                    onClick={() => handleSaveBookingAddress(b)}
+                  >
+                    {savingBookingAddress === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save to profile'}
+                  </Button>
+                </div>
+                <p className="text-sm">{[b.address, b.apt_suite].filter(Boolean).join(', ')}</p>
+                <p className="text-xs text-muted-foreground">{[b.city, b.state, b.zip_code].filter(Boolean).join(', ')}</p>
+              </div>
+            ))}
             {savedAddresses.map((loc) => (
               <div
                 key={loc.id}
@@ -522,7 +644,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             )}
           </div>
 
-          {/* Add Card on File */}
+          {/* Card on File */}
           <Separator />
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -530,19 +652,50 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                 <CreditCard className="w-4 h-4 text-muted-foreground" />
                 <Label className="font-medium">Card on File</Label>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCardForm(!showCardForm)}
-              >
-                {showCardForm ? 'Hide' : 'Add Card'}
-              </Button>
+              {!loadingCard && !cardOnFile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCardForm(!showCardForm)}
+                >
+                  {showCardForm ? 'Hide' : 'Add Card'}
+                </Button>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Securely save a card for future billing. The card will not be charged.
-            </p>
-            {showCardForm && organization?.id && formData.email && (
+
+            {loadingCard && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Checking card…
+              </div>
+            )}
+
+            {!loadingCard && cardOnFile && (
+              <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border/50">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium capitalize">{cardOnFile.brand} •••• {cardOnFile.last4}</span>
+                  <span className="text-xs text-muted-foreground">exp {cardOnFile.expMonth}/{cardOnFile.expYear}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-destructive hover:text-destructive text-xs"
+                  onClick={handleRemoveCard}
+                  disabled={removingCard}
+                >
+                  {removingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Remove'}
+                </Button>
+              </div>
+            )}
+
+            {!loadingCard && !cardOnFile && !showCardForm && (
+              <p className="text-sm text-muted-foreground">No card on file. Add one for future billing.</p>
+            )}
+
+            {!loadingCard && !cardOnFile && showCardForm && organization?.id && formData.email && (
               Capacitor.isNativePlatform() ? (
                 <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
                   Card setup is available on the web app at jointidywise.com.
@@ -556,6 +709,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                   onCardSaved={(cardInfo) => {
                     toast.success(`Card saved: ${cardInfo.brand} ending in ${cardInfo.last4}`);
                     setShowCardForm(false);
+                    void refetchCard();
                   }}
                   onError={(error) => {
                     toast.error(error);
@@ -563,63 +717,11 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                 />
               )
             )}
-            {showCardForm && !formData.email && (
+            {!loadingCard && !cardOnFile && showCardForm && !formData.email && (
               <p className="text-sm text-destructive">Please enter a customer email first to add a card.</p>
             )}
           </div>
 
-          {/* Booking Activity Tracking */}
-          {linkTracking.length > 0 && (
-            <div className="space-y-3">
-              <Separator />
-              <div className="flex items-center gap-2">
-                <Link2 className="w-4 h-4 text-primary" />
-                <Label className="text-base font-semibold">Booking Activity</Label>
-              </div>
-              <div className="space-y-2">
-                {linkTracking.map((track: any) => (
-                  <div key={track.id} className="p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm">
-                    <div className="flex items-center justify-between">
-                      <Badge variant={
-                        track.booking_completed_at ? 'default' :
-                        track.link_opened_at ? 'destructive' : 'secondary'
-                      }>
-                        {track.booking_completed_at ? 'Completed' :
-                         track.link_opened_at ? 'Abandoned' : 'Sent'}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(track.created_at), 'MMM d, yyyy')}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Send className="w-3 h-3" /> Sent
-                        </span>
-                        <span>{track.link_sent_at ? format(new Date(track.link_sent_at), 'h:mm a') : '-'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Opened
-                        </span>
-                        <span className={track.link_opened_at ? 'text-amber-600' : ''}>
-                          {track.link_opened_at ? format(new Date(track.link_opened_at), 'h:mm a') : '-'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Completed
-                        </span>
-                        <span className={track.booking_completed_at ? 'text-green-600' : ''}>
-                          {track.booking_completed_at ? format(new Date(track.booking_completed_at), 'h:mm a') : '-'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {/* Property Notes */}
           {customer?.id && organization?.id && (
             <>

@@ -538,22 +538,22 @@ export default function SettingsPage() {
         {/* Prominent Subscription / Billing entry — the Subscription tab
             below can scroll off the right edge when there are many tabs,
             making it easy to miss. This row keeps it always visible. */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4">
-          <div className="min-w-0">
-            <p className="font-medium">Subscription &amp; billing</p>
-            <p className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 rounded-lg border bg-card p-4">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium truncate">Subscription &amp; billing</p>
+            <p className="text-sm text-muted-foreground truncate">
               Update your payment method, change plan, or view invoices.
             </p>
           </div>
-          <Button onClick={() => navigate('/dashboard/subscription')}>
-            Manage subscription
+          <Button size="sm" className="shrink-0" onClick={() => navigate('/dashboard/subscription')}>
+            Manage
           </Button>
         </div>
         {/*
           Mobile Safari can aggressively shrink inline-flex children, which can cause tab labels to visually overlap.
           Use an explicit scroll container + non-shrinking triggers so labels stay readable.
         */}
-        <div className="w-full max-w-5xl overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-full max-w-5xl overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: 'pan-x' }}>
            <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>

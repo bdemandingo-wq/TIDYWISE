@@ -124,6 +124,7 @@ export default function MessagesPage() {
   const initialLoadDone = useRef(false);
   const [sending, setSending] = useState(false);
   const [syncingMessages, setSyncingMessages] = useState(false);
+  const isSyncingRef = useRef(false);
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
@@ -338,9 +339,10 @@ export default function MessagesPage() {
             media_urls: newMsg.media_urls || null,
           }]);
         }
-        if (newMsg.direction === 'inbound') {
+        if (newMsg.direction === 'inbound' && !isSyncingRef.current) {
           toast.info('New message received', {
             description: newMsg.content?.substring(0, 50) + (newMsg.content?.length > 50 ? '...' : ''),
+            duration: 3000,
           });
         }
         // Silent background refresh — no loading spinner
@@ -372,6 +374,42 @@ export default function MessagesPage() {
       listener.then((l) => l.remove());
     };
   }, [handleBackToList, selectedConversation]);
+
+  // Hide the hamburger + copilot bubble while a conversation is open
+  useEffect(() => {
+    const setHidden = (hidden: boolean) => {
+      document.body.classList.toggle('in-conversation', hidden);
+      const hamburger = document.querySelector('.hamburger-menu-btn') as HTMLElement | null;
+      const copilot = document.querySelector('.copilot-bubble') as HTMLElement | null;
+      if (hamburger) hamburger.style.setProperty('display', hidden ? 'none' : '', 'important');
+      if (copilot) copilot.style.setProperty('display', hidden ? 'none' : '', 'important');
+    };
+    setHidden(!!(selectedConversation && isMobile));
+    return () => setHidden(false);
+  }, [selectedConversation, isMobile]);
+
+  // Auto-sync: fire when app returns from background + every 5 minutes
+  useEffect(() => {
+    if (!organizationId) return;
+
+    let appListener: any;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && !isSyncingRef.current) {
+        syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
+      }
+    }).then((l) => { appListener = l; });
+
+    const interval = setInterval(() => {
+      if (!isSyncingRef.current) {
+        syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      appListener?.remove();
+      clearInterval(interval);
+    };
+  }, [organizationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
@@ -453,6 +491,7 @@ export default function MessagesPage() {
     options: { daysBack?: number; maxConversations?: number } = {},
   ) => {
     if (!organizationId || syncingMessages) return;
+    isSyncingRef.current = true;
     setSyncingMessages(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-openphone-messages', {
@@ -475,6 +514,7 @@ export default function MessagesPage() {
     } catch (err: any) {
       if (showToast) toast.error(err?.message || 'Failed to sync OpenPhone messages');
     } finally {
+      isSyncingRef.current = false;
       setSyncingMessages(false);
     }
   };
@@ -1085,24 +1125,28 @@ export default function MessagesPage() {
     <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
       {/* Header */}
       <div className={cn(
-        "flex items-center justify-between px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit",
+        "flex items-center px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit gap-2",
         isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
         !isMobile && "border-b pb-2"
       )}>
+        {/* Spacer for sidebar hamburger on mobile; refresh on desktop */}
         {isMobile ? (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
-            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
-          </Button>
+          <div className="w-10 shrink-0" aria-hidden="true" />
         ) : (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
             <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
           </Button>
         )}
         <h1 className={cn(
-          "font-semibold text-foreground",
+          "font-semibold text-foreground flex-1",
           isMobile ? "text-[17px]" : "text-base"
         )}>Messages</h1>
         <div className="flex items-center gap-2">
+        {isMobile && (
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
+          </Button>
+        )}
           {bulkEditMode ? (
             <button
               onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
@@ -1298,7 +1342,7 @@ export default function MessagesPage() {
       <div className="flex flex-col h-full bg-background">
         {/* Chat Header — fixed on mobile */}
         <div className={cn(
-          "px-3 py-2.5 border-b flex items-center gap-2 bg-background/80 backdrop-blur-xl z-20 shrink-0",
+          "px-3 py-2.5 border-b flex items-center gap-2 bg-background z-[55] shrink-0",
           isMobile ? "fixed top-0 left-0 right-0 pt-[calc(0.625rem+env(safe-area-inset-top,0px))]" : "sticky top-0"
         )}>
           <button

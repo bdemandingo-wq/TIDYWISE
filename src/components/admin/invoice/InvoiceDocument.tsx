@@ -162,10 +162,10 @@ export function InvoiceDocument({
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'left', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '46%' }}>Item</th>
-            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '18%' }}>Quantity</th>
-            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '18%' }}>Price</th>
-            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '18%' }}>Amount</th>
+            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'left', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '47%' }}>Item</th>
+            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '13%' }}>Qty</th>
+            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '20%' }}>Price</th>
+            <th style={{ ...tableCell, paddingTop: 0, textAlign: 'right', color: COLORS.muted, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', width: '20%' }}>Amount</th>
           </tr>
         </thead>
         <tbody>

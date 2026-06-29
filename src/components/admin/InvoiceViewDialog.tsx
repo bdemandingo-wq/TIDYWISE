@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogClose,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Printer, ExternalLink, Send, Loader2 } from 'lucide-react';
+import { Printer, ExternalLink, Send, Loader2, ChevronLeft } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -125,7 +126,14 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <DialogTitle>Invoice Details</DialogTitle>
+            <div className="flex items-center gap-1">
+              <DialogClose asChild>
+                <button className="md:hidden h-8 w-8 flex items-center justify-center rounded-full hover:bg-muted -ml-1 mr-1 shrink-0">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              </DialogClose>
+              <DialogTitle>Invoice Details</DialogTitle>
+            </div>
             <div className="flex flex-wrap gap-2">
               {['draft', 'sent', 'overdue'].includes(invoice.status) && contact.email && (
                 <Button variant="outline" size="sm" onClick={handleSendEmail} disabled={sending}>

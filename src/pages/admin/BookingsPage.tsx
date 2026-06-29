@@ -1655,20 +1655,6 @@ export default function BookingsPage() {
     <AdminLayout
       title="Bookings"
       subtitle="Manage your appointments"
-      actions={
-        <div className="flex gap-2">
-          <Button
-            className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-md"
-            onClick={() => {
-              setEditingBooking(null);
-              setAddDialogOpen(true);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            New Booking
-          </Button>
-        </div>
-      }
     >
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

@@ -74,11 +74,11 @@ export function CRMSuggestionsPanel() {
       if (!organization?.id) return false;
       const { data, error } = await supabase
         .from('organization_sms_settings')
-        .select('sms_enabled')
+        .select('sms_enabled, openphone_phone_number_id')
         .eq('organization_id', organization.id)
         .maybeSingle();
       if (error) return false;
-      return data?.sms_enabled || false;
+      return data?.sms_enabled || !!data?.openphone_phone_number_id;
     },
     enabled: !!organization?.id,
   });

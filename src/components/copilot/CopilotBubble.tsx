@@ -1,4 +1,4 @@
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCopilot } from '@/hooks/useCopilot';
 
@@ -7,18 +7,20 @@ const BUBBLE_COLOR = '#4f46e5';
 export function CopilotBubble() {
   const { isOpen, toggle, hasUnread } = useCopilot();
 
+  if (isOpen) return null;
+
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={isOpen ? 'Close Tidy' : 'Open Tidy'}
-      aria-pressed={isOpen}
+      aria-label="Open Tidy"
+      aria-pressed={false}
       data-tour-id="tidy-bubble"
       className={cn(
-        'fixed z-[9999]',
-        'bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6',
-        'right-4 md:right-6',
-        'w-14 h-14 rounded-full',
+        'copilot-bubble fixed z-[9999]',
+        'bottom-[calc(7rem+env(safe-area-inset-bottom))] md:bottom-6',
+        'right-[calc(1rem+env(safe-area-inset-right))] md:right-6',
+        'w-14 h-14 max-w-[calc(100vw-2rem)] rounded-full',
         'flex items-center justify-center',
         'text-white shadow-lg hover:shadow-xl',
         'transition-transform duration-200 hover:scale-105 active:scale-95',
@@ -27,7 +29,7 @@ export function CopilotBubble() {
       )}
       style={{ backgroundColor: BUBBLE_COLOR }}
     >
-      {hasUnread && !isOpen && (
+      {hasUnread && (
         <span
           aria-hidden="true"
           className="absolute -top-0.5 -right-0.5 flex h-3 w-3"
@@ -36,11 +38,7 @@ export function CopilotBubble() {
           <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
         </span>
       )}
-      {isOpen ? (
-        <X className="w-6 h-6" strokeWidth={2.25} />
-      ) : (
-        <Sparkles className="w-6 h-6" strokeWidth={2.25} />
-      )}
+      <Sparkles className="w-6 h-6" strokeWidth={2.25} />
     </button>
   );
 }

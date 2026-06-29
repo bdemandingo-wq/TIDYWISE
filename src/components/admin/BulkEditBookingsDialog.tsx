@@ -346,7 +346,7 @@ export function BulkEditBookingsDialog({
                   <SelectItem value="__none__">Keep current</SelectItem>
                   {services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} — ${s.price.toFixed(2)}
+                      {s.name}{s.price != null ? ` — $${s.price.toFixed(2)}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

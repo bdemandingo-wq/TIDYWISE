@@ -29,6 +29,7 @@ import {
   Users,
   Copy,
   Trash2,
+  Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -265,6 +266,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingClientNotif, setSendingClientNotif] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const [localSearchTerm, setLocalSearchTerm] = useState('');
@@ -466,8 +468,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
-    setViewMode('week'); // Switch to week view to show today's bookings clearly
+    const today = new Date();
+    setCurrentDate(today);
+    setViewMode('week');
+    setDayBookingsPopup({ date: today, bookings: getBookingsForDate(today) });
   };
 
   const isToday = (date: Date) => {
@@ -678,6 +682,34 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     }
   };
 
+  const sendClientNotification = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.phone) { toast.error('No customer phone number found'); return; }
+    setSendingClientNotif(true);
+    try {
+      const scheduledDate = new Date(booking.scheduled_at);
+      const { data, error } = await supabase.functions.invoke('send-booking-reminder', {
+        body: {
+          bookingId: booking.id,
+          customerPhone: booking.customer.phone,
+          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          serviceName: booking.service?.name || 'Cleaning Service',
+          scheduledAt: booking.scheduled_at,
+          formattedDate: scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          formattedTime: scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          address: booking.address || '',
+          totalAmount: booking.total_amount,
+          organizationId: organization?.id,
+        },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      toast.success(`Reminder sent to ${booking.customer.first_name}`);
+    } catch (err: any) {
+      toast.error('Failed to notify client: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSendingClientNotif(false);
+    }
+  };
+
   const handleSearchChange = (value: string) => {
     setLocalSearchTerm(value);
     if (onSearchChange) {
@@ -727,7 +759,11 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
         {/* Calendar Header */}
         <div className="flex items-center justify-between p-2 md:p-4 border-b border-border flex-wrap gap-2 md:gap-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:pt-4">
           <div className="flex items-center gap-2 md:gap-4">
-            {!isMobile && <TrashDropZone />}
+            {isMobile ? (
+              <h1 className="text-base font-semibold pl-10 text-foreground">Scheduler</h1>
+            ) : (
+              <TrashDropZone />
+            )}
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-1">
@@ -1096,18 +1132,18 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   })()}
                 </div>
 
-                <div className="flex gap-2 pt-4 border-t flex-wrap">
+                <div className={`grid gap-2 pt-4 border-t ${selectedBooking.staff ? 'grid-cols-2' : 'grid-cols-2'}`}>
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-col gap-1 h-auto py-2 text-xs"
                     onClick={handleEditBooking}
                   >
-                    <Edit className="w-4 h-4 mr-2" />
+                    <Edit className="w-4 h-4" />
                     Edit
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-col gap-1 h-auto py-2 text-xs"
                     onClick={() => {
                       const duplicated = {
                         ...selectedBooking,
@@ -1122,21 +1158,26 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       }, 100);
                     }}
                   >
-                    <Copy className="w-4 h-4 mr-2" />
+                    <Copy className="w-4 h-4" />
                     Duplicate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-col gap-1 h-auto py-2 text-xs"
+                    onClick={() => sendClientNotification(selectedBooking)}
+                    disabled={sendingClientNotif || !selectedBooking.customer?.phone}
+                  >
+                    {sendingClientNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                    Notify Client
                   </Button>
                   {selectedBooking.staff && (
                     <Button
                       variant="outline"
-                      className="flex-1"
+                      className="flex-col gap-1 h-auto py-2 text-xs"
                       onClick={() => sendCleanerNotification(selectedBooking)}
                       disabled={sendingEmail}
                     >
-                      {sendingEmail ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Phone className="w-4 h-4 mr-2" />
-                      )}
+                      {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
                       Notify Cleaner
                     </Button>
                   )}

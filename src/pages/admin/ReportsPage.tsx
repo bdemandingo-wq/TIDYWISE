@@ -282,7 +282,8 @@ export default function ReportsPage() {
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <CalendarIcon className="w-4 h-4" />
-                {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
+                <span className="hidden md:inline">{format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}</span>
+                <span className="md:hidden">{format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 max-w-[calc(100vw-2rem)]" align="end">
@@ -429,16 +430,17 @@ export default function ReportsPage() {
                         data={serviceStatsAllTime}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={80}
+                        innerRadius={32}
+                        outerRadius={62}
                         dataKey="revenue"
                         nameKey="name"
-                        label={({ name, percent, cx, x }) => {
-                          const truncatedName = name.length > 12 ? name.slice(0, 10) + '…' : name;
-                          return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
+                        label={({ name, percent }) => {
+                          if (percent < 0.07) return '';
+                          const short = name.length > 9 ? name.slice(0, 8) + '…' : name;
+                          return `${short} (${(percent * 100).toFixed(0)}%)`;
                         }}
                         labelLine={true}
-                        fontSize={11}
+                        fontSize={10}
                       >
                         {serviceStatsAllTime.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

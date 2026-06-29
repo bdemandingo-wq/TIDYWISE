@@ -55,16 +55,16 @@ export function MetricChart({
   };
 
   return (
-    <div className="py-6 border-t border-border">
-      <h4 className="text-sm text-muted-foreground font-medium">{title}</h4>
-      <p className="text-3xl font-bold text-primary mt-1">
+    <div className="min-w-0 overflow-hidden border-t border-border py-5">
+      <h4 className="truncate text-sm text-muted-foreground font-medium">{title}</h4>
+      <p className="mt-1 truncate text-2xl font-bold text-primary md:text-3xl">
         {typeof value === 'number' && isCurrency ? formatValue(value) : value}
       </p>
-      <p className="text-xs text-muted-foreground mt-1">{dateRange}</p>
+      <p className="mt-1 truncate text-xs text-muted-foreground">{dateRange}</p>
       
-      <div className="h-32 mt-4 relative">
+      <div className="relative mt-4 h-36 min-w-0 overflow-hidden rounded-lg border border-border/60">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 26, right: 14, left: 14, bottom: 10 }}>
             <XAxis 
               dataKey="date" 
               hide 
@@ -102,8 +102,8 @@ export function MetricChart({
           <div 
             className="absolute bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded"
             style={{
-              left: `${(maxPoint.index / (data.length - 1)) * 100}%`,
-              top: '0',
+              left: `clamp(2.5rem, ${(maxPoint.index / Math.max(data.length - 1, 1)) * 100}%, calc(100% - 2.5rem))`,
+              top: '0.5rem',
               transform: 'translateX(-50%)',
             }}
           >
@@ -116,8 +116,8 @@ export function MetricChart({
           <div 
             className="absolute bg-primary/80 text-primary-foreground text-xs px-2 py-0.5 rounded"
             style={{
-              left: '0',
-              bottom: '0',
+              left: '0.5rem',
+              bottom: '0.5rem',
             }}
           >
             {isCurrency ? '$0.00' : '0'}

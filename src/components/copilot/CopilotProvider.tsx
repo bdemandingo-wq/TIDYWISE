@@ -36,6 +36,7 @@ interface CopilotContextValue {
   sendMessage: (text: string) => Promise<void>;
   retryLastMessage: () => Promise<void>;
   clearError: () => void;
+  newChat: () => void;
 }
 
 export const CopilotContext = createContext<CopilotContextValue | null>(null);
@@ -280,6 +281,13 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
     [conversationId, isOpen, organizationId],
   );
 
+  const newChat = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setError(null);
+    lastUserMessage.current = null;
+  }, []);
+
   const retryLastMessage = useCallback(async () => {
     if (!lastUserMessage.current) return;
     // Drop the last user message we already optimistically added so we don't
@@ -307,6 +315,7 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
       sendMessage,
       retryLastMessage,
       clearError: () => setError(null),
+      newChat,
     }),
     [
       isOpen,
@@ -317,6 +326,7 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
       conversationId,
       sendMessage,
       retryLastMessage,
+      newChat,
     ],
   );
 

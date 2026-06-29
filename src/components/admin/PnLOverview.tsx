@@ -1333,14 +1333,14 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
               <CardTitle className="text-lg">Quarterly Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => (
-                  <div key={q} className="p-4 border rounded-lg">
-                    <p className="font-medium mb-2">{q}</p>
-                    <p className="text-sm text-muted-foreground">Goal</p>
-                    <p className="text-lg font-bold">{fmt(quarterlyGoals[i])}</p>
-                    <p className="text-sm text-muted-foreground mt-2">Actual</p>
-                    <p className={`text-lg font-bold ${quarterlyActuals[i] >= quarterlyGoals[i] ? 'text-success' : 'text-destructive'}`}>
+                  <div key={q} className="p-3 border rounded-lg">
+                    <p className="font-semibold text-sm mb-1">{q}</p>
+                    <p className="text-xs text-muted-foreground">Goal</p>
+                    <p className="text-sm font-bold truncate">{fmt(quarterlyGoals[i])}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Actual</p>
+                    <p className={`text-sm font-bold truncate ${quarterlyActuals[i] >= quarterlyGoals[i] ? 'text-success' : 'text-destructive'}`}>
                       ${quarterlyActuals[i].toLocaleString()}
                     </p>
                   </div>

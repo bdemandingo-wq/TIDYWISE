@@ -11,6 +11,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
+import { useCopilot } from '@/hooks/useCopilot';
 
 export type MobileNavItem = {
   id: string;
@@ -74,6 +75,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { organizationId } = useOrgId();
+  const { isOpen: copilotOpen } = useCopilot();
   const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
   const [showAddBooking, setShowAddBooking] = useState(false);
 
@@ -126,7 +128,7 @@ export function MobileBottomNav() {
     return () => { cancelled = true; };
   }, [organizationId, isDashboard]);
 
-  if (!isDashboard) return null;
+  if (!isDashboard || copilotOpen) return null;
 
   const leftSlots = slots.slice(0, 2);
   const rightSlots = slots.slice(2, 4);

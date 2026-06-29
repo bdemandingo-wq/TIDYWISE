@@ -960,9 +960,9 @@ export default function PlatformAnalyticsPage() {
                       Most Active Users
                       <span className="text-xs text-muted-foreground ml-auto">By time spent (all time)</span>
                     </h4>
-                    <ScrollArea className="h-[280px] pr-4">
+                    <ScrollArea className="h-[280px] pr-4 pb-2">
                       {(() => {
-                        const filteredUsers = sessionStats?.userList?.filter(u => 
+                        const filteredUsers = sessionStats?.userList?.filter(u =>
                           activityFilter === 'all' || u.user_type === activityFilter
                         ) || [];
                         
@@ -970,9 +970,9 @@ export default function PlatformAnalyticsPage() {
                           return (
                             <div className="space-y-2">
                               {filteredUsers.map((userStat, index) => (
-                                <div 
-                                  key={userStat.user_id} 
-                                  className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                                <div
+                                  key={userStat.user_id}
+                                  className="flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors pr-4"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${

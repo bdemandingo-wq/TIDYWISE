@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -449,16 +452,31 @@ export default function CustomersPage() {
     return '﻿' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
   };
 
-  const triggerCsvDownload = (csv: string, filename: string): void => {
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const triggerCsvDownload = async (csv: string, filename: string): Promise<void> => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: csv,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({ title: filename, url: result.uri, dialogTitle: 'Save CSV' });
+      } catch (err) {
+        console.error('CSV share error:', err);
+        toast.error('Export failed');
+      }
+    } else {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const exportToCsv = async () => {
@@ -469,8 +487,8 @@ export default function CustomersPage() {
     }
     toast(`Exporting ${filteredCustomers.length} customers...`);
     const csv = await buildCustomersCsv(filteredCustomers);
-    triggerCsvDownload(csv, `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    toast.success(`Exported ${filteredCustomers.length} customers to CSV`);
+    await triggerCsvDownload(csv, `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    if (!Capacitor.isNativePlatform()) toast.success(`Exported ${filteredCustomers.length} customers to CSV`);
   };
 
   const exportSelectedToCsv = async () => {
@@ -486,11 +504,8 @@ export default function CustomersPage() {
     }
     toast(`Exporting ${selected.length} customers...`);
     const csv = await buildCustomersCsv(selected);
-    triggerCsvDownload(
-      csv,
-      `tidywise-customers-selected-${format(new Date(), 'yyyy-MM-dd')}.csv`,
-    );
-    toast.success(`Exported ${selected.length} selected customers to CSV`);
+    await triggerCsvDownload(csv, `tidywise-customers-selected-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    if (!Capacitor.isNativePlatform()) toast.success(`Exported ${selected.length} selected customers to CSV`);
   };
 
   // Mobile helpers

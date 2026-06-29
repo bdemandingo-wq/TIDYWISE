@@ -172,15 +172,9 @@ export function SubscriptionDialog({
               Manage your subscription at jointidywise.com to unlock all features.
             </p>
             <div className="space-y-3">
-              <Button
-                onClick={() => { window.open(billingUrl, "_blank"); onOpenChange(false); }}
-                size="lg"
-                variant="outline"
-                className="w-full gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Manage Subscription on Web
-              </Button>
+              <p className="text-sm text-center font-medium text-foreground">
+                Visit <span className="text-primary">jointidywise.com</span> in your browser to manage your subscription.
+              </p>
               <Button
                 variant="ghost"
                 size="sm"

@@ -1,75 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { calculateDistanceMiles, estimateDriveMinutes } from '@/lib/distanceUtils';
 
-/**
- * Get current position — tries browser geolocation first (works everywhere
- * and always triggers the permission prompt), then Capacitor native as fallback.
- */
-async function getCurrentPosition(timeoutMs = 15000): Promise<{ latitude: number; longitude: number }> {
-  // 1) Try browser geolocation first — this works on both web AND Capacitor WebView
-  //    and will trigger the native permission dialog if not yet granted.
-  if (navigator.geolocation) {
-    try {
-      console.log('[GPS] Attempting browser geolocation...');
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: timeoutMs,
-          maximumAge: 0,
-        });
-      });
-      console.log('[GPS] Browser geolocation succeeded:', pos.coords.latitude, pos.coords.longitude);
-      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-    } catch (browserError: any) {
-      console.warn('[GPS] Browser geolocation failed:', browserError?.code, browserError?.message);
-      // PERMISSION_DENIED (code 1) — don't try Capacitor, user said no
-      if (browserError?.code === 1) {
-        throw new Error('Location permission denied by user');
-      }
-      // For timeout (3) or position unavailable (2), try Capacitor as fallback
-    }
-  }
-
-  // 2) Fallback: Capacitor native geolocation plugin
-  try {
-    console.log('[GPS] Attempting Capacitor geolocation...');
-    const { Geolocation } = await import('@capacitor/geolocation');
-
-    const permStatus = await Geolocation.checkPermissions();
-    console.log('[GPS] Capacitor permission status:', permStatus.location);
-
-    if (permStatus.location === 'denied') {
-      const requested = await Geolocation.requestPermissions();
-      console.log('[GPS] Capacitor permission after request:', requested.location);
-      if (requested.location === 'denied') {
-        throw new Error('Location permission denied');
-      }
-    }
-
-    const position = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: timeoutMs,
-    });
-    console.log('[GPS] Capacitor geolocation succeeded:', position.coords.latitude, position.coords.longitude);
-    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
-  } catch (capError: any) {
-    console.warn('[GPS] Capacitor geolocation failed:', capError?.message || capError);
-    // If Capacitor not available, just throw
-    throw new Error(capError?.message || 'Unable to get location');
-  }
-}
-
-interface UseCleanerTrackingOptions {
-  bookingId: string;
-  staffId: string;
-  organizationId: string;
-  destinationAddress?: string;
-}
-
-const ARRIVAL_THRESHOLD_METERS = 100;
-const POLL_INTERVAL_MS = 12000; // 12s — within the 10–15s spec
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371000;
@@ -80,44 +15,91 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Request the best available location permission.
+// On iOS native, we ask for "always" so CoreLocation continues in background.
+async function requestLocationPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return true; // browser handles its own prompt
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    const status = await Geolocation.checkPermissions();
+
+    // Already have always — perfect
+    if (status.location === 'granted') return true;
+
+    // Denied — can't recover without sending user to Settings
+    if (status.location === 'denied') {
+      toast.error('Location permission denied. Enable it in Settings → TidyWise → Location → Always.');
+      return false;
+    }
+
+    // Prompt
+    const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
+    if (requested.location === 'denied') {
+      toast.error('Location access is needed to track your route to the job.');
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[GPS] Permission request error', e);
+    return true; // don't block — let watchPosition surface the real error
+  }
+}
+
+// One-shot position — prefers Capacitor native (CLLocationManager) on device.
+async function getCurrentPosition(timeoutMs = 15000): Promise<{ latitude: number; longitude: number }> {
+  if (Capacitor.isNativePlatform()) {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: timeoutMs });
+    return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+  }
+  // Browser fallback (web / desktop preview)
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+      reject,
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
+    );
+  });
+}
+
+// ─── constants ───────────────────────────────────────────────────────────────
+
+const ARRIVAL_THRESHOLD_METERS = 100;
+const MIN_WRITE_INTERVAL_MS = 8_000; // throttle DB writes to ≤ 1 per 8 s
+
+// ─── types ───────────────────────────────────────────────────────────────────
+
+interface UseCleanerTrackingOptions {
+  bookingId: string;
+  staffId: string;
+  organizationId: string;
+  destinationAddress?: string;
+}
+
+// ─── hook ────────────────────────────────────────────────────────────────────
+
 export function useCleanerTracking({ bookingId, staffId, organizationId, destinationAddress }: UseCleanerTrackingOptions) {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const trackingIdRef = useRef<string | null>(null);
-  const destCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
-  const arrivedRef = useRef<boolean>(false);
-  const watchIdRef = useRef<number | null>(null);
-  const wakeLockRef = useRef<any>(null);
-  const lastWriteRef = useRef<number>(0);
+  const trackingIdRef    = useRef<string | null>(null);
+  const destCoordsRef    = useRef<{ lat: number; lng: number } | null>(null);
+  const arrivedRef       = useRef<boolean>(false);
+  const wakeLockRef      = useRef<any>(null);
+  const lastWriteRef     = useRef<number>(0);
+  const watchIdRef       = useRef<string | null>(null);   // Capacitor watchId (string)
+  const browserWatchRef  = useRef<number | null>(null);   // browser watchId (number)
   const [isTracking, setIsTracking] = useState(false);
+
+  // ── wake lock ─────────────────────────────────────────────────────────────
 
   const acquireWakeLock = useCallback(async () => {
     try {
       if ('wakeLock' in navigator) {
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log('[GPS] Wake lock acquired');
       }
     } catch (e) { console.warn('[GPS] wake lock failed', e); }
   }, []);
 
-
-  const stopTracking = useCallback(async () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (trackingIdRef.current) {
-      await supabase
-        .from('cleaner_location_tracking')
-        .update({ is_active: false } as any)
-        .eq('id', trackingIdRef.current);
-      trackingIdRef.current = null;
-    }
-    if (watchIdRef.current !== null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
-    if (wakeLockRef.current) { try { await wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
-    arrivedRef.current = false;
-    setIsTracking(false);
-  }, []);
-
-
+  // ── arrival check ─────────────────────────────────────────────────────────
 
   const checkArrival = useCallback(async (lat: number, lng: number) => {
     if (arrivedRef.current || !destCoordsRef.current) return;
@@ -125,7 +107,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     if (meters > ARRIVAL_THRESHOLD_METERS) return;
 
     arrivedRef.current = true;
-    console.log('[GPS] Arrival detected — within', Math.round(meters), 'm');
+    console.log('[GPS] Arrival detected —', Math.round(meters), 'm from destination');
 
     try {
       if (trackingIdRef.current) {
@@ -134,56 +116,101 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
           .update({ arrived_at: new Date().toISOString() } as any)
           .eq('id', trackingIdRef.current);
       }
-      await supabase.functions.invoke('send-arrival-sms', {
-        body: { bookingId, staffId },
-      });
+      await supabase.functions.invoke('send-arrival-sms', { body: { bookingId, staffId } });
     } catch (err) {
       console.warn('[GPS] Arrival notification failed:', err);
     }
   }, [bookingId, staffId]);
 
-  const updatePosition = useCallback(async () => {
+  // ── write position to DB ──────────────────────────────────────────────────
+
+  const writePosition = useCallback(async (latitude: number, longitude: number) => {
     if (!trackingIdRef.current) return;
-    try {
-      const { latitude, longitude } = await getCurrentPosition(10000);
-      await supabase
-        .from('cleaner_location_tracking')
-        .update({
-          latitude,
-          longitude,
-          recorded_at: new Date().toISOString(),
-        } as any)
-        .eq('id', trackingIdRef.current);
-      checkArrival(latitude, longitude);
-    } catch (err) {
-      console.warn('[GPS] Periodic update failed:', err);
-    }
+    const now = Date.now();
+    if (now - lastWriteRef.current < MIN_WRITE_INTERVAL_MS) return;
+    lastWriteRef.current = now;
+
+    await supabase
+      .from('cleaner_location_tracking')
+      .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
+      .eq('id', trackingIdRef.current);
+
+    void checkArrival(latitude, longitude);
   }, [checkArrival]);
 
-  const startWatch = useCallback(() => {
-    if (navigator.geolocation?.watchPosition) {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          if (!trackingIdRef.current) return;
-          const now = Date.now();
-          if (now - lastWriteRef.current < 8000) return;
-          lastWriteRef.current = now;
-          const { latitude, longitude } = pos.coords;
-          void supabase.from('cleaner_location_tracking')
-            .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
-            .eq('id', trackingIdRef.current);
-          checkArrival(latitude, longitude);
-        },
-        (err) => console.warn('[GPS] watch error', err?.code, err?.message),
-        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
-      );
-    } else {
-      intervalRef.current = setInterval(updatePosition, POLL_INTERVAL_MS);
+  // ── stop tracking ─────────────────────────────────────────────────────────
+
+  const stopTracking = useCallback(async () => {
+    // Clear Capacitor watch
+    if (watchIdRef.current !== null) {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        await Geolocation.clearWatch({ id: watchIdRef.current });
+      } catch {}
+      watchIdRef.current = null;
     }
-  }, [checkArrival, updatePosition]);
+    // Clear browser watch
+    if (browserWatchRef.current !== null) {
+      navigator.geolocation.clearWatch(browserWatchRef.current);
+      browserWatchRef.current = null;
+    }
+    // Release wake lock
+    if (wakeLockRef.current) {
+      try { await wakeLockRef.current.release(); } catch {}
+      wakeLockRef.current = null;
+    }
+    // Mark tracking record inactive
+    if (trackingIdRef.current) {
+      await supabase
+        .from('cleaner_location_tracking')
+        .update({ is_active: false } as any)
+        .eq('id', trackingIdRef.current);
+      trackingIdRef.current = null;
+    }
+    arrivedRef.current = false;
+    setIsTracking(false);
+    console.log('[GPS] Tracking stopped');
+  }, []);
 
+  // ── start position watch ──────────────────────────────────────────────────
 
+  const startWatch = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      // Use @capacitor/geolocation which wraps CLLocationManager directly.
+      // With UIBackgroundModes: location in Info.plist, CLLocationManager
+      // continues sending updates while the app is backgrounded (e.g. cleaner
+      // has Apple Maps open in another app). The plugin fires callbacks on every
+      // significant location change — typically every 50-500 m while driving.
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const id = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+          (pos, err) => {
+            if (err) { console.warn('[GPS] watch error', err); return; }
+            if (!pos) return;
+            void writePosition(pos.coords.latitude, pos.coords.longitude);
+          },
+        );
+        watchIdRef.current = id;
+        console.log('[GPS] Capacitor watchPosition started, id:', id);
+        return;
+      } catch (e) {
+        console.warn('[GPS] Capacitor watchPosition failed, falling back to browser', e);
+      }
+    }
 
+    // Browser fallback (web/simulator)
+    if (navigator.geolocation?.watchPosition) {
+      browserWatchRef.current = navigator.geolocation.watchPosition(
+        (pos) => { void writePosition(pos.coords.latitude, pos.coords.longitude); },
+        (err) => console.warn('[GPS] browser watch error', err?.code, err?.message),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+      );
+      console.log('[GPS] Browser watchPosition started');
+    }
+  }, [writePosition]);
+
+  // ── start tracking ────────────────────────────────────────────────────────
 
   const startTracking = useCallback(async (): Promise<{
     trackingToken: string | null;
@@ -193,82 +220,53 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
   } | null> => {
     console.log('[GPS] startTracking called for booking:', bookingId);
 
+    const permitted = await requestLocationPermission();
+    if (!permitted) return null;
+
     try {
       const { latitude, longitude } = await getCurrentPosition(15000);
-      console.log('[GPS] Got position:', latitude, longitude);
+      console.log('[GPS] Initial position:', latitude, longitude);
 
-      // Insert tracking record
+      // Insert or resume tracking record
+      let recordId: string;
+      let trackingToken: string | null = null;
+
       const { data, error } = await supabase
         .from('cleaner_location_tracking')
-        .insert({
-          booking_id: bookingId,
-          staff_id: staffId,
-          organization_id: organizationId,
-          latitude,
-          longitude,
-        } as any)
+        .insert({ booking_id: bookingId, staff_id: staffId, organization_id: organizationId, latitude, longitude } as any)
         .select('id, tracking_token')
         .single();
 
-      if (error) {
+      if (error?.code === '23505') {
+        // Already active — resume it
+        const { data: existing } = await supabase
+          .from('cleaner_location_tracking')
+          .select('id, tracking_token')
+          .eq('booking_id', bookingId)
+          .eq('is_active', true)
+          .single();
+        if (!existing) return null;
+        recordId = existing.id;
+        trackingToken = (existing as any).tracking_token;
+        await supabase
+          .from('cleaner_location_tracking')
+          .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
+          .eq('id', recordId);
+      } else if (error) {
         console.error('[GPS] Insert error:', error);
-        // If there's already an active tracking for this booking, update it
-        if (error.code === '23505') {
-          const { data: existing } = await supabase
-            .from('cleaner_location_tracking')
-            .select('id, tracking_token')
-            .eq('booking_id', bookingId)
-            .eq('is_active', true)
-            .single();
-
-          if (existing) {
-            trackingIdRef.current = existing.id;
-            await supabase
-              .from('cleaner_location_tracking')
-              .update({ latitude, longitude, recorded_at: new Date().toISOString() } as any)
-              .eq('id', existing.id);
-
-            let etaMinutes: number | null = null;
-            if (destinationAddress) {
-              try {
-                const res = await supabase.functions.invoke('geocode-address', {
-                  body: { address: destinationAddress },
-                });
-                if (res.data?.lat && res.data?.lng) {
-                  destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
-                  const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
-                  etaMinutes = estimateDriveMinutes(dist);
-                }
-              } catch { /* non-critical */ }
-            }
-
-            checkArrival(latitude, longitude);
-            startWatch();
-            void acquireWakeLock();
-            setIsTracking(true);
-
-
-
-            return {
-              trackingToken: (existing as any).tracking_token,
-              etaMinutes,
-              latitude,
-              longitude,
-            };
-          }
-        }
         return null;
+      } else {
+        recordId = data.id;
+        trackingToken = (data as any).tracking_token;
       }
 
-      console.log('[GPS] Tracking record created:', data.id);
-      trackingIdRef.current = data.id;
+      trackingIdRef.current = recordId;
 
+      // Geocode destination for ETA + arrival detection
       let etaMinutes: number | null = null;
       if (destinationAddress) {
         try {
-          const res = await supabase.functions.invoke('geocode-address', {
-            body: { address: destinationAddress },
-          });
+          const res = await supabase.functions.invoke('geocode-address', { body: { address: destinationAddress } });
           if (res.data?.lat && res.data?.lng) {
             destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
             const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
@@ -277,36 +275,27 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         } catch { /* non-critical */ }
       }
 
-      checkArrival(latitude, longitude);
-      startWatch();
+      void checkArrival(latitude, longitude);
+      await startWatch();
       void acquireWakeLock();
       setIsTracking(true);
 
-
-
-      return {
-        trackingToken: (data as any).tracking_token,
-        etaMinutes,
-        latitude,
-        longitude,
-      };
+      return { trackingToken, etaMinutes, latitude, longitude };
     } catch (err: any) {
       const message = err?.message || '';
       console.error('[GPS] startTracking failed:', message, err);
-
       if (message.includes('denied')) {
-        toast.error('Location access denied. Please enable GPS in your device settings.');
-      } else if (message.includes('unavailable')) {
-        toast.error('Unable to determine your location. Please try again.');
+        toast.error('Location access denied. Go to Settings → TidyWise → Location and allow access.');
       } else if (message.includes('timeout') || err?.code === 3) {
-        toast.error('Location request timed out. Please try again.');
+        toast.error('Location timed out. Make sure GPS is enabled and try again.');
       } else {
-        toast.error('Failed to get your location');
+        toast.error('Unable to get your location. Please try again.');
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, updatePosition, checkArrival, startWatch, acquireWakeLock]);
+  }, [bookingId, staffId, organizationId, destinationAddress, checkArrival, startWatch, acquireWakeLock]);
 
+  // Re-acquire wake lock when app comes back to foreground
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'visible' && isTracking) void acquireWakeLock();
@@ -315,19 +304,9 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [isTracking, acquireWakeLock]);
 
-
-  // Cleanup on unmount AND on page-close. Previously only the interval was
-  // cleared, which orphaned the cleaner_location_tracking row with
-  // is_active=true forever. Now stopTracking is called on unmount so the row
-  // is deactivated cleanly when the cleaner navigates away. For tab close /
-  // app kill, sendBeacon is best-effort; the server may still need a
-  // periodic stale-session sweep.
+  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      // Don't await — unmount is synchronous. stopTracking fires the request
-      // and React keeps rendering; the DB write completes on its own.
-      void stopTracking();
-    };
+    return () => { void stopTracking(); };
   }, [stopTracking]);
 
   return { startTracking, stopTracking, isTracking };

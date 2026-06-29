@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { usePlanFeature } from '@/hooks/usePlanFeature';
 import { planLabel, planPriceLabel, FeatureKey } from '@/lib/features';
+import { usePlatform } from '@/hooks/usePlatform';
 
 interface PlanFeatureGateProps {
   feature: FeatureKey;
@@ -114,6 +115,7 @@ export function PlanFeatureGate({
   description,
 }: PlanFeatureGateProps) {
   const { allowed, loading, upgradeTo } = usePlanFeature(feature);
+  const { isNative } = usePlatform();
 
   // While we're still resolving the user's plan, render the children
   // optimistically rather than flashing a lock screen.
@@ -146,16 +148,24 @@ export function PlanFeatureGate({
         </div>
 
         <div className="flex flex-col items-center gap-2">
-          <Button asChild size="lg" className="gap-2">
-            <Link to="/dashboard/subscription">
-              <Sparkles className="h-4 w-4" />
-              Upgrade to {planLabel(targetTier)} — {planPriceLabel(targetTier)}
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/pricing">See all plans</Link>
-          </Button>
+          {isNative ? (
+            <p className="text-sm text-muted-foreground text-center">
+              Visit <span className="font-medium text-foreground">jointidywise.com</span> to upgrade your plan and unlock this feature.
+            </p>
+          ) : (
+            <>
+              <Button asChild size="lg" className="gap-2">
+                <Link to="/dashboard/subscription">
+                  <Sparkles className="h-4 w-4" />
+                  Upgrade to {planLabel(targetTier)} — {planPriceLabel(targetTier)}
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/pricing">See all plans</Link>
+              </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

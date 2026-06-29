@@ -1,9 +1,9 @@
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import {
   Collapsible,
   CollapsibleContent,
@@ -197,18 +197,12 @@ export function BookingActionSheet({
   const isDisabledRefund = booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id);
 
   return (
-    <Sheet open={!!booking} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent
-        side="bottom"
-        className="max-h-[88vh] overflow-y-auto rounded-t-3xl pb-[calc(1rem+env(safe-area-inset-bottom))] px-4 pt-2 bg-background border-t border-border/50"
+    <Drawer open={!!booking} onOpenChange={(open) => !open && onClose()}>
+      <DrawerContent
+        className="max-h-[88vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom))] px-4 pt-0 bg-background border-t border-border/50"
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-1 pb-3">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-        </div>
-
-        <SheetHeader className="pb-3">
-          <SheetTitle className="text-left space-y-2">
+        <DrawerHeader className="pb-3 px-0">
+          <DrawerTitle className="text-left space-y-2">
             {/* Booking number + amount */}
             <div className="flex items-center justify-between">
               <span className="font-mono text-sm text-primary font-bold">#{booking.booking_number}</span>
@@ -229,8 +223,8 @@ export function BookingActionSheet({
                 {paymentInfo.label}
               </span>
             </div>
-          </SheetTitle>
-        </SheetHeader>
+          </DrawerTitle>
+        </DrawerHeader>
 
         {/* ── Quick Actions ── */}
         <div className="py-3 grid grid-cols-1 gap-2">
@@ -390,7 +384,7 @@ export function BookingActionSheet({
             </ActionBtn>
           </ActionSection>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }

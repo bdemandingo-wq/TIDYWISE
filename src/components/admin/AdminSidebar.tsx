@@ -44,7 +44,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { SignedImage } from '@/components/ui/signed-image';
+import { getSignedUrl } from '@/hooks/useSignedUrl';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -421,7 +421,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         .maybeSingle();
       
       if (data?.logo_url) {
-        setLogoUrl(data.logo_url);
+        const raw = data.logo_url as string;
+        if (raw.startsWith('storage:')) {
+          const [, bucket, ...pathParts] = raw.split(':');
+          const path = pathParts.join(':');
+          try {
+            const signed = await getSignedUrl(bucket, path, 86400);
+            setLogoUrl(signed || raw);
+          } catch {
+            setLogoUrl(raw);
+          }
+        } else {
+          setLogoUrl(raw);
+        }
       }
       // Use company_name from business_settings if available, otherwise fall back to organization name
       if (data?.company_name) {
@@ -470,19 +482,10 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
+      <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border shrink-0">
         {logoUrl ? (
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-background">
-            <SignedImage
-              src={logoUrl}
-              alt="Logo"
-              className="w-full h-full object-contain"
-              fallback={
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <Calendar className="w-5 h-5 text-muted-foreground" />
-                </div>
-              }
-            />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-sidebar-accent shrink-0">
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
           </div>
         ) : (
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -565,7 +568,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       </nav>
 
       {/* Business Switcher */}
-      <div className="border-t border-sidebar-border p-3">
+      <div className={cn("border-t border-sidebar-border p-3 shrink-0", isMobile && "pb-[calc(0.75rem+env(safe-area-inset-bottom))]")}>
         <button
           onClick={() => setIsProfileOpen(!isProfileOpen)}
           className={cn(
@@ -574,17 +577,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           )}
         >
           {logoUrl ? (
-            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-background flex-shrink-0">
-              <SignedImage
-                src={logoUrl}
-                alt="Business Logo"
-                className="w-full h-full object-cover"
-                fallback={
-                  <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground">
-                    {businessDisplayName.substring(0, 2).toUpperCase()}
-                  </div>
-                }
-              />
+            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-sidebar-accent flex-shrink-0">
+              <img src={logoUrl} alt="Business Logo" className="w-full h-full object-cover" />
             </div>
           ) : (
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground flex-shrink-0">
@@ -707,24 +701,22 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       {/* Mobile Sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-64 p-0 bg-sidebar md:hidden z-[60] pointer-events-auto touch-manipulation">
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full pt-[env(safe-area-inset-top)]">
             <SidebarContent isMobile />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Mobile Toggle Button — hidden when inside a conversation thread */}
-      {!matchPath('/dashboard/messages/:conversationId', location.pathname) && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-1 z-50 min-w-[44px] min-h-[44px] md:hidden bg-background/80 backdrop-blur-sm touch-manipulation pointer-events-auto"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation menu"
-        >
-          <Menu className="w-6 h-6" />
-        </Button>
-      )}
+      {/* Mobile Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="hamburger-menu-btn fixed top-[calc(0.25rem+env(safe-area-inset-top))] left-1 z-50 min-w-[44px] min-h-[44px] md:hidden bg-background/80 backdrop-blur-sm touch-manipulation pointer-events-auto"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
+      >
+        <Menu className="w-6 h-6" />
+      </Button>
 
       {/* Desktop Sidebar */}
       <aside className={cn(

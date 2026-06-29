@@ -289,18 +289,20 @@ export function AutomationsTab() {
   const queryClient = useQueryClient();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  const { data: automations = [], isLoading } = useQuery({
+  const { data: automations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['organization-automations', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('organization_automations')
         .select('*')
-        .eq('organization_id', organization.id);
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
     },
     enabled: !!organization?.id,
+    retry: 3,
   });
 
   // Fetch fire counts from queue tables
@@ -474,10 +476,27 @@ export function AutomationsTab() {
   const formatName = (type: string) =>
     type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace('60day', '(60 Days)');
 
-  const activeAutos = automations.filter(a => a.is_enabled && activeAutomationsMeta[a.automation_type]);
-  const inactiveAutos = automations.filter(a => !a.is_enabled && activeAutomationsMeta[a.automation_type]);
+  const activeAutos = automations.filter(a => a.is_enabled);
+  const inactiveAutos = automations.filter(a => !a.is_enabled);
 
   if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+        <p className="text-sm text-muted-foreground">Failed to load automations.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  if (!organization?.id) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -499,8 +518,7 @@ export function AutomationsTab() {
           <div className="space-y-3">
             {activeAutos.map((auto) => {
               const meta = activeAutomationsMeta[auto.automation_type];
-              if (!meta) return null;
-              const Icon = meta.icon;
+              const Icon = meta?.icon ?? Zap;
               const counts = (fireCounts as Record<string, { total: number; lastFired: string | null }>)[auto.automation_type];
               const isReminder = auto.automation_type === 'appointment_reminder';
               const isExpanded = expandedCard === auto.id;
@@ -510,15 +528,15 @@ export function AutomationsTab() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className={`p-2.5 rounded-xl bg-muted ${meta.color} flex-shrink-0`}>
+                        <div className={`p-2.5 rounded-xl bg-muted ${meta?.color ?? 'text-primary'} flex-shrink-0`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm">{meta.emoji}</span>
+                            {meta?.emoji && <span className="text-sm">{meta.emoji}</span>}
                             <h3 className="font-semibold text-foreground">{formatName(auto.automation_type)}</h3>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{meta.description}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{meta?.description ?? 'Automation enabled'}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                             {counts?.lastFired && (
                               <span>Last fired: {format(new Date(counts.lastFired), 'MMM d, yyyy')}</span>
@@ -565,19 +583,18 @@ export function AutomationsTab() {
           <div className="space-y-3">
             {inactiveAutos.map((auto) => {
               const meta = activeAutomationsMeta[auto.automation_type];
-              if (!meta) return null;
-              const Icon = meta.icon;
+              const Icon = meta?.icon ?? Zap;
               return (
                 <Card key={auto.id} className="opacity-70 hover:opacity-100 transition-opacity">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl bg-muted ${meta.color}`}>
+                        <div className={`p-2.5 rounded-xl bg-muted ${meta?.color ?? 'text-primary'}`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         <div>
                           <h3 className="font-semibold text-foreground">{formatName(auto.automation_type)}</h3>
-                          <p className="text-sm text-muted-foreground">{meta.description}</p>
+                          <p className="text-sm text-muted-foreground">{meta?.description ?? 'Automation disabled'}</p>
                         </div>
                       </div>
                       <Switch

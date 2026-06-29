@@ -206,7 +206,7 @@ export function MobileContactProfile({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 overflow-y-auto bg-muted/50 dark:bg-background">
+      <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 overflow-y-auto bg-muted/50 dark:bg-background [&>button.absolute]:hidden">
         {/* Handle bar */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />

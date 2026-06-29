@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
-import { Clock, User, ChevronRight, Phone, Loader2, Edit, MapPin } from 'lucide-react';
+import { Clock, User, ChevronRight, Phone, Loader2, Edit, MapPin, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -58,6 +58,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
   const navigate = useNavigate();
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingClientNotif, setSendingClientNotif] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<BookingWithDetails['customer'] | null>(null);
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress, maskAmount } = useTestMode();
@@ -162,6 +163,39 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
       toast.error('Failed to send notification: ' + (err.message || 'Unknown error'));
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const sendClientNotification = async (booking: BookingWithDetails) => {
+    if (!booking.customer?.phone) {
+      toast.error('No customer phone number found');
+      return;
+    }
+    setSendingClientNotif(true);
+    try {
+      const scheduledDate = new Date(booking.scheduled_at);
+      const formattedDate = scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const formattedTime = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      const response = await supabase.functions.invoke('send-booking-reminder', {
+        body: {
+          bookingId: booking.id,
+          customerPhone: booking.customer.phone,
+          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          serviceName: booking.service?.name || 'Cleaning Service',
+          scheduledAt: booking.scheduled_at,
+          formattedDate,
+          formattedTime,
+          address: booking.address || '',
+          totalAmount: booking.total_amount,
+          organizationId: organization?.id,
+        },
+      });
+      if (handleSmsError(response)) return;
+      toast.success(`Reminder sent to ${booking.customer.first_name}`);
+    } catch (err: any) {
+      toast.error('Failed to notify client: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSendingClientNotif(false);
     }
   };
 
@@ -333,28 +367,36 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-2xl font-bold">{maskAmount(selectedBooking.total_amount)}</span>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
+              <div className="pt-4 border-t">
+                <span className="text-lg font-bold block mb-3">{maskAmount(selectedBooking.total_amount)}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs flex-col h-auto py-2"
                     onClick={handleEditBooking}
                   >
                     <Edit className="w-4 h-4" />
-                    Edit Booking
+                    Edit
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs flex-col h-auto py-2"
+                    onClick={() => sendClientNotification(selectedBooking)}
+                    disabled={sendingClientNotif || !selectedBooking.customer?.phone}
+                  >
+                    {sendingClientNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                    Notify Client
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs flex-col h-auto py-2"
                     onClick={() => sendCleanerNotification(selectedBooking)}
                     disabled={sendingEmail || !selectedBooking.staff?.phone}
                   >
-                    {sendingEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Phone className="w-4 h-4" />
-                    )}
+                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
                     Notify Cleaner
                   </Button>
                 </div>
