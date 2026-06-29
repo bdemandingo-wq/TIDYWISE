@@ -1190,6 +1190,8 @@ export default function SettingsPage() {
 
           <ZapierSetupGuide />
           <ZapierWebhooksCard />
+          <ZapierEventTester />
+          <ZapierDispatchLogCard />
 
 
 
