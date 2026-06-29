@@ -1,73 +1,105 @@
-# AI Business Benchmarking
+## Zapier Integration Plan
 
-Show every TidyWise owner how their business stacks up against anonymous peers (same ZIP, same service type, similar size), with AI-generated explanations and recommendations.
+Goal: let each organization's admin paste one or more Zapier webhook URLs and have the CRM POST event data to them when key things happen. Purely additive — no existing flow changes.
 
-## What the owner sees
+---
 
-A new **Benchmarks** page (admin sidebar + mobile nav) with:
+### 1. Database (1 new table)
 
-1. **Headline cards** — each shows your value, the peer median, and a delta:
-   - Avg price per service type (Standard, Deep, Move-in/out, Airbnb, Recurring)
-   - Avg ticket size
-   - Cancellation rate (last 90 days)
-   - No-show rate
-   - Repeat customer rate
-   - Reviews per completed job
-   - Avg rating
-   - Recurring customer share
+`org_zapier_webhooks`
+- `id` uuid pk
+- `organization_id` uuid (FK, indexed)
+- `name` text (admin label, e.g. "New customer → Google Sheet")
+- `webhook_url` text (the Zapier catch hook URL)
+- `event_type` text (which event triggers this hook)
+- `is_active` boolean default true
+- `created_by` uuid, `created_at`, `updated_at`
 
-2. **Peer group selector** — Local (same ZIP/metro), Regional (state), National. Defaults to the smallest group with ≥5 peers (k-anonymity).
+RLS:
+- SELECT/INSERT/UPDATE/DELETE only for users in the same `organization_id` via `org_memberships` (admin role).
+- `service_role` full access (edge function dispatcher).
+- GRANTs to `authenticated` + `service_role` (no `anon`).
 
-3. **AI insights panel** — calls Lovable AI Gateway with the owner's metrics + peer aggregates and returns 3–5 plain-English bullets like "You're charging 18% below the local median for deep cleans — raising to $X would add ~$Y/month at current volume" and "Your cancellation rate is 3x peers; the most common cause among similar orgs is no card-on-file at booking."
+Optional `zapier_dispatch_log` (event, url, status, payload hash, ts) for audit — recommended.
 
-4. **Trend sparkline** per metric (your value vs peer median over the last 6 months).
+---
 
-## Privacy model (non-negotiable)
+### 2. Supported event types (v1)
 
-- Aggregates only. No org names, no customer names, no addresses. Ever.
-- Minimum cohort size of 5 orgs for any aggregate; below that the slice is hidden.
-- Org IDs and ZIPs are hashed in the aggregate cache; raw IDs never leave the server.
-- Owners can opt out via a single toggle in business settings (`benchmarks_opt_in`, default ON). Opted-out orgs neither contribute nor receive comparisons.
-- All queries run inside a single SECURITY DEFINER RPC with hard-coded aggregations — no raw row access from the client.
+Toggleable per webhook:
+- `customer.created`
+- `booking.created`
+- `booking.completed`
+- `booking.cancelled`
+- `invoice.paid`
+- `lead.created`
+- `estimate.sent`
+- `review.received`
 
-## Technical sections
+(Easy to add more later — just a string enum on the frontend.)
 
-### Data sources (already in DB)
+---
 
-- `bookings` (status, total_amount, scheduled_at, service_id, organization_id, zip_code, customer_id)
-- `services` (name → service-type bucket)
-- `customers` (for repeat detection, never returned)
-- `review_requests` (rating, status)
-- `organizations` (zip + state for cohort grouping)
-- `business_settings` (timezone, plus new `benchmarks_opt_in` column)
+### 3. Edge function: `zapier-dispatch`
 
-### Migration
+- Input: `{ organization_id, event_type, payload }`
+- Looks up active webhooks for that org + event_type
+- POSTs JSON to each URL with `Content-Type: application/json`
+- Logs result to `zapier_dispatch_log`
+- Never throws back into the caller — fire-and-forget so it can't break CRM flows
+- `verify_jwt = false` (called internally from other edge functions / DB triggers via service role)
 
-- Add `business_settings.benchmarks_opt_in BOOLEAN DEFAULT TRUE`.
-- Create materialized view `peer_benchmark_snapshots` keyed by `(period, cohort_type, cohort_key, service_bucket)` storing: median/avg price, p25/p75, cancel_rate, noshow_rate, repeat_rate, review_rate, avg_rating, recurring_share, `org_count`. Refreshed nightly via scheduled edge function.
-- Create SECURITY DEFINER RPC `get_org_benchmarks(p_org_id uuid, p_cohort text)` returning the org's own metrics plus the matching peer aggregates, but only where `org_count >= 5`. RLS denies the materialized view to clients; only the RPC reads it.
+---
 
-### Edge functions
+### 4. Trigger points (where to call the dispatcher)
 
-- `refresh-benchmark-snapshots` — nightly cron. Recomputes the materialized view from the last 90 days of data, only including opted-in orgs.
-- `benchmark-ai-insights` — POST `{ org_metrics, peer_metrics, cohort }`. Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) with a tight system prompt and returns structured `{ insights: [{ title, body, severity, suggested_action }] }` via AI SDK `Output`. Server-only; never exposes peer data beyond what the RPC already sanitized.
+Add a single helper `dispatchZapier(event, payload)` invoked from the existing flows — no logic changes, just one extra call:
+- customer create handler
+- booking create / complete / cancel handlers
+- invoice paid webhook (Stripe)
+- lead create handler
+- estimate send handler
+- review intake handler
 
-### Frontend
+Each call is wrapped in try/catch so a Zapier failure never affects the real action.
 
-- New route `/admin/benchmarks` → `BenchmarksPage.tsx`
-- Components: `BenchmarkHeadlineCard`, `BenchmarkPeerSelector`, `BenchmarkInsightsPanel`, `BenchmarkTrendChart` (recharts, already in project).
-- React Query hook `useOrgBenchmarks(cohort)` — calls the RPC, scoped to `organization.id` per the project's isolation rule.
-- Sidebar entry under Operations; mobile nav module mapping added.
-- Settings → Business: toggle for `benchmarks_opt_in` with a one-line privacy explanation.
+---
 
-### Out of scope (this pass)
+### 5. Admin UI
 
-- Per-staff benchmarking, public/share URLs, exports, custom cohort builder.
-- Historical backfill beyond 90 days (the snapshot job will start fresh).
+New page: **Settings → Integrations → Zapier**
+- List of configured webhooks (name, event, active toggle, test button, delete)
+- "Add webhook" dialog: name, paste URL, pick event from dropdown
+- "Send test" button → fires a sample payload to that URL so user can finish their Zap setup
+- Link to Zapier "Webhooks by Zapier" docs
 
-## Deliverables
+Only visible to org admins (checked via `org_memberships.role`).
 
-1. Migration: `benchmarks_opt_in` column + `peer_benchmark_snapshots` materialized view + `get_org_benchmarks` RPC + RLS.
-2. Edge functions: `refresh-benchmark-snapshots`, `benchmark-ai-insights`.
-3. Frontend: `BenchmarksPage` + 4 components + hook + nav entries + settings toggle.
-4. Cron schedule entry for nightly refresh (2am org-local time → 06:00 UTC default).
+---
+
+### 6. Security / isolation (matches project rules)
+
+- All reads/writes scoped to `organization_id` via RLS
+- Webhook URL validated server-side (must be `https://hooks.zapier.com/...`)
+- Dispatch function rejects if `organization_id` missing
+- All sends logged with org_id + user_id (where applicable)
+- No secrets needed — webhook URL is the auth token
+
+---
+
+### 7. Rollout order
+
+1. Migration: table + RLS + grants
+2. Edge function `zapier-dispatch` + log table
+3. Admin Settings UI (list / add / test / delete)
+4. Wire dispatch calls into the 8 event sources one by one
+
+---
+
+### Technical notes
+
+- Payload shape per event will mirror the existing DB row plus an `event` and `occurred_at` field for consistency.
+- Retries: v1 = no retries (Zapier itself retries on its side); log failures for visibility.
+- Future: signed payloads (HMAC), per-webhook field filtering, GHL as a separate integration project.
+
+Approve and I'll start with step 1 (migration).
