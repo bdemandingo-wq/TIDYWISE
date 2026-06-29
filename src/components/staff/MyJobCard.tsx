@@ -559,10 +559,10 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               />
               {photoReqs.required && (
                 <p className="text-xs text-muted-foreground">
-                  {photoCount}/{photoReqs.min} photos uploaded
-                  {photoCount < photoReqs.min ? ' — required to complete job' : ' ✓'}
+                  {photoCount} photo{photoCount === 1 ? '' : 's'} uploaded (optional)
                 </p>
               )}
+
             </div>
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (
