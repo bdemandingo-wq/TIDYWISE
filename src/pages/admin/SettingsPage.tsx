@@ -1184,6 +1184,10 @@ export default function SettingsPage() {
             <StripeConnectHealthPanel />
           </div>
 
+          <ZapierWebhooksCard />
+
+
+
           <Card>
             <CardHeader>
               <CardTitle>Tracking & Analytics</CardTitle>
