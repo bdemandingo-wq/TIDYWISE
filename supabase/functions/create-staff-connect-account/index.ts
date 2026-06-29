@@ -65,17 +65,44 @@ serve(async (req: Request) => {
       });
     }
 
-    // Verify staff belongs to this user
+    // Look up the staff record (service role bypasses RLS)
     const { data: staffRecord, error: staffError } = await supabase
       .from("staff")
       .select("id, name, email, user_id, organization_id")
       .eq("id", staffId)
-      .eq("user_id", userData.user.id)
-      .single();
+      .maybeSingle();
 
     if (staffError || !staffRecord) {
       console.error("[create-staff-connect-account] Staff lookup failed:", staffError?.message);
+      return new Response(JSON.stringify({ error: "Staff record not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Authorize: caller must be the staff member OR an admin/owner of the staff's org
+    const isSelf = staffRecord.user_id === userData.user.id;
+    let isAdmin = false;
+    if (!isSelf) {
+      const { data: membership } = await supabase
+        .from("org_memberships")
+        .select("role")
+        .eq("organization_id", staffRecord.organization_id)
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+      isAdmin = !!membership && ["owner", "admin"].includes((membership as any).role);
+    }
+    if (!isSelf && !isAdmin) {
+      console.error("[create-staff-connect-account] Access denied for user", userData.user.id, "on staff", staffId);
       return new Response(JSON.stringify({ error: "Staff record not found or access denied" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify org matches
+    if (staffRecord.organization_id !== organizationId) {
+      return new Response(JSON.stringify({ error: "Organization mismatch" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
