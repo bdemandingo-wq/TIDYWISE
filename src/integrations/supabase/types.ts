@@ -1051,6 +1051,8 @@ export type Database = {
           caption: string | null
           created_at: string | null
           id: string
+          inspection_note: string | null
+          issue_category: string | null
           media_type: string
           organization_id: string | null
           photo_type: string | null
@@ -1062,6 +1064,8 @@ export type Database = {
           caption?: string | null
           created_at?: string | null
           id?: string
+          inspection_note?: string | null
+          issue_category?: string | null
           media_type?: string
           organization_id?: string | null
           photo_type?: string | null
@@ -1073,6 +1077,8 @@ export type Database = {
           caption?: string | null
           created_at?: string | null
           id?: string
+          inspection_note?: string | null
+          issue_category?: string | null
           media_type?: string
           organization_id?: string | null
           photo_type?: string | null
