@@ -74,7 +74,13 @@ serve(async (req: Request) => {
 
     if (staffError || !staffRecord) {
       console.error("[create-staff-connect-account] Staff lookup failed:", staffError?.message);
-      return new Response(JSON.stringify({ error: "Staff record not found" }), {
+      return new Response(JSON.stringify({
+        error: "Staff record not found",
+        code: "STAFF_NOT_FOUND",
+        reason: "No staff record exists for the provided staffId in this organization.",
+        action: "Ask an owner/admin to verify this staff member exists in Settings → Staff.",
+        details: { staffId, organizationId, callerUserId: userData.user.id },
+      }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -82,6 +88,7 @@ serve(async (req: Request) => {
 
     // Authorize: caller must be the staff member OR an admin/owner of the staff's org
     const isSelf = staffRecord.user_id === userData.user.id;
+    let membershipRole: string | null = null;
     let isAdmin = false;
     if (!isSelf) {
       const { data: membership } = await supabase
@@ -90,11 +97,27 @@ serve(async (req: Request) => {
         .eq("organization_id", staffRecord.organization_id)
         .eq("user_id", userData.user.id)
         .maybeSingle();
-      isAdmin = !!membership && ["owner", "admin"].includes((membership as any).role);
+      membershipRole = (membership as any)?.role ?? null;
+      isAdmin = !!membershipRole && ["owner", "admin"].includes(membershipRole);
     }
     if (!isSelf && !isAdmin) {
       console.error("[create-staff-connect-account] Access denied for user", userData.user.id, "on staff", staffId);
-      return new Response(JSON.stringify({ error: "Staff record not found or access denied" }), {
+      const reason = membershipRole
+        ? `Your role in this organization is "${membershipRole}", which cannot manage payouts for other staff.`
+        : "You are not the staff member, and you have no owner/admin membership in this staff's organization.";
+      return new Response(JSON.stringify({
+        error: "Access denied",
+        code: "ACCESS_DENIED",
+        reason,
+        action: "Sign in as the staff member, or have an owner/admin of that organization complete this step.",
+        details: {
+          staffId,
+          staffOrganizationId: staffRecord.organization_id,
+          staffUserId: staffRecord.user_id,
+          callerUserId: userData.user.id,
+          callerRoleInStaffOrg: membershipRole,
+        },
+      }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -102,11 +125,18 @@ serve(async (req: Request) => {
 
     // Verify org matches
     if (staffRecord.organization_id !== organizationId) {
-      return new Response(JSON.stringify({ error: "Organization mismatch" }), {
+      return new Response(JSON.stringify({
+        error: "Organization mismatch",
+        code: "ORG_MISMATCH",
+        reason: `Staff belongs to organization ${staffRecord.organization_id}, but the request was made for ${organizationId}.`,
+        action: "Switch to the correct organization using the business switcher and try again.",
+        details: { staffOrganizationId: staffRecord.organization_id, requestedOrganizationId: organizationId },
+      }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Verify org matches
     if (staffRecord.organization_id !== organizationId) {
