@@ -122,4 +122,5 @@ export const AdminPayoutResetButton = forwardRef<HTMLButtonElement, AdminPayoutR
       </Dialog>
     </>
   );
-}
+});
+
