@@ -5331,6 +5331,56 @@ export type Database = {
           },
         ]
       }
+      org_zapier_alert_settings: {
+        Row: {
+          cooldown_minutes: number
+          created_at: string
+          enabled: boolean
+          failure_threshold: number
+          last_alerted_at: string | null
+          notify_email: boolean
+          notify_inapp: boolean
+          organization_id: string
+          recipient_email: string | null
+          updated_at: string
+          window_minutes: number
+        }
+        Insert: {
+          cooldown_minutes?: number
+          created_at?: string
+          enabled?: boolean
+          failure_threshold?: number
+          last_alerted_at?: string | null
+          notify_email?: boolean
+          notify_inapp?: boolean
+          organization_id: string
+          recipient_email?: string | null
+          updated_at?: string
+          window_minutes?: number
+        }
+        Update: {
+          cooldown_minutes?: number
+          created_at?: string
+          enabled?: boolean
+          failure_threshold?: number
+          last_alerted_at?: string | null
+          notify_email?: boolean
+          notify_inapp?: boolean
+          organization_id?: string
+          recipient_email?: string | null
+          updated_at?: string
+          window_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_zapier_alert_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_zapier_webhooks: {
         Row: {
           created_at: string
