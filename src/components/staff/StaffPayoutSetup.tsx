@@ -21,65 +21,92 @@ interface StaffPayoutSetupProps {
 
 const PRODUCTION_BASE = 'https://jointidywise.com';
 
-async function extractFunctionErrorMessage(error: unknown): Promise<string> {
+type EdgeErrorPayload = {
+  error?: string;
+  message?: string;
+  code?: string;
+  reason?: string;
+  action?: string;
+  details?: Record<string, unknown>;
+};
+
+async function extractEdgeError(error: unknown): Promise<EdgeErrorPayload & { _fallback: string }> {
   const fallback = error instanceof Error ? error.message : 'Failed to start payout setup';
+  const out: EdgeErrorPayload & { _fallback: string } = { _fallback: fallback };
 
-  if (typeof error !== 'object' || error === null || !('context' in error)) {
-    return fallback;
-  }
-
+  if (typeof error !== 'object' || error === null || !('context' in error)) return out;
   const context = (error as { context?: Response }).context;
-  if (!(context instanceof Response)) {
-    return fallback;
-  }
+  if (!(context instanceof Response)) return out;
 
   try {
     const payload = await context.clone().json();
-    if (payload?.message && typeof payload.message === 'string') return payload.message;
-    if (payload?.error && typeof payload.error === 'string') return payload.error;
+    return { ...payload, _fallback: fallback };
   } catch {
     try {
       const text = await context.clone().text();
-      if (text) return text;
-    } catch {
-      return fallback;
-    }
+      if (text) out.error = text;
+    } catch {}
+    return out;
+  }
+}
+
+async function extractFunctionErrorMessage(error: unknown): Promise<string> {
+  const p = await extractEdgeError(error);
+  return p.message || p.error || p._fallback;
+}
+
+function buildUserFacingError(p: EdgeErrorPayload & { _fallback: string }): { title: string; description: string } {
+  const code = p.code?.toUpperCase();
+  const raw = (p.error || p.message || p._fallback || '').toLowerCase();
+
+  // Structured errors from the edge function take priority
+  if (code === 'STAFF_NOT_FOUND') {
+    return {
+      title: 'Staff record not found',
+      description: p.action || 'Ask an owner/admin to verify this staff member exists in Settings → Staff.',
+    };
+  }
+  if (code === 'ACCESS_DENIED') {
+    return {
+      title: 'Not authorized to set up this payout',
+      description: `${p.reason ?? ''} ${p.action ?? 'Sign in as the staff member, or have an owner/admin complete this step.'}`.trim(),
+    };
+  }
+  if (code === 'ORG_MISMATCH') {
+    return {
+      title: 'Wrong organization selected',
+      description: p.action || 'Switch to the correct business in the top-left switcher and try again.',
+    };
   }
 
-  return fallback;
+  // Legacy / unstructured fallbacks
+  if (raw.includes('org_stripe_not_connected') || raw.includes('stripe not configured')) {
+    return { title: 'Employer payment account not connected', description: 'Ask an owner/admin to finish Settings → Payment Setup, then retry.' };
+  }
+  if (raw.includes('platform payment configuration') || raw.includes('platform_stripe_not_configured')) {
+    return { title: 'Payouts temporarily unavailable', description: 'Try again in a few minutes or contact support.' };
+  }
+  if (raw.includes('country') && (raw.includes('cannot') || raw.includes('invalid') || raw.includes('not supported'))) {
+    return { title: 'Country not supported', description: 'Use Reset Payout Setup below and pick the country where your bank is located.' };
+  }
+  if (raw.includes('email') && raw.includes('already')) {
+    return { title: 'Email already in use', description: 'Use Reset Payout Setup below to start fresh.' };
+  }
+  if (raw.includes('rate limit') || raw.includes('too many requests')) {
+    return { title: 'Too many attempts', description: 'Please wait a minute and try again.' };
+  }
+  if (raw.includes('network') || raw.includes('failed to fetch') || raw.includes('timeout')) {
+    return { title: 'Network issue', description: 'Check your connection and try again.' };
+  }
+  return { title: 'Payout setup failed', description: p._fallback };
 }
 
 function mapErrorMessage(raw: string): string {
-  const r = raw.toLowerCase();
-  if (r.includes('org_stripe_not_connected') || r.includes('stripe not configured')) {
-    return "Your employer needs to connect their payment account first. Please ask them to go to Settings → Payment Setup.";
-  }
-  if (r.includes('platform payment configuration') || r.includes('platform_stripe_not_configured')) {
-    return "Payouts are temporarily unavailable. Please try again in a few minutes or contact support.";
-  }
-  if (r.includes('staff record not found') || r.includes('access denied')) {
-    return "Account verification failed. Please sign out and sign back in.";
-  }
-  if (r.includes('organization mismatch')) {
-    return "There's an account configuration issue. Please contact your employer.";
-  }
-  if (r.includes('no onboarding link')) {
-    return "Payout setup failed to start. Please try again or contact support.";
-  }
-  if (r.includes('country') && (r.includes('cannot') || r.includes('invalid') || r.includes('not supported'))) {
-    return "We couldn't start setup for that country. Use Reset Payout Setup below and pick the country where your bank is located.";
-  }
-  if (r.includes('email') && r.includes('already')) {
-    return "An account already exists for this email. Use Reset Payout Setup below to start fresh.";
-  }
-  if (r.includes('rate limit') || r.includes('too many requests')) {
-    return "Too many attempts. Please wait a minute and try again.";
-  }
-  if (r.includes('network') || r.includes('failed to fetch') || r.includes('timeout')) {
-    return "Network issue reaching the payment service. Check your connection and try again.";
-  }
+  // Legacy helper retained for any string-only callsites.
   return raw;
 }
+
+
 
 
 // Best-effort default country from browser locale (Stripe Express supported subset).
@@ -218,8 +245,11 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       });
 
       if (error) {
-        const edgeError = await extractFunctionErrorMessage(error);
-        throw new Error(edgeError);
+        const payload = await extractEdgeError(error);
+        const ui = buildUserFacingError(payload);
+        const err = new Error(ui.title) as Error & { ui?: { title: string; description: string } };
+        err.ui = ui;
+        throw err;
       }
 
       if (!data?.url) {
@@ -234,11 +264,15 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
       toast.success('Redirecting to secure payout setup...');
       window.location.href = data.url;
     },
-    onError: (error: Error) => {
-      const msg = mapErrorMessage(error.message);
-      toast.error(msg, { duration: 6000 });
+    onError: (error: Error & { ui?: { title: string; description: string } }) => {
+      if (error.ui) {
+        toast.error(error.ui.title, { description: error.ui.description, duration: 8000 });
+      } else {
+        toast.error(mapErrorMessage(error.message), { duration: 6000 });
+      }
     },
   });
+
 
   // Direct redirect handler — called from a real user tap
   const handleOpenStripeSetup = () => {

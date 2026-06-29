@@ -94,7 +94,31 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
           returnUrl: 'https://jointidywise.com',
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Attempt to read structured error payload from the edge function
+        let title = 'Failed to start setup';
+        let description = error.message || '';
+        const ctx = (error as { context?: Response }).context;
+        if (ctx instanceof Response) {
+          try {
+            const payload = await ctx.clone().json();
+            if (payload?.code === 'ACCESS_DENIED') {
+              title = 'Not authorized for this staff payout';
+              description = `${payload.reason ?? ''} ${payload.action ?? ''}`.trim();
+            } else if (payload?.code === 'STAFF_NOT_FOUND') {
+              title = 'Staff record not found';
+              description = payload.action || 'Ask an owner/admin to verify this staff exists.';
+            } else if (payload?.code === 'ORG_MISMATCH') {
+              title = 'Wrong organization';
+              description = payload.action || 'Switch to the correct business and retry.';
+            } else if (payload?.error || payload?.message) {
+              description = payload.message || payload.error;
+            }
+          } catch {}
+        }
+        toast.error(title, { description, duration: 8000 });
+        return;
+      }
       if (data?.url) {
         window.location.href = data.url;
       } else {
@@ -106,6 +130,7 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
       setIsGeneratingLink(false);
     }
   };
+
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['staff-payout-requirements'] });

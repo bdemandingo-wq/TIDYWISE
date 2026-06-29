@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ const RESET_REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
-export function AdminPayoutResetButton({ staffId, staffName, organizationId, currentStatus }: AdminPayoutResetSectionProps) {
+export const AdminPayoutResetButton = forwardRef<HTMLButtonElement, AdminPayoutResetSectionProps>(function AdminPayoutResetButton({ staffId, staffName, organizationId, currentStatus }, ref) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [reason, setReason] = useState('');
   const queryClient = useQueryClient();
@@ -67,6 +67,8 @@ export function AdminPayoutResetButton({ staffId, staffName, organizationId, cur
   return (
     <>
       <Button
+        ref={ref}
+
         variant="ghost"
         size="sm"
         className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -120,4 +122,5 @@ export function AdminPayoutResetButton({ staffId, staffName, organizationId, cur
       </Dialog>
     </>
   );
-}
+});
+
