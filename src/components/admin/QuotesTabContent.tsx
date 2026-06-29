@@ -37,6 +37,7 @@ import { useCustomers, useServices } from '@/hooks/useBookings';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { fmt } from '@/lib/activeCurrency';
+import { dispatchZapier } from '@/lib/zapier';
 
 interface Quote {
   id: string;
@@ -98,8 +99,15 @@ export function QuotesTabContent() {
   const createMutation = useMutation({
     mutationFn: async (data: Partial<Quote>) => {
       if (!organization?.id) throw new Error('No organization found');
-      const { error } = await supabase.from('quotes').insert({ ...data, organization_id: organization.id });
+      const { data: quote, error } = await supabase
+        .from('quotes')
+        .insert({ ...data, organization_id: organization.id })
+        .select()
+        .single();
       if (error) throw error;
+      if ((data as any).status === 'sent' && quote) {
+        dispatchZapier('estimate.sent', organization.id, quote as Record<string, unknown>);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
@@ -111,8 +119,16 @@ export function QuotesTabContent() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Quote> & { id: string }) => {
-      const { error } = await supabase.from('quotes').update(data).eq('id', id);
+      const { data: quote, error } = await supabase
+        .from('quotes')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
       if (error) throw error;
+      if ((data as any).status === 'sent' && quote?.organization_id) {
+        dispatchZapier('estimate.sent', quote.organization_id, quote as Record<string, unknown>);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
