@@ -48,6 +48,7 @@ import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
 import { ZapierWebhooksCard } from '@/components/admin/ZapierWebhooksCard';
+import { ZapierSetupGuide } from '@/components/admin/ZapierSetupGuide';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -1185,6 +1186,7 @@ export default function SettingsPage() {
             <StripeConnectHealthPanel />
           </div>
 
+          <ZapierSetupGuide />
           <ZapierWebhooksCard />
 
 
