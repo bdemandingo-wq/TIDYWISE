@@ -388,28 +388,10 @@ export default function MessagesPage() {
     return () => setHidden(false);
   }, [selectedConversation, isMobile]);
 
-  // Auto-sync: fire when app returns from background + every 5 minutes
-  useEffect(() => {
-    if (!organizationId) return;
-
-    let appListener: any;
-    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (isActive && !isSyncingRef.current) {
-        syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
-      }
-    }).then((l) => { appListener = l; });
-
-    const interval = setInterval(() => {
-      if (!isSyncingRef.current) {
-        syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
-      }
-    }, 5 * 60 * 1000);
-
-    return () => {
-      appListener?.remove();
-      clearInterval(interval);
-    };
-  }, [organizationId]);
+  // Live messages only — no background polling.
+  // New inbound messages arrive via the OpenPhone webhook → sms_messages INSERT,
+  // which the realtime channel above picks up instantly. Manual sync stays
+  // available via the toolbar button for backfills.
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
