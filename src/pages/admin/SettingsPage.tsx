@@ -53,6 +53,9 @@ import { ZapierEventTester } from '@/components/admin/ZapierEventTester';
 import { ZapierDispatchLogCard } from '@/components/admin/ZapierDispatchLogCard';
 import { ZapierAlertSettingsCard } from '@/components/admin/ZapierAlertSettingsCard';
 import { ZapierWebhookHealthCard } from '@/components/admin/ZapierWebhookHealthCard';
+import { GHLSettingsCard } from '@/components/admin/GHLSettingsCard';
+import { GHLDispatchLogCard } from '@/components/admin/GHLDispatchLogCard';
+
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -1196,6 +1199,10 @@ export default function SettingsPage() {
           <ZapierAlertSettingsCard />
           <ZapierEventTester />
           <ZapierDispatchLogCard />
+
+          <GHLSettingsCard />
+          <GHLDispatchLogCard />
+
 
 
 
