@@ -106,7 +106,7 @@ export default function BookingPhotosPage() {
     staff:staff!booking_photos_staff_id_fkey(name)
   `;
 
-  const { data: photos = [], isLoading } = useQuery({
+  const { data: photos = [], isLoading, error: photosError, refetch } = useQuery({
     queryKey: ['booking-photos', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -119,7 +119,10 @@ export default function BookingPhotosPage() {
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
 
-      if (directError) throw directError;
+      if (directError) {
+        console.error('[BookingPhotos] direct query error:', directError);
+        throw directError;
+      }
 
       for (const row of (directRows || []) as unknown as BookingPhoto[]) {
         merged.set(row.id, row);
@@ -131,7 +134,10 @@ export default function BookingPhotosPage() {
         .eq('organization_id', organization.id)
         .limit(5000);
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        console.error('[BookingPhotos] bookings query error:', bookingError);
+        throw bookingError;
+      }
 
       const bookingIds = (orgBookingRows || []).map((row) => row.id);
       if (bookingIds.length) {
@@ -141,13 +147,17 @@ export default function BookingPhotosPage() {
           .in('booking_id', bookingIds)
           .order('created_at', { ascending: false });
 
-        if (fallbackError) throw fallbackError;
+        if (fallbackError) {
+          console.error('[BookingPhotos] fallback query error:', fallbackError);
+          throw fallbackError;
+        }
 
         for (const row of (fallbackRows || []) as unknown as BookingPhoto[]) {
           merged.set(row.id, row);
         }
       }
 
+      console.log(`[BookingPhotos] loaded ${merged.size} media items for org ${organization.id}`);
       return Array.from(merged.values()).sort((a, b) => {
         const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
         const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -155,7 +165,36 @@ export default function BookingPhotosPage() {
       });
     },
     enabled: !!organization?.id,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
+
+  // Surface query errors so silent RLS/permission failures don't look like "no data"
+  useEffect(() => {
+    if (photosError) {
+      toast.error(`Couldn't load booking media: ${(photosError as Error).message || 'unknown error'}`);
+    }
+  }, [photosError]);
+
+  // Live updates — when a cleaner uploads a photo, refresh instantly.
+  useEffect(() => {
+    if (!organization?.id) return;
+    const channel = supabase
+      .channel(`booking-photos-${organization.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'booking_photos', filter: `organization_id=eq.${organization.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['booking-photos', organization.id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organization?.id, queryClient]);
+
 
   const filtered = photos.filter((photo) => {
     const matchesType = typeFilter === 'all' || photo.photo_type === typeFilter;
