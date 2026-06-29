@@ -114,13 +114,28 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
         is_active: staff.is_active,
         tax_classification: (staff.tax_classification as 'w2' | '1099') || 'w2',
         tax_document_url: staff.tax_document_url || '',
-        ssn_last4: staff.ssn_last4 || '',
-        ein: staff.ein || '',
+        ssn_last4: '',
+        ein: '',
         calendar_color: staff.calendar_color || '',
         home_address: staff.home_address || '',
         home_latitude: staff.home_latitude ?? null,
         home_longitude: staff.home_longitude ?? null,
       });
+
+      // Load SSN/EIN via secure admin-only RPC (not readable via SELECT)
+      (async () => {
+        const { data, error } = await supabase.rpc('get_staff_sensitive_fields' as any, {
+          _staff_id: staff.id,
+        });
+        if (!error && Array.isArray(data) && data[0]) {
+          const row = data[0] as { ssn_last4: string | null; ein: string | null };
+          setFormData((prev) => ({
+            ...prev,
+            ssn_last4: row.ssn_last4 || '',
+            ein: row.ein || '',
+          }));
+        }
+      })();
     }
   }, [staff]);
 

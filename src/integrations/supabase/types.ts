@@ -9245,6 +9245,13 @@ export type Database = {
           status: string
         }[]
       }
+      get_staff_sensitive_fields: {
+        Args: { _staff_id: string }
+        Returns: {
+          ein: string
+          ssn_last4: string
+        }[]
+      }
       get_tip_by_token: {
         Args: { p_token: string }
         Returns: {
