@@ -187,7 +187,7 @@ export async function invokeSmsFunction(
   try {
     const response = await supabase.functions.invoke(functionName, { body });
     
-    if (handleSmsError(response)) {
+    if (await handleSmsError(response)) {
       return { success: false, error: response.data?.error || response.error?.message };
     }
     
