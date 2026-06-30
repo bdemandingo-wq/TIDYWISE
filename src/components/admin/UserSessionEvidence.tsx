@@ -137,8 +137,11 @@ export function UserSessionEvidence() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!report) return;
+
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
 
     const doc = new jsPDF({ orientation: 'landscape' });
     const now = format(new Date(), 'MMMM d, yyyy h:mm a');
