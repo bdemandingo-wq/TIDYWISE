@@ -169,10 +169,16 @@ serve(async (req) => {
         const data = row.mapped_data as Record<string, any>;
 
         if (dataType === "customers") {
-          // dedupe by email
-          if (data.email) {
+          // Only treat as duplicate when the email is a real email address.
+          // Thumbtack/lead CSVs often contain placeholder text (business name,
+          // "n/a", blank) in the email column — those should NOT collapse every
+          // imported lead into one duplicate.
+          const emailRaw = data.email ? String(data.email).trim() : "";
+          const emailIsReal = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)
+            && !emailRaw.toLowerCase().endsWith("@placeholder.local");
+          if (emailIsReal) {
             const { data: existing } = await adminClient.from("customers").select("id")
-              .eq("organization_id", organizationId).ilike("email", String(data.email).trim()).maybeSingle();
+              .eq("organization_id", organizationId).ilike("email", emailRaw).maybeSingle();
             if (existing) {
               await adminClient.from("migration_import_rows")
                 .update({ status: "duplicate", duplicate_of: existing.id }).eq("id", row.id);
