@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from "../_shared/verify-admin-auth.ts";
 import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
 
 const corsHeaders = {
@@ -10,6 +11,13 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // SECURITY: Verify authenticated user with admin privileges
+  const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+
+  if (!authResult.success) {
+    return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
   }
 
   try {
@@ -44,6 +52,11 @@ serve(async (req) => {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
+    }
+
+    // SECURITY: Verify campaign belongs to the authenticated user's organization
+    if (campaign.organization_id !== authResult.organizationId) {
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
     }
 
     console.log("[send-followup-campaign] Running campaign for organization:", campaign.organization_id);
