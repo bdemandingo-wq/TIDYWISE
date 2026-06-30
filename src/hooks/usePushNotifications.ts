@@ -146,27 +146,29 @@ export function usePushNotifications(staffId?: string) {
     let registrationErrorHandle: { remove: () => Promise<void> } | null = null;
 
     try {
-      const nativeToken = await new Promise<string>(async (resolve, reject) => {
+      const nativeToken = await new Promise<string>((resolve, reject) => {
         const timeoutId = window.setTimeout(() => {
           reject(new Error('Push registration timed out. Please try again.'));
         }, 12000);
 
-        try {
-          registrationHandle = await PushNotifications.addListener('registration', (tokenData: { value: string }) => {
-            window.clearTimeout(timeoutId);
-            resolve(tokenData.value);
-          });
+        (async () => {
+          try {
+            registrationHandle = await PushNotifications.addListener('registration', (tokenData: { value: string }) => {
+              window.clearTimeout(timeoutId);
+              resolve(tokenData.value);
+            });
 
-          registrationErrorHandle = await PushNotifications.addListener('registrationError', (error: any) => {
-            window.clearTimeout(timeoutId);
-            reject(new Error(error?.error || 'Failed to register for push notifications'));
-          });
+            registrationErrorHandle = await PushNotifications.addListener('registrationError', (error: any) => {
+              window.clearTimeout(timeoutId);
+              reject(new Error(error?.error || 'Failed to register for push notifications'));
+            });
 
-          await PushNotifications.register();
-        } catch (error) {
-          window.clearTimeout(timeoutId);
-          reject(error);
-        }
+            await PushNotifications.register();
+          } catch (error) {
+            window.clearTimeout(timeoutId);
+            reject(error);
+          }
+        })();
       });
 
       // Don't log the raw token — it's a credential that can be used to send
