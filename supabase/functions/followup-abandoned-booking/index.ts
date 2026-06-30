@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,11 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // SECURITY: require an authenticated owner/admin of this org before
+    // touching the org's OpenPhone credentials or sending SMS to its customers.
+    const authResult = await requireOrgAdmin(req, organizationId);
+    if (authResult instanceof Response) return authResult;
 
     console.log(`[followup-abandoned-booking] Starting for org: ${organizationId}, threshold: ${hoursThreshold}h`);
 

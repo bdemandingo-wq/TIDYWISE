@@ -29,6 +29,18 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Lead-creation throttle: 1 lead per (org+ip+email) per hour, to stop CRM spam
+// even when the regex heuristics match.
+const LEAD_RATE_WINDOW_MS = 60 * 60 * 1000;
+const leadHits = new Map<string, number>();
+function isLeadRateLimited(key: string): boolean {
+  const now = Date.now();
+  const last = leadHits.get(key);
+  if (last && now - last < LEAD_RATE_WINDOW_MS) return true;
+  leadHits.set(key, now);
+  return false;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -67,12 +79,42 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: validate organizationId format & input sizes to prevent abuse
+    // (lead spam injection, prompt injection, AI quota burn).
+    if (typeof organizationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid organizationId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (typeof message !== "string" || message.length > 2000) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Message too long" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const safeHistory = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+          .slice(-20)
+          .map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 2000) }))
+      : [];
+
     // Get business info and services
     const { data: businessSettings } = await supabase
       .from('business_settings')
       .select('*')
       .eq('organization_id', organizationId)
       .maybeSingle();
+
+    // SECURITY: only allow the chatbot for orgs that have been configured
+    // (business_settings row exists). Prevents arbitrary org_id targeting.
+    if (!businessSettings) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Chatbot not enabled for this organization" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { data: services } = await supabase
       .from('services')
@@ -121,7 +163,7 @@ Always end with asking if they have other questions.`;
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
-      ...(conversationHistory || []),
+      ...safeHistory,
       { role: 'user', content: message }
     ];
 
@@ -157,35 +199,41 @@ Always end with asking if they have other questions.`;
 
     // Check if the conversation contains booking intent with contact info
     // This is a simple heuristic - you could make this more sophisticated
-    const fullConversation = [...(conversationHistory || []), { role: 'user', content: message }].map(m => m.content).join(' ');
+    const fullConversation = [...safeHistory, { role: 'user', content: message }].map(m => m.content).join(' ');
     const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(fullConversation);
     const hasPhone = /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(fullConversation);
     const hasBookingIntent = /book|schedule|appointment|reserve|available/i.test(fullConversation);
 
     let leadCreated = false;
 
-    // If we detect booking intent with contact info, create a lead
+    // SECURITY: throttle lead creation per (org, ip) to prevent CRM spam.
+    // Even with valid booking intent we cap one lead per IP per org per hour.
     if (hasBookingIntent && (hasEmail || hasPhone)) {
       const emailMatch = fullConversation.match(/[\w.-]+@[\w.-]+\.\w+/);
       const phoneMatch = fullConversation.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/);
       const nameMatch = fullConversation.match(/(?:my name is|i'm|i am|name:?)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
 
       if (emailMatch) {
-        try {
-          await supabase.from('leads').insert({
-            organization_id: organizationId,
-            name: nameMatch?.[1] || 'Chatbot Lead',
-            email: emailMatch[0],
-            phone: phoneMatch?.[0]?.replace(/[-.\s]/g, '') || null,
-            source: 'chatbot',
-            status: 'new',
-            message: `Chatbot conversation:\n${message}`,
-            service_interest: services?.[0]?.name || 'General Inquiry',
-          });
-          leadCreated = true;
-          console.log('[booking-chatbot] Lead created from chat');
-        } catch (leadError) {
-          console.error('[booking-chatbot] Failed to create lead:', leadError);
+        const leadKey = `${organizationId}:${clientIp}:${emailMatch[0].toLowerCase()}`;
+        if (!isLeadRateLimited(leadKey)) {
+          try {
+            await supabase.from('leads').insert({
+              organization_id: organizationId,
+              name: (nameMatch?.[1] || 'Chatbot Lead').slice(0, 100),
+              email: emailMatch[0].slice(0, 255),
+              phone: phoneMatch?.[0]?.replace(/[-.\s]/g, '').slice(0, 20) || null,
+              source: 'chatbot',
+              status: 'new',
+              message: `Chatbot conversation:\n${message.slice(0, 1000)}`,
+              service_interest: services?.[0]?.name || 'General Inquiry',
+            });
+            leadCreated = true;
+            console.log('[booking-chatbot] Lead created from chat');
+          } catch (leadError) {
+            console.error('[booking-chatbot] Failed to create lead:', leadError);
+          }
+        } else {
+          console.log('[booking-chatbot] Lead creation rate-limited for', leadKey);
         }
       }
     }

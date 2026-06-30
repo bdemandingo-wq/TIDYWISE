@@ -23,7 +23,7 @@ serve(async (req) => {
     const body = await req.json();
     const { api_key, action, organization_id, ...params } = body;
 
-    if (!api_key || api_key !== LINDY_API_KEY) {
+    if (!api_key || typeof api_key !== "string") {
       return new Response(
         JSON.stringify({ error: "Unauthorized: Invalid API key" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -49,10 +49,14 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify organization exists
+    // SECURITY: load organization and require the supplied api_key to match
+    // THIS organization's per-tenant lindy_api_key. The global LINDY_API_KEY
+    // env var is accepted ONLY as a break-glass master key (kept for backward
+    // compatibility); per-org keys are the primary auth mechanism so a single
+    // leaked key cannot grant cross-tenant access.
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, name")
+      .select("id, name, lindy_api_key")
       .eq("id", organization_id)
       .single();
 
@@ -60,6 +64,15 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Invalid organization_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const orgKey = (org as any).lindy_api_key as string | null;
+    const keyMatchesOrg = !!orgKey && api_key === orgKey;
+    if (!keyMatchesOrg) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: API key does not match this organization" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
