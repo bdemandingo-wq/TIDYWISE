@@ -386,8 +386,6 @@ export function EditBookingDialog({
 
   const estimatedPay = calculateEstimatedPay();
 
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
-
   const attemptSave = () => {
     if (status === "cancelled" && booking.status !== "cancelled") {
       setConfirmCancelOpen(true);
