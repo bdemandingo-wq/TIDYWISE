@@ -151,7 +151,7 @@ Always end with asking if they have other questions.`;
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
-      ...(conversationHistory || []),
+      ...safeHistory,
       { role: 'user', content: message }
     ];
 
