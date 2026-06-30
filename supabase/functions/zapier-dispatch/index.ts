@@ -261,6 +261,7 @@ Deno.serve(async (req) => {
           const f: any = full;
           const c = f.customer || {};
           const s = f.service || {};
+          const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ') || null;
           enrichedData = {
             id: f.id,
             booking_number: f.booking_number,
@@ -272,11 +273,12 @@ Deno.serve(async (req) => {
             notes: f.notes,
             total_amount: f.total_amount,
             subtotal: f.subtotal,
+            // Nested objects (clean structure for Zapier)
             customer: {
               id: c.id ?? null,
               first_name: c.first_name ?? null,
               last_name: c.last_name ?? null,
-              full_name: [c.first_name, c.last_name].filter(Boolean).join(' ') || null,
+              full_name: fullName,
               email: c.email ?? null,
               phone: c.phone ?? null,
             },
@@ -294,6 +296,24 @@ Deno.serve(async (req) => {
               bathrooms: f.bathrooms ?? null,
               square_footage: f.square_footage ?? null,
             },
+            // Flat keys (easier mapping in GHL / LeadConnector)
+            customer_id: c.id ?? null,
+            customer_first_name: c.first_name ?? null,
+            customer_last_name: c.last_name ?? null,
+            customer_full_name: fullName,
+            customer_name: fullName,
+            customer_email: c.email ?? null,
+            customer_phone: c.phone ?? null,
+            service_id: s.id ?? null,
+            service_name: s.name ?? null,
+            service_description: s.description ?? null,
+            property_address: f.address ?? null,
+            property_city: f.city ?? null,
+            property_state: f.state ?? null,
+            property_zip_code: f.zip_code ?? null,
+            property_bedrooms: f.bedrooms ?? null,
+            property_bathrooms: f.bathrooms ?? null,
+            property_square_footage: f.square_footage ?? null,
           };
         }
       } catch (enrichErr) {
