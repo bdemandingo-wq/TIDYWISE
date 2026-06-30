@@ -122,6 +122,9 @@ serve(async (req) => {
       );
     }
 
+    // CRITICAL: cancel any active Stripe subscriptions before nuking the org
+    const cancelledSubs = await cancelOrgStripeSubscriptions(supabase, organizationId);
+
     // Cascade — same approach as delete-platform-account
     await supabase.from("org_memberships").delete().eq("organization_id", organizationId);
     const { error: delErr } = await supabase
