@@ -11,6 +11,7 @@ import {
 import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
 
 interface Lead {
   id: string;
@@ -28,6 +29,7 @@ interface Lead {
   source: string;
   status: string;
   created_at: string;
+  tags?: unknown;
 }
 
 const PIPELINE_COLUMNS = [
@@ -266,6 +268,19 @@ function LeadCard({
             {lead.service_interest}
           </Badge>
         )}
+
+        {/* Tags */}
+        {(() => {
+          const tags = normalizeTags(lead.tags);
+          if (tags.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {tags.map((t, i) => (
+                <LeadTagChip key={`${t.name}-${i}`} tag={t} />
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Estimated Value */}
         {lead.estimated_value != null && lead.estimated_value > 0 && (
