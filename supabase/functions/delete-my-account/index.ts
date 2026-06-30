@@ -1,11 +1,56 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { logToSystem } from "../_shared/system-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+/**
+ * Cancel every Stripe subscription tied to the user's email on the
+ * TidyWise platform Stripe account. This MUST run before deleting
+ * the auth user — otherwise Stripe keeps retrying failed charges
+ * forever, generating decline noise and customer complaints.
+ *
+ * Returns the list of subscription IDs that were cancelled (or were
+ * already inactive) so we can audit-log it.
+ */
+async function cancelStripeSubscriptionsForEmail(email: string): Promise<string[]> {
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!stripeKey || !email) return [];
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+  const cancelled: string[] = [];
+  try {
+    // Stripe can have multiple customers per email — handle them all
+    const customers = await stripe.customers.list({ email, limit: 100 });
+    for (const customer of customers.data) {
+      // Pull every non-terminal subscription for this customer
+      const subs = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: "all",
+        limit: 100,
+      });
+      for (const sub of subs.data) {
+        if (["canceled", "incomplete_expired"].includes(sub.status)) continue;
+        try {
+          await stripe.subscriptions.cancel(sub.id, {
+            invoice_now: false,
+            prorate: false,
+          });
+          cancelled.push(sub.id);
+          console.log(`[DELETE-MY-ACCOUNT] Cancelled Stripe sub ${sub.id} (customer ${customer.id})`);
+        } catch (e) {
+          console.error(`[DELETE-MY-ACCOUNT] Failed to cancel sub ${sub.id}:`, e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[DELETE-MY-ACCOUNT] Stripe cleanup error:", e);
+  }
+  return cancelled;
+}
 
 /**
  * Self-service account deletion for App Store compliance
