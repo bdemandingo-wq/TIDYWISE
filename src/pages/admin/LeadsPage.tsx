@@ -49,6 +49,7 @@ import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { fmt } from '@/lib/activeCurrency';
 import { dispatchZapier } from '@/lib/zapier';
+import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/components/admin/LeadTagsEditor';
 
 
 
@@ -68,6 +69,7 @@ interface Lead {
   source: string;
   status: string;
   created_at: string;
+  tags?: LeadTag[] | unknown;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
