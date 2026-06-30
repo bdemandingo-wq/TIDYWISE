@@ -494,13 +494,6 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
     { key: 'voicemails', label: 'Voicemails' },
   ];
 
-  // ─── Stats ────────────────────────────────────
-  const stats = useMemo(() => {
-    const total = calls.length;
-    const missed = calls.filter(c => c.status === 'missed' || c.status === 'no-answer').length;
-    const avgDuration = total > 0 ? Math.round(calls.reduce((sum, c) => sum + (c.duration || 0), 0) / total) : 0;
-    return { total, missed, avgDuration };
-  }, [calls]);
 
   return (
     <div className="flex flex-col h-full">
