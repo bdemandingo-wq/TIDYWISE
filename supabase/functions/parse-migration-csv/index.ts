@@ -148,16 +148,47 @@ function autoMapFields(headers: string[], dataType: string): Record<string, stri
   return mapping;
 }
 
+// Real email format. Filters out junk like "My Business" or "n/a" that users type
+// into the Thumbtack/CSV "email" column, which would otherwise collapse every row
+// into one giant duplicate group.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(v: string | undefined | null): boolean {
+  if (!v) return false;
+  return EMAIL_RE.test(String(v).trim());
+}
+
 function detectDuplicates(rows: Record<string, string>[], mapping: Record<string, string>): Set<number> {
   const duplicateIndices = new Set<number>();
   const seen = new Map<string, number>();
   const emailKey = Object.entries(mapping).find(([_, v]) => v === "email" || v === "customer_email")?.[0];
   const phoneKey = Object.entries(mapping).find(([_, v]) => v === "phone" || v === "customer_phone")?.[0];
 
+  // First pass: count email occurrences. If the same email appears 3+ times it's
+  // almost certainly a placeholder (e.g. user typed their business name) — skip it
+  // for dedup so legitimate distinct leads aren't flagged as duplicates.
+  const emailCounts = new Map<string, number>();
+  if (emailKey) {
+    for (const row of rows) {
+      const raw = row[emailKey];
+      if (!isValidEmail(raw)) continue;
+      const k = String(raw).toLowerCase().trim();
+      emailCounts.set(k, (emailCounts.get(k) || 0) + 1);
+    }
+  }
+
   rows.forEach((row, index) => {
     const keys: string[] = [];
-    if (emailKey && row[emailKey]) keys.push(`email:${row[emailKey].toLowerCase().trim()}`);
-    if (phoneKey && row[phoneKey]) keys.push(`phone:${row[phoneKey].replace(/\D/g, "")}`);
+    if (emailKey) {
+      const raw = row[emailKey];
+      if (isValidEmail(raw)) {
+        const e = String(raw).toLowerCase().trim();
+        if ((emailCounts.get(e) || 0) < 3) keys.push(`email:${e}`);
+      }
+    }
+    if (phoneKey && row[phoneKey]) {
+      const digits = row[phoneKey].replace(/\D/g, "");
+      if (digits.length >= 7) keys.push(`phone:${digits.slice(-10)}`);
+    }
     for (const key of keys) {
       if (seen.has(key)) duplicateIndices.add(index);
       else seen.set(key, index);
