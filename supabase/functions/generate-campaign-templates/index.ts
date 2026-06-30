@@ -11,6 +11,10 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+
+  if (!authResult.success) return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
