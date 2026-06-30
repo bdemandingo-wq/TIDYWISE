@@ -1,10 +1,48 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+/**
+ * Cancel every active Stripe subscription tied to this org BEFORE
+ * deleting the org. Otherwise Stripe keeps retrying failed charges
+ * after the customer thinks they've cancelled.
+ */
+async function cancelOrgStripeSubscriptions(
+  supabase: ReturnType<typeof createClient>,
+  organizationId: string,
+): Promise<string[]> {
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!stripeKey) return [];
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+  const cancelled: string[] = [];
+  try {
+    const { data: subs } = await supabase
+      .from("stripe_subscriptions")
+      .select("stripe_subscription_id")
+      .eq("organization_id", organizationId);
+    for (const row of subs ?? []) {
+      const subId = (row as { stripe_subscription_id?: string }).stripe_subscription_id;
+      if (!subId) continue;
+      try {
+        const current = await stripe.subscriptions.retrieve(subId);
+        if (["canceled", "incomplete_expired"].includes(current.status)) continue;
+        await stripe.subscriptions.cancel(subId, { invoice_now: false, prorate: false });
+        cancelled.push(subId);
+        console.log(`[delete-my-organization] cancelled Stripe sub ${subId}`);
+      } catch (e) {
+        console.error(`[delete-my-organization] failed to cancel sub ${subId}:`, e);
+      }
+    }
+  } catch (e) {
+    console.error("[delete-my-organization] Stripe cleanup error:", e);
+  }
+  return cancelled;
+}
 
 /**
  * Owner-initiated organization deletion.
@@ -84,6 +122,9 @@ serve(async (req) => {
       );
     }
 
+    // CRITICAL: cancel any active Stripe subscriptions before nuking the org
+    const cancelledSubs = await cancelOrgStripeSubscriptions(supabase, organizationId);
+
     // Cascade — same approach as delete-platform-account
     await supabase.from("org_memberships").delete().eq("organization_id", organizationId);
     const { error: delErr } = await supabase
@@ -97,8 +138,8 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[delete-my-organization] org ${organizationId} deleted by user ${user.id}`);
-    return new Response(JSON.stringify({ success: true }), {
+    console.log(`[delete-my-organization] org ${organizationId} deleted by user ${user.id}. Cancelled ${cancelledSubs.length} Stripe sub(s): ${cancelledSubs.join(', ') || 'none'}`);
+    return new Response(JSON.stringify({ success: true, cancelledSubscriptions: cancelledSubs }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
