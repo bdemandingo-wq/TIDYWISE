@@ -512,6 +512,29 @@ export default function StaffPortal() {
 
       // Auto-send review request when job is completed
       if (status === 'completed') {
+        // Notify admin that the job was completed by staff (persists in admin bell)
+        try {
+          const { data: completedBooking } = await supabase
+            .from('bookings')
+            .select('id, booking_number, organization_id, customer:customers(first_name, last_name)')
+            .eq('id', bookingId)
+            .single();
+          if (completedBooking?.organization_id) {
+            const c: any = completedBooking.customer;
+            const who = c ? `${c.first_name} ${c.last_name}` : 'Customer';
+            await supabase.from('admin_system_notifications').insert({
+              organization_id: completedBooking.organization_id,
+              type: 'job_completed',
+              title: '✅ Job marked complete by staff',
+              message: `Booking #${completedBooking.booking_number || bookingId.slice(0, 8)} for ${who} was completed.`,
+              link: `/admin/bookings`,
+              metadata: { booking_id: bookingId },
+            });
+          }
+        } catch (notifyErr) {
+          console.warn('Admin completion notification failed:', notifyErr);
+        }
+
         try {
           // Get booking details for review request
           const { data: bookingData } = await supabase

@@ -138,13 +138,28 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
         setUploadProgress(Math.round((i + 1) * step));
       }
 
+      // Notify admin that an inspection report was submitted
+      try {
+        await supabase.from('admin_system_notifications').insert({
+          organization_id: resolvedOrgId,
+          type: 'staff_activity',
+          title: '🔍 Inspection report submitted',
+          message: `Staff submitted ${items.length} inspection photo${items.length === 1 ? '' : 's'} for booking #${bookingId.slice(0, 8)}`,
+          link: `/admin/bookings/${bookingId}/photos`,
+          metadata: { booking_id: bookingId, staff_id: staffId, count: items.length },
+        });
+      } catch (notifyErr) {
+        console.warn('Admin notification insert failed:', notifyErr);
+      }
+
       toast.success(`Inspection report submitted (${items.length} photo${items.length === 1 ? '' : 's'})`);
       setItems([]);
       setIsOpen(false);
       onSubmitted?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Inspection submit error:', err);
-      toast.error('Failed to submit report. Please try again.');
+      const reason = err?.message || err?.error_description || err?.error || 'Unknown error';
+      toast.error(`Couldn't submit report: ${reason}`);
     } finally {
       setSubmitting(false);
       setUploadProgress(0);
