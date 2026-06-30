@@ -160,6 +160,14 @@ serve(async (req) => {
     // Delete any remaining memberships for this user (if they were members of other orgs)
     await supabaseClient.from('org_memberships').delete().eq('user_id', userId);
 
+    // CRITICAL: Cancel any active Stripe subscriptions tied to this email
+    // BEFORE deleting the auth user. Otherwise Stripe keeps retrying
+    // failed charges and the customer thinks they're being charged after
+    // cancelling their account.
+    const cancelledSubs = userEmail
+      ? await cancelStripeSubscriptionsForEmail(userEmail)
+      : [];
+
     // Delete user profile
     await supabaseClient.from('profiles').delete().eq('id', userId);
 
