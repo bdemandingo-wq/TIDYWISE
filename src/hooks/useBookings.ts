@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Json } from '@/integrations/supabase/types';
 import { dispatchZapier } from '@/lib/zapier';
+import { buildBookingZapierPayload } from '@/lib/buildBookingZapierPayload';
 
 export interface TeamAssignment {
   staff_id: string;
@@ -265,7 +266,9 @@ export function useCreateBooking() {
         throw error;
       }
 
-      dispatchZapier('booking.created', organization.id, booking as Record<string, unknown>);
+      buildBookingZapierPayload(booking as any).then((payload) =>
+        dispatchZapier('booking.created', organization.id, payload),
+      );
       return booking;
     },
     onSuccess: () => {
@@ -298,9 +301,13 @@ export function useUpdateBooking() {
       }
 
       if (data.status === 'completed' && booking?.organization_id) {
-        dispatchZapier('booking.completed', booking.organization_id, booking as Record<string, unknown>);
+        buildBookingZapierPayload(booking as any).then((payload) =>
+          dispatchZapier('booking.completed', booking.organization_id, payload),
+        );
       } else if (data.status === 'cancelled' && booking?.organization_id) {
-        dispatchZapier('booking.cancelled', booking.organization_id, booking as Record<string, unknown>);
+        buildBookingZapierPayload(booking as any).then((payload) =>
+          dispatchZapier('booking.cancelled', booking.organization_id, payload),
+        );
       }
 
       return booking;
