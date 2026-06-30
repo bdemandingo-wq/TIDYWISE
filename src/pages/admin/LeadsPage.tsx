@@ -684,7 +684,18 @@ export default function LeadsPage() {
               ) : (
               filteredLeads.map((lead) => (
                   <TableRow key={lead.id} className="[&>td]:py-3 @[pointer:coarse]:min-h-[52px]">
-                    <TableCell className="font-medium min-h-[44px]">{maskName(lead.name)}</TableCell>
+                    <TableCell className="font-medium min-h-[44px]">
+                      <div className="space-y-1">
+                        <div>{maskName(lead.name)}</div>
+                        {normalizeTags(lead.tags).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {normalizeTags(lead.tags).map((t, i) => (
+                              <LeadTagChip key={`${t.name}-${i}`} tag={t} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
