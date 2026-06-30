@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   ExternalLink,
   X,
-  Infinity,
+  Infinity as InfinityIcon,
   Flame,
   Star,
   Zap,
@@ -332,7 +332,7 @@ export function SubscriptionDialog({
 
             <div className="flex items-start gap-3 pt-2">
               <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 shrink-0">
-                <Infinity className="h-5 w-5" />
+                <InfinityIcon className="h-5 w-5" />
               </div>
               <div>
                 <p className="font-semibold text-foreground">Lifetime Access</p>
@@ -381,7 +381,7 @@ export function SubscriptionDialog({
               {checkingOut === "lifetime" ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <Infinity className="h-4 w-4 mr-2" />
+                <InfinityIcon className="h-4 w-4 mr-2" />
               )}
               {spots.available ? "Claim Lifetime Access" : "Sold Out"}
             </Button>
