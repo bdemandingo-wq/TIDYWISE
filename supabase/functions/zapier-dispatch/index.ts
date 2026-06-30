@@ -240,13 +240,75 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Enrich booking.* events with customer + service + property details
+    // so Zapier/GHL automations have phone, name parts, and property info.
+    let enrichedData: Record<string, unknown> = payload ?? {};
+    if (event_type.startsWith('booking.') && (payload as any)?.id) {
+      try {
+        const { data: full } = await supabase
+          .from('bookings')
+          .select(`
+            id, booking_number, status, payment_status, scheduled_at, duration,
+            address, city, state, zip_code, bedrooms, bathrooms, square_footage,
+            frequency, notes, total_amount, subtotal, organization_id,
+            customer:customers(id, first_name, last_name, email, phone),
+            service:services(id, name, description)
+          `)
+          .eq('id', (payload as any).id)
+          .eq('organization_id', organization_id)
+          .maybeSingle();
+        if (full) {
+          const f: any = full;
+          const c = f.customer || {};
+          const s = f.service || {};
+          enrichedData = {
+            id: f.id,
+            booking_number: f.booking_number,
+            status: f.status,
+            payment_status: f.payment_status,
+            scheduled_at: f.scheduled_at,
+            duration_minutes: f.duration,
+            frequency: f.frequency,
+            notes: f.notes,
+            total_amount: f.total_amount,
+            subtotal: f.subtotal,
+            customer: {
+              id: c.id ?? null,
+              first_name: c.first_name ?? null,
+              last_name: c.last_name ?? null,
+              full_name: [c.first_name, c.last_name].filter(Boolean).join(' ') || null,
+              email: c.email ?? null,
+              phone: c.phone ?? null,
+            },
+            service: {
+              id: s.id ?? null,
+              name: s.name ?? null,
+              description: s.description ?? null,
+            },
+            property: {
+              address: f.address ?? null,
+              city: f.city ?? null,
+              state: f.state ?? null,
+              zip_code: f.zip_code ?? null,
+              bedrooms: f.bedrooms ?? null,
+              bathrooms: f.bathrooms ?? null,
+              square_footage: f.square_footage ?? null,
+            },
+          };
+        }
+      } catch (enrichErr) {
+        console.warn('booking payload enrich failed', enrichErr);
+      }
+    }
+
     const envelope = {
       event: event_type,
       organization_id,
       occurred_at: new Date().toISOString(),
-      data: payload ?? {},
+      data: enrichedData,
     };
     const envelopeBody = JSON.stringify(envelope);
+
 
     const results = await Promise.all(
       (hooks ?? []).map(async (hook: any) => {
