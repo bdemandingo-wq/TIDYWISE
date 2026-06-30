@@ -32,7 +32,6 @@ serve(async (req: Request) => {
     });
 
     const body = await req.text();
-    let event: Stripe.Event;
 
     if (!webhookSecret) {
       console.error("[stripe-connect-webhook] STRIPE_CONNECT_WEBHOOK_SECRET not configured — refusing");
