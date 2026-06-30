@@ -903,14 +903,16 @@ export default function LeadsPage() {
           if (!open) setEditingLead(null);
         }}
         lead={editingLead}
+        tagSuggestions={tagSuggestions}
         onSave={(data) => {
           if (editingLead) {
-            updateMutation.mutate({ id: editingLead.id, ...data });
+            updateMutation.mutate({ id: editingLead.id, ...data } as any);
           } else {
-            createMutation.mutate(data);
+            createMutation.mutate(data as any);
           }
         }}
       />
+
       
       </PlanFeatureGate>
     </AdminLayout>
