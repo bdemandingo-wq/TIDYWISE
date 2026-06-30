@@ -43,6 +43,11 @@ serve(async (req) => {
       throw new Error("Campaign not found");
     }
 
+    // SECURITY: Verify campaign belongs to the authenticated user's organization
+    if (campaign.organization_id !== authResult.organizationId) {
+      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    }
+
     // CRITICAL: Campaign must have organization_id for multi-tenant isolation
     if (!campaign.organization_id) {
       console.error("[send-followup-campaign] Campaign has no organization_id - cannot send emails without organization context");
