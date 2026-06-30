@@ -470,6 +470,12 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           </div>
         )}
 
+        {booking.status === 'in_progress' && (
+          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200">
+            ⚠️ Heads up: your location will stop recording once you mark this job complete.
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 pt-2">
 
           {/* On The Way Button - only show for confirmed jobs */}
