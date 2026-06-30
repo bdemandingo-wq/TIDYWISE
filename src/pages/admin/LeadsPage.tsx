@@ -923,12 +923,14 @@ function LeadDialog({
   open,
   onOpenChange,
   lead,
+  tagSuggestions,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
-  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => void;
+  tagSuggestions: LeadTag[];
+  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -947,8 +949,9 @@ function LeadDialog({
       source: lead?.source || 'website',
       status: lead?.status || 'new',
     });
+    setTags(normalizeTags(lead?.tags));
   }, [lead]);
-  
+
   const [formData, setFormData] = useState({
     name: lead?.name || '',
     email: lead?.email || '',
@@ -964,6 +967,7 @@ function LeadDialog({
     source: lead?.source || 'website',
     status: lead?.status || 'new',
   });
+  const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
 
   const handleSubmit = () => {
     if (!formData.name || !formData.email) return;
@@ -971,8 +975,10 @@ function LeadDialog({
     onSave({
       ...rest,
       estimated_value: estimated_value ? parseFloat(estimated_value) : null,
+      tags,
     });
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
