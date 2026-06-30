@@ -13,6 +13,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // SECURITY: Verify authenticated user with admin privileges
+  const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+
+  if (!authResult.success) {
+    return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+  }
+
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
