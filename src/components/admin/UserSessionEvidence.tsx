@@ -8,8 +8,6 @@ import { supabase } from '@/lib/supabase';
 import { Search, FileDown, Loader2, Clock, CalendarDays, Activity, Timer, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface SessionRow {
   id: string;
