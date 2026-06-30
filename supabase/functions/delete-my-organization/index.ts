@@ -138,8 +138,8 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[delete-my-organization] org ${organizationId} deleted by user ${user.id}`);
-    return new Response(JSON.stringify({ success: true }), {
+    console.log(`[delete-my-organization] org ${organizationId} deleted by user ${user.id}. Cancelled ${cancelledSubs.length} Stripe sub(s): ${cancelledSubs.join(', ') || 'none'}`);
+    return new Response(JSON.stringify({ success: true, cancelledSubscriptions: cancelledSubs }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
