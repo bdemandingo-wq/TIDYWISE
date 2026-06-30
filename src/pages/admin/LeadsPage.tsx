@@ -182,7 +182,7 @@ export default function LeadsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Lead> & { id: string }) => {
-      const { error } = await supabase.from('leads').update(data).eq('id', id);
+      const { error } = await supabase.from('leads').update(data as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
