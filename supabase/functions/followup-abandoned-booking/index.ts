@@ -33,6 +33,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: require an authenticated owner/admin of this org before
+    // touching the org's OpenPhone credentials or sending SMS to its customers.
+    const authResult = await requireOrgAdmin(req, organizationId);
+    if (authResult instanceof Response) return authResult;
+
     console.log(`[followup-abandoned-booking] Starting for org: ${organizationId}, threshold: ${hoursThreshold}h`);
 
     // Get SMS settings
