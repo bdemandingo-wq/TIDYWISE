@@ -5899,7 +5899,6 @@ export type Database = {
           grandfathered_at: string | null
           grandfathered_lifetime: boolean
           id: string
-          lindy_api_key: string | null
           logo_url: string | null
           name: string
           owner_id: string
@@ -5915,7 +5914,6 @@ export type Database = {
           grandfathered_at?: string | null
           grandfathered_lifetime?: boolean
           id?: string
-          lindy_api_key?: string | null
           logo_url?: string | null
           name: string
           owner_id: string
@@ -5931,7 +5929,6 @@ export type Database = {
           grandfathered_at?: string | null
           grandfathered_lifetime?: boolean
           id?: string
-          lindy_api_key?: string | null
           logo_url?: string | null
           name?: string
           owner_id?: string
