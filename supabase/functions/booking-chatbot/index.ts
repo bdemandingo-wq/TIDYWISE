@@ -29,6 +29,18 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Lead-creation throttle: 1 lead per (org+ip+email) per hour, to stop CRM spam
+// even when the regex heuristics match.
+const LEAD_RATE_WINDOW_MS = 60 * 60 * 1000;
+const leadHits = new Map<string, number>();
+function isLeadRateLimited(key: string): boolean {
+  const now = Date.now();
+  const last = leadHits.get(key);
+  if (last && now - last < LEAD_RATE_WINDOW_MS) return true;
+  leadHits.set(key, now);
+  return false;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
