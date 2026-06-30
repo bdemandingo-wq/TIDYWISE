@@ -186,46 +186,50 @@ const handler = async (req: Request): Promise<Response> => {
     // SECURITY: verify OpenPhone HMAC signature when secret is configured.
     // Format from OpenPhone is: hmac;<version>;<timestamp>;<base64-signature>
     const OPENPHONE_WEBHOOK_SECRET = Deno.env.get("OPENPHONE_WEBHOOK_SECRET") ?? "";
-    if (OPENPHONE_WEBHOOK_SECRET) {
-      const sigHeader = req.headers.get("openphone-signature") || req.headers.get("x-openphone-signature") || "";
-      const parts = sigHeader.split(";");
-      const ts = parts[2];
-      const providedB64 = parts[3];
-      if (!ts || !providedB64) {
-        console.error("[openphone-webhook] Missing/invalid signature header");
+    if (!OPENPHONE_WEBHOOK_SECRET) {
+      console.error("[openphone-webhook] OPENPHONE_WEBHOOK_SECRET not set — rejecting request");
+      return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const sigHeader = req.headers.get("openphone-signature") || req.headers.get("x-openphone-signature") || "";
+    const parts = sigHeader.split(";");
+    const ts = parts[2];
+    const providedB64 = parts[3];
+    if (!ts || !providedB64) {
+      console.error("[openphone-webhook] Missing/invalid signature header");
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    try {
+      const signedPayload = `${ts}.${rawBody}`;
+      const keyBytes = Uint8Array.from(atob(OPENPHONE_WEBHOOK_SECRET), c => c.charCodeAt(0));
+      const key = await crypto.subtle.importKey(
+        "raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+      );
+      const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+      const expectedB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
+      // timing-safe compare
+      if (expectedB64.length !== providedB64.length) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      try {
-        const signedPayload = `${ts}.${rawBody}`;
-        const keyBytes = Uint8Array.from(atob(OPENPHONE_WEBHOOK_SECRET), c => c.charCodeAt(0));
-        const key = await crypto.subtle.importKey(
-          "raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-        );
-        const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
-        const expectedB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
-        // timing-safe compare
-        if (expectedB64.length !== providedB64.length) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        let diff = 0;
-        for (let i = 0; i < expectedB64.length; i++) diff |= expectedB64.charCodeAt(i) ^ providedB64.charCodeAt(i);
-        if (diff !== 0) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } catch (sigErr) {
-        console.error("[openphone-webhook] Signature verification error:", sigErr);
+      let diff = 0;
+      for (let i = 0; i < expectedB64.length; i++) diff |= expectedB64.charCodeAt(i) ^ providedB64.charCodeAt(i);
+      if (diff !== 0) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    } else {
-      console.warn("[openphone-webhook] OPENPHONE_WEBHOOK_SECRET not set — signature verification disabled");
+    } catch (sigErr) {
+      console.error("[openphone-webhook] Signature verification error:", sigErr);
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const payload = JSON.parse(rawBody) as OpenPhoneWebhookPayload;
