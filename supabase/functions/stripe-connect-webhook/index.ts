@@ -34,34 +34,36 @@ serve(async (req: Request) => {
     const body = await req.text();
     let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
-    if (webhookSecret) {
-      const signature = req.headers.get("stripe-signature");
-      if (!signature) {
-        console.error("[stripe-connect-webhook] Missing stripe-signature header");
-        return new Response(JSON.stringify({ error: "Missing signature" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!webhookSecret) {
+      console.error("[stripe-connect-webhook] STRIPE_CONNECT_WEBHOOK_SECRET not configured — refusing");
+      return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
-      try {
-        // Deno-compatible async signature verification. The sync
-        // constructEvent() throws "SubtleCryptoProvider cannot be used
-        // in a synchronous context" in Supabase Edge Functions.
-        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      } catch (err: any) {
-        console.error("[stripe-connect-webhook] Signature verification failed:", err.message);
-        return new Response(JSON.stringify({ error: "Invalid signature" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } else {
-      // No webhook secret configured — parse directly (log warning)
-      console.warn("[stripe-connect-webhook] No STRIPE_CONNECT_WEBHOOK_SECRET configured, skipping signature verification");
-      event = JSON.parse(body) as Stripe.Event;
+    const signature = req.headers.get("stripe-signature");
+    if (!signature) {
+      console.error("[stripe-connect-webhook] Missing stripe-signature header");
+      return new Response(JSON.stringify({ error: "Missing signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
+    let event: Stripe.Event;
+    try {
+      // Deno-compatible async signature verification. The sync
+      // constructEvent() throws "SubtleCryptoProvider cannot be used
+      // in a synchronous context" in Supabase Edge Functions.
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch (err: any) {
+      console.error("[stripe-connect-webhook] Signature verification failed:", err.message);
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("[stripe-connect-webhook] Received event:", event.type, event.id, "for account:", (event.data.object as any)?.id || "unknown");
