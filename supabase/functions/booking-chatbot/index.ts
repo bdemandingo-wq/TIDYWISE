@@ -187,35 +187,41 @@ Always end with asking if they have other questions.`;
 
     // Check if the conversation contains booking intent with contact info
     // This is a simple heuristic - you could make this more sophisticated
-    const fullConversation = [...(conversationHistory || []), { role: 'user', content: message }].map(m => m.content).join(' ');
+    const fullConversation = [...safeHistory, { role: 'user', content: message }].map(m => m.content).join(' ');
     const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(fullConversation);
     const hasPhone = /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(fullConversation);
     const hasBookingIntent = /book|schedule|appointment|reserve|available/i.test(fullConversation);
 
     let leadCreated = false;
 
-    // If we detect booking intent with contact info, create a lead
+    // SECURITY: throttle lead creation per (org, ip) to prevent CRM spam.
+    // Even with valid booking intent we cap one lead per IP per org per hour.
     if (hasBookingIntent && (hasEmail || hasPhone)) {
       const emailMatch = fullConversation.match(/[\w.-]+@[\w.-]+\.\w+/);
       const phoneMatch = fullConversation.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/);
       const nameMatch = fullConversation.match(/(?:my name is|i'm|i am|name:?)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
 
       if (emailMatch) {
-        try {
-          await supabase.from('leads').insert({
-            organization_id: organizationId,
-            name: nameMatch?.[1] || 'Chatbot Lead',
-            email: emailMatch[0],
-            phone: phoneMatch?.[0]?.replace(/[-.\s]/g, '') || null,
-            source: 'chatbot',
-            status: 'new',
-            message: `Chatbot conversation:\n${message}`,
-            service_interest: services?.[0]?.name || 'General Inquiry',
-          });
-          leadCreated = true;
-          console.log('[booking-chatbot] Lead created from chat');
-        } catch (leadError) {
-          console.error('[booking-chatbot] Failed to create lead:', leadError);
+        const leadKey = `${organizationId}:${clientIp}:${emailMatch[0].toLowerCase()}`;
+        if (!isLeadRateLimited(leadKey)) {
+          try {
+            await supabase.from('leads').insert({
+              organization_id: organizationId,
+              name: (nameMatch?.[1] || 'Chatbot Lead').slice(0, 100),
+              email: emailMatch[0].slice(0, 255),
+              phone: phoneMatch?.[0]?.replace(/[-.\s]/g, '').slice(0, 20) || null,
+              source: 'chatbot',
+              status: 'new',
+              message: `Chatbot conversation:\n${message.slice(0, 1000)}`,
+              service_interest: services?.[0]?.name || 'General Inquiry',
+            });
+            leadCreated = true;
+            console.log('[booking-chatbot] Lead created from chat');
+          } catch (leadError) {
+            console.error('[booking-chatbot] Failed to create lead:', leadError);
+          }
+        } else {
+          console.log('[booking-chatbot] Lead creation rate-limited for', leadKey);
         }
       }
     }
