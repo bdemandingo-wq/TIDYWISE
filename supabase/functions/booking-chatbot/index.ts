@@ -67,12 +67,42 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // SECURITY: validate organizationId format & input sizes to prevent abuse
+    // (lead spam injection, prompt injection, AI quota burn).
+    if (typeof organizationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid organizationId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (typeof message !== "string" || message.length > 2000) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Message too long" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const safeHistory = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+          .slice(-20)
+          .map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 2000) }))
+      : [];
+
     // Get business info and services
     const { data: businessSettings } = await supabase
       .from('business_settings')
       .select('*')
       .eq('organization_id', organizationId)
       .maybeSingle();
+
+    // SECURITY: only allow the chatbot for orgs that have been configured
+    // (business_settings row exists). Prevents arbitrary org_id targeting.
+    if (!businessSettings) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Chatbot not enabled for this organization" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { data: services } = await supabase
       .from('services')
