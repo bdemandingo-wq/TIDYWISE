@@ -339,6 +339,7 @@ export function EditBookingDialog({
   const [cleanerOverrideHours, setCleanerOverrideHours] = useState<string>("");
   const [cleanerActualPayment, setCleanerActualPayment] = useState<string>("");
   const [showActualPayment, setShowActualPayment] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !initial) return;
@@ -384,8 +385,6 @@ export function EditBookingDialog({
   };
 
   const estimatedPay = calculateEstimatedPay();
-
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
 
   const attemptSave = () => {
     if (status === "cancelled" && booking.status !== "cancelled") {
