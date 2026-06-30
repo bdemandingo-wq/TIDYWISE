@@ -1098,7 +1098,12 @@ function LeadDialog({
               placeholder="How did the call go? Satisfaction, review status, recurring interest..."
             />
           </div>
+          <div className="col-span-2">
+            <Label className="mb-1.5 block">Tags</Label>
+            <LeadTagsEditor value={tags} onChange={setTags} suggestions={tagSuggestions} />
+          </div>
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit}>{lead ? 'Update' : 'Create'}</Button>
