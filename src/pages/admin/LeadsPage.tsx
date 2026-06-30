@@ -49,6 +49,7 @@ import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { fmt } from '@/lib/activeCurrency';
 import { dispatchZapier } from '@/lib/zapier';
+import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/components/admin/LeadTagsEditor';
 
 
 
@@ -68,6 +69,7 @@ interface Lead {
   source: string;
   status: string;
   created_at: string;
+  tags?: LeadTag[] | unknown;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -180,7 +182,7 @@ export default function LeadsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Lead> & { id: string }) => {
-      const { error } = await supabase.from('leads').update(data).eq('id', id);
+      const { error } = await supabase.from('leads').update(data as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -303,6 +305,19 @@ export default function LeadsPage() {
       return matchesSearch && matchesStatus && matchesSource && matchesMonth;
     });
   }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter]);
+
+  // Build suggestion list of all tags previously used on any lead.
+  const tagSuggestions = useMemo<LeadTag[]>(() => {
+    const map = new Map<string, LeadTag>();
+    for (const l of leads) {
+      for (const t of normalizeTags((l as any).tags)) {
+        const key = t.name.toLowerCase();
+        if (!map.has(key)) map.set(key, t);
+      }
+    }
+    return Array.from(map.values());
+  }, [leads]);
+
 
   const stats = {
     total: leads.length,
@@ -669,7 +684,18 @@ export default function LeadsPage() {
               ) : (
               filteredLeads.map((lead) => (
                   <TableRow key={lead.id} className="[&>td]:py-3 @[pointer:coarse]:min-h-[52px]">
-                    <TableCell className="font-medium min-h-[44px]">{maskName(lead.name)}</TableCell>
+                    <TableCell className="font-medium min-h-[44px]">
+                      <div className="space-y-1">
+                        <div>{maskName(lead.name)}</div>
+                        {normalizeTags(lead.tags).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {normalizeTags(lead.tags).map((t, i) => (
+                              <LeadTagChip key={`${t.name}-${i}`} tag={t} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
@@ -888,14 +914,16 @@ export default function LeadsPage() {
           if (!open) setEditingLead(null);
         }}
         lead={editingLead}
+        tagSuggestions={tagSuggestions}
         onSave={(data) => {
           if (editingLead) {
-            updateMutation.mutate({ id: editingLead.id, ...data });
+            updateMutation.mutate({ id: editingLead.id, ...data } as any);
           } else {
-            createMutation.mutate(data);
+            createMutation.mutate(data as any);
           }
         }}
       />
+
       
       </PlanFeatureGate>
     </AdminLayout>
@@ -906,12 +934,14 @@ function LeadDialog({
   open,
   onOpenChange,
   lead,
+  tagSuggestions,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
-  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => void;
+  tagSuggestions: LeadTag[];
+  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -930,8 +960,9 @@ function LeadDialog({
       source: lead?.source || 'website',
       status: lead?.status || 'new',
     });
+    setTags(normalizeTags(lead?.tags));
   }, [lead]);
-  
+
   const [formData, setFormData] = useState({
     name: lead?.name || '',
     email: lead?.email || '',
@@ -947,6 +978,7 @@ function LeadDialog({
     source: lead?.source || 'website',
     status: lead?.status || 'new',
   });
+  const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
 
   const handleSubmit = () => {
     if (!formData.name || !formData.email) return;
@@ -954,8 +986,10 @@ function LeadDialog({
     onSave({
       ...rest,
       estimated_value: estimated_value ? parseFloat(estimated_value) : null,
+      tags,
     });
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1075,7 +1109,12 @@ function LeadDialog({
               placeholder="How did the call go? Satisfaction, review status, recurring interest..."
             />
           </div>
+          <div className="col-span-2">
+            <Label className="mb-1.5 block">Tags</Label>
+            <LeadTagsEditor value={tags} onChange={setTags} suggestions={tagSuggestions} />
+          </div>
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit}>{lead ? 'Update' : 'Create'}</Button>

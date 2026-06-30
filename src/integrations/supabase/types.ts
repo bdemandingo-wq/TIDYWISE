@@ -4388,6 +4388,7 @@ export type Database = {
           source: string | null
           state: string | null
           status: string | null
+          tags: Json
           updated_at: string
           zip_code: string | null
         }
@@ -4408,6 +4409,7 @@ export type Database = {
           source?: string | null
           state?: string | null
           status?: string | null
+          tags?: Json
           updated_at?: string
           zip_code?: string | null
         }
@@ -4428,6 +4430,7 @@ export type Database = {
           source?: string | null
           state?: string | null
           status?: string | null
+          tags?: Json
           updated_at?: string
           zip_code?: string | null
         }
