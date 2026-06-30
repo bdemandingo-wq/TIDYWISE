@@ -203,7 +203,7 @@ serve(async (req) => {
               organization_id: organizationId,
               first_name: (data.first_name || "Unknown").substring(0, 100),
               last_name: (data.last_name || "").substring(0, 100),
-              email: (data.email || `import-${row.row_number}-${importId.slice(0, 8)}@placeholder.local`).substring(0, 255),
+              email: (emailIsReal ? emailRaw : `import-${row.row_number}-${importId.slice(0, 8)}@placeholder.local`).substring(0, 255),
               phone: data.phone?.toString().substring(0, 30) || null,
               address: data.address?.toString().substring(0, 255) || null,
               city: data.city?.toString().substring(0, 100) || null,
