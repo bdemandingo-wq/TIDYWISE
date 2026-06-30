@@ -69,6 +69,46 @@ export default function OnboardingPage() {
     if (!isNative) navigate('/login', { replace: true });
   };
 
+  // Pre-select all cleaning services and check if user needs phone collection
+  useEffect(() => {
+    setSelectedServices(new Set(cleaningTemplate.services.map(s => s.name)));
+    
+    // Check if user signed up via Google OAuth and needs phone collection
+    const checkPhoneNeeded = async () => {
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      // If no phone number, user likely signed up with Google OAuth
+      if (!profile?.phone) {
+        setNeedsPhoneCollection(true);
+      }
+    };
+    
+    checkPhoneNeeded();
+  }, [user]);
+
+  // If the user already has a business and isn't creating a new one, redirect.
+  const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
+  useEffect(() => {
+    if (!orgLoading && organization && !isNewBusiness) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [orgLoading, organization, navigate]);
+
+  // If not logged in, send to login.
+  useEffect(() => {
+    if (!orgLoading && !user) {
+      navigate('/login', { replace: true });
+    }
+  }, [orgLoading, user, navigate]);
+
+  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
+
   // On native (iOS), business creation must happen on the web for App Store
   // compliance. Block the onboarding flow with a clear "Finish setup on web"
   // screen rather than redirecting to /login (which causes a loop).
@@ -109,46 +149,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
-  // Pre-select all cleaning services and check if user needs phone collection
-  useEffect(() => {
-    setSelectedServices(new Set(cleaningTemplate.services.map(s => s.name)));
-    
-    // Check if user signed up via Google OAuth and needs phone collection
-    const checkPhoneNeeded = async () => {
-      if (!user) return;
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', user.id)
-        .maybeSingle();
-      
-      // If no phone number, user likely signed up with Google OAuth
-      if (!profile?.phone) {
-        setNeedsPhoneCollection(true);
-      }
-    };
-    
-    checkPhoneNeeded();
-  }, [user]);
-
-  // If the user already has a business and isn't creating a new one, redirect.
-  const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
-  useEffect(() => {
-    if (!orgLoading && organization && !isNewBusiness) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [orgLoading, organization, navigate]);
-
-  // If not logged in, send to login.
-  useEffect(() => {
-    if (!orgLoading && !user) {
-      navigate('/login', { replace: true });
-    }
-  }, [orgLoading, user, navigate]);
-
-  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
   const toggleService = (serviceName: string) => {
     const newSelected = new Set(selectedServices);
