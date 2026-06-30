@@ -182,7 +182,7 @@ serve(async (req) => {
     await logToSystem({
       level: "info",
       source: "delete-my-account",
-      message: `User account deleted successfully: ${userId} (${userEmail})`,
+      message: `User account deleted successfully: ${userId} (${userEmail}). Cancelled ${cancelledSubs.length} Stripe subscription(s): ${cancelledSubs.join(', ') || 'none'}`,
       userId,
       requestId,
     });
