@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations DROP COLUMN IF EXISTS lindy_api_key;
