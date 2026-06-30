@@ -306,6 +306,19 @@ export default function LeadsPage() {
     });
   }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter]);
 
+  // Build suggestion list of all tags previously used on any lead.
+  const tagSuggestions = useMemo<LeadTag[]>(() => {
+    const map = new Map<string, LeadTag>();
+    for (const l of leads) {
+      for (const t of normalizeTags((l as any).tags)) {
+        const key = t.name.toLowerCase();
+        if (!map.has(key)) map.set(key, t);
+      }
+    }
+    return Array.from(map.values());
+  }, [leads]);
+
+
   const stats = {
     total: leads.length,
     new: leads.filter(l => l.status === 'new').length,
