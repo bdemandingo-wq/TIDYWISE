@@ -8,8 +8,6 @@ import { supabase } from '@/lib/supabase';
 import { Search, FileDown, Loader2, Clock, CalendarDays, Activity, Timer, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface SessionRow {
   id: string;
@@ -139,8 +137,11 @@ export function UserSessionEvidence() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!report) return;
+
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
 
     const doc = new jsPDF({ orientation: 'landscape' });
     const now = format(new Date(), 'MMMM d, yyyy h:mm a');
