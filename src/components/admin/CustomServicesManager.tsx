@@ -35,20 +35,106 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { Plus, Pencil, Trash2, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Sparkles, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
 interface Service {
   id: string;
   name: string;
   description: string | null;
   duration: number;
-  price: number; // Database uses 'price' not 'base_price'
+  price: number;
   is_active: boolean;
   organization_id: string;
   created_at: string;
+  display_order?: number;
+}
+
+function SortableServiceRow({
+  service,
+  onEdit,
+  onDelete,
+}: {
+  service: Service;
+  onEdit: (s: Service) => void;
+  onDelete: (s: Service) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: service.id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    background: isDragging ? 'hsl(var(--muted))' : undefined,
+  };
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell>
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            aria-label={`Reorder ${service.name}`}
+            className="mt-1 flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <div>
+            <p className="font-medium">{service.name}</p>
+            {service.description && (
+              <p className="text-sm text-muted-foreground truncate max-w-xs">
+                {service.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>{service.duration} min</TableCell>
+      <TableCell>{fmt(service.price)}</TableCell>
+      <TableCell>
+        <Badge variant={service.is_active ? 'default' : 'secondary'}>
+          {service.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" size="icon" onClick={() => onEdit(service)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(service)}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function CustomServicesManager() {
@@ -65,6 +151,11 @@ export function CustomServicesManager() {
     is_active: true,
   });
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   // Fetch services
   const { data: services = [], isLoading } = useQuery({
     queryKey: ['services', organization?.id],
@@ -74,12 +165,48 @@ export function CustomServicesManager() {
         .from('services')
         .select('*')
         .eq('organization_id', organization.id)
+        .order('display_order', { ascending: true })
         .order('name');
       if (error) throw error;
       return data as Service[];
     },
     enabled: !!organization?.id,
   });
+
+  // Reorder mutation: persist new order to display_order column.
+  const reorderMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Optimistic update handled below; persist one UPDATE per row.
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          supabase.from('services').update({ display_order: idx + 1 }).eq('id', id),
+        ),
+      );
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to save new order');
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+  });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = services.findIndex((s) => s.id === active.id);
+    const newIndex = services.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(services, oldIndex, newIndex);
+    // Optimistic cache update so the UI reflects the drop immediately.
+    queryClient.setQueryData(
+      ['services', organization?.id],
+      reordered.map((s, i) => ({ ...s, display_order: i + 1 })),
+    );
+    reorderMutation.mutate(reordered.map((s) => s.id));
+  };
+
 
   // Create service mutation
   const createMutation = useMutation({
@@ -308,59 +435,39 @@ export function CustomServicesManager() {
             <p>No services yet. Create your first service to get started!</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Service Name</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Base Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {services.map((service) => (
-                <TableRow key={service.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{service.name}</p>
-                      {service.description && (
-                        <p className="text-sm text-muted-foreground truncate max-w-xs">
-                          {service.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{service.duration} min</TableCell>
-                  <TableCell>{fmt(service.price)}</TableCell>
-                  <TableCell>
-                    <Badge variant={service.is_active ? 'default' : 'secondary'}>
-                      {service.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(service)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(service)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={handleDragEnd}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Service Name</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Base Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                <SortableContext
+                  items={services.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {services.map((service) => (
+                    <SortableServiceRow
+                      key={service.id}
+                      service={service}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </SortableContext>
+              </TableBody>
+            </Table>
+          </DndContext>
         )}
 
         <div className="mt-4 p-4 bg-secondary/50 rounded-lg">

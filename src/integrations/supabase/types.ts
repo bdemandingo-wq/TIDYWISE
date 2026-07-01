@@ -7565,6 +7565,7 @@ export type Database = {
           created_at: string
           deposit_amount: number | null
           description: string | null
+          display_order: number
           duration: number
           id: string
           image_url: string | null
@@ -7579,6 +7580,7 @@ export type Database = {
           created_at?: string
           deposit_amount?: number | null
           description?: string | null
+          display_order?: number
           duration?: number
           id?: string
           image_url?: string | null
@@ -7593,6 +7595,7 @@ export type Database = {
           created_at?: string
           deposit_amount?: number | null
           description?: string | null
+          display_order?: number
           duration?: number
           id?: string
           image_url?: string | null

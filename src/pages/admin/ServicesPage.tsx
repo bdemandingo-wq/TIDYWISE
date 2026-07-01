@@ -11,140 +11,17 @@ import { useServicePricing } from '@/hooks/useServicePricing';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/lib/supabase';
 import { squareFootageRanges } from '@/data/pricingData';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-import { GripVertical } from 'lucide-react';
 
-type TabDef = {
-  value: string;
-  label: string;
-  icon?: React.ReactNode;
-};
-
-const DEFAULT_TAB_ORDER = ['custom-services', 'service-pricing', 'extras', 'frequencies'];
-const TAB_ORDER_STORAGE_KEY = 'services-page:tab-order';
-
-function loadTabOrder(): string[] {
-  if (typeof window === 'undefined') return DEFAULT_TAB_ORDER;
-  try {
-    const raw = window.localStorage.getItem(TAB_ORDER_STORAGE_KEY);
-    if (!raw) return DEFAULT_TAB_ORDER;
-    const parsed = JSON.parse(raw) as string[];
-    if (!Array.isArray(parsed)) return DEFAULT_TAB_ORDER;
-    // Keep only known values and append any missing (in case new tabs are added later)
-    const filtered = parsed.filter((v) => DEFAULT_TAB_ORDER.includes(v));
-    const missing = DEFAULT_TAB_ORDER.filter((v) => !filtered.includes(v));
-    return [...filtered, ...missing];
-  } catch {
-    return DEFAULT_TAB_ORDER;
-  }
-}
-
-function SortableTabTrigger({ tab }: { tab: TabDef }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tab.value,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
-  return (
-    <div ref={setNodeRef} style={style} className="flex items-center">
-      <button
-        type="button"
-        aria-label="Drag to reorder"
-        className="mr-1 flex h-6 w-4 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing touch-none"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
-      <TabsTrigger value={tab.value} className="flex items-center gap-2">
-        {tab.icon}
-        {tab.label}
-      </TabsTrigger>
-    </div>
-  );
-}
 
 export default function ServicesPage() {
   const { organization } = useOrganization();
   const { servicePricing, loading: pricingLoading } = useServicePricing();
   const [downloading, setDownloading] = useState(false);
 
-  const [tabOrder, setTabOrder] = useState<string[]>(() => loadTabOrder());
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
-    } catch {
-      /* ignore quota errors */
-    }
-  }, [tabOrder]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setTabOrder((prev) => {
-      const oldIndex = prev.indexOf(String(active.id));
-      const newIndex = prev.indexOf(String(over.id));
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-  }, []);
-
-  const tabDefs = useMemo<Record<string, TabDef>>(
-    () => ({
-      'custom-services': {
-        value: 'custom-services',
-        label: 'Custom Services',
-        icon: <Plus className="w-4 h-4" />,
-      },
-      'service-pricing': {
-        value: 'service-pricing',
-        label: 'Service Pricing',
-        icon: <Settings2 className="w-4 h-4" />,
-      },
-      extras: { value: 'extras', label: 'Add-On Extras' },
-      frequencies: {
-        value: 'frequencies',
-        label: 'Frequencies',
-        icon: <CalendarClock className="w-4 h-4" />,
-      },
-    }),
-    [],
-  );
-
-  const orderedTabs = useMemo(
-    () => tabOrder.map((v) => tabDefs[v]).filter(Boolean),
-    [tabOrder, tabDefs],
-  );
 
 
   const handleDownloadCSV = useCallback(async () => {
@@ -267,20 +144,21 @@ export default function ServicesPage() {
       }
     >
       <Tabs defaultValue="custom-services" className="space-y-6" data-tour-id="services-list">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={tabOrder} strategy={horizontalListSortingStrategy}>
-            <TabsList>
-              {orderedTabs.map((tab) => (
-                <SortableTabTrigger key={tab.value} tab={tab} />
-              ))}
-            </TabsList>
-          </SortableContext>
-        </DndContext>
+        <TabsList>
+          <TabsTrigger value="custom-services" className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Custom Services
+          </TabsTrigger>
+          <TabsTrigger value="service-pricing" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            Service Pricing
+          </TabsTrigger>
+          <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
+          <TabsTrigger value="frequencies" className="flex items-center gap-2">
+            <CalendarClock className="w-4 h-4" />
+            Frequencies
+          </TabsTrigger>
+        </TabsList>
 
 
         {/* Custom Services Management */}
