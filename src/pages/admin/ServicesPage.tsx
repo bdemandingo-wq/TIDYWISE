@@ -21,58 +21,7 @@ export default function ServicesPage() {
   const { servicePricing, loading: pricingLoading } = useServicePricing();
   const [downloading, setDownloading] = useState(false);
 
-  const [tabOrder, setTabOrder] = useState<string[]>(() => loadTabOrder());
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
-    } catch {
-      /* ignore quota errors */
-    }
-  }, [tabOrder]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setTabOrder((prev) => {
-      const oldIndex = prev.indexOf(String(active.id));
-      const newIndex = prev.indexOf(String(over.id));
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-  }, []);
-
-  const tabDefs = useMemo<Record<string, TabDef>>(
-    () => ({
-      'custom-services': {
-        value: 'custom-services',
-        label: 'Custom Services',
-        icon: <Plus className="w-4 h-4" />,
-      },
-      'service-pricing': {
-        value: 'service-pricing',
-        label: 'Service Pricing',
-        icon: <Settings2 className="w-4 h-4" />,
-      },
-      extras: { value: 'extras', label: 'Add-On Extras' },
-      frequencies: {
-        value: 'frequencies',
-        label: 'Frequencies',
-        icon: <CalendarClock className="w-4 h-4" />,
-      },
-    }),
-    [],
-  );
-
-  const orderedTabs = useMemo(
-    () => tabOrder.map((v) => tabDefs[v]).filter(Boolean),
-    [tabOrder, tabDefs],
-  );
 
 
   const handleDownloadCSV = useCallback(async () => {
