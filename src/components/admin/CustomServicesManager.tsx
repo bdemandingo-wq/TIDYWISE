@@ -435,59 +435,39 @@ export function CustomServicesManager() {
             <p>No services yet. Create your first service to get started!</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Service Name</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Base Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {services.map((service) => (
-                <TableRow key={service.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{service.name}</p>
-                      {service.description && (
-                        <p className="text-sm text-muted-foreground truncate max-w-xs">
-                          {service.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{service.duration} min</TableCell>
-                  <TableCell>{fmt(service.price)}</TableCell>
-                  <TableCell>
-                    <Badge variant={service.is_active ? 'default' : 'secondary'}>
-                      {service.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(service)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(service)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={handleDragEnd}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Service Name</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Base Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                <SortableContext
+                  items={services.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {services.map((service) => (
+                    <SortableServiceRow
+                      key={service.id}
+                      service={service}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </SortableContext>
+              </TableBody>
+            </Table>
+          </DndContext>
         )}
 
         <div className="mt-4 p-4 bg-secondary/50 rounded-lg">
