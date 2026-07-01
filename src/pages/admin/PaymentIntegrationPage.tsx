@@ -632,7 +632,7 @@ export default function PaymentIntegrationPage() {
                     <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
                       <li>✕ Do NOT connect the TidyWise platform&apos;s Stripe account</li>
                       <li>✓ You need your OWN Stripe account with your business name, EIN, and bank account</li>
-                      <li>✓ If you don&apos;t have one yet, create it at <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">dashboard.stripe.com/register</a> first</li>
+                      <li className="font-bold text-foreground">✓ If you don&apos;t have one yet, create it at <a href="https://dashboard.stripe.com/register" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">dashboard.stripe.com/register</a> first</li>
                       <li>✓ During Stripe signup, enter YOUR business name — NOT &ldquo;TidyWise&rdquo;</li>
                       <li>✓ All charges will go directly to YOUR bank account</li>
                     </ul>
