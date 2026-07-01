@@ -38,17 +38,38 @@ function countCompetitorMentions(html: string): number {
   const lower = html.toLowerCase();
   return COMPETITORS.filter((c) => lower.includes(c.toLowerCase())).length;
 }
-function calcQualityScore(o: { wordCount: number; hasFaq: boolean; competitorCount: number; hasH2: boolean; hasH3: boolean; hasMeta: boolean }): { score: number; notes: string[] } {
+function countNumericSentences(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return 0;
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  return sentences.filter((s) => /\d/.test(s)).length;
+}
+function keywordNeedsCompetitors(keyword: string): boolean {
+  const k = keyword.toLowerCase();
+  return /\b(software|vs\.?|alternative|alternatives|app|apps|tool|tools)\b/.test(k);
+}
+function calcQualityScore(o: { wordCount: number; hasFaq: boolean; competitorCount: number; hasH2: boolean; hasH3: boolean; hasMeta: boolean; targetKeyword: string; numericSentenceCount: number }): { score: number; notes: string[] } {
   const notes: string[] = []; let score = 0;
   if (o.wordCount >= 2500) { score += 30; notes.push("Words 30/30"); }
   else if (o.wordCount >= 1500) { score += 22; notes.push("Words 22/30"); }
   else if (o.wordCount >= 1000) { score += 12; notes.push(`Words low ${o.wordCount} 12/30`); }
   else notes.push(`Words too low ${o.wordCount} 0/30`);
   if (o.hasFaq) { score += 15; notes.push("FAQ 15/15"); } else notes.push("FAQ missing 0/15");
-  if (o.competitorCount >= 5) { score += 25; notes.push(`Competitors ${o.competitorCount} 25/25`); }
-  else if (o.competitorCount >= 3) { score += 18; notes.push(`Competitors ${o.competitorCount} 18/25`); }
-  else if (o.competitorCount >= 1) { score += 8; notes.push(`Competitors ${o.competitorCount} 8/25`); }
-  else notes.push("Competitors 0/25");
+
+  // 25pt slot: competitors ONLY for software/comparison topics; otherwise
+  // reward specific numbers/prices in the body (operator-detail signal).
+  if (keywordNeedsCompetitors(o.targetKeyword)) {
+    if (o.competitorCount >= 5) { score += 25; notes.push(`Competitors ${o.competitorCount} 25/25`); }
+    else if (o.competitorCount >= 3) { score += 18; notes.push(`Competitors ${o.competitorCount} 18/25`); }
+    else if (o.competitorCount >= 1) { score += 8; notes.push(`Competitors ${o.competitorCount} 8/25`); }
+    else notes.push("Competitors 0/25");
+  } else {
+    if (o.numericSentenceCount >= 8) { score += 25; notes.push(`Specifics ${o.numericSentenceCount} 25/25`); }
+    else if (o.numericSentenceCount >= 5) { score += 18; notes.push(`Specifics ${o.numericSentenceCount} 18/25`); }
+    else if (o.numericSentenceCount >= 2) { score += 8; notes.push(`Specifics ${o.numericSentenceCount} 8/25`); }
+    else notes.push(`Specifics ${o.numericSentenceCount} 0/25`);
+  }
+
   if (o.hasH2 && o.hasH3) { score += 20; notes.push("Structure 20/20"); }
   else if (o.hasH2) { score += 10; notes.push("Structure 10/20"); }
   else notes.push("Structure 0/20");
