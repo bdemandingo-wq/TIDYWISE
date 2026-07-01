@@ -1575,12 +1575,23 @@ export type Database = {
           payroll_report_send_hour: number
           payroll_start_day: number
           primary_color: string | null
+          recurring_discount_biweekly: number
+          recurring_discount_monthly: number
+          recurring_discount_one_time: number
+          recurring_discount_weekly: number
           reminder_email_body: string | null
           reminder_email_subject: string | null
           require_clockout_photos: boolean
           require_deposit: boolean | null
           resend_api_key: string | null
           review_sms_template: string | null
+          surge_holiday_enabled: boolean
+          surge_holiday_multiplier: number
+          surge_lastminute_enabled: boolean
+          surge_lastminute_hours: number
+          surge_lastminute_multiplier: number
+          surge_weekend_enabled: boolean
+          surge_weekend_multiplier: number
           timezone: string | null
           updated_at: string
         }
@@ -1625,12 +1636,23 @@ export type Database = {
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
+          recurring_discount_biweekly?: number
+          recurring_discount_monthly?: number
+          recurring_discount_one_time?: number
+          recurring_discount_weekly?: number
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
           require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
+          surge_holiday_enabled?: boolean
+          surge_holiday_multiplier?: number
+          surge_lastminute_enabled?: boolean
+          surge_lastminute_hours?: number
+          surge_lastminute_multiplier?: number
+          surge_weekend_enabled?: boolean
+          surge_weekend_multiplier?: number
           timezone?: string | null
           updated_at?: string
         }
@@ -1675,12 +1697,23 @@ export type Database = {
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
+          recurring_discount_biweekly?: number
+          recurring_discount_monthly?: number
+          recurring_discount_one_time?: number
+          recurring_discount_weekly?: number
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
           require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
+          surge_holiday_enabled?: boolean
+          surge_holiday_multiplier?: number
+          surge_lastminute_enabled?: boolean
+          surge_lastminute_hours?: number
+          surge_lastminute_multiplier?: number
+          surge_weekend_enabled?: boolean
+          surge_weekend_multiplier?: number
           timezone?: string | null
           updated_at?: string
         }
