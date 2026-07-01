@@ -770,7 +770,7 @@ export type Database = {
           is_published: boolean
           meta_description: string | null
           meta_title: string | null
-          published_at: string
+          published_at: string | null
           quality_notes: string | null
           quality_score: number | null
           read_time: string
@@ -799,7 +799,7 @@ export type Database = {
           is_published?: boolean
           meta_description?: string | null
           meta_title?: string | null
-          published_at?: string
+          published_at?: string | null
           quality_notes?: string | null
           quality_score?: number | null
           read_time?: string
@@ -828,7 +828,7 @@ export type Database = {
           is_published?: boolean
           meta_description?: string | null
           meta_title?: string | null
-          published_at?: string
+          published_at?: string | null
           quality_notes?: string | null
           quality_score?: number | null
           read_time?: string
