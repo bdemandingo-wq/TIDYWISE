@@ -42,18 +42,18 @@ const handler = async (req: Request): Promise<Response> => {
         });
       }
 
-      const allResults: string[] = [];
       // Throttle per-org sub-invocations to avoid Supabase edge function rate limits.
       // Without spacing, iterating many orgs in a tight loop triggers RateLimitError
       // and silently drops reminders for the orgs hit after the cap.
+      //
+      // With 85+ orgs and ~750ms between each fire-and-forget invocation, the top-level
+      // cron request was easily blowing past the edge function wall-clock and returning
+      // 502/503. Detach the fan-out with EdgeRuntime.waitUntil so the cron HTTP request
+      // completes immediately while the sub-invocations continue in the background.
       const orgUrl = `${supabaseUrl}/functions/v1/send-booking-reminder`;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-      // Invoke one org with up to 2 retries when the runtime throws
-      // RateLimitError. The previous implementation only handled HTTP
-      // 429 responses, so thrown rate-limit errors silently dropped
-      // reminders for any org hit after the per-function cap.
-      const invokeOrg = async (orgId: string, attempt = 0): Promise<string[]> => {
+      const invokeOrg = async (orgId: string, attempt = 0): Promise<void> => {
         try {
           const resp = await fetch(orgUrl, {
             method: "POST",
@@ -66,8 +66,8 @@ const handler = async (req: Request): Promise<Response> => {
             await new Promise((r) => setTimeout(r, retryAfter * 1000));
             return invokeOrg(orgId, attempt + 1);
           }
-          const result = await resp.json().catch(() => ({} as any));
-          return Array.isArray(result.reminders) ? result.reminders : [];
+          // Consume the body to avoid resource leaks in the Deno runtime.
+          await resp.text().catch(() => "");
         } catch (e: any) {
           const isRateLimit = e?.name === "RateLimitError" || /rate limit/i.test(String(e?.message || ""));
           if (isRateLimit && attempt < 2) {
@@ -77,19 +77,29 @@ const handler = async (req: Request): Promise<Response> => {
             return invokeOrg(orgId, attempt + 1);
           }
           console.error(`[send-booking-reminder] Error for org ${orgId}:`, e);
-          return [];
         }
       };
 
-      for (const org of orgs) {
-        const reminders = await invokeOrg(org.id);
-        if (reminders.length) allResults.push(...reminders);
-        // Space requests ~750ms apart to stay under per-function invocation limits
-        await new Promise((r) => setTimeout(r, 750));
+      const fanOut = async () => {
+        for (const org of orgs) {
+          await invokeOrg(org.id);
+          // Space requests ~750ms apart to stay under per-function invocation limits
+          await new Promise((r) => setTimeout(r, 750));
+        }
+        console.log(`[send-booking-reminder] Cron fan-out complete for ${orgs.length} orgs`);
+      };
+
+      // Detach the fan-out so the cron HTTP call returns immediately.
+      try {
+        // @ts-ignore EdgeRuntime is provided by Supabase's Deno edge runtime
+        EdgeRuntime.waitUntil(fanOut());
+      } catch {
+        // Fallback: still start the loop (unawaited) so at least it runs
+        fanOut().catch((e) => console.error("[send-booking-reminder] fanOut error:", e));
       }
 
-      return new Response(JSON.stringify({ success: true, message: `Cron complete: ${allResults.length} reminders`, reminders: allResults }), {
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
+      return new Response(JSON.stringify({ success: true, message: `Cron dispatched for ${orgs.length} orgs (async)` }), {
+        status: 202, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
