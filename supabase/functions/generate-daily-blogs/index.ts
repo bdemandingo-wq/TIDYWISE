@@ -282,6 +282,7 @@ serve(async (req) => {
 
     const wordCount = countWords(post.content);
     const competitorCount = countCompetitorMentions(post.content);
+    const numericSentenceCount = countNumericSentences(post.content);
     const hasFaq = /frequently asked|<h2[^>]*>\s*faq/i.test(post.content);
     const hasH2 = /<h2/i.test(post.content);
     const hasH3 = /<h3/i.test(post.content);
@@ -294,7 +295,7 @@ serve(async (req) => {
     const { data: slugClash } = await supabase.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
     if (slugClash) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
 
-    const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta });
+    const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount });
     const validationNotes: string[] = [...notes];
     if (similar) validationNotes.push(`⚠️ Similar to: "${similar.title}"`);
 
