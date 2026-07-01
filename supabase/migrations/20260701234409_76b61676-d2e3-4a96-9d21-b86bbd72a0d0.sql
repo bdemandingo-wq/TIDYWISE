@@ -1,0 +1,1 @@
+ALTER TABLE public.blog_posts ALTER COLUMN published_at DROP NOT NULL;
