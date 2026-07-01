@@ -213,21 +213,21 @@ export default function ServicesPage() {
       }
     >
       <Tabs defaultValue="custom-services" className="space-y-6" data-tour-id="services-list">
-        <TabsList>
-          <TabsTrigger value="custom-services" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Custom Services
-          </TabsTrigger>
-          <TabsTrigger value="service-pricing" className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4" />
-            Service Pricing
-          </TabsTrigger>
-          <TabsTrigger value="extras">Add-On Extras</TabsTrigger>
-          <TabsTrigger value="frequencies" className="flex items-center gap-2">
-            <CalendarClock className="w-4 h-4" />
-            Frequencies
-          </TabsTrigger>
-        </TabsList>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={tabOrder} strategy={horizontalListSortingStrategy}>
+            <TabsList>
+              {orderedTabs.map((tab) => (
+                <SortableTabTrigger key={tab.value} tab={tab} />
+              ))}
+            </TabsList>
+          </SortableContext>
+        </DndContext>
+
 
         {/* Custom Services Management */}
         <TabsContent value="custom-services" className="space-y-6">
