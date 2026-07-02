@@ -7,37 +7,28 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-portal-session",
 };
 
-interface Body {
-  client_user_id?: string;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { client_user_id }: Body = await req.json().catch(() => ({}));
-    if (!client_user_id || typeof client_user_id !== "string") {
-      return json({ error: "client_user_id required" }, 400);
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Validate portal user
-    const { data: portalUser, error: userErr } = await supabase
-      .from("client_portal_users")
-      .select("id, customer_id, organization_id, is_active")
-      .eq("id", client_user_id)
-      .maybeSingle();
-
-    if (userErr) throw userErr;
-    if (!portalUser || !portalUser.is_active) {
-      return json({ error: "invalid_or_inactive_portal_user" }, 403);
+    // Portal-only endpoint: caller must present a signed portal session.
+    // Never trust client_user_id from the body — take it from the session.
+    const session = await verifyPortalSession(req, supabase);
+    if (!session.ok) {
+      return json({ error: session.error }, session.status);
     }
+    const portalUser = {
+      id: session.portal_user_id,
+      customer_id: session.customer_id,
+      organization_id: session.organization_id,
+    };
 
     // Pull photos for this customer's bookings
     const { data: photos, error: photosErr } = await supabase
