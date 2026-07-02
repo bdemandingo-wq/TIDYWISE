@@ -1004,6 +1004,33 @@ export default function CustomersPage() {
                                   </TooltipTrigger>
                                   <TooltipContent>Payment History</TooltipContent>
                                 </Tooltip>
+                                <DropdownMenu>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                          <Megaphone className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Add to Campaign</TooltipContent>
+                                  </Tooltip>
+                                  <DropdownMenuContent align="end" className="w-56">
+                                    {availableCampaigns.length === 0 ? (
+                                      <DropdownMenuItem disabled>No campaigns available</DropdownMenuItem>
+                                    ) : (
+                                      availableCampaigns.map((c) => (
+                                        <DropdownMenuItem
+                                          key={c.id}
+                                          onClick={() => handleAddToCampaign(customer, c as { id: string; name: string; type: string; body: string })}
+                                        >
+                                          <Megaphone className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                                          <span className="truncate">{c.name}</span>
+                                        </DropdownMenuItem>
+                                      ))
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteClick(customer)}>
