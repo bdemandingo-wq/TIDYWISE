@@ -108,6 +108,13 @@ export default function PublicBookingPage() {
   const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [recurringDiscountConfig, setRecurringDiscountConfig] =
     useState<RecurringDiscountConfig>(HARDCODED_DEFAULTS);
+  // Per-org pet + exclude-parameters config (from get_public_booking_settings RPC).
+  const [petFee, setPetFee] = useState<number>(25);
+  const [petToggleEnabled, setPetToggleEnabled] = useState<boolean>(true);
+  const [excludedRoomTypes, setExcludedRoomTypes] = useState<Array<'bedroom' | 'bathroom' | 'full_bath'>>([]);
+  const [roomReductionPrices, setRoomReductionPrices] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({
+    bedroom: 25, bathroom: 20, full_bath: 25,
+  });
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
