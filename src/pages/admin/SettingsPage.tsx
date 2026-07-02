@@ -35,6 +35,7 @@ import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
 import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDiscountSettingsCard';
+import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
@@ -724,6 +725,7 @@ export default function SettingsPage() {
         <TabsContent value="pricing" className="space-y-6">
           <PricingSettingsCard />
           <RecurringDiscountSettingsCard />
+          <CustomFrequenciesManager />
           <SurgePricingSettings />
         </TabsContent>
 

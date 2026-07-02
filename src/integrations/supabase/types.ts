@@ -9529,6 +9529,7 @@ export type Database = {
           stripe_secret_key: string
         }[]
       }
+      get_public_booking_settings: { Args: { p_org_id: string }; Returns: Json }
       get_review_request_by_token: {
         Args: { p_token: string }
         Returns: {
