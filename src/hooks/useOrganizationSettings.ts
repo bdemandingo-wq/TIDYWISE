@@ -2,6 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
+export type ExcludableRoomType = 'bedroom' | 'bathroom' | 'full_bath';
+
+export interface RoomReductionPrices {
+  bedroom: number;
+  bathroom: number;
+  full_bath: number;
+}
+
+export const DEFAULT_ROOM_REDUCTION_PRICES: RoomReductionPrices = {
+  bedroom: 25,
+  bathroom: 20,
+  full_bath: 25,
+};
+
 export interface OrganizationPricingSettings {
   id?: string;
   organization_id: string;
@@ -21,6 +35,11 @@ export interface OrganizationPricingSettings {
   form_button_color: string | null;
   form_button_text_color: string | null;
   form_accent_color: string | null;
+  // New: pet toggle + exclude parameters
+  pet_fee: number;
+  pet_toggle_enabled: boolean;
+  excluded_room_types: ExcludableRoomType[];
+  room_reduction_prices: RoomReductionPrices;
 }
 
 const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
@@ -40,6 +59,10 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   form_button_color: null,
   form_button_text_color: null,
   form_accent_color: null,
+  pet_fee: 25,
+  pet_toggle_enabled: true,
+  excluded_room_types: [],
+  room_reduction_prices: { ...DEFAULT_ROOM_REDUCTION_PRICES },
 };
 
 export function useOrganizationSettings() {
@@ -79,6 +102,13 @@ export function useOrganizationSettings() {
           form_button_color: (data as any).form_button_color ?? null,
           form_button_text_color: (data as any).form_button_text_color ?? null,
           form_accent_color: (data as any).form_accent_color ?? null,
+          pet_fee: Number((data as any).pet_fee ?? 25),
+          pet_toggle_enabled: (data as any).pet_toggle_enabled ?? true,
+          excluded_room_types: ((data as any).excluded_room_types ?? []) as ExcludableRoomType[],
+          room_reduction_prices: {
+            ...DEFAULT_ROOM_REDUCTION_PRICES,
+            ...(((data as any).room_reduction_prices ?? {}) as Partial<RoomReductionPrices>),
+          },
         });
       } else {
         // Create default settings
@@ -120,6 +150,10 @@ export function useOrganizationSettings() {
         form_button_color: updates.form_button_color !== undefined ? updates.form_button_color : (settings?.form_button_color ?? null),
         form_button_text_color: updates.form_button_text_color !== undefined ? updates.form_button_text_color : (settings?.form_button_text_color ?? null),
         form_accent_color: updates.form_accent_color !== undefined ? updates.form_accent_color : (settings?.form_accent_color ?? null),
+        pet_fee: updates.pet_fee ?? settings?.pet_fee ?? 25,
+        pet_toggle_enabled: updates.pet_toggle_enabled ?? settings?.pet_toggle_enabled ?? true,
+        excluded_room_types: updates.excluded_room_types ?? settings?.excluded_room_types ?? [],
+        room_reduction_prices: updates.room_reduction_prices ?? settings?.room_reduction_prices ?? { ...DEFAULT_ROOM_REDUCTION_PRICES },
       };
 
       const { data, error } = await supabase
@@ -152,6 +186,13 @@ export function useOrganizationSettings() {
         form_button_color: (data as any).form_button_color ?? null,
         form_button_text_color: (data as any).form_button_text_color ?? null,
         form_accent_color: (data as any).form_accent_color ?? null,
+        pet_fee: Number((data as any).pet_fee ?? 25),
+        pet_toggle_enabled: (data as any).pet_toggle_enabled ?? true,
+        excluded_room_types: ((data as any).excluded_room_types ?? []) as ExcludableRoomType[],
+        room_reduction_prices: {
+          ...DEFAULT_ROOM_REDUCTION_PRICES,
+          ...(((data as any).room_reduction_prices ?? {}) as Partial<RoomReductionPrices>),
+        },
       });
 
       return true;
