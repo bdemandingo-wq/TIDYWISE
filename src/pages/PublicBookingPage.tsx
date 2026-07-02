@@ -42,6 +42,7 @@ import {
   HARDCODED_DEFAULTS,
   type RecurringDiscountConfig,
 } from '@/lib/recurringDiscount';
+import { useCustomFrequencies, resolveCustomFrequencyDiscountPct } from '@/hooks/useCustomFrequencies';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
