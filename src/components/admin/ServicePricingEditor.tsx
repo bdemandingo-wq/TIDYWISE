@@ -26,12 +26,138 @@ import { useServicePricing, ServicePricingData } from '@/hooks/useServicePricing
 import { 
   squareFootageRanges,
 } from '@/data/pricingData';
-import { Save, Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Save, Pencil, Plus, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+
 
 interface Service {
   id: string;
   name: string;
+}
+
+type EditingCell = { type: string; index: number } | null;
+
+function SortableConditionRow({
+  id,
+  opt,
+  index,
+  editingCell,
+  editValue,
+  setEditValue,
+  setEditingCell,
+  onLabelSave,
+  onPriceSave,
+  onDelete,
+  onKeyDown,
+}: {
+  id: string;
+  opt: { id: number | string; label: string; price: number };
+  index: number;
+  editingCell: EditingCell;
+  editValue: string;
+  setEditValue: (v: string) => void;
+  setEditingCell: (c: EditingCell) => void;
+  onLabelSave: (v: string) => void;
+  onPriceSave: (v: number) => void;
+  onDelete: () => void;
+  onKeyDown: (e: React.KeyboardEvent, save: () => void) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    background: isDragging ? 'hsl(var(--muted))' : undefined,
+  };
+  return (
+    <TableRow ref={setNodeRef} style={style} className="group">
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Reorder ${opt.label}`}
+            className="flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <div
+            className="flex-1 cursor-pointer"
+            onClick={() => {
+              setEditingCell({ type: 'condition-label', index });
+              setEditValue(opt.label);
+            }}
+          >
+            {editingCell?.type === 'condition-label' && editingCell.index === index ? (
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => onLabelSave(editValue)}
+                onKeyDown={(e) => onKeyDown(e, () => onLabelSave(editValue))}
+                className="h-7"
+                autoFocus
+              />
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                {opt.label}
+                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+              </span>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell
+        className="text-right cursor-pointer hover:bg-secondary/50"
+        onClick={() => {
+          setEditingCell({ type: 'condition', index });
+          setEditValue(opt.price.toString());
+        }}
+      >
+        {editingCell?.type === 'condition' && editingCell.index === index ? (
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => onPriceSave(parseFloat(editValue) || 0)}
+            onKeyDown={(e) => onKeyDown(e, () => onPriceSave(parseFloat(editValue) || 0))}
+            className="w-20 h-7 text-center ml-auto"
+            autoFocus
+            type="number"
+          />
+        ) : (
+          <span>+${opt.price}</span>
+        )}
+      </TableCell>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function ServicePricingEditor() {
@@ -171,12 +297,47 @@ export function ServicePricingEditor() {
     setEditingCell(null);
   };
 
+  const handlePetLabelEdit = (index: number, newLabel: string) => {
+    if (!currentPricing) return;
+    const newOptions = [...currentPricing.pet_options];
+    newOptions[index] = { ...newOptions[index], label: newLabel };
+    setCurrentPricing({ ...currentPricing, pet_options: newOptions });
+    setEditingCell(null);
+  };
+
   const handleConditionEdit = (index: number, newPrice: number) => {
     if (!currentPricing) return;
     const newOptions = [...currentPricing.home_condition_options];
     newOptions[index] = { ...newOptions[index], price: newPrice };
     setCurrentPricing({ ...currentPricing, home_condition_options: newOptions });
     setEditingCell(null);
+  };
+
+  const handleConditionLabelEdit = (index: number, newLabel: string) => {
+    if (!currentPricing) return;
+    const newOptions = [...currentPricing.home_condition_options];
+    newOptions[index] = { ...newOptions[index], label: newLabel };
+    setCurrentPricing({ ...currentPricing, home_condition_options: newOptions });
+    setEditingCell(null);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleConditionDragEnd = (event: DragEndEvent) => {
+    if (!currentPricing) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const items = currentPricing.home_condition_options;
+    const oldIndex = items.findIndex((o) => String(o.id) === String(active.id));
+    const newIndex = items.findIndex((o) => String(o.id) === String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    setCurrentPricing({
+      ...currentPricing,
+      home_condition_options: arrayMove(items, oldIndex, newIndex),
+    });
   };
 
   const handleDeletePet = (index: number) => {
@@ -509,7 +670,29 @@ export function ServicePricingEditor() {
                     >
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
-                    <p className="font-medium text-sm mb-1">{extra.name}</p>
+                    <div
+                      className="mb-1 cursor-pointer"
+                      onClick={() => {
+                        setEditingCell({ type: 'extra-name', index });
+                        setEditValue(extra.name);
+                      }}
+                    >
+                      {editingCell?.type === 'extra-name' && editingCell.index === index ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleExtraEdit(index, 'name', editValue)}
+                          onKeyDown={(e) => handleKeyDown(e, () => handleExtraEdit(index, 'name', editValue))}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                      ) : (
+                        <p className="font-medium text-sm inline-flex items-center gap-1">
+                          {extra.name}
+                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                        </p>
+                      )}
+                    </div>
                     <div
                       className="cursor-pointer"
                       onClick={() => {
@@ -591,7 +774,29 @@ export function ServicePricingEditor() {
                   <TableBody>
                     {currentPricing.pet_options.map((opt, index) => (
                       <TableRow key={opt.id} className="group">
-                        <TableCell>{opt.label}</TableCell>
+                        <TableCell
+                          className="cursor-pointer hover:bg-secondary/50"
+                          onClick={() => {
+                            setEditingCell({ type: 'pet-label', index });
+                            setEditValue(opt.label);
+                          }}
+                        >
+                          {editingCell?.type === 'pet-label' && editingCell.index === index ? (
+                            <Input
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handlePetLabelEdit(index, editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, () => handlePetLabelEdit(index, editValue))}
+                              className="h-7"
+                              autoFocus
+                            />
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              {opt.label}
+                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell 
                           className="text-right cursor-pointer hover:bg-secondary/50"
                           onClick={() => {
@@ -678,42 +883,34 @@ export function ServicePricingEditor() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentPricing.home_condition_options.map((opt, index) => (
-                      <TableRow key={opt.id} className="group">
-                        <TableCell>{opt.label}</TableCell>
-                        <TableCell 
-                          className="text-right cursor-pointer hover:bg-secondary/50"
-                          onClick={() => {
-                            setEditingCell({ type: 'condition', index });
-                            setEditValue(opt.price.toString());
-                          }}
-                        >
-                          {editingCell?.type === 'condition' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleConditionEdit(index, parseFloat(editValue) || 0)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handleConditionEdit(index, parseFloat(editValue) || 0))}
-                              className="w-20 h-7 text-center ml-auto"
-                              autoFocus
-                              type="number"
-                            />
-                          ) : (
-                            <span>+${opt.price}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="w-10">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteCondition(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                      onDragEnd={handleConditionDragEnd}
+                    >
+                      <SortableContext
+                        items={currentPricing.home_condition_options.map((o) => String(o.id))}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {currentPricing.home_condition_options.map((opt, index) => (
+                          <SortableConditionRow
+                            key={opt.id}
+                            id={String(opt.id)}
+                            opt={opt}
+                            index={index}
+                            editingCell={editingCell}
+                            editValue={editValue}
+                            setEditValue={setEditValue}
+                            setEditingCell={setEditingCell}
+                            onLabelSave={(v) => handleConditionLabelEdit(index, v)}
+                            onPriceSave={(v) => handleConditionEdit(index, v)}
+                            onDelete={() => handleDeleteCondition(index)}
+                            onKeyDown={handleKeyDown}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   </TableBody>
                 </Table>
               </CardContent>
