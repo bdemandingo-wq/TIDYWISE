@@ -171,6 +171,10 @@ export default function CampaignsPage() {
   // Campaign detail dialog
   const [detailCampaignId, setDetailCampaignId] = useState<string | null>(null);
 
+  // Campaign edit dialog
+  const [editCampaign, setEditCampaign] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", subject: "", body: "", is_active: false });
+
   // Test results
   const [testResult, setTestResult] = useState<{
     inactive: number; contactable: number; excludedCount?: number; customers?: any[];
@@ -426,6 +430,32 @@ export default function CampaignsPage() {
       toast({ title: "Campaign deleted" });
     },
   });
+
+  const updateCampaign = useMutation({
+    mutationFn: async () => {
+      if (!editCampaign) throw new Error("No campaign selected");
+      if (!orgId) throw new Error("Organization not found");
+      const { error } = await supabase
+        .from("automated_campaigns")
+        .update({
+          name: editForm.name,
+          subject: editForm.subject,
+          body: editForm.body,
+          is_active: editForm.is_active,
+        })
+        .eq("id", editCampaign.id)
+        .eq("organization_id", orgId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast({ title: "Campaign updated" });
+      setEditCampaign(null);
+    },
+    onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+  });
+
+
 
   const toggleAutomation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
@@ -803,6 +833,17 @@ export default function CampaignsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setEditForm({
+                              name: campaign.name || "",
+                              subject: campaign.subject || "",
+                              body: campaign.body || "",
+                              is_active: !!campaign.is_active,
+                            });
+                            setEditCampaign(campaign);
+                          }}>
+                            <Edit className="w-4 h-4 mr-2" /> Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => runCampaign.mutate(campaign.id)}>
                             <Play className="w-4 h-4 mr-2" /> Send Now
                           </DropdownMenuItem>
@@ -835,10 +876,22 @@ export default function CampaignsPage() {
                     {filteredCampaigns.map(campaign => (
                       <TableRow key={campaign.id} className="group hover:bg-muted/30">
                         <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{campaign.name}</p>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setEditForm({
+                                name: campaign.name || "",
+                                subject: campaign.subject || "",
+                                body: campaign.body || "",
+                                is_active: !!campaign.is_active,
+                              });
+                              setEditCampaign(campaign);
+                            }}
+                          >
+                            <p className="font-medium text-sm hover:text-primary transition-colors">{campaign.name}</p>
                             <p className="text-xs text-muted-foreground truncate max-w-[300px]">{campaign.body}</p>
-                          </div>
+                          </button>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs gap-1">
@@ -889,6 +942,23 @@ export default function CampaignsPage() {
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => setDetailCampaignId(campaign.id)} title="View tracking">
                               <BarChart3 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="min-h-[44px] w-8"
+                              title="Edit campaign"
+                              onClick={() => {
+                                setEditForm({
+                                  name: campaign.name || "",
+                                  subject: campaign.subject || "",
+                                  body: campaign.body || "",
+                                  is_active: !!campaign.is_active,
+                                });
+                                setEditCampaign(campaign);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => runCampaign.mutate(campaign.id)} disabled={runCampaign.isPending}>
                               <Play className="w-4 h-4" />
@@ -1449,6 +1519,66 @@ export default function CampaignsPage() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Campaign Dialog */}
+      <Dialog open={!!editCampaign} onOpenChange={(open) => { if (!open) setEditCampaign(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign</DialogTitle>
+            <DialogDescription>Update settings and messaging for this campaign.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-campaign-name">Name</Label>
+              <Input
+                id="edit-campaign-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Campaign name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-campaign-subject">Email Subject</Label>
+              <Input
+                id="edit-campaign-subject"
+                value={editForm.subject}
+                onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
+                placeholder="Subject (email campaigns only)"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-campaign-body">Message Body</Label>
+              <Textarea
+                id="edit-campaign-body"
+                value={editForm.body}
+                onChange={(e) => setEditForm(prev => ({ ...prev, body: e.target.value }))}
+                rows={7}
+                placeholder="Your message. Use {first_name} and {company_name} placeholders."
+              />
+              <p className="text-xs text-muted-foreground">
+                {editForm.body.length} chars • {Math.ceil((editForm.body.length || 1) / 160)} SMS segment(s)
+              </p>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Active</p>
+                <p className="text-xs text-muted-foreground">Inactive campaigns won't send automatically.</p>
+              </div>
+              <Switch
+                checked={editForm.is_active}
+                onCheckedChange={(v) => setEditForm(prev => ({ ...prev, is_active: v }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCampaign(null)}>Cancel</Button>
+            <Button onClick={() => updateCampaign.mutate()} disabled={updateCampaign.isPending || !editForm.name.trim()}>
+              {updateCampaign.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminLayout>
