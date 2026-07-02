@@ -79,7 +79,7 @@ function formatLocationLine(loc: Location) {
 export default function PortalRequestPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, customer, loading } = useClientPortal();
+  const { user, customer, loading, sessionToken } = useClientPortal();
   const [services, setServices] = useState<Service[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
