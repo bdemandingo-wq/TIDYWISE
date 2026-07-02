@@ -334,6 +334,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         signOut,
         refreshData,
         changePassword,
+        invokePortal,
       }}
     >
       {children}
