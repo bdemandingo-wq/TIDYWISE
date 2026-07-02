@@ -810,7 +810,7 @@ export default function PublicBookingPage() {
                           'cursor-pointer transition-all hover:shadow-md text-center',
                           selectedPetOption === pet.id && 'ring-2 ring-primary'
                         )}
-                        onClick={() => setSelectedPetOption(pet.id)}
+                        onClick={() => setSelectedPetOption(selectedPetOption === pet.id ? null : pet.id)}
                       >
                         <CardContent className="p-4">
                           <p className="font-semibold text-sm">{pet.label}</p>
