@@ -88,10 +88,21 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body: RequestBody = await req.json();
-    const { organizationId, customerName, requestedDate, serviceName, notes } = body;
+    // Portal-only endpoint: caller must present a signed portal session.
+    // Never trust org id from the body.
+    const session = await verifyPortalSession(req, supabase);
+    if (!session.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: session.error }),
+        { status: session.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const organizationId = session.organization_id;
 
-    if (!organizationId || !customerName || !requestedDate) {
+    const body: RequestBody = await req.json();
+    const { customerName, requestedDate, serviceName, notes } = body;
+
+    if (!customerName || !requestedDate) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
