@@ -52,6 +52,118 @@ interface Service {
   name: string;
 }
 
+interface Service {
+  id: string;
+  name: string;
+}
+
+type EditingCell = { type: string; index: number } | null;
+
+function SortableConditionRow({
+  id,
+  opt,
+  index,
+  editingCell,
+  editValue,
+  setEditValue,
+  setEditingCell,
+  onLabelSave,
+  onPriceSave,
+  onDelete,
+  onKeyDown,
+}: {
+  id: string;
+  opt: { id: number | string; label: string; price: number };
+  index: number;
+  editingCell: EditingCell;
+  editValue: string;
+  setEditValue: (v: string) => void;
+  setEditingCell: (c: EditingCell) => void;
+  onLabelSave: (v: string) => void;
+  onPriceSave: (v: number) => void;
+  onDelete: () => void;
+  onKeyDown: (e: React.KeyboardEvent, save: () => void) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    background: isDragging ? 'hsl(var(--muted))' : undefined,
+  };
+  return (
+    <TableRow ref={setNodeRef} style={style} className="group">
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Reorder ${opt.label}`}
+            className="flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <div
+            className="flex-1 cursor-pointer"
+            onClick={() => {
+              setEditingCell({ type: 'condition-label', index });
+              setEditValue(opt.label);
+            }}
+          >
+            {editingCell?.type === 'condition-label' && editingCell.index === index ? (
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => onLabelSave(editValue)}
+                onKeyDown={(e) => onKeyDown(e, () => onLabelSave(editValue))}
+                className="h-7"
+                autoFocus
+              />
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                {opt.label}
+                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+              </span>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell
+        className="text-right cursor-pointer hover:bg-secondary/50"
+        onClick={() => {
+          setEditingCell({ type: 'condition', index });
+          setEditValue(opt.price.toString());
+        }}
+      >
+        {editingCell?.type === 'condition' && editingCell.index === index ? (
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => onPriceSave(parseFloat(editValue) || 0)}
+            onKeyDown={(e) => onKeyDown(e, () => onPriceSave(parseFloat(editValue) || 0))}
+            className="w-20 h-7 text-center ml-auto"
+            autoFocus
+            type="number"
+          />
+        ) : (
+          <span>+${opt.price}</span>
+        )}
+      </TableCell>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function ServicePricingEditor() {
   const { organization } = useOrganization();
   const { getServicePricing, saveServicePricing, loading: pricingLoading, refetch } = useServicePricing();
