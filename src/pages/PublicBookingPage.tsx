@@ -680,9 +680,22 @@ export default function PublicBookingPage() {
                 <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {services.map((svc) => {
-                    const price = selectedSqFtIndex !== null 
-                      ? (svc.prices[selectedSqFtIndex] || svc.minimumPrice)
-                      : svc.minimumPrice;
+                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
+                    // per-service card shows a real amount whether the user is in sqft mode OR
+                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
+                    // never populated the service amount.
+                    const svcPricing = calculateBasePrice({
+                      sqftPrices: svc.prices,
+                      bedroomPricing: bedroomPricing as any,
+                      minimumPrice: svc.minimumPrice,
+                      squareFootageIndex: selectedSqFtIndex,
+                      bedrooms: selectedBedrooms,
+                      bathrooms: selectedBathrooms,
+                      pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                      fallbackBasePrice: svc.minimumPrice,
+                    });
+                    const price = svcPricing.base;
+                    const isMinPrice = selectedSqFtIndex === null && !(selectedBedrooms && selectedBathrooms);
                     
                     return (
                       <Card
