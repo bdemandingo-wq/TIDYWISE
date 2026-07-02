@@ -355,7 +355,15 @@ export function BookingFormProvider({
       // Apply frequency discount — pulled from per-org business_settings.
       // For triweekly/anyday (not yet configurable per-org) the helper
       // falls back to the legacy hardcoded values from pricingData.
-      const discountMult = getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
+      const customPct = resolveCustomFrequencyDiscountPct({
+        frequencyId: frequency,
+        customFrequencyDays,
+        recurringDaysOfWeek,
+        customFrequencies,
+      });
+      const discountMult = customPct > 0
+        ? customPct / 100
+        : getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
       if (discountMult > 0 && basePrice > 0) {
         basePrice = Math.round(basePrice * (1 - discountMult));
       }
