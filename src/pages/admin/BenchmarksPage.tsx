@@ -102,7 +102,7 @@ export default function BenchmarksPage() {
 
   return (
     <AdminLayout title="Benchmarks">
-      <SEOHead title="Benchmarks · TidyWise" description="See how your business compares to anonymous peers." />
+      <SEOHead title="Benchmarks · TidyWise" description="See how your business compares to anonymous peers." noIndex />
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
           <div className="flex items-center gap-2 mb-1">

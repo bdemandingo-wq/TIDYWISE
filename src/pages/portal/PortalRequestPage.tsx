@@ -298,6 +298,7 @@ export default function PortalRequestPage() {
         title="Request a Booking | Client Portal"
         description="Submit a booking request for your preferred date and service."
         canonical="/portal/request"
+        noIndex
       />
 
       {/* Header */}

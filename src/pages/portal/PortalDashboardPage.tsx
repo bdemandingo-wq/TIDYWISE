@@ -556,6 +556,7 @@ export default function PortalDashboardPage() {
           title="My Dashboard | Client Portal"
           description="View your bookings, loyalty status, and manage appointments."
           canonical="/portal/dashboard"
+          noIndex
         />
 
         {/* Native header */}
@@ -756,6 +757,7 @@ export default function PortalDashboardPage() {
         title="My Dashboard | Client Portal"
         description="View your bookings, loyalty status, and manage appointments."
         canonical="/portal/dashboard"
+        noIndex
       />
 
       {/* Header */}
