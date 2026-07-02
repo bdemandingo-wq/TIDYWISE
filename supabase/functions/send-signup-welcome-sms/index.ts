@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,21 +7,66 @@ const corsHeaders = {
 };
 
 interface SignupWelcomeSmsRequest {
-  to: string;
   fullName?: string;
 }
 
+function normalizePhone(raw: string): string {
+  let p = raw.replace(/\D/g, '');
+  if (p.length === 10) p = `1${p}`;
+  return `+${p}`;
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Use platform-level OpenPhone credentials (TidyWise's account)
+    // SECURITY: require an authenticated user. Destination phone is looked up
+    // from the caller's own profile — never taken from the request body — so
+    // this endpoint can't be abused to SMS arbitrary numbers.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const token = authHeader.slice(7).trim();
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const userId = userData.user.id;
+
+    // Pull the phone from the user's own profile — do NOT trust body input.
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("phone, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const rawPhone = (profile?.phone ?? "").toString().trim();
+    if (!rawPhone) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No phone on profile" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const formattedPhone = normalizePhone(rawPhone);
+
     const apiKey = Deno.env.get("OPENPHONE_API_KEY");
     const phoneNumberId = Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
-
     if (!apiKey || !phoneNumberId) {
       console.error("[send-signup-welcome-sms] Missing platform OpenPhone credentials");
       return new Response(
@@ -29,34 +75,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { to, fullName } = await req.json() as SignupWelcomeSmsRequest;
-
-    if (!to) {
-      console.error("[send-signup-welcome-sms] Missing phone number");
-      return new Response(
-        JSON.stringify({ success: false, error: "Phone number is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Format phone number (ensure it starts with +1 for US numbers)
-    let formattedPhone = to.replace(/\D/g, '');
-    if (formattedPhone.length === 10) {
-      formattedPhone = `+1${formattedPhone}`;
-    } else if (!formattedPhone.startsWith('+')) {
-      formattedPhone = `+${formattedPhone}`;
-    }
-
-    // Extract phone number ID if a full URL was provided
     let extractedPhoneNumberId = phoneNumberId;
     if (phoneNumberId.includes('openphone.com')) {
       const match = phoneNumberId.match(/phone-numbers\/([A-Za-z0-9]+)/);
-      if (match) {
-        extractedPhoneNumberId = match[1];
-      }
+      if (match) extractedPhoneNumberId = match[1];
     }
 
-    // Construct welcome message with features
+    const body = (await req.json().catch(() => ({}))) as SignupWelcomeSmsRequest;
+    const fullName = (body.fullName || profile?.full_name || "").toString().trim();
     const greeting = fullName ? `Hi ${fullName}! ` : "Hi! ";
     const message = `${greeting}Welcome to TidyWise! 🎉
 
@@ -70,9 +96,8 @@ Your account is ready! Here's what you can do:
 
 Complete your setup to start managing your cleaning business like a pro. Questions? Reply to this text!`;
 
-    console.log(`[send-signup-welcome-sms] Sending welcome SMS to ${formattedPhone}`);
+    console.log(`[send-signup-welcome-sms] Sending to user ${userId} at ${formattedPhone}`);
 
-    // Send SMS via OpenPhone API
     const response = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
@@ -89,7 +114,6 @@ Complete your setup to start managing your cleaning business like a pro. Questio
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[send-signup-welcome-sms] OpenPhone API error: ${response.status} - ${errorText}`);
-      // Don't fail signup - just log the error
       return new Response(
         JSON.stringify({ success: false, error: `SMS failed but signup continues` }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -97,18 +121,13 @@ Complete your setup to start managing your cleaning business like a pro. Questio
     }
 
     const result = await response.json();
-    console.log(`[send-signup-welcome-sms] Welcome SMS sent successfully:`, result);
-
     return new Response(
       JSON.stringify({ success: true, messageId: result.data?.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[send-signup-welcome-sms] Error:", errorMessage);
-
-    // Don't fail signup - just log and return success
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

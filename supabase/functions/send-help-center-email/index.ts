@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod@3.25.76";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +48,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { type, name, email, message, organization_id }: HelpCenterEmailRequest = parsed.data;
+
+    // SECURITY: caller must be a member of the organization (or service-role).
+    const gate = await verifyOrgAccess(req, organization_id);
+    if (!gate.ok) {
+      return new Response(
+        JSON.stringify({ error: gate.error }),
+        { status: gate.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     console.log("[send-help-center-email] Processing request for org:", organization_id);
 
