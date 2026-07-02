@@ -920,7 +920,9 @@ export default function PublicBookingPage() {
                         <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
                         {selectedFrequency !== 'one-time' && (
                           <p className="text-xs text-success font-medium mt-1">
-                            {selectedFrequency} discount applied
+                            {selectedFrequency.startsWith('custom:')
+                              ? `${customFrequencies.find((c) => `custom:${c.id}` === selectedFrequency)?.name ?? 'Custom'} discount applied`
+                              : `${selectedFrequency} discount applied`}
                           </p>
                         )}
                       </div>
