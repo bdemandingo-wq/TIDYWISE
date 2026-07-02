@@ -160,6 +160,91 @@ function SortableConditionRow({
   );
 }
 
+function SortableBedroomRow({
+  id,
+  item,
+  index,
+  editingCell,
+  editValue,
+  setEditValue,
+  setEditingCell,
+  onPriceSave,
+  onDelete,
+  onKeyDown,
+}: {
+  id: string;
+  item: { bedrooms: string; bathrooms: string; basePrice: number };
+  index: number;
+  editingCell: EditingCell;
+  editValue: string;
+  setEditValue: (v: string) => void;
+  setEditingCell: (c: EditingCell) => void;
+  onPriceSave: (v: number) => void;
+  onDelete: () => void;
+  onKeyDown: (e: React.KeyboardEvent, save: () => void) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    background: isDragging ? 'hsl(var(--muted))' : undefined,
+  };
+  return (
+    <TableRow ref={setNodeRef} style={style} className="group">
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Reorder ${item.bedrooms} bed ${item.bathrooms} bath`}
+            className="flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <span>{item.bedrooms} Bed</span>
+        </div>
+      </TableCell>
+      <TableCell>{item.bathrooms} Bath</TableCell>
+      <TableCell
+        className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
+        onClick={() => {
+          setEditingCell({ type: 'bedroom', index });
+          setEditValue(item.basePrice.toString());
+        }}
+      >
+        {editingCell?.type === 'bedroom' && editingCell.index === index ? (
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => onPriceSave(parseFloat(editValue) || 0)}
+            onKeyDown={(e) => onKeyDown(e, () => onPriceSave(parseFloat(editValue) || 0))}
+            className="w-24 h-8 text-center mx-auto"
+            autoFocus
+            type="number"
+          />
+        ) : (
+          <span className="inline-flex items-center gap-1">
+            ${item.basePrice}
+            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+          </span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function ServicePricingEditor() {
   const { organization } = useOrganization();
   const { getServicePricing, saveServicePricing, loading: pricingLoading, refetch } = useServicePricing();
@@ -337,6 +422,20 @@ export function ServicePricingEditor() {
     setCurrentPricing({
       ...currentPricing,
       home_condition_options: arrayMove(items, oldIndex, newIndex),
+    });
+  };
+
+  const handleBedroomDragEnd = (event: DragEndEvent) => {
+    if (!currentPricing) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const items = currentPricing.bedroom_pricing;
+    const oldIndex = parseInt(String(active.id).replace('bed-', ''), 10);
+    const newIndex = parseInt(String(over.id).replace('bed-', ''), 10);
+    if (Number.isNaN(oldIndex) || Number.isNaN(newIndex)) return;
+    setCurrentPricing({
+      ...currentPricing,
+      bedroom_pricing: arrayMove(items, oldIndex, newIndex),
     });
   };
 
@@ -566,46 +665,33 @@ export function ServicePricingEditor() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentPricing.bedroom_pricing.map((item, index) => (
-                      <TableRow key={`${item.bedrooms}-${item.bathrooms}-${index}`} className="group">
-                        <TableCell className="font-medium">{item.bedrooms} Bed</TableCell>
-                        <TableCell>{item.bathrooms} Bath</TableCell>
-                        <TableCell 
-                          className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
-                          onClick={() => {
-                            setEditingCell({ type: 'bedroom', index });
-                            setEditValue(item.basePrice.toString());
-                          }}
-                        >
-                          {editingCell?.type === 'bedroom' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleBedroomPriceEdit(index, parseFloat(editValue) || 0)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handleBedroomPriceEdit(index, parseFloat(editValue) || 0))}
-                              className="w-24 h-8 text-center mx-auto"
-                              autoFocus
-                              type="number"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              ${item.basePrice}
-                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                            onClick={() => handleDeleteBedroom(index)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                      onDragEnd={handleBedroomDragEnd}
+                    >
+                      <SortableContext
+                        items={currentPricing.bedroom_pricing.map((_, i) => `bed-${i}`)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {currentPricing.bedroom_pricing.map((item, index) => (
+                          <SortableBedroomRow
+                            key={`bed-${index}-${item.bedrooms}-${item.bathrooms}`}
+                            id={`bed-${index}`}
+                            item={item}
+                            index={index}
+                            editingCell={editingCell}
+                            editValue={editValue}
+                            setEditValue={setEditValue}
+                            setEditingCell={setEditingCell}
+                            onPriceSave={(v) => handleBedroomPriceEdit(index, v)}
+                            onDelete={() => handleDeleteBedroom(index)}
+                            onKeyDown={handleKeyDown}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   </TableBody>
                 </Table>
               </div>
