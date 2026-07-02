@@ -652,20 +652,21 @@ export default function PublicBookingPage() {
                       <div>
                         <Label className="text-base mb-2 block">Bathrooms</Label>
                         <div className="flex flex-wrap gap-2">
-                          {[...new Set(bedroomPricing
-                            .filter(bp => !selectedBedrooms || bp.bedrooms === Number(selectedBedrooms))
-                            .map(bp => bp.bathrooms)
-                          )].sort((a, b) => a - b).map(bath => (
-                            <Button
-                              key={bath}
-                              type="button"
-                              variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
-                              onClick={() => setSelectedBathrooms(String(bath))}
-                              className="min-w-[60px]"
-                            >
-                              {bath}
-                            </Button>
-                          ))}
+                          {/* Bug fix: show ALL bathroom options independent of selected bedrooms
+                              so the baths selector never disappears when a bed count is picked. */}
+                          {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
+                            .sort((a, b) => a - b)
+                            .map(bath => (
+                              <Button
+                                key={bath}
+                                type="button"
+                                variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
+                                onClick={() => setSelectedBathrooms(String(bath))}
+                                className="min-w-[60px]"
+                              >
+                                {bath}
+                              </Button>
+                            ))}
                         </div>
                       </div>
                     </CardContent>
@@ -679,9 +680,22 @@ export default function PublicBookingPage() {
                 <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {services.map((svc) => {
-                    const price = selectedSqFtIndex !== null 
-                      ? (svc.prices[selectedSqFtIndex] || svc.minimumPrice)
-                      : svc.minimumPrice;
+                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
+                    // per-service card shows a real amount whether the user is in sqft mode OR
+                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
+                    // never populated the service amount.
+                    const svcPricing = calculateBasePrice({
+                      sqftPrices: svc.prices,
+                      bedroomPricing: bedroomPricing as any,
+                      minimumPrice: svc.minimumPrice,
+                      squareFootageIndex: selectedSqFtIndex,
+                      bedrooms: selectedBedrooms,
+                      bathrooms: selectedBathrooms,
+                      pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                      fallbackBasePrice: svc.minimumPrice,
+                    });
+                    const price = svcPricing.base;
+                    const isMinPrice = selectedSqFtIndex === null && !(selectedBedrooms && selectedBathrooms);
                     
                     return (
                       <Card
@@ -708,7 +722,7 @@ export default function PublicBookingPage() {
                                   <DollarSign className="w-5 h-5" />
                                   {price}
                                 </div>
-                                {selectedSqFtIndex === null && (
+                                {isMinPrice && (
                                   <span className="text-xs text-muted-foreground">(min price)</span>
                                 )}
                               </div>
