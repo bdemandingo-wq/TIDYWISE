@@ -79,11 +79,34 @@ serve(async (req) => {
     }
 
     const result = data as { valid?: boolean; reason?: string; user_id?: string } | null;
-    if (!result?.valid) {
+    if (!result?.valid || !result.user_id) {
       return json({ valid: false, error: "invalid_credentials" }, 200);
     }
 
-    return json({ valid: true, user_id: result.user_id }, 200);
+    // Load customer_id + organization_id needed to mint a signed session token.
+    const { data: portalRow, error: rowErr } = await supabase
+      .from("client_portal_users")
+      .select("customer_id, organization_id, is_active")
+      .eq("id", result.user_id)
+      .maybeSingle();
+
+    if (rowErr || !portalRow || !portalRow.is_active) {
+      return json({ valid: false, error: "invalid_credentials" }, 200);
+    }
+
+    let session_token: string | null = null;
+    try {
+      session_token = await mintPortalSession({
+        portal_user_id: result.user_id,
+        customer_id: portalRow.customer_id,
+        organization_id: portalRow.organization_id,
+      });
+    } catch (mintErr) {
+      console.error("[client-portal-login] failed to mint session:", mintErr);
+      return json({ valid: false, error: "internal_error" }, 500);
+    }
+
+    return json({ valid: true, user_id: result.user_id, session_token }, 200);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[client-portal-login] unexpected:", msg);
