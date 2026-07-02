@@ -37,8 +37,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.copilot-reengagement-cron]
     verify_jwt = false
-  [functions.create-customer-portal-invite]
-    verify_jwt = false
   [functions.create-setup-intent]
     verify_jwt = false
   [functions.create-stripe-invoice]
@@ -96,8 +94,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
   [functions.public-booking-data]
     verify_jwt = false
   [functions.quote-expiry-reminder]
-    verify_jwt = false
-  [functions.redeem-customer-portal-invite]
     verify_jwt = false
   [functions.remove-customer-card]
     verify_jwt = false
