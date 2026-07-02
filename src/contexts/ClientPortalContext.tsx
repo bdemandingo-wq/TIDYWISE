@@ -52,6 +52,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ClientPortalUser | null>(null);
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load session from storage on mount
