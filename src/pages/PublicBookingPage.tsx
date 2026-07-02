@@ -1041,7 +1041,18 @@ export default function PublicBookingPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>{service?.name}</span>
-                      <span>${selectedSqFtIndex !== null && service ? (service.prices[selectedSqFtIndex] || service.minimumPrice) : 0}</span>
+                      {/* Bug fix: use pricing engine (same source as service card + total)
+                          so the summary populates from bed/bath OR sqft, not just sqft. */}
+                      <span>${service ? calculateBasePrice({
+                        sqftPrices: service.prices,
+                        bedroomPricing: bedroomPricing as any,
+                        minimumPrice: service.minimumPrice,
+                        squareFootageIndex: selectedSqFtIndex,
+                        bedrooms: selectedBedrooms,
+                        bathrooms: selectedBathrooms,
+                        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                        fallbackBasePrice: service.minimumPrice,
+                      }).base : 0}</span>
                     </div>
                     {selectedExtras.map(extraId => {
                       const extra = extras.find(e => e.id === extraId);
