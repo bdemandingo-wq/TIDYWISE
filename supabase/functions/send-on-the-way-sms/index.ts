@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -96,6 +97,30 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // AUTH: caller must be a member of the booking's organization
+    const auth = await verifyOrgAccess(req, booking.organization_id);
+    if (!auth.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: auth.error }),
+        { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // AUTH: staffId must belong to the same organization (prevent cross-tenant spoofing)
+    const { data: staffRow, error: staffOrgErr } = await supabase
+      .from('staff')
+      .select('id, organization_id')
+      .eq('id', staffId)
+      .maybeSingle();
+    if (staffOrgErr || !staffRow || staffRow.organization_id !== booking.organization_id) {
+      console.error("[send-on-the-way-sms] staffId does not belong to booking's org");
+      return new Response(
+        JSON.stringify({ success: false, error: "Staff does not belong to this organization" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
 
     // Handle customer as array from join
     const customerData = booking.customer as unknown;
