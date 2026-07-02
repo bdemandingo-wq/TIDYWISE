@@ -34,6 +34,12 @@ interface LoyaltyInfo {
   tier: string;
 }
 
+interface PortalInvokeResult<T = any> {
+  data: T | null;
+  error: any;
+  unauthorized: boolean;
+}
+
 interface ClientPortalContextType {
   user: ClientPortalUser | null;
   customer: CustomerInfo | null;
@@ -44,6 +50,7 @@ interface ClientPortalContextType {
   signOut: () => void;
   refreshData: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
+  invokePortal: <T = any>(name: string, options?: FunctionInvokeOptions) => Promise<PortalInvokeResult<T>>;
 }
 
 const ClientPortalContext = createContext<ClientPortalContextType | undefined>(undefined);
