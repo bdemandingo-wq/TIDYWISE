@@ -666,7 +666,29 @@ export function ServicePricingEditor() {
                   <TableBody>
                     {currentPricing.pet_options.map((opt, index) => (
                       <TableRow key={opt.id} className="group">
-                        <TableCell>{opt.label}</TableCell>
+                        <TableCell
+                          className="cursor-pointer hover:bg-secondary/50"
+                          onClick={() => {
+                            setEditingCell({ type: 'pet-label', index });
+                            setEditValue(opt.label);
+                          }}
+                        >
+                          {editingCell?.type === 'pet-label' && editingCell.index === index ? (
+                            <Input
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handlePetLabelEdit(index, editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, () => handlePetLabelEdit(index, editValue))}
+                              className="h-7"
+                              autoFocus
+                            />
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              {opt.label}
+                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell 
                           className="text-right cursor-pointer hover:bg-secondary/50"
                           onClick={() => {
