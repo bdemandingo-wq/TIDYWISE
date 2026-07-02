@@ -248,15 +248,30 @@ export default function PortalRequestPage() {
       }
 
       const serviceName = services.find((s) => s.id === selectedService)?.name;
-      supabase.functions.invoke("notify-booking-request", {
+      const notifyResult = await invokePortal("notify-booking-request", {
         body: {
           customerName: `${customer.first_name} ${customer.last_name}`,
           requestedDate: requestedDateISO,
           serviceName,
           notes: notes.trim() || undefined,
         },
-        headers: sessionToken ? { "x-portal-session": sessionToken } : undefined,
-      }).catch((err) => console.error("SMS notification error:", err));
+      });
+
+      if (notifyResult.unauthorized) {
+        // invokePortal already triggered sign-out + redirect. Do NOT claim success.
+        return;
+      }
+
+      if (notifyResult.error) {
+        console.error("SMS notification error:", notifyResult.error);
+        toast.error(
+          isReschedule
+            ? "Reschedule saved, but we couldn't notify the team. Please contact us to confirm."
+            : "Request saved, but we couldn't notify the team. Please contact us to confirm.",
+        );
+        navigate("/portal/dashboard");
+        return;
+      }
 
       toast.success(isReschedule ? "Reschedule request submitted! We'll confirm the update soon." : "Booking request submitted! We'll get back to you soon.");
       navigate("/portal/dashboard");
