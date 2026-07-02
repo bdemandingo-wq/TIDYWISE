@@ -2,6 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
+export type ExcludableRoomType = 'bedroom' | 'bathroom' | 'full_bath';
+
+export interface RoomReductionPrices {
+  bedroom: number;
+  bathroom: number;
+  full_bath: number;
+}
+
+export const DEFAULT_ROOM_REDUCTION_PRICES: RoomReductionPrices = {
+  bedroom: 25,
+  bathroom: 20,
+  full_bath: 25,
+};
+
 export interface OrganizationPricingSettings {
   id?: string;
   organization_id: string;
@@ -21,6 +35,11 @@ export interface OrganizationPricingSettings {
   form_button_color: string | null;
   form_button_text_color: string | null;
   form_accent_color: string | null;
+  // New: pet toggle + exclude parameters
+  pet_fee: number;
+  pet_toggle_enabled: boolean;
+  excluded_room_types: ExcludableRoomType[];
+  room_reduction_prices: RoomReductionPrices;
 }
 
 const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
@@ -40,6 +59,10 @@ const defaultSettings: Omit<OrganizationPricingSettings, 'organization_id'> = {
   form_button_color: null,
   form_button_text_color: null,
   form_accent_color: null,
+  pet_fee: 25,
+  pet_toggle_enabled: true,
+  excluded_room_types: [],
+  room_reduction_prices: { ...DEFAULT_ROOM_REDUCTION_PRICES },
 };
 
 export function useOrganizationSettings() {
