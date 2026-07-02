@@ -203,7 +203,67 @@ export default function CustomersPage() {
     }
     toast.success(`Added ${customer.first_name} to "${campaign.name}"`);
     queryClient.invalidateQueries({ queryKey: ['campaign-conversions', organization.id] });
+    queryClient.invalidateQueries({ queryKey: ['customer-campaign-enrollments', organization.id] });
   }, [organization?.id, queryClient]);
+
+  // Active campaign enrollments per customer (pending sends = actively enrolled)
+  const { data: enrollmentsByCustomer = new Map<string, { id: string; name: string }[]>() } = useQuery({
+    queryKey: ['customer-campaign-enrollments', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return new Map<string, { id: string; name: string }[]>();
+      const { data, error } = await supabase
+        .from('campaign_sms_sends')
+        .select('customer_id, campaign_id, status, automated_campaigns:campaign_id ( id, name )')
+        .eq('organization_id', organization.id)
+        .not('customer_id', 'is', null)
+        .in('status', ['pending', 'queued', 'scheduled']);
+      if (error) throw error;
+      const m = new Map<string, { id: string; name: string }[]>();
+      for (const row of (data as any[]) || []) {
+        if (!row.customer_id || !row.automated_campaigns) continue;
+        const arr = m.get(row.customer_id) || [];
+        if (!arr.find(c => c.id === row.automated_campaigns.id)) {
+          arr.push({ id: row.automated_campaigns.id, name: row.automated_campaigns.name });
+        }
+        m.set(row.customer_id, arr);
+      }
+      return m;
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const handleBulkAddToCampaign = useCallback(async (campaign: { id: string; name: string; type: string; body: string }) => {
+    if (!organization?.id || selectedIds.size === 0) return;
+    const selected = customers.filter(c => selectedIds.has(c.id) && c.phone);
+    const skipped = selectedIds.size - selected.length;
+    if (selected.length === 0) {
+      toast.error('None of the selected customers have a phone number');
+      return;
+    }
+    const rows = selected.map(c => ({
+      organization_id: organization.id,
+      campaign_id: campaign.id,
+      campaign_type: campaign.type,
+      customer_id: c.id,
+      phone_number: c.phone,
+      message_content: campaign.body,
+      status: 'pending' as const,
+    }));
+    const { error } = await supabase.from('campaign_sms_sends').insert(rows);
+    if (error) {
+      toast.error(`Failed to add to campaign: ${error.message}`);
+      return;
+    }
+    toast.success(
+      `Added ${selected.length} customer${selected.length === 1 ? '' : 's'} to "${campaign.name}"` +
+      (skipped > 0 ? ` (${skipped} skipped — no phone)` : '')
+    );
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ['customer-campaign-enrollments', organization.id] });
+    queryClient.invalidateQueries({ queryKey: ['campaign-conversions', organization.id] });
+  }, [organization?.id, selectedIds, customers, queryClient]);
+
 
 
   // Duplicate detection: same email or phone
