@@ -1014,6 +1014,27 @@ export default function CustomersPage() {
                               <div className="flex flex-col gap-1">
                                 {getStatusBadge(getEffectiveStatus(customer))}
                                 {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
+                                {(() => {
+                                  const enrolled = enrollmentsByCustomer.get(customer.id) || [];
+                                  if (enrolled.length === 0) return null;
+                                  const label = enrolled.length === 1 ? enrolled[0].name : `${enrolled.length} campaigns`;
+                                  return (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="text-[10px] border-primary/40 text-primary gap-1 max-w-[160px]">
+                                          <Megaphone className="w-3 h-3 flex-shrink-0" />
+                                          <span className="truncate">{label}</span>
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">
+                                        <div className="text-xs font-medium mb-1">Active campaigns</div>
+                                        <ul className="text-xs space-y-0.5">
+                                          {enrolled.map(e => <li key={e.id}>• {e.name}</li>)}
+                                        </ul>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell>
