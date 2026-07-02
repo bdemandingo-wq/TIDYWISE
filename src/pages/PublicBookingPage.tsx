@@ -29,7 +29,13 @@ import {
   Lock,
   Globe,
   X,
+  PawPrint,
+  Minus,
+  Plus,
+  ChevronDown,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
