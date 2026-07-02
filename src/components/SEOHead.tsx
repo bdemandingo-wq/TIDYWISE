@@ -9,6 +9,31 @@ const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayout
 const PRODUCTION_DOMAIN = "https://www.jointidywise.com";
 const DEFAULT_OG_IMAGE = `${PRODUCTION_DOMAIN}/images/tidywise-og.png`;
 
+/**
+ * Normalizes any path or URL to the canonical form:
+ * - forces the www production domain
+ * - strips query strings and hash fragments
+ * - strips trailing slashes (except root)
+ * - lowercases the path
+ */
+export function normalizeCanonical(input: string): string {
+  let path: string;
+  if (input.startsWith("http")) {
+    try {
+      path = new URL(input).pathname;
+    } catch {
+      path = "/";
+    }
+  } else {
+    path = input.startsWith("/") ? input : `/${input}`;
+  }
+  // strip query/hash if present in a raw path string
+  path = path.split("?")[0].split("#")[0].toLowerCase();
+  // strip trailing slash except for root
+  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+  return `${PRODUCTION_DOMAIN}${path}`;
+}
+
 type SEOHeadProps = {
   title: string;
   description: string;
@@ -30,12 +55,13 @@ export function SEOHead({
 }: SEOHeadProps) {
   // Derive canonical: explicit prop wins; otherwise use the current pathname
   // so every page emits a self-referencing canonical on the preferred (www) domain.
+  // IMPORTANT: query strings (utm_*, ref, fbclid, gclid, ...) are intentionally
+  // stripped — canonicals must always point at the clean URL, otherwise GSC
+  // reports canonical mismatches for every tracked visit.
   const pathFromBrowser =
-    typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+    typeof window !== "undefined" ? window.location.pathname : "/";
   const canonicalSource = canonical ?? pathFromBrowser;
-  const canonicalUrl = canonicalSource.startsWith("http")
-    ? canonicalSource
-    : `${PRODUCTION_DOMAIN}${canonicalSource.startsWith("/") ? canonicalSource : `/${canonicalSource}`}`;
+  const canonicalUrl = normalizeCanonical(canonicalSource);
 
   const imageUrl = ogImage
     ? ogImage.startsWith("http")
