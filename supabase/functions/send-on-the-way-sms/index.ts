@@ -98,6 +98,30 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // AUTH: caller must be a member of the booking's organization
+    const auth = await verifyOrgAccess(req, booking.organization_id);
+    if (!auth.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: auth.error }),
+        { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // AUTH: staffId must belong to the same organization (prevent cross-tenant spoofing)
+    const { data: staffRow, error: staffOrgErr } = await supabase
+      .from('staff')
+      .select('id, organization_id')
+      .eq('id', staffId)
+      .maybeSingle();
+    if (staffOrgErr || !staffRow || staffRow.organization_id !== booking.organization_id) {
+      console.error("[send-on-the-way-sms] staffId does not belong to booking's org");
+      return new Response(
+        JSON.stringify({ success: false, error: "Staff does not belong to this organization" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
     // Handle customer as array from join
     const customerData = booking.customer as unknown;
     const customer = Array.isArray(customerData) ? customerData[0] : customerData;
