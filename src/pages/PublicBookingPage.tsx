@@ -325,10 +325,18 @@ export default function PublicBookingPage() {
     }, 0);
     total += extrasTotal;
 
-    // Add pet fee
-    if (selectedPetOption && petOptions.length > 0) {
-      const pet = petOptions.find(p => p.id === selectedPetOption);
-      if (pet) total += pet.price;
+    // Add pet fee (single org-wide toggle)
+    if (hasPets && petFee > 0) total += petFee;
+
+    // Apply room-reduction discounts ("don't need entire home cleaned").
+    // Each excluded room type is skipped; each remaining type reduces total by
+    // (count * reduction price). Never allow the base to go below service minimum.
+    const reductionsTotal = (Object.keys(roomReductions) as Array<keyof typeof roomReductions>)
+      .filter((k) => !excludedRoomTypes.includes(k))
+      .reduce((sum, k) => sum + (roomReductions[k] || 0) * (roomReductionPrices[k] || 0), 0);
+    if (reductionsTotal > 0) {
+      const floor = service?.minimumPrice ?? 0;
+      total = Math.max(floor, total - reductionsTotal);
     }
 
     // Add home condition fee
