@@ -33,21 +33,24 @@ interface BookingGroup {
 }
 
 export function PortalPhotoJournalTab() {
-  const { user } = useClientPortal();
+  const { user, sessionToken } = useClientPortal();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<BookingGroup[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [flatPhotos, setFlatPhotos] = useState<JournalPhoto[]>([]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !sessionToken) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke(
           "get-portal-photo-journal",
-          { body: { client_user_id: user.id } },
+          {
+            body: {},
+            headers: { "x-portal-session": sessionToken },
+          },
         );
         if (cancelled) return;
         if (error) throw error;
@@ -86,7 +89,7 @@ export function PortalPhotoJournalTab() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, sessionToken]);
 
   if (loading) {
     return (

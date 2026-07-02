@@ -36,6 +36,7 @@ interface ClientPortalContextType {
   user: ClientPortalUser | null;
   customer: CustomerInfo | null;
   loyalty: LoyaltyInfo | null;
+  sessionToken: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => void;
@@ -51,6 +52,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ClientPortalUser | null>(null);
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load session from storage on mount
@@ -66,6 +68,9 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
           setUser(parsed.user);
           setCustomer(parsed.customer);
           setLoyalty(parsed.loyalty);
+          if (typeof parsed.sessionToken === 'string') {
+            setSessionToken(parsed.sessionToken);
+          }
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
@@ -74,7 +79,12 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const saveSession = (userData: ClientPortalUser, customerData: CustomerInfo, loyaltyData: LoyaltyInfo | null) => {
+  const saveSession = (
+    userData: ClientPortalUser,
+    customerData: CustomerInfo,
+    loyaltyData: LoyaltyInfo | null,
+    tokenOverride?: string | null,
+  ) => {
     // Expire sessions after 30 days to limit PII sitting in localStorage indefinitely
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
     // Strip the most sensitive PII (email, phone) from what we persist. These
@@ -89,10 +99,12 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       phone: null,
       property_type: customerData.property_type,
     };
+    const tokenToStore = tokenOverride !== undefined ? tokenOverride : sessionToken;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       user: userData,
       customer: safeCustomer,
       loyalty: loyaltyData,
+      sessionToken: tokenToStore,
       expiresAt,
     }));
   };
@@ -111,15 +123,17 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         return { error: 'Invalid email or password' };
       }
 
-      const validation = validationResult as { valid: boolean; error?: string; user_id?: string } | null;
+      const validation = validationResult as { valid: boolean; error?: string; user_id?: string; session_token?: string } | null;
 
       if (validation?.error === 'rate_limited') {
         return { error: 'Too many attempts. Please wait a few minutes and try again.' };
       }
 
-      if (!validation || !validation.valid) {
+      if (!validation || !validation.valid || !validation.session_token) {
         return { error: 'Invalid email or password' };
       }
+
+      const newSessionToken = validation.session_token;
 
 
       // Use the security definer function to get all user data by email
@@ -174,7 +188,8 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       setUser(portalUser);
       setCustomer(customerData);
       setLoyalty(loyaltyData);
-      saveSession(portalUser, customerData, loyaltyData);
+      setSessionToken(newSessionToken);
+      saveSession(portalUser, customerData, loyaltyData, newSessionToken);
 
       return { error: null };
     } catch (err: any) {
@@ -226,6 +241,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setCustomer(null);
     setLoyalty(null);
+    setSessionToken(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -272,6 +288,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         user,
         customer,
         loyalty,
+        sessionToken,
         loading,
         signIn,
         signOut,

@@ -1,14 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyPortalSession } from "../_shared/portal-session.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-portal-session, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface RequestBody {
-  organizationId: string;
+  // organizationId comes from the verified portal session, not the body.
   customerName: string;
   requestedDate: string;
   serviceName?: string;
@@ -87,10 +88,21 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body: RequestBody = await req.json();
-    const { organizationId, customerName, requestedDate, serviceName, notes } = body;
+    // Portal-only endpoint: caller must present a signed portal session.
+    // Never trust org id from the body.
+    const session = await verifyPortalSession(req, supabase);
+    if (!session.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: session.error }),
+        { status: session.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const organizationId = session.organization_id;
 
-    if (!organizationId || !customerName || !requestedDate) {
+    const body: RequestBody = await req.json();
+    const { customerName, requestedDate, serviceName, notes } = body;
+
+    if (!customerName || !requestedDate) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

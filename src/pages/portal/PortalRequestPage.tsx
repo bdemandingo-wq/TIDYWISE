@@ -79,7 +79,7 @@ function formatLocationLine(loc: Location) {
 export default function PortalRequestPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, customer, loading } = useClientPortal();
+  const { user, customer, loading, sessionToken } = useClientPortal();
   const [services, setServices] = useState<Service[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -250,12 +250,12 @@ export default function PortalRequestPage() {
       const serviceName = services.find((s) => s.id === selectedService)?.name;
       supabase.functions.invoke("notify-booking-request", {
         body: {
-          organizationId: user.organization_id,
           customerName: `${customer.first_name} ${customer.last_name}`,
           requestedDate: requestedDateISO,
           serviceName,
           notes: notes.trim() || undefined,
         },
+        headers: sessionToken ? { "x-portal-session": sessionToken } : undefined,
       }).catch((err) => console.error("SMS notification error:", err));
 
       toast.success(isReschedule ? "Reschedule request submitted! We'll confirm the update soon." : "Booking request submitted! We'll get back to you soon.");
