@@ -1054,7 +1054,7 @@ export default function CustomersPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                {getStatusBadge(getEffectiveStatus(customer))}
+                                <StatusBadgeMenu customer={customer} />
                                 {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
                                 {(() => {
                                   const enrolled = enrollmentsByCustomer.get(customer.id) || [];
