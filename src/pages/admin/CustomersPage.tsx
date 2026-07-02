@@ -917,7 +917,7 @@ export default function CustomersPage() {
                                   <p className="text-xs text-muted-foreground truncate">{maskPhone(customer.phone || '')}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  {getStatusBadge(getEffectiveStatus(customer))}
+                                  <StatusBadgeMenu customer={customer} />
                                   {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Possible Duplicate</Badge>}
                                 </div>
                               </div>
