@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,19 +20,21 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // SECURITY: service-role only. This endpoint blasts SMS to platform admins,
+  // so it must only be reachable from trusted server-to-server callers
+  // (e.g. the Stripe webhook edge function) that carry the service role JWT.
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!serviceKey || !bearer || bearer !== serviceKey) {
+    console.warn("[notify-platform-admin-subscription] Rejected non-service-role call");
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("[notify-platform-admin-subscription] Missing Supabase configuration");
-      return new Response(
-        JSON.stringify({ success: false, error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { organizationId, organizationName, ownerEmail, subscriptionType } = await req.json() as NotifyAdminRequest;
 
     if (!organizationId || !organizationName) {
@@ -56,14 +57,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Construct notification message
-    const timestamp = new Date().toLocaleString('en-US', { 
+    const timestamp = new Date().toLocaleString('en-US', {
       timeZone: 'America/New_York',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
     });
 
     const message = `🎉 NEW SUBSCRIPTION!\n\n` +
@@ -73,9 +69,6 @@ const handler = async (req: Request): Promise<Response> => {
       `Time: ${timestamp}\n\n` +
       `View in admin panel.`;
 
-    console.log(`[notify-platform-admin-subscription] Sending notification to platform admins: ${ADMIN_PHONES.join(', ')}`);
-
-    // Send SMS via OpenPhone API
     const response = await fetch("https://api.openphone.com/v1/messages", {
       method: "POST",
       headers: {
@@ -99,7 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const result = await response.json();
-    console.log(`[notify-platform-admin-subscription] SMS sent successfully:`, result);
+    console.log(`[notify-platform-admin-subscription] SMS sent successfully:`, result?.data?.id);
 
     return new Response(
       JSON.stringify({ success: true, messageId: result.data?.id }),
@@ -109,7 +102,6 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[notify-platform-admin-subscription] Error:", errorMessage);
-
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

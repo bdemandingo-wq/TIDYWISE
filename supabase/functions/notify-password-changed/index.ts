@@ -1,11 +1,10 @@
 // Sends a "your password was changed" confirmation email after a successful
-// password reset. This is a security notification (like Apple/Google do) so
-// the account holder knows if someone else changed their password.
-//
-// Platform-level send via RESEND_API_KEY — works for any user regardless
-// of which (or whether any) organization they belong to.
+// password reset. SECURITY: recipient is derived from the authenticated user's
+// own auth record — a body-supplied email is IGNORED so an attacker can't use
+// this endpoint to blast arbitrary addresses.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { tidywiseEmailFooterHtml } from "../_shared/email-footer.ts";
 
 const corsHeaders = {
@@ -17,21 +16,35 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-interface Body {
-  email: string;
-  name?: string | null;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { email, name } = (await req.json().catch(() => ({}))) as Body;
-    if (!email) {
-      return new Response(JSON.stringify({ error: "email is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Require an authenticated user; ignore any body-supplied email.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const token = authHeader.slice(7).trim();
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user?.email) {
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const email = userData.user.email;
+    const meta = (userData.user.user_metadata ?? {}) as { full_name?: string; name?: string };
+    const name = meta.full_name || meta.name || null;
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) {
