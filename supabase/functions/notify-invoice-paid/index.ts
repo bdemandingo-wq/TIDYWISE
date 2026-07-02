@@ -9,6 +9,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendOrgEmail } from "../_shared/send-org-email.ts";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,18 @@ serve(async (req) => {
       });
     }
 
+    // Pre-check auth when the caller supplied organization_id, to avoid
+    // leaking invoice existence via 404 to unauthenticated callers. The
+    // stripe-invoice-webhook chain always includes organization_id.
+    if (orgIdFromBody) {
+      const pre = await verifyOrgAccess(req, orgIdFromBody);
+      if (!pre.ok) {
+        return new Response(JSON.stringify({ error: pre.error }), {
+          status: pre.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -56,6 +69,16 @@ serve(async (req) => {
     if (!organizationId) {
       return new Response(JSON.stringify({ error: "missing organization_id" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify caller is either the service role (Stripe webhook chain) or an
+    // authenticated member of this organization.
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      console.warn("[notify-invoice-paid] Unauthorized:", access.error);
+      return new Response(JSON.stringify({ error: access.error }), {
+        status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
