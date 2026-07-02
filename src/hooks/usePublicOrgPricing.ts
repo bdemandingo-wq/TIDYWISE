@@ -212,6 +212,9 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
               minimumPrice: Number(pricing?.minimum_price ?? (servicePrice > 0 ? servicePrice : defaultSvc?.minimumPrice ?? 0)),
               prices: pricesArray,
               duration: svc.duration || 60,
+              // Per-service bed/bath grid: fixes bug where every service showed the same price
+              // because the page-level bedroomPricing was pulled from the first service only.
+              bedroomPricing: Array.isArray(pricing?.bedroom_pricing) ? pricing.bedroom_pricing : undefined,
             };
           });
 
