@@ -60,6 +60,16 @@ serve(async (req) => {
       });
     }
 
+    // Verify caller is either the service role (Stripe webhook chain) or an
+    // authenticated member of this organization.
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      console.warn("[notify-invoice-paid] Unauthorized:", access.error);
+      return new Response(JSON.stringify({ error: access.error }), {
+        status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: customer } = await supabase
       .from("customers")
       .select("first_name, last_name, email")
