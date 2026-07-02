@@ -932,6 +932,23 @@ export default function CampaignsPage() {
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => setDetailCampaignId(campaign.id)} title="View tracking">
                               <BarChart3 className="w-4 h-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="min-h-[44px] w-8"
+                              title="Edit campaign"
+                              onClick={() => {
+                                setEditForm({
+                                  name: campaign.name || "",
+                                  subject: campaign.subject || "",
+                                  body: campaign.body || "",
+                                  is_active: !!campaign.is_active,
+                                });
+                                setEditCampaign(campaign);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => runCampaign.mutate(campaign.id)} disabled={runCampaign.isPending}>
                               <Play className="w-4 h-4" />
                             </Button>
