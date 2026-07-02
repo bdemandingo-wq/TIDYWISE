@@ -156,6 +156,50 @@ export default function CustomersPage() {
     return m;
   }, [bookingStats]);
 
+  // Available campaigns for "Add to Campaign" per-row action
+  const { data: availableCampaigns = [] } = useQuery({
+    queryKey: ['available-campaigns', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('automated_campaigns')
+        .select('id, name, type, body, is_active')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const handleAddToCampaign = useCallback(async (customer: any, campaign: { id: string; name: string; type: string; body: string }) => {
+    if (!organization?.id) {
+      toast.error('Organization context missing');
+      return;
+    }
+    if (!customer.phone) {
+      toast.error('Customer has no phone number on file');
+      return;
+    }
+    const { error } = await supabase.from('campaign_sms_sends').insert({
+      organization_id: organization.id,
+      campaign_id: campaign.id,
+      campaign_type: campaign.type,
+      customer_id: customer.id,
+      phone_number: customer.phone,
+      message_content: campaign.body,
+      status: 'pending',
+    });
+    if (error) {
+      toast.error(`Failed to add to campaign: ${error.message}`);
+      return;
+    }
+    toast.success(`Added ${customer.first_name} to "${campaign.name}"`);
+    queryClient.invalidateQueries({ queryKey: ['campaign-conversions', organization.id] });
+  }, [organization?.id, queryClient]);
+
+
   // Duplicate detection: same email or phone
   const duplicates = useMemo(() => {
     const emailMap = new Map<string, string[]>();
