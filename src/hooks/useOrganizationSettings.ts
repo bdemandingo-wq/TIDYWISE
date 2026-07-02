@@ -186,6 +186,13 @@ export function useOrganizationSettings() {
         form_button_color: (data as any).form_button_color ?? null,
         form_button_text_color: (data as any).form_button_text_color ?? null,
         form_accent_color: (data as any).form_accent_color ?? null,
+        pet_fee: Number((data as any).pet_fee ?? 25),
+        pet_toggle_enabled: (data as any).pet_toggle_enabled ?? true,
+        excluded_room_types: ((data as any).excluded_room_types ?? []) as ExcludableRoomType[],
+        room_reduction_prices: {
+          ...DEFAULT_ROOM_REDUCTION_PRICES,
+          ...(((data as any).room_reduction_prices ?? {}) as Partial<RoomReductionPrices>),
+        },
       });
 
       return true;
