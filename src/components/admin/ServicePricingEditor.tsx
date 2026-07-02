@@ -562,7 +562,29 @@ export function ServicePricingEditor() {
                     >
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
-                    <p className="font-medium text-sm mb-1">{extra.name}</p>
+                    <div
+                      className="mb-1 cursor-pointer"
+                      onClick={() => {
+                        setEditingCell({ type: 'extra-name', index });
+                        setEditValue(extra.name);
+                      }}
+                    >
+                      {editingCell?.type === 'extra-name' && editingCell.index === index ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleExtraEdit(index, 'name', editValue)}
+                          onKeyDown={(e) => handleKeyDown(e, () => handleExtraEdit(index, 'name', editValue))}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                      ) : (
+                        <p className="font-medium text-sm inline-flex items-center gap-1">
+                          {extra.name}
+                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+                        </p>
+                      )}
+                    </div>
                     <div
                       className="cursor-pointer"
                       onClick={() => {
