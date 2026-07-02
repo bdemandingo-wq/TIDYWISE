@@ -692,42 +692,44 @@ export default function PublicBookingPage() {
                   <p className="text-muted-foreground mb-4">Select your home layout</p>
                   <Card>
                     <CardContent className="p-5 space-y-4">
-                      <div>
-                        <Label className="text-base mb-2 block">Bedrooms</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {[...new Set(bedroomPricing.map(bp => bp.bedrooms))].sort((a, b) => a - b).map(bed => (
-                            <Button
-                              key={bed}
-                              type="button"
-                              variant={selectedBedrooms === String(bed) ? 'default' : 'outline'}
-                              onClick={() => setSelectedBedrooms(String(bed))}
-                              className="min-w-[60px]"
-                            >
-                              {bed}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-base mb-2 block">Bathrooms</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {/* Bug fix: show ALL bathroom options independent of selected bedrooms
-                              so the baths selector never disappears when a bed count is picked. */}
-                          {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
-                            .sort((a, b) => a - b)
-                            .map(bath => (
+                      {!excludedRoomTypes.includes('bedroom') && (
+                        <div>
+                          <Label className="text-base mb-2 block">Bedrooms</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[...new Set(bedroomPricing.map(bp => bp.bedrooms))].sort((a, b) => a - b).map(bed => (
                               <Button
-                                key={bath}
+                                key={bed}
                                 type="button"
-                                variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
-                                onClick={() => setSelectedBathrooms(String(bath))}
+                                variant={selectedBedrooms === String(bed) ? 'default' : 'outline'}
+                                onClick={() => setSelectedBedrooms(String(bed))}
                                 className="min-w-[60px]"
                               >
-                                {bath}
+                                {bed}
                               </Button>
                             ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {!excludedRoomTypes.includes('bathroom') && (
+                        <div>
+                          <Label className="text-base mb-2 block">Bathrooms</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
+                              .sort((a, b) => a - b)
+                              .map(bath => (
+                                <Button
+                                  key={bath}
+                                  type="button"
+                                  variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
+                                  onClick={() => setSelectedBathrooms(String(bath))}
+                                  className="min-w-[60px]"
+                                >
+                                  {bath}
+                                </Button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
