@@ -264,7 +264,7 @@ export default function PublicBookingPage() {
     if (service) {
       const result = calculateBasePrice({
         sqftPrices: service.prices,
-        bedroomPricing: bedroomPricing as any,
+        bedroomPricing: (service.bedroomPricing ?? bedroomPricing) as any,
         minimumPrice: service.minimumPrice,
         squareFootageIndex: selectedSqFtIndex,
         bedrooms: selectedBedrooms,
@@ -686,7 +686,7 @@ export default function PublicBookingPage() {
                     // never populated the service amount.
                     const svcPricing = calculateBasePrice({
                       sqftPrices: svc.prices,
-                      bedroomPricing: bedroomPricing as any,
+                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
                       minimumPrice: svc.minimumPrice,
                       squareFootageIndex: selectedSqFtIndex,
                       bedrooms: selectedBedrooms,
@@ -1045,7 +1045,7 @@ export default function PublicBookingPage() {
                           so the summary populates from bed/bath OR sqft, not just sqft. */}
                       <span>${service ? calculateBasePrice({
                         sqftPrices: service.prices,
-                        bedroomPricing: bedroomPricing as any,
+                        bedroomPricing: (service.bedroomPricing ?? bedroomPricing) as any,
                         minimumPrice: service.minimumPrice,
                         squareFootageIndex: selectedSqFtIndex,
                         bedrooms: selectedBedrooms,
