@@ -56,6 +56,15 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    const auth = await verifyOrgAccess(req, organizationId);
+    if (!auth.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: auth.error }),
+        { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
     console.log("[send-admin-sms-notification] Processing notification for org:", organizationId);
 
     // Fetch SMS settings for the organization
