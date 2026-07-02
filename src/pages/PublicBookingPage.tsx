@@ -84,8 +84,13 @@ export default function PublicBookingPage() {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [selectedBedrooms, setSelectedBedrooms] = useState<string | null>(null);
   const [selectedBathrooms, setSelectedBathrooms] = useState<string | null>(null);
-  const [selectedPetOption, setSelectedPetOption] = useState<string | null>(null);
+  const [hasPets, setHasPets] = useState<boolean>(false);
   const [selectedHomeCondition, setSelectedHomeCondition] = useState<string | null>(null);
+  // Customer-selected room count reductions ("don't need entire home cleaned")
+  const [roomReductions, setRoomReductions] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({
+    bedroom: 0, bathroom: 0, full_bath: 0,
+  });
+  const [reducerOpen, setReducerOpen] = useState(false);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('one-time');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null); // "HH:mm" 24h format
