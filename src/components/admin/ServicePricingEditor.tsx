@@ -665,46 +665,33 @@ export function ServicePricingEditor() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentPricing.bedroom_pricing.map((item, index) => (
-                      <TableRow key={`${item.bedrooms}-${item.bathrooms}-${index}`} className="group">
-                        <TableCell className="font-medium">{item.bedrooms} Bed</TableCell>
-                        <TableCell>{item.bathrooms} Bath</TableCell>
-                        <TableCell 
-                          className="text-center cursor-pointer hover:bg-secondary/50 transition-colors"
-                          onClick={() => {
-                            setEditingCell({ type: 'bedroom', index });
-                            setEditValue(item.basePrice.toString());
-                          }}
-                        >
-                          {editingCell?.type === 'bedroom' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleBedroomPriceEdit(index, parseFloat(editValue) || 0)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handleBedroomPriceEdit(index, parseFloat(editValue) || 0))}
-                              className="w-24 h-8 text-center mx-auto"
-                              autoFocus
-                              type="number"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              ${item.basePrice}
-                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                            onClick={() => handleDeleteBedroom(index)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                      onDragEnd={handleBedroomDragEnd}
+                    >
+                      <SortableContext
+                        items={currentPricing.bedroom_pricing.map((_, i) => `bed-${i}`)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {currentPricing.bedroom_pricing.map((item, index) => (
+                          <SortableBedroomRow
+                            key={`bed-${index}-${item.bedrooms}-${item.bathrooms}`}
+                            id={`bed-${index}`}
+                            item={item}
+                            index={index}
+                            editingCell={editingCell}
+                            editValue={editValue}
+                            setEditValue={setEditValue}
+                            setEditingCell={setEditingCell}
+                            onPriceSave={(v) => handleBedroomPriceEdit(index, v)}
+                            onDelete={() => handleDeleteBedroom(index)}
+                            onKeyDown={handleKeyDown}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   </TableBody>
                 </Table>
               </div>
