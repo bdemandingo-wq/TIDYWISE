@@ -38,11 +38,12 @@ export function useCustomFrequencies(organizationId: string | null | undefined) 
 
 /**
  * Resolves the discount % (0-99) for a custom-frequency selection.
- * Supports two id shapes used across the app:
- *   - "custom:<uuid>"   → direct id match (used by the public booking form)
- *   - "custom"          → look up by matching interval_days / days_of_week
- *                         (used by the admin booking form which stores freq
- *                         as literal "custom" plus supporting fields)
+ * Supports id shapes used across the app:
+ *   - "custom:<uuid>"        → direct id match (public form card)
+ *   - "custom_days_<uuid>"   → direct id match (admin form select)
+ *   - "custom_<intervalDays>"→ interval match  (admin form select)
+ *   - "custom"               → look up by matching interval_days / days_of_week
+ *                              (admin form legacy path via supporting fields)
  */
 export function resolveCustomFrequencyDiscountPct(params: {
   frequencyId: string | null | undefined;
@@ -55,8 +56,22 @@ export function resolveCustomFrequencyDiscountPct(params: {
 
   if (frequencyId.startsWith('custom:')) {
     const id = frequencyId.slice('custom:'.length);
-    const row = customFrequencies.find((r) => r.id === id);
-    return row?.discount_pct ?? 0;
+    return customFrequencies.find((r) => r.id === id)?.discount_pct ?? 0;
+  }
+
+  if (frequencyId.startsWith('custom_days_')) {
+    const id = frequencyId.slice('custom_days_'.length);
+    return customFrequencies.find((r) => r.id === id)?.discount_pct ?? 0;
+  }
+
+  if (frequencyId.startsWith('custom_') && frequencyId !== 'custom') {
+    const n = parseInt(frequencyId.slice('custom_'.length), 10);
+    if (!Number.isNaN(n)) {
+      const row = customFrequencies.find(
+        (r) => (!r.days_of_week || r.days_of_week.length === 0) && r.interval_days === n,
+      );
+      return row?.discount_pct ?? 0;
+    }
   }
 
   if (frequencyId === 'custom') {
