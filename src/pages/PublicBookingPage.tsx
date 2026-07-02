@@ -817,6 +817,33 @@ export default function PublicBookingPage() {
                       </Card>
                       );
                     })}
+                    {customFrequencies.map((cf) => {
+                      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                      const sub = cf.days_of_week && cf.days_of_week.length > 0
+                        ? cf.days_of_week.map((d) => dayLabels[d]).join('/')
+                        : `Every ${cf.interval_days} day${cf.interval_days !== 1 ? 's' : ''}`;
+                      const id = `custom:${cf.id}`;
+                      return (
+                        <Card
+                          key={cf.id}
+                          className={cn(
+                            'cursor-pointer transition-all hover:shadow-md text-center',
+                            selectedFrequency === id && 'ring-2 ring-primary'
+                          )}
+                          onClick={() => setSelectedFrequency(id)}
+                        >
+                          <CardContent className="p-4">
+                            <p className="font-semibold">{cf.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                            {cf.discount_pct > 0 && (
+                              <Badge variant="secondary" className="mt-1 text-success">
+                                {cf.discount_pct}% off
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               )}
