@@ -13,6 +13,8 @@ export interface PublicService {
   minimumPrice: number;
   prices: number[];
   duration: number;
+  /** Per-service bed/bath grid. Falls back to org-level grid if absent. */
+  bedroomPricing?: BedroomPricing[];
 }
 
 export interface PublicExtra {
