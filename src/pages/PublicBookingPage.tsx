@@ -1045,7 +1045,7 @@ export default function PublicBookingPage() {
                           so the summary populates from bed/bath OR sqft, not just sqft. */}
                       <span>${service ? calculateBasePrice({
                         sqftPrices: service.prices,
-                        bedroomPricing: bedroomPricing as any,
+                        bedroomPricing: (service.bedroomPricing ?? bedroomPricing) as any,
                         minimumPrice: service.minimumPrice,
                         squareFootageIndex: selectedSqFtIndex,
                         bedrooms: selectedBedrooms,
