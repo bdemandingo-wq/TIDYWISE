@@ -775,42 +775,34 @@ export function ServicePricingEditor() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentPricing.home_condition_options.map((opt, index) => (
-                      <TableRow key={opt.id} className="group">
-                        <TableCell>{opt.label}</TableCell>
-                        <TableCell 
-                          className="text-right cursor-pointer hover:bg-secondary/50"
-                          onClick={() => {
-                            setEditingCell({ type: 'condition', index });
-                            setEditValue(opt.price.toString());
-                          }}
-                        >
-                          {editingCell?.type === 'condition' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleConditionEdit(index, parseFloat(editValue) || 0)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handleConditionEdit(index, parseFloat(editValue) || 0))}
-                              className="w-20 h-7 text-center ml-auto"
-                              autoFocus
-                              type="number"
-                            />
-                          ) : (
-                            <span>+${opt.price}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="w-10">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteCondition(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                      onDragEnd={handleConditionDragEnd}
+                    >
+                      <SortableContext
+                        items={currentPricing.home_condition_options.map((o) => String(o.id))}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {currentPricing.home_condition_options.map((opt, index) => (
+                          <SortableConditionRow
+                            key={opt.id}
+                            id={String(opt.id)}
+                            opt={opt}
+                            index={index}
+                            editingCell={editingCell}
+                            editValue={editValue}
+                            setEditValue={setEditValue}
+                            setEditingCell={setEditingCell}
+                            onLabelSave={(v) => handleConditionLabelEdit(index, v)}
+                            onPriceSave={(v) => handleConditionEdit(index, v)}
+                            onDelete={() => handleDeleteCondition(index)}
+                            onKeyDown={handleKeyDown}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   </TableBody>
                 </Table>
               </CardContent>
