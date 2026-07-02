@@ -200,7 +200,7 @@ export function PDFSignatureOverlay({ pdfUrl, saving, onSign, onCancel }: Props)
               {signaturePreview ? (
                 <div className="border-2 border-primary rounded bg-background/90 p-1 shadow-lg pointer-events-auto">
                   {signaturePreview.type === 'draw' ? (
-                    <img src={signaturePreview.data} alt="Your signature" className="h-16 max-w-[200px] object-contain" />
+                    <img src={signaturePreview.data} alt="Your signature" className="h-16 max-w-[200px] object-contain" height={64} />
                   ) : (
                     <p className="text-lg italic font-serif px-3 py-1" style={{ fontFamily: "'Georgia', serif" }}>
                       {signaturePreview.data}

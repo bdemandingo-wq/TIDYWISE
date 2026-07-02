@@ -80,7 +80,7 @@ function EmailPreviewDialog({
           {/* Email Header */}
           <div style={{ backgroundColor: bgColor }} className="p-6 text-center">
             {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="h-12 mx-auto mb-2" />
+              <img src={logoUrl} alt="Logo" className="h-12 mx-auto mb-2" height={48} loading="lazy" />
             ) : (
               <div className="text-white text-xl font-bold">{companyName || 'Your Company'}</div>
             )}

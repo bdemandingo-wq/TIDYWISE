@@ -406,6 +406,7 @@ export default function BookingPhotosPage() {
                       bucket="booking-photos"
                       alt="Full size"
                       className="w-full max-h-[60vh] object-contain"
+                      loading="eager"
                       fallback={
                         <div className="w-full h-64 flex items-center justify-center">
                           <ImageIcon className="w-12 h-12 text-muted-foreground" />

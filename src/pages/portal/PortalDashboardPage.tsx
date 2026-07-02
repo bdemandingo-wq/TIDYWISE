@@ -171,7 +171,7 @@ function InspectionPhoto({ path }: { path: string }) {
     </div>
   );
   if (!url) return <div className="w-full h-40 bg-muted rounded-lg flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
-  return <img src={url} alt="Inspection" className="w-full h-40 object-cover rounded-lg" onError={fetchUrl} />;
+  return <img src={url} alt="Inspection" className="w-full h-40 object-cover rounded-lg" height={160} loading="lazy" onError={fetchUrl} />;
 }
 
 export default function PortalDashboardPage() {

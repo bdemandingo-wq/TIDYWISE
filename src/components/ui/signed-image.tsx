@@ -16,6 +16,8 @@ interface SignedImageProps {
   fallback?: React.ReactNode;
   /** Signed URL expiration in seconds (default: 3600 = 1 hour) */
   expiresIn?: number;
+  /** Native loading attribute (default: lazy — these are gallery/preview thumbnails) */
+  loading?: 'lazy' | 'eager';
 }
 
 /**
@@ -29,6 +31,7 @@ export function SignedImage({
   className = '',
   fallback,
   expiresIn = 3600,
+  loading: loadingAttr = 'lazy',
 }: SignedImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,6 +102,7 @@ export function SignedImage({
       src={imageUrl}
       alt={alt}
       className={className}
+      loading={loadingAttr}
       onError={() => setError(true)}
     />
   );

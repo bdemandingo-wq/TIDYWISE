@@ -424,7 +424,7 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
                   playsInline
                 />
               ) : (
-                <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                <img src={previewUrl} alt="Preview" className="w-full h-48 object-cover rounded-lg" height={192} />
               )}
               <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 w-8 h-8" onClick={clearPreview}>
                 <X className="w-4 h-4" />

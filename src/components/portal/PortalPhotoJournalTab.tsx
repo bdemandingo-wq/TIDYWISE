@@ -269,6 +269,7 @@ function Lightbox({
               src={photo.url}
               alt={photo.caption ?? "Cleaning photo"}
               className="max-h-[85vh] w-auto object-contain"
+              loading="lazy"
             />
           )
         ) : (

@@ -244,7 +244,7 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
           ) : (
             <div className="space-y-3">
               <div className="relative">
-                <img src={pendingFile.previewUrl} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
+                <img src={pendingFile.previewUrl} alt="Preview" className="w-full h-40 object-cover rounded-lg" height={160} />
                 <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 w-7 h-7" onClick={clearPending}>
                   <X className="w-4 h-4" />
                 </Button>
@@ -271,7 +271,7 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
                   const { label, color } = CATEGORY_CONFIG[item.category];
                   return (
                     <div key={i} className="flex items-start gap-3 p-3 border rounded-lg bg-muted/30">
-                      <img src={item.previewUrl} alt="" className="w-14 h-14 object-cover rounded-md shrink-0" />
+                      <img src={item.previewUrl} alt="" className="w-14 h-14 object-cover rounded-md shrink-0" width={56} height={56} loading="lazy" />
                       <div className="flex-1 min-w-0">
                         <Badge variant="outline" className={`text-xs mb-1 ${color}`}>{label}</Badge>
                         {item.note && <p className="text-xs text-muted-foreground line-clamp-2">{item.note}</p>}

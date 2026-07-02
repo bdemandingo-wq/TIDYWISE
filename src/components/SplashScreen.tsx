@@ -41,10 +41,13 @@ export function SplashScreen({ onComplete, minDuration = 800 }: SplashScreenProp
           
           {/* Logo */}
           <div className="relative animate-[scale-in_0.5s_ease-out]">
-            <img 
-              src={tidywiseLogo} 
-              alt="TIDYWISE" 
+            <img
+              src={tidywiseLogo}
+              alt="TIDYWISE"
               className="h-20 w-auto object-contain"
+              width={1024}
+              height={1024}
+              fetchPriority="high"
             />
           </div>
         </div>

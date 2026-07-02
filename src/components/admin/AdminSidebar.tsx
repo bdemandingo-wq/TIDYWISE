@@ -485,7 +485,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border shrink-0">
         {logoUrl ? (
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-sidebar-accent shrink-0">
-            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" width={32} height={32} />
           </div>
         ) : (
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -578,7 +578,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         >
           {logoUrl ? (
             <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-sidebar-accent flex-shrink-0">
-              <img src={logoUrl} alt="Business Logo" className="w-full h-full object-cover" />
+              <img src={logoUrl} alt="Business Logo" className="w-full h-full object-cover" width={36} height={36} />
             </div>
           ) : (
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-medium text-primary-foreground flex-shrink-0">

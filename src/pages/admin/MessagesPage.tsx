@@ -1429,6 +1429,7 @@ export default function MessagesPage() {
                         {msg.media_urls.map((url, idx) => (
                           <div key={idx} className="relative group">
                             <img src={url} alt="MMS" className="max-w-full rounded-lg cursor-pointer"
+                              loading="lazy"
                               onClick={() => window.open(url, '_blank')}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             <Button variant="secondary" size="sm"
@@ -1640,7 +1641,7 @@ export default function MessagesPage() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Forward Photo</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              {forwardMediaUrl && <img src={forwardMediaUrl} alt="Photo to forward" className="w-full max-h-48 object-cover rounded-lg" />}
+              {forwardMediaUrl && <img src={forwardMediaUrl} alt="Photo to forward" className="w-full max-h-48 object-cover rounded-lg" loading="lazy" />}
               <div>
                 <Label className="text-sm font-medium">Send to</Label>
                 <Command className="border rounded-md mt-1">

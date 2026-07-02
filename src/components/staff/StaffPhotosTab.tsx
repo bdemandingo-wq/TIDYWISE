@@ -432,7 +432,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                         <Play className="w-5 h-5 text-white" />
                       </div>
                     ) : (
-                      <img src={item.preview} alt="" className="w-full h-full object-cover" />
+                      <img src={item.preview} alt="" className="w-full h-full object-cover" width={48} height={48} loading="lazy" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -570,6 +570,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
                 bucket="booking-photos"
                 alt="Preview"
                 className="w-full rounded-lg"
+                loading="eager"
                 fallback={<div className="w-full h-48 flex items-center justify-center bg-muted"><ImageIcon className="w-10 h-10 text-muted-foreground" /></div>}
               />
             )

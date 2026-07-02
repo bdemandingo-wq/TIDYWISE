@@ -391,6 +391,7 @@ export default function AdminHelpChat() {
                           src={msg.image_url}
                           alt="Uploaded"
                           className={`max-w-full max-h-48 rounded-xl object-cover ${msg.role === "user" ? "ml-auto" : ""}`}
+                          loading="lazy"
                         />
                       )}
                       {msg.content && msg.content !== "(image attached)" && (
@@ -428,7 +429,7 @@ export default function AdminHelpChat() {
               {pendingImage && (
                 <div className="px-4 pb-1">
                   <div className="relative inline-block">
-                    <img src={pendingImage} alt="Pending" className="h-16 rounded-lg object-cover border" />
+                    <img src={pendingImage} alt="Pending" className="h-16 rounded-lg object-cover border" height={64} />
                     <button
                       onClick={() => setPendingImage(null)}
                       className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"

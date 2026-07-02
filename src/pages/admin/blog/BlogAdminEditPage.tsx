@@ -251,7 +251,7 @@ export default function BlogAdminEditPage({ mode }: { mode: "new" | "edit" }) {
                 <Label htmlFor="featured_image_url">Featured Image URL</Label>
                 <Input id="featured_image_url" value={form.featured_image_url} onChange={(e) => update({ featured_image_url: e.target.value })} placeholder="https://..." />
                 {form.featured_image_url && (
-                  <img src={form.featured_image_url} alt="" className="mt-2 rounded-md border border-border w-full h-32 object-cover" />
+                  <img src={form.featured_image_url} alt="" className="mt-2 rounded-md border border-border w-full h-32 object-cover" height={128} loading="lazy" />
                 )}
               </div>
             </Card>

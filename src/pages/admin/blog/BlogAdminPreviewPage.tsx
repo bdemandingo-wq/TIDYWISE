@@ -37,7 +37,7 @@ export default function BlogAdminPreviewPage() {
 
         <Card className="p-8">
           {post.featured_image_url && (
-            <img src={post.featured_image_url} alt={post.title} className="w-full h-64 object-cover rounded-lg mb-6" />
+            <img src={post.featured_image_url} alt={post.title} className="w-full h-64 object-cover rounded-lg mb-6" height={256} loading="lazy" />
           )}
           <div className="text-sm text-muted-foreground mb-2">
             {post.category} · {post.read_time} · {post.published_at ? format(new Date(post.published_at), "MMMM d, yyyy") : "Unpublished"}

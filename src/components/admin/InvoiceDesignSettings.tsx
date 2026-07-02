@@ -109,7 +109,7 @@ export function InvoiceDesignSettings() {
           <CardContent>
             <div className="flex items-center gap-4">
               {form.logo_url ? (
-                <img src={form.logo_url} alt="Logo" className="h-12 w-auto max-w-[160px] object-contain rounded border p-1 bg-white" />
+                <img src={form.logo_url} alt="Logo" className="h-12 w-auto max-w-[160px] object-contain rounded border p-1 bg-white" height={48} loading="lazy" />
               ) : (
                 <div className="h-12 w-24 border-2 border-dashed rounded flex items-center justify-center text-xs text-muted-foreground">No logo</div>
               )}
@@ -265,7 +265,7 @@ export function InvoiceDesignSettings() {
 
 function InvoicePreview({ form }: { form: Omit<InvoiceBranding, 'id' | 'organization_id'> }) {
   const logoEl = form.logo_url ? (
-    <img src={form.logo_url} alt="Logo" className="h-8 w-auto max-w-[120px] object-contain" />
+    <img src={form.logo_url} alt="Logo" className="h-8 w-auto max-w-[120px] object-contain" height={32} loading="lazy" />
   ) : null;
 
   const companyBlock = (

@@ -176,6 +176,7 @@ export default function DepositPage() {
               alt={depositDetails.companyName}
               loading="lazy"
               className="h-12 mx-auto mb-3 object-contain"
+              height={48}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
