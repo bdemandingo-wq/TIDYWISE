@@ -1721,7 +1721,7 @@ export type Database = {
           {
             foreignKeyName: "business_settings_organization_id_fkey"
             columns: ["organization_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -2867,6 +2867,7 @@ export type Database = {
         Row: {
           created_at: string
           days_of_week: number[] | null
+          discount_pct: number
           id: string
           interval_days: number
           is_active: boolean
@@ -2877,6 +2878,7 @@ export type Database = {
         Insert: {
           created_at?: string
           days_of_week?: number[] | null
+          discount_pct?: number
           id?: string
           interval_days: number
           is_active?: boolean
@@ -2887,6 +2889,7 @@ export type Database = {
         Update: {
           created_at?: string
           days_of_week?: number[] | null
+          discount_pct?: number
           id?: string
           interval_days?: number
           is_active?: boolean
