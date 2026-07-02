@@ -241,6 +241,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setCustomer(null);
     setLoyalty(null);
+    setSessionToken(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
