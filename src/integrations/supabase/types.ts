@@ -1271,6 +1271,7 @@ export type Database = {
           reschedule_reason: string | null
           rescheduled_at: string | null
           rescheduled_by: string | null
+          room_reductions: Json | null
           scheduled_at: string
           service_id: string | null
           square_footage: string | null
@@ -1333,6 +1334,7 @@ export type Database = {
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
+          room_reductions?: Json | null
           scheduled_at: string
           service_id?: string | null
           square_footage?: string | null
@@ -1395,6 +1397,7 @@ export type Database = {
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
+          room_reductions?: Json | null
           scheduled_at?: string
           service_id?: string | null
           square_footage?: string | null
