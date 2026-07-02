@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 };
 
 interface InactiveCustomer {
@@ -22,10 +22,6 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  // Cron auth gate (allows manual invocation only with x-cron-secret)
-  const cronGate = requireCronSecret(req);
-  if (cronGate) return cronGate;
-
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -52,6 +48,28 @@ const handler = async (req: Request): Promise<Response> => {
       excludeRecentDays = 0,
       onlyAfterDate = null,
     } = await req.json();
+
+    // Auth gate: allow either cron secret (scheduled runs) OR an authenticated
+    // admin/owner of the target organization (manual runs from the admin UI).
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const providedCronSecret = req.headers.get("x-cron-secret");
+    const isCronCall = !!cronSecret && providedCronSecret === cronSecret;
+
+    if (!isCronCall) {
+      if (!organizationId) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Organization ID is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const authResult = await verifyOrgAccess(req, organizationId, { requireAdmin: true });
+      if (!authResult.ok) {
+        return new Response(
+          JSON.stringify({ success: false, error: authResult.error }),
+          { status: authResult.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     if (!organizationId) {
       return new Response(
