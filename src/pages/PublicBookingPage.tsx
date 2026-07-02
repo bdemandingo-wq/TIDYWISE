@@ -127,7 +127,13 @@ export default function PublicBookingPage() {
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
-  const { customFrequencies } = useCustomFrequencies(organizationId);
+  const { customFrequencies: customFrequenciesFromHook } = useCustomFrequencies(organizationId);
+  const [customFrequenciesFromRpc, setCustomFrequenciesFromRpc] = useState<
+    Array<{ id: string; name: string; interval_days: number; days_of_week: number[] | null; is_active: boolean; discount_pct: number }>
+  >([]);
+  const customFrequencies = customFrequenciesFromRpc.length > 0
+    ? customFrequenciesFromRpc
+    : customFrequenciesFromHook;
 
   const isLight = bookingFormTheme === 'light';
 
