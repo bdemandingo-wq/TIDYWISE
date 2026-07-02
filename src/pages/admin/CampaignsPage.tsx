@@ -431,6 +431,29 @@ export default function CampaignsPage() {
     },
   });
 
+  const updateCampaign = useMutation({
+    mutationFn: async () => {
+      if (!editCampaign) throw new Error("No campaign selected");
+      if (!orgId) throw new Error("Organization not found");
+      const { error } = await supabase
+        .from("automated_campaigns")
+        .update({
+          name: editForm.name,
+          subject: editForm.subject,
+          body: editForm.body,
+          is_active: editForm.is_active,
+        })
+        .eq("id", editCampaign.id)
+        .eq("organization_id", orgId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast({ title: "Campaign updated" });
+      setEditCampaign(null);
+    },
+    onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+
   const toggleAutomation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       const { error } = await supabase
