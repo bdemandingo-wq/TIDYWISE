@@ -686,7 +686,7 @@ export default function PublicBookingPage() {
                     // never populated the service amount.
                     const svcPricing = calculateBasePrice({
                       sqftPrices: svc.prices,
-                      bedroomPricing: bedroomPricing as any,
+                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
                       minimumPrice: svc.minimumPrice,
                       squareFootageIndex: selectedSqFtIndex,
                       bedrooms: selectedBedrooms,
