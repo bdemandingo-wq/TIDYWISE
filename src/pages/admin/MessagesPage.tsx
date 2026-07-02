@@ -115,6 +115,8 @@ const formatUnreadCount = (count: number) => {
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const composeParamHandled = useRef(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
