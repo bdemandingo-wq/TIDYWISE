@@ -865,10 +865,22 @@ export default function CampaignsPage() {
                     {filteredCampaigns.map(campaign => (
                       <TableRow key={campaign.id} className="group hover:bg-muted/30">
                         <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{campaign.name}</p>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setEditForm({
+                                name: campaign.name || "",
+                                subject: campaign.subject || "",
+                                body: campaign.body || "",
+                                is_active: !!campaign.is_active,
+                              });
+                              setEditCampaign(campaign);
+                            }}
+                          >
+                            <p className="font-medium text-sm hover:text-primary transition-colors">{campaign.name}</p>
                             <p className="text-xs text-muted-foreground truncate max-w-[300px]">{campaign.body}</p>
-                          </div>
+                          </button>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs gap-1">
