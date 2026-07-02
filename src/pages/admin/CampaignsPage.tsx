@@ -453,6 +453,9 @@ export default function CampaignsPage() {
       setEditCampaign(null);
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+  });
+
+
 
   const toggleAutomation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
