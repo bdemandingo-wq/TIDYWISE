@@ -434,6 +434,48 @@ export default function CustomersPage() {
     return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs">Lead</Badge>;
   };
 
+  const handleChangeStatus = useCallback(async (customer: any, newStatus: 'active' | 'lead' | 'inactive') => {
+    if (!organization?.id) return;
+    const current = customer.customer_status || 'lead';
+    if (current === newStatus) return;
+    const { error } = await supabase
+      .from('customers')
+      .update({ customer_status: newStatus })
+      .eq('id', customer.id)
+      .eq('organization_id', organization.id);
+    if (error) {
+      toast.error(`Failed to update status: ${error.message}`);
+      return;
+    }
+    const label = newStatus === 'active' ? 'Customer' : newStatus === 'lead' ? 'Lead' : 'Inactive';
+    toast.success(`${customer.first_name || 'Customer'} moved to ${label}`);
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+  }, [organization?.id, queryClient]);
+
+  const StatusBadgeMenu = ({ customer }: { customer: any }) => {
+    const effective = getEffectiveStatus(customer);
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className="inline-flex items-center hover:opacity-80 transition-opacity" aria-label="Change status">
+            {getStatusBadge(effective)}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-40">
+          <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'active')}>
+            <Users className="w-3.5 h-3.5 mr-2 text-emerald-600" /> Customer
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'lead')}>
+            <UserPlus className="w-3.5 h-3.5 mr-2 text-amber-600" /> Lead
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'inactive')}>
+            <UserX className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Inactive
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('asc'); }
@@ -875,7 +917,7 @@ export default function CustomersPage() {
                                   <p className="text-xs text-muted-foreground truncate">{maskPhone(customer.phone || '')}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  {getStatusBadge(getEffectiveStatus(customer))}
+                                  <StatusBadgeMenu customer={customer} />
                                   {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Possible Duplicate</Badge>}
                                 </div>
                               </div>
@@ -1012,7 +1054,7 @@ export default function CustomersPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                {getStatusBadge(getEffectiveStatus(customer))}
+                                <StatusBadgeMenu customer={customer} />
                                 {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
                                 {(() => {
                                   const enrolled = enrollmentsByCustomer.get(customer.id) || [];
