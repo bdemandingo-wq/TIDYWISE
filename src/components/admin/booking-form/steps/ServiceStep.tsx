@@ -435,9 +435,10 @@ export function ServiceStep() {
                       </div>
                       {customFrequencies.map((cf) => {
                         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                        const label = cf.days_of_week && cf.days_of_week.length > 0
+                        const base = cf.days_of_week && cf.days_of_week.length > 0
                           ? `${cf.name} (${cf.days_of_week.map(d => dayLabels[d]).join('/')})`
                           : `${cf.name} (Every ${cf.interval_days} day${cf.interval_days !== 1 ? 's' : ''})`;
+                        const label = (cf.discount_pct ?? 0) > 0 ? `${base} — ${cf.discount_pct}% off` : base;
                         const value = cf.days_of_week && cf.days_of_week.length > 0
                           ? `custom_days_${cf.id}`
                           : `custom_${cf.interval_days}`;
