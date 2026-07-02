@@ -8,7 +8,7 @@ import {
   CheckCircle2, Star, ArrowRight, Menu, X, Calendar,
   ChevronDown, ChevronUp,
 } from "lucide-react";
-import emmanuelPhoto from "@/assets/emmanuel-headshot.png";
+import emmanuelPhoto from "@/assets/emmanuel-headshot.webp";
 
 const testimonials = [
   {

@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense, useEffect, useRef } from "react";
-import emmanuelPhoto from "@/assets/emmanuel-headshot.png";
+import emmanuelPhoto from "@/assets/emmanuel-headshot.webp";
 
 const DemoBookingFormLazy = lazy(() => import("@/components/landing/DemoBookingForm").then(m => ({ default: m.DemoBookingForm })));
 import { Link, useNavigate } from "react-router-dom";
