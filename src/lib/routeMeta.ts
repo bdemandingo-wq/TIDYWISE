@@ -258,6 +258,12 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
       "Compare TidyWise and ZenMaid on pricing, scheduling, CRM, payroll, and mobile app polish. See which one your team will actually use daily.",
     h1: "TidyWise vs ZenMaid",
   },
+  "/compare/launch27": {
+    title: "TidyWise vs Launch27 — Flat-Rate Alternative",
+    description:
+      "Launch27 splits payroll and its mobile app across $150 and $299 tiers. TidyWise includes both at $49/month. Compare pricing and features side by side.",
+    h1: "TidyWise vs Launch27",
+  },
 
   // Features
   "/features/automated-dispatching": {

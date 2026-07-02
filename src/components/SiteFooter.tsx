@@ -123,6 +123,7 @@ export function SiteFooter() {
                   <li><Link to="/compare/housecall-pro" className={linkClass}>vs Housecall Pro</Link></li>
                   <li><Link to="/compare/servicetitan" className={linkClass}>vs ServiceTitan</Link></li>
                   <li><Link to="/compare/zenmaid" className={linkClass}>vs ZenMaid</Link></li>
+                  <li><Link to="/compare/launch27" className={linkClass}>vs Launch27</Link></li>
                 </ul>
               </FooterAccordionSection>
 

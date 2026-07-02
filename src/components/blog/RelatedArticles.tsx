@@ -169,4 +169,9 @@ export const allArticles: RelatedArticle[] = [
     title: "TidyWise vs ServiceTitan for Cleaning Businesses",
     category: "Comparison",
   },
+  {
+    slug: "/compare/launch27",
+    title: "TidyWise vs Launch27: Pricing & Feature Comparison",
+    category: "Comparison",
+  },
 ];

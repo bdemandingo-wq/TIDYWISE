@@ -126,6 +126,7 @@ const CompareJobber = lazy(() => import("./pages/compare/CompareJobber"));
 const CompareBookingKoala = lazy(() => import("./pages/compare/CompareBookingKoala"));
 const CompareZenMaid = lazy(() => import("./pages/compare/CompareZenMaid"));
 const CompareServiceTitan = lazy(() => import("./pages/compare/CompareServiceTitan"));
+const CompareLaunch27 = lazy(() => import("./pages/compare/CompareLaunch27"));
 const AutomatedDispatching = lazy(() => import("./pages/features/AutomatedDispatching"));
 const QuoteSoftware = lazy(() => import("./pages/features/QuoteSoftware"));
 const SMSNotifications = lazy(() => import("./pages/features/SMSNotifications"));
@@ -365,6 +366,7 @@ const App = () => (
                     <Route path="/compare/housecall-pro" element={<CompareHousecallPro />} />
                     <Route path="/compare/zenmaid" element={<CompareZenMaid />} />
                     <Route path="/compare/servicetitan" element={<CompareServiceTitan />} />
+                    <Route path="/compare/launch27" element={<CompareLaunch27 />} />
                     
                     {/* Feature Pages */}
                     <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
