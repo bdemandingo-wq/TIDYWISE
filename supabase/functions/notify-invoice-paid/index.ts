@@ -37,6 +37,18 @@ serve(async (req) => {
       });
     }
 
+    // Pre-check auth when the caller supplied organization_id, to avoid
+    // leaking invoice existence via 404 to unauthenticated callers. The
+    // stripe-invoice-webhook chain always includes organization_id.
+    if (orgIdFromBody) {
+      const pre = await verifyOrgAccess(req, orgIdFromBody);
+      if (!pre.ok) {
+        return new Response(JSON.stringify({ error: pre.error }), {
+          status: pre.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
