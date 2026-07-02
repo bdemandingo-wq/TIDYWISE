@@ -12,6 +12,7 @@ import { getLocalDateInTimezone, getTimeInTimezone } from '@/lib/timezoneUtils';
 import { calculateBasePrice } from '@/lib/pricingEngine';
 import { useRecurringDiscounts } from '@/hooks/useRecurringDiscounts';
 import { getFrequencyDiscountMultiplier } from '@/lib/recurringDiscount';
+import { useCustomFrequencies, resolveCustomFrequencyDiscountPct } from '@/hooks/useCustomFrequencies';
 
 interface CardInfo {
   hasCard: boolean;
