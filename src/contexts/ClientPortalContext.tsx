@@ -288,6 +288,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         user,
         customer,
         loyalty,
+        sessionToken,
         loading,
         signIn,
         signOut,
