@@ -218,6 +218,7 @@ export function BookingFormProvider({
   // Falls back to the previous hardcoded values when business_settings is
   // missing the columns or the row hasn't been created yet.
   const { config: recurringDiscountConfig } = useRecurringDiscounts();
+  const { customFrequencies } = useCustomFrequencies(organizationId);
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
