@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
