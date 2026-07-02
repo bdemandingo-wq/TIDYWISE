@@ -245,6 +245,13 @@ serve(async (req) => {
   } catch { /* no body — keep default */ }
 
   try {
+    // Safety: reset any row stuck in_progress for >30min back to queued so
+    // a prior timeout/crash doesn't wedge the queue forever.
+    const staleCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await supabase.from("blog_keyword_queue")
+      .update({ status: "queued", error_message: "auto-reset from stuck in_progress" })
+      .eq("status", "in_progress").lt("last_attempted_at", staleCutoff);
+
     const { data: nextKeywords, error: qErr } = await supabase
       .from("blog_keyword_queue").select("*").eq("status", "queued")
       .order("priority", { ascending: true }).order("created_at", { ascending: true }).limit(1);
@@ -259,94 +266,97 @@ serve(async (req) => {
       .update({ status: "in_progress", last_attempted_at: new Date().toISOString() })
       .eq("id", queueRow.id);
 
-    let post: GeneratedBlog;
-    try {
-      post = await callLovableAI(SYSTEM_PROMPT, buildUserPrompt(queueRow.keyword, queueRow.intent));
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await supabase.from("blog_keyword_queue")
-        .update({ status: "failed", error_message: msg, attempts: queueRow.attempts + 1 })
-        .eq("id", queueRow.id);
-      const { data: recentFailures } = await supabase.from("blog_keyword_queue")
-        .select("error_message").eq("status", "failed")
-        .order("last_attempted_at", { ascending: false }).limit(3);
-      if (recentFailures && recentFailures.length >= 3) {
-        await sendFailureAlert(recentFailures.map((r) => r.error_message || "Unknown"));
+    // Background task: generation can take 60-120s (AI + humanizer). Return 202
+    // immediately and let EdgeRuntime.waitUntil keep the worker alive.
+    const work = (async () => {
+      try {
+        console.log(`[bg] starting generation for "${queueRow.keyword}"`);
+        const post = await callLovableAI(SYSTEM_PROMPT, buildUserPrompt(queueRow.keyword, queueRow.intent));
+
+        post.content = await humanizePass(post.content);
+
+        const wordCount = countWords(post.content);
+        const competitorCount = countCompetitorMentions(post.content);
+        const numericSentenceCount = countNumericSentences(post.content);
+        const hasFaq = /frequently asked|<h2[^>]*>\s*faq/i.test(post.content);
+        const hasH2 = /<h2/i.test(post.content);
+        const hasH3 = /<h3/i.test(post.content);
+        const hasMeta = !!(post.meta_title && post.meta_description);
+
+        const { data: existing } = await supabase.from("blog_posts")
+          .select("title, slug").in("status", ["published", "draft"]).limit(500);
+        const similar = (existing || []).find((p) => titleSimilarity(p.title, post.title) >= TITLE_SIMILARITY_THRESHOLD);
+        let slug = post.slug ? generateSlug(post.slug) : generateSlug(post.title);
+        const { data: slugClash } = await supabase.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
+        if (slugClash) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+
+        const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount });
+        const validationNotes: string[] = [...notes];
+        if (similar) validationNotes.push(`⚠️ Similar to: "${similar.title}"`);
+
+        const featured_image_url = await fetchUnsplashImage(queueRow.keyword);
+
+        let finalContent = post.content;
+        if (post.faq && post.faq.length > 0 && !/itemtype="https:\/\/schema\.org\/FAQPage"/.test(finalContent)) {
+          const faqJsonLd = {
+            "@context": "https://schema.org", "@type": "FAQPage",
+            mainEntity: post.faq.map((q) => ({
+              "@type": "Question", name: q.question,
+              acceptedAnswer: { "@type": "Answer", text: q.answer },
+            })),
+          };
+          finalContent += `\n<script type="application/ld+json">${JSON.stringify(faqJsonLd)}</script>`;
+        }
+
+        const tooLowQuality = score < 60;
+        const shouldPublish = autoPublish && !similar && !tooLowQuality;
+        const nowIso = new Date().toISOString();
+
+        const { data: inserted, error: insErr } = await supabase.from("blog_posts").insert({
+          title: post.title, slug, excerpt: post.excerpt, content: finalContent,
+          meta_title: post.meta_title, meta_description: post.meta_description,
+          target_keyword: queueRow.keyword, secondary_keywords: post.secondary_keywords || [],
+          word_count: wordCount, ai_model_used: MODEL, featured_image_url,
+          category: "Cleaning Business", author: "TidyWise Team",
+          status: shouldPublish ? "published" : "draft",
+          is_published: shouldPublish,
+          published_at: shouldPublish ? nowIso : null,
+          quality_score: score, quality_notes: validationNotes.join(" • "),
+        }).select("id, slug, title").single();
+
+        if (insErr) throw insErr;
+
+        await supabase.from("blog_keyword_queue")
+          .update({ status: "completed", generated_post_id: inserted.id, error_message: null })
+          .eq("id", queueRow.id);
+        console.log(`[bg] completed "${queueRow.keyword}" → ${inserted.slug} (score ${score})`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`[bg] failed "${queueRow.keyword}":`, msg);
+        await supabase.from("blog_keyword_queue")
+          .update({ status: "failed", error_message: msg, attempts: queueRow.attempts + 1 })
+          .eq("id", queueRow.id);
+        const { data: recentFailures } = await supabase.from("blog_keyword_queue")
+          .select("error_message").eq("status", "failed")
+          .order("last_attempted_at", { ascending: false }).limit(3);
+        if (recentFailures && recentFailures.length >= 3) {
+          await sendFailureAlert(recentFailures.map((r) => r.error_message || "Unknown"));
+        }
       }
-      throw e;
+    })();
+
+    // @ts-ignore — EdgeRuntime is provided by Supabase's Deno runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(work);
+    } else {
+      // Local/dev fallback: don't await, just let it run.
+      work.catch((e) => console.error("[bg] unhandled:", e));
     }
-
-    // Humanizer second pass — rewrites the draft to sound less AI-generated.
-    // Runs BEFORE quality scoring so the scored content matches what's published.
-    post.content = await humanizePass(post.content);
-
-    const wordCount = countWords(post.content);
-    const competitorCount = countCompetitorMentions(post.content);
-    const numericSentenceCount = countNumericSentences(post.content);
-    const hasFaq = /frequently asked|<h2[^>]*>\s*faq/i.test(post.content);
-    const hasH2 = /<h2/i.test(post.content);
-    const hasH3 = /<h3/i.test(post.content);
-    const hasMeta = !!(post.meta_title && post.meta_description);
-
-    const { data: existing } = await supabase.from("blog_posts")
-      .select("title, slug").in("status", ["published", "draft"]).limit(500);
-    const similar = (existing || []).find((p) => titleSimilarity(p.title, post.title) >= TITLE_SIMILARITY_THRESHOLD);
-    let slug = post.slug ? generateSlug(post.slug) : generateSlug(post.title);
-    const { data: slugClash } = await supabase.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
-    if (slugClash) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
-
-    const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount });
-    const validationNotes: string[] = [...notes];
-    if (similar) validationNotes.push(`⚠️ Similar to: "${similar.title}"`);
-
-    const featured_image_url = await fetchUnsplashImage(queueRow.keyword);
-
-    let finalContent = post.content;
-    if (post.faq && post.faq.length > 0 && !/itemtype="https:\/\/schema\.org\/FAQPage"/.test(finalContent)) {
-      const faqJsonLd = {
-        "@context": "https://schema.org", "@type": "FAQPage",
-        mainEntity: post.faq.map((q) => ({
-          "@type": "Question", name: q.question,
-          acceptedAnswer: { "@type": "Answer", text: q.answer },
-        })),
-      };
-      finalContent += `\n<script type="application/ld+json">${JSON.stringify(faqJsonLd)}</script>`;
-    }
-
-    // Auto-publish gate: cron runs publish straight away so the site
-    // shows fresh posts without manual intervention. Manual admin
-    // generates default to draft via {auto_publish:false}.
-    // Skip auto-publish if quality is too low OR similar post already exists.
-    const tooLowQuality = score < 60;
-    const shouldPublish = autoPublish && !similar && !tooLowQuality;
-    const nowIso = new Date().toISOString();
-
-    const { data: inserted, error: insErr } = await supabase.from("blog_posts").insert({
-      title: post.title, slug, excerpt: post.excerpt, content: finalContent,
-      meta_title: post.meta_title, meta_description: post.meta_description,
-      target_keyword: queueRow.keyword, secondary_keywords: post.secondary_keywords || [],
-      word_count: wordCount, ai_model_used: MODEL, featured_image_url,
-      category: "Cleaning Business", author: "TidyWise Team",
-      status: shouldPublish ? "published" : "draft",
-      is_published: shouldPublish,
-      published_at: shouldPublish ? nowIso : null,
-      quality_score: score, quality_notes: validationNotes.join(" • "),
-    }).select("id, slug, title").single();
-
-    if (insErr) {
-      await supabase.from("blog_keyword_queue")
-        .update({ status: "failed", error_message: insErr.message, attempts: queueRow.attempts + 1 })
-        .eq("id", queueRow.id);
-      throw insErr;
-    }
-
-    await supabase.from("blog_keyword_queue")
-      .update({ status: "completed", generated_post_id: inserted.id, error_message: null })
-      .eq("id", queueRow.id);
 
     return new Response(
-      JSON.stringify({ ok: true, post: inserted, keyword: queueRow.keyword, quality_score: score, word_count: wordCount, competitor_mentions: competitorCount }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ accepted: true, keyword: queueRow.keyword, queue_id: queueRow.id }),
+      { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("generate-daily-blogs error:", e);
