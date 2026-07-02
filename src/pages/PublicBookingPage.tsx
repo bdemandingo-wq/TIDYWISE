@@ -895,32 +895,103 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
-              {/* Pet Options */}
-              {displaySettings.show_pet_options && petOptions.length > 0 && (
+              {/* Pets — single boolean toggle (org configurable) */}
+              {displaySettings.show_pet_options && petToggleEnabled && (
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Pets</h2>
-                  <p className="text-muted-foreground mb-4">Do you have any pets?</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {petOptions.map((pet) => (
-                      <Card
-                        key={pet.id}
-                        className={cn(
-                          'cursor-pointer transition-all hover:shadow-md text-center',
-                          selectedPetOption === pet.id && 'ring-2 ring-primary'
-                        )}
-                        onClick={() => setSelectedPetOption(selectedPetOption === pet.id ? null : pet.id)}
-                      >
-                        <CardContent className="p-4">
-                          <p className="font-semibold text-sm">{pet.label}</p>
-                          {pet.price > 0 && (
-                            <p className="text-primary font-semibold text-sm mt-1">+${pet.price}</p>
+                  <p className="text-muted-foreground mb-4">Do you have any pets in the home?</p>
+                  <Card>
+                    <CardContent className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <PawPrint className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-semibold">Pets in the home</p>
+                          {petFee > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              A ${petFee} pet fee will be added when enabled.
+                            </p>
                           )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={hasPets}
+                        onCheckedChange={setHasPets}
+                        aria-label="Toggle pet fee"
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
               )}
+
+              {/* Don't need the entire home cleaned? */}
+              {service && (selectedBedrooms > 0 || selectedBathrooms > 0) && (
+                <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span>Don't need the entire home cleaned?</span>
+                      <ChevronDown className={cn('h-4 w-4 transition-transform', reducerOpen && 'rotate-180')} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3">
+                    <Card>
+                      <CardContent className="p-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Skip rooms you don't need cleaned. Each skipped room reduces the total by the amount below.
+                        </p>
+                        {([
+                          { key: 'bedroom' as const, label: 'Bedrooms', max: selectedBedrooms },
+                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(selectedBathrooms) },
+                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(selectedBathrooms) },
+                        ])
+                          .filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0)
+                          .map((r) => {
+                            const count = roomReductions[r.key];
+                            const price = roomReductionPrices[r.key] || 0;
+                            return (
+                              <div key={r.key} className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-sm">Skip {r.label}</p>
+                                  <p className="text-xs text-muted-foreground">-${price} each</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({ ...prev, [r.key]: Math.max(0, prev[r.key] - 1) }))
+                                    }
+                                    disabled={count <= 0}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center text-sm font-semibold">{count}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({
+                                        ...prev,
+                                        [r.key]: Math.min(r.max, prev[r.key] + 1),
+                                      }))
+                                    }
+                                    disabled={count >= r.max}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </CardContent>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
 
               {/* Home Condition */}
               {displaySettings.show_home_condition && homeConditionOptions.length > 0 && (
