@@ -20,8 +20,12 @@ import {
   STATIC_ROUTE_META,
   locationRouteMeta,
   scoreCompanyRouteMeta,
+  blogPostRouteMeta,
+  scoreCityRouteMeta,
   type RouteMeta,
   type ScoreCompanyForMeta,
+  type BlogPostForMeta,
+  type ScoreCityForMeta,
 } from "./routeMeta";
 import { locationData } from "../data/locationData";
 
@@ -42,6 +46,40 @@ async function fetchScoreCompanies(): Promise<ScoreCompanyForMeta[]> {
     return (await res.json()) as ScoreCompanyForMeta[];
   } catch (err) {
     console.warn(`[prerender] score_companies fetch error:`, err);
+    return [];
+  }
+}
+
+async function fetchBlogPosts(): Promise<BlogPostForMeta[]> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/blog_posts?select=slug,title,meta_title,meta_description,excerpt,author,published_at,updated_at&status=eq.published&limit=5000`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[prerender] blog_posts fetch failed: ${res.status}`);
+      return [];
+    }
+    return (await res.json()) as BlogPostForMeta[];
+  } catch (err) {
+    console.warn(`[prerender] blog_posts fetch error:`, err);
+    return [];
+  }
+}
+
+async function fetchScoreCities(): Promise<ScoreCityForMeta[]> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_top_cities?select=city_slug,city,state&limit=5000`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[prerender] score_top_cities fetch failed: ${res.status}`);
+      return [];
+    }
+    return (await res.json()) as ScoreCityForMeta[];
+  } catch (err) {
+    console.warn(`[prerender] score_top_cities fetch error:`, err);
     return [];
   }
 }
@@ -164,7 +202,11 @@ function patchHead(html: string, route: string, meta: RouteMeta): string {
   return out;
 }
 
-function allRoutes(scoreCompanies: ScoreCompanyForMeta[]): string[] {
+function allRoutes(
+  scoreCompanies: ScoreCompanyForMeta[],
+  blogPosts: BlogPostForMeta[],
+  scoreCities: ScoreCityForMeta[]
+): string[] {
   const routes = new Set<string>(Object.keys(STATIC_ROUTE_META));
   for (const slug of Object.keys(locationData)) {
     routes.add(`/cleaning-business-software/${slug}`);
@@ -172,10 +214,21 @@ function allRoutes(scoreCompanies: ScoreCompanyForMeta[]): string[] {
   for (const c of scoreCompanies) {
     if (c.slug) routes.add(`/score/c/${c.slug}`);
   }
+  for (const p of blogPosts) {
+    if (p.slug) routes.add(`/blog/post/${p.slug}`);
+  }
+  for (const c of scoreCities) {
+    if (c.city_slug) routes.add(`/score/city/${c.city_slug}`);
+  }
   return [...routes];
 }
 
-function metaFor(route: string, scoreBySlug: Map<string, ScoreCompanyForMeta>): RouteMeta {
+function metaFor(
+  route: string,
+  scoreBySlug: Map<string, ScoreCompanyForMeta>,
+  blogBySlug: Map<string, BlogPostForMeta>,
+  cityBySlug: Map<string, ScoreCityForMeta>
+): RouteMeta {
   if (STATIC_ROUTE_META[route]) return STATIC_ROUTE_META[route];
   const locMatch = route.match(/^\/cleaning-business-software\/([a-z0-9-]+)$/);
   if (locMatch) {
@@ -187,6 +240,16 @@ function metaFor(route: string, scoreBySlug: Map<string, ScoreCompanyForMeta>): 
   if (scoreMatch) {
     const c = scoreBySlug.get(scoreMatch[1]);
     if (c) return scoreCompanyRouteMeta(c);
+  }
+  const blogMatch = route.match(/^\/blog\/post\/([a-z0-9-]+)$/i);
+  if (blogMatch) {
+    const p = blogBySlug.get(blogMatch[1]);
+    if (p) return blogPostRouteMeta(p);
+  }
+  const cityMatch = route.match(/^\/score\/city\/([a-z0-9-]+)$/i);
+  if (cityMatch) {
+    const c = cityBySlug.get(cityMatch[1]);
+    if (c) return scoreCityRouteMeta(c);
   }
   return STATIC_ROUTE_META["/"];
 }
@@ -207,14 +270,20 @@ export async function prerenderRoutes(
   }
   const sourceHtml = readFileSync(sourceHtmlPath, "utf8");
 
-  const scoreCompanies = await fetchScoreCompanies();
+  const [scoreCompanies, blogPosts, scoreCities] = await Promise.all([
+    fetchScoreCompanies(),
+    fetchBlogPosts(),
+    fetchScoreCities(),
+  ]);
   const scoreBySlug = new Map(scoreCompanies.map((c) => [c.slug, c]));
+  const blogBySlug = new Map(blogPosts.map((p) => [p.slug, p]));
+  const cityBySlug = new Map(scoreCities.map((c) => [c.city_slug, c]));
 
   let written = 0;
   let skipped = 0;
-  for (const route of allRoutes(scoreCompanies)) {
+  for (const route of allRoutes(scoreCompanies, blogPosts, scoreCities)) {
     try {
-      const meta = metaFor(route, scoreBySlug);
+      const meta = metaFor(route, scoreBySlug, blogBySlug, cityBySlug);
       const patched = patchHead(sourceHtml, route, meta);
       const dest = routeToFile(distDir, route);
       mkdirSync(dirname(dest), { recursive: true });

@@ -111,6 +111,27 @@ async function fetchScoreCompanies(): Promise<Array<{ slug: string; lastmod?: st
   }
 }
 
+async function fetchScoreCitySlugs(): Promise<string[]> {
+  const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
+  const ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2ZrYXFjenZ3dnZ2YXZrZ3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNjk4OTQsImV4cCI6MjA4MTY0NTg5NH0.M0OhzHsrqA0oYh6Ykx_4gVK_SrdSi1V_CiFxU-n4Lec";
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/score_top_cities?select=city_slug&limit=5000`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(`[sitemap] score_top_cities fetch failed: ${res.status}`);
+      return [];
+    }
+    const rows = (await res.json()) as Array<{ city_slug: string }>;
+    return rows.map((r) => r.city_slug).filter(Boolean);
+  } catch (err) {
+    console.warn(`[sitemap] score_top_cities fetch error:`, err);
+    return [];
+  }
+}
+
 function extractRoutePaths(source: string): string[] {
   const ast = parse(source, {
     sourceType: "module",
@@ -216,6 +237,13 @@ export async function generateSitemap(): Promise<{ count: number; outputPath: st
   for (const c of scoreCompanies) {
     const p = `/score/c/${c.slug}`;
     entryMap.set(p, { path: p, lastmod: c.lastmod });
+  }
+
+  // Add /score/city/{citySlug} ranking pages.
+  const scoreCitySlugs = await fetchScoreCitySlugs();
+  for (const slug of scoreCitySlugs) {
+    const p = `/score/city/${slug}`;
+    entryMap.set(p, { path: p });
   }
 
   const xml = buildSitemap([...entryMap.values()]);

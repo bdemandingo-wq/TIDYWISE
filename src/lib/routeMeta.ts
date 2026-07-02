@@ -428,3 +428,72 @@ export function scoreCompanyRouteMeta(c: ScoreCompanyForMeta): RouteMeta {
     jsonLd: [business],
   };
 }
+
+/**
+ * Per-route metadata for a /blog/post/:slug article. Field fallbacks mirror
+ * DynamicBlogPost.tsx's own <SEOHead> call so the prerendered snapshot and
+ * the client-rendered page agree.
+ */
+export type BlogPostForMeta = {
+  slug: string;
+  title: string;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  excerpt?: string | null;
+  author?: string | null;
+  published_at?: string | null;
+  updated_at?: string | null;
+};
+
+export function blogPostRouteMeta(post: BlogPostForMeta): RouteMeta {
+  const title = post.meta_title || `${post.title} | TIDYWISE Blog`;
+  const description = post.meta_description || post.excerpt || post.title;
+  const canonicalPath = `/blog/post/${post.slug}`;
+  const pageUrl = `https://www.jointidywise.com${canonicalPath}`;
+
+  const article: Record<string, unknown> = {
+    "@type": "Article",
+    headline: post.title,
+    description,
+    image: "https://www.jointidywise.com/images/tidywise-og.png",
+    author: { "@type": "Organization", name: post.author || "TIDYWISE Team" },
+    publisher: {
+      "@type": "Organization",
+      name: "TIDYWISE",
+      logo: { "@type": "ImageObject", url: "https://www.jointidywise.com/images/tidywise-logo.png" },
+    },
+    ...(post.published_at ? { datePublished: post.published_at } : {}),
+    dateModified: post.updated_at || post.published_at,
+    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+  };
+
+  return {
+    title: title.length > 60 ? title.slice(0, 57) + "..." : title,
+    description: description.length > 160 ? description.slice(0, 157) + "..." : description,
+    h1: post.title,
+    canonicalPath,
+    jsonLd: [article],
+  };
+}
+
+/**
+ * Per-route metadata for a /score/city/:citySlug rankings page. Title and
+ * description mirror ScoreCityPage.tsx's own inline computation.
+ */
+export type ScoreCityForMeta = {
+  city_slug: string;
+  city: string;
+  state: string;
+};
+
+export function scoreCityRouteMeta(c: ScoreCityForMeta): RouteMeta {
+  const label = `${c.city}, ${c.state}`;
+  const title = `Cleaning Companies in ${label} | TidyWise Score`.slice(0, 60);
+  const description =
+    `See how cleaning companies in ${label} rank by the TidyWise Score — an AI analysis of reviews, reputation, and online presence.`.slice(0, 160);
+  return {
+    title,
+    description,
+    h1: `Cleaning companies in ${label}`,
+  };
+}
