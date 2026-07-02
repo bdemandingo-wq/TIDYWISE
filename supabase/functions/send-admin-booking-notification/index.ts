@@ -236,7 +236,7 @@ const handler = async (req: Request): Promise<Response> => {
             metadata: { function: "send-admin-booking-notification", raw: rawMsg, from: senderFrom, to: adminEmail },
             is_read: false,
             dedupe_key: `email_send_failure:send-admin-booking-notification:${day}`,
-          }, { onConflict: "dedupe_key" });
+          }, { onConflict: "organization_id,dedupe_key" });
         }
       } catch (notifyErr) {
         console.error("[send-admin-booking-notification] Failed to write admin notification:", notifyErr);
