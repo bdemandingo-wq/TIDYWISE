@@ -924,7 +924,7 @@ export default function PublicBookingPage() {
               )}
 
               {/* Don't need the entire home cleaned? */}
-              {service && (selectedBedrooms > 0 || selectedBathrooms > 0) && (
+              {service && (Number(selectedBedrooms) > 0 || Number(selectedBathrooms) > 0) && (
                 <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
@@ -939,9 +939,9 @@ export default function PublicBookingPage() {
                           Skip rooms you don't need cleaned. Each skipped room reduces the total by the amount below.
                         </p>
                         {([
-                          { key: 'bedroom' as const, label: 'Bedrooms', max: selectedBedrooms },
-                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(selectedBathrooms) },
-                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(selectedBathrooms) },
+                          { key: 'bedroom' as const, label: 'Bedrooms', max: Number(selectedBedrooms) || 0 },
+                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(Number(selectedBathrooms) || 0) },
+                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(Number(selectedBathrooms) || 0) },
                         ])
                           .filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0)
                           .map((r) => {
