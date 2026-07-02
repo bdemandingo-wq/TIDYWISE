@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -22,8 +22,15 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function PortalLoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn, loading: contextLoading } = useClientPortal();
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_expired') {
+      toast.error('Your session expired. Please sign in again.');
+    }
+  }, [searchParams]);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
