@@ -221,6 +221,12 @@ export default function PublicBookingPage() {
         if (Array.isArray(data.custom_frequencies)) {
           setCustomFrequenciesFromRpc(data.custom_frequencies);
         }
+        if (typeof data.pet_fee !== 'undefined') setPetFee(Number(data.pet_fee) || 0);
+        if (typeof data.pet_toggle_enabled !== 'undefined') setPetToggleEnabled(!!data.pet_toggle_enabled);
+        if (Array.isArray(data.excluded_room_types)) setExcludedRoomTypes(data.excluded_room_types);
+        if (data.room_reduction_prices && typeof data.room_reduction_prices === 'object') {
+          setRoomReductionPrices((prev) => ({ ...prev, ...data.room_reduction_prices }));
+        }
       });
   }, [organizationId]);
 
