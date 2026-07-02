@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
 // Platform-level Resend API key (shared email service)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
