@@ -27,6 +27,10 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Cron-only endpoint: require shared x-cron-secret header.
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
