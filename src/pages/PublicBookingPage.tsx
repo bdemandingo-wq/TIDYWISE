@@ -722,7 +722,7 @@ export default function PublicBookingPage() {
                                   <DollarSign className="w-5 h-5" />
                                   {price}
                                 </div>
-                                {selectedSqFtIndex === null && (
+                                {isMinPrice && (
                                   <span className="text-xs text-muted-foreground">(min price)</span>
                                 )}
                               </div>
