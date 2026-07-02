@@ -288,6 +288,8 @@ const handler = async (req: Request): Promise<Response> => {
         frequency: payload.frequency || 'one-time',
         notes: payload.notes ? `[From External Website] ${payload.notes}` : '[From External Website]',
         extras: payload.extras || null,
+        has_pets: payload.has_pets ?? false,
+        room_reductions: payload.room_reductions ?? null,
         status: 'pending',
         payment_status: 'pending',
       })
