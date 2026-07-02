@@ -942,13 +942,20 @@ export default function CustomersPage() {
                                     </a>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <a
-                                          href={`sms:${customer.phone}`}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const q = new URLSearchParams({
+                                              phone: customer.phone,
+                                              name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
+                                            });
+                                            navigate(`/dashboard/messages?${q.toString()}`);
+                                          }}
                                           className="inline-flex items-center hover:text-primary transition-colors"
                                           aria-label="Send message via OpenPhone"
                                         >
                                           <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                                        </a>
+                                        </button>
                                       </TooltipTrigger>
                                       <TooltipContent>Message via OpenPhone</TooltipContent>
                                     </Tooltip>
