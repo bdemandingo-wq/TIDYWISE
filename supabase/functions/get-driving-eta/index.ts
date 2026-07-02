@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY') ?? Deno.env.get('VITE_GOOGLE_PLACES_API_KEY')
+    const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY')
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Google API key not configured', fallback: true }), {
         status: 200,
