@@ -425,6 +425,20 @@ export function ServicePricingEditor() {
     });
   };
 
+  const handleBedroomDragEnd = (event: DragEndEvent) => {
+    if (!currentPricing) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const items = currentPricing.bedroom_pricing;
+    const oldIndex = parseInt(String(active.id).replace('bed-', ''), 10);
+    const newIndex = parseInt(String(over.id).replace('bed-', ''), 10);
+    if (Number.isNaN(oldIndex) || Number.isNaN(newIndex)) return;
+    setCurrentPricing({
+      ...currentPricing,
+      bedroom_pricing: arrayMove(items, oldIndex, newIndex),
+    });
+  };
+
   const handleDeletePet = (index: number) => {
     if (!currentPricing) return;
     const newOptions = currentPricing.pet_options.filter((_, i) => i !== index);
