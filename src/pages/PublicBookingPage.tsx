@@ -301,9 +301,16 @@ export default function PublicBookingPage() {
     // Apply frequency discount — pulled from per-org business_settings.
     // The helper handles both 'bi-weekly' (public form) and 'biweekly'
     // (admin form) ids and falls back to the prior hardcoded values when
-    // business_settings is missing the columns.
+    // business_settings is missing the columns. Custom frequencies
+    // (id shape "custom:<uuid>") take precedence via their own discount_pct.
     if (selectedFrequency !== 'one-time') {
-      const discountMult = getFrequencyDiscountMultiplier(selectedFrequency, recurringDiscountConfig);
+      const customPct = resolveCustomFrequencyDiscountPct({
+        frequencyId: selectedFrequency,
+        customFrequencies,
+      });
+      const discountMult = customPct > 0
+        ? customPct / 100
+        : getFrequencyDiscountMultiplier(selectedFrequency, recurringDiscountConfig);
       if (discountMult > 0) total = total * (1 - discountMult);
     }
 
