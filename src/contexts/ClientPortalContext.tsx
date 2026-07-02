@@ -246,13 +246,44 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     setUser(null);
     setCustomer(null);
     setLoyalty(null);
     setSessionToken(null);
     localStorage.removeItem(STORAGE_KEY);
-  };
+  }, []);
+
+  const handleUnauthorized = useCallback(() => {
+    signOut();
+    if (typeof window !== 'undefined') {
+      const alreadyOnLogin = window.location.pathname.startsWith('/portal/login');
+      if (!alreadyOnLogin) {
+        toast.error('Your session expired. Please sign in again.');
+        window.location.assign('/portal/login?reason=session_expired');
+      }
+    }
+  }, [signOut]);
+
+  const invokePortal = useCallback(
+    async <T = any,>(name: string, options: FunctionInvokeOptions = {}): Promise<PortalInvokeResult<T>> => {
+      const mergedHeaders = {
+        ...(options.headers ?? {}),
+        ...(sessionToken ? { 'x-portal-session': sessionToken } : {}),
+      };
+      const result: any = await supabase.functions.invoke(name, { ...options, headers: mergedHeaders });
+      const status =
+        result?.error?.context?.response?.status ??
+        result?.error?.status ??
+        (result?.data && typeof result.data === 'object' && (result.data as any).error === 'unauthorized' ? 401 : undefined);
+      if (status === 401) {
+        handleUnauthorized();
+        return { data: null, error: result.error ?? new Error('unauthorized'), unauthorized: true };
+      }
+      return { data: result.data as T | null, error: result.error, unauthorized: false };
+    },
+    [sessionToken, handleUnauthorized],
+  );
 
   const refreshData = async () => {
     if (!user) return;
