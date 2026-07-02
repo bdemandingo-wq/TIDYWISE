@@ -17,7 +17,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  Search, Plus, Mail, Phone, Edit, Trash2, CreditCard, Upload, Users,
+  Search, Plus, Mail, Phone, MessageSquare, Megaphone, Edit, Trash2, CreditCard, Upload, Users,
   UserX, RefreshCw, MapPin, Download, AlertTriangle, ArrowUpDown,
   ArrowUp, ArrowDown, CalendarDays, DollarSign, FileText, Eye, UserPlus,
   ChevronDown, ChevronUp, GitMerge,
@@ -155,6 +155,50 @@ export default function CustomersPage() {
     bookingStats.forEach(s => m.set(s.customer_id, s));
     return m;
   }, [bookingStats]);
+
+  // Available campaigns for "Add to Campaign" per-row action
+  const { data: availableCampaigns = [] } = useQuery({
+    queryKey: ['available-campaigns', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('automated_campaigns')
+        .select('id, name, type, body, is_active')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const handleAddToCampaign = useCallback(async (customer: any, campaign: { id: string; name: string; type: string; body: string }) => {
+    if (!organization?.id) {
+      toast.error('Organization context missing');
+      return;
+    }
+    if (!customer.phone) {
+      toast.error('Customer has no phone number on file');
+      return;
+    }
+    const { error } = await supabase.from('campaign_sms_sends').insert({
+      organization_id: organization.id,
+      campaign_id: campaign.id,
+      campaign_type: campaign.type,
+      customer_id: customer.id,
+      phone_number: customer.phone,
+      message_content: campaign.body,
+      status: 'pending',
+    });
+    if (error) {
+      toast.error(`Failed to add to campaign: ${error.message}`);
+      return;
+    }
+    toast.success(`Added ${customer.first_name} to "${campaign.name}"`);
+    queryClient.invalidateQueries({ queryKey: ['campaign-conversions', organization.id] });
+  }, [organization?.id, queryClient]);
+
 
   // Duplicate detection: same email or phone
   const duplicates = useMemo(() => {
@@ -891,10 +935,24 @@ export default function CustomersPage() {
                                   <span className="truncate">{maskEmail(customer.email)}</span>
                                 </a>
                                 {customer.phone && (
-                                  <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-sm hover:text-primary transition-colors">
-                                    <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                    {maskPhone(customer.phone)}
-                                  </a>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <a href={`tel:${customer.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                                      <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                      {maskPhone(customer.phone)}
+                                    </a>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <a
+                                          href={`sms:${customer.phone}`}
+                                          className="inline-flex items-center hover:text-primary transition-colors"
+                                          aria-label="Send message via OpenPhone"
+                                        >
+                                          <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                                        </a>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Message via OpenPhone</TooltipContent>
+                                    </Tooltip>
+                                  </div>
                                 )}
                               </div>
                             </TableCell>
@@ -946,6 +1004,33 @@ export default function CustomersPage() {
                                   </TooltipTrigger>
                                   <TooltipContent>Payment History</TooltipContent>
                                 </Tooltip>
+                                <DropdownMenu>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                          <Megaphone className="w-4 h-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Add to Campaign</TooltipContent>
+                                  </Tooltip>
+                                  <DropdownMenuContent align="end" className="w-56">
+                                    {availableCampaigns.length === 0 ? (
+                                      <DropdownMenuItem disabled>No campaigns available</DropdownMenuItem>
+                                    ) : (
+                                      availableCampaigns.map((c) => (
+                                        <DropdownMenuItem
+                                          key={c.id}
+                                          onClick={() => handleAddToCampaign(customer, c as { id: string; name: string; type: string; body: string })}
+                                        >
+                                          <Megaphone className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                                          <span className="truncate">{c.name}</span>
+                                        </DropdownMenuItem>
+                                      ))
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteClick(customer)}>
