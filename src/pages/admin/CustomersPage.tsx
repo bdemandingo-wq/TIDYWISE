@@ -56,7 +56,7 @@ import { fmt } from '@/lib/activeCurrency';
 const CUSTOMER_FIELDS: FieldMapping[] = [
   { dbField: 'first_name', label: 'First Name', required: true },
   { dbField: 'last_name', label: 'Last Name', required: true },
-  { dbField: 'email', label: 'Email', required: true, type: 'email' },
+  { dbField: 'email', label: 'Email', type: 'email' },
   { dbField: 'phone', label: 'Phone' },
   { dbField: 'address', label: 'Address' },
   { dbField: 'city', label: 'City' },
