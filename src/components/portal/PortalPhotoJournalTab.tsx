@@ -89,7 +89,7 @@ export function PortalPhotoJournalTab() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, sessionToken]);
 
   if (loading) {
     return (
