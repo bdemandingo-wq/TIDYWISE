@@ -397,7 +397,15 @@ export function BookingFormProvider({
       basePrice = Number(selectedService.price);
     }
     
-    const discountMult = getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
+    const customPct = resolveCustomFrequencyDiscountPct({
+      frequencyId: frequency,
+      customFrequencyDays,
+      recurringDaysOfWeek,
+      customFrequencies,
+    });
+    const discountMult = customPct > 0
+      ? customPct / 100
+      : getFrequencyDiscountMultiplier(frequency, recurringDiscountConfig);
     if (discountMult > 0 && basePrice > 0) {
       basePrice = Math.round(basePrice * (1 - discountMult));
     }
@@ -407,7 +415,7 @@ export function BookingFormProvider({
     }
     
     return basePrice + extrasTotal + conditionTotal + petTotal;
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig]);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
