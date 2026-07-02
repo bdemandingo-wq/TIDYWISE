@@ -951,11 +951,13 @@ export default function CustomersPage() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const q = new URLSearchParams({
-                                              phone: customer.phone,
+                                            setMessageCustomer({
+                                              id: customer.id,
                                               name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
+                                              phone: customer.phone,
                                             });
-                                            navigate(`/dashboard/messages?${q.toString()}`);
+                                            setMessageText('');
+                                            setMessageDialogOpen(true);
                                           }}
                                           className="inline-flex items-center hover:text-primary transition-colors"
                                           aria-label="Send message via OpenPhone"
