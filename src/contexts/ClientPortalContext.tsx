@@ -5,8 +5,10 @@
  * This is separate from the admin/staff auth system.
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import type { FunctionInvokeOptions } from '@supabase/functions-js';
 
 interface ClientPortalUser {
   id: string;
