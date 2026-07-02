@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     // Verify staff belongs to org
     const { data: staff, error: staffError } = await supabase
       .from("staff")
-      .select("id, name, organization_id")
+      .select("id, name, organization_id, user_id")
       .eq("id", staff_id)
       .eq("organization_id", organization_id)
       .single();
@@ -61,6 +61,24 @@ Deno.serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Authorization: caller must be the staff member themselves OR an org owner/admin.
+    // Without this, any authenticated user could forge signatures for any staff.
+    const isOwnSignature = staff.user_id && staff.user_id === user.id;
+    if (!isOwnSignature) {
+      const { data: membership } = await supabase
+        .from("org_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("organization_id", organization_id)
+        .maybeSingle();
+      if (!membership || !["owner", "admin"].includes(membership.role)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Get document
