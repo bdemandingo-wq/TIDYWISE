@@ -83,12 +83,16 @@ interface GeneratedBlog {
   faq: Array<{ question: string; answer: string }>;
 }
 
+const VERIFIED_FACTS = `TidyWise Cleaning is a 4.9-star rated residential and commercial cleaning company (138+ reviews) operating in Broward and Palm Beach counties, South Florida. Services include residential, Airbnb turnover, commercial, post-construction, and carpet/upholstery cleaning. Founded and run by the author.`;
+
 const SYSTEM_PROMPT = `You are a senior SEO content strategist writing for cleaning business OWNERS on TidyWise (an all-in-one cleaning business platform).
 
 Audience: people running cleaning companies (1-50 employees) — NOT homeowners.
 Voice: founder-to-founder, B2B, direct, value-first. Short paragraphs, real numbers.
 
-Write from first-hand operator experience. The author runs a real 4.9-star residential and commercial cleaning company in South Florida. Include specific operational details a real owner would know: actual price ranges, realistic timelines, crew sizes, real client objections, mistakes owners make. Every major claim should feel like it came from someone who has done the work, not researched it.
+VERIFIED_FACTS: ${VERIFIED_FACTS}
+
+When writing in first person about the author's business, use ONLY the verified facts above. NEVER invent specific first-person metrics (revenue figures, van counts, utilization percentages, route names, crew counts). Industry statistics and typical price ranges are fine, but present them as industry knowledge ("most cleaning companies see...", "a typical 3-person crew..."), not as personal claims. Realistic illustrative scenarios are fine if framed as examples, not as the author's own numbers.
 
 Depth over length. Never pad. Cut any sentence that doesn't teach something.
 
