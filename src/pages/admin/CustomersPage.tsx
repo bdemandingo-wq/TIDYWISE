@@ -17,7 +17,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  Search, Plus, Mail, Phone, Edit, Trash2, CreditCard, Upload, Users,
+  Search, Plus, Mail, Phone, MessageSquare, Megaphone, Edit, Trash2, CreditCard, Upload, Users,
   UserX, RefreshCw, MapPin, Download, AlertTriangle, ArrowUpDown,
   ArrowUp, ArrowDown, CalendarDays, DollarSign, FileText, Eye, UserPlus,
   ChevronDown, ChevronUp, GitMerge,
