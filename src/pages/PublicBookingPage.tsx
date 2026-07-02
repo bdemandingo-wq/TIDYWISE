@@ -178,22 +178,31 @@ export default function PublicBookingPage() {
     return () => clearPublicBranding();
   }, [primaryColor, accentColor, formColors.accent]);
 
-  // Fetch surge pricing + recurring discount settings once org is known
+  // Fetch surge pricing + recurring discount settings + custom frequencies via
+  // a security-definer RPC so anonymous visitors can read booking-safe fields
+  // even though business_settings itself is admin-only.
   useEffect(() => {
     if (!organizationId) return;
-    (supabase
-      .from('business_settings' as any) as any)
-      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier,meta_pixel_id,google_analytics_id,recurring_discount_one_time,recurring_discount_monthly,recurring_discount_biweekly,recurring_discount_weekly')
-      .eq('organization_id', organizationId)
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (!data) return;
-        setSurgeSettings(data as typeof surgeSettings);
+    (supabase.rpc as any)('get_public_booking_settings', { p_org_id: organizationId })
+      .then(({ data, error }: any) => {
+        if (error || !data) return;
+        setSurgeSettings({
+          surge_weekend_enabled: !!data.surge_weekend_enabled,
+          surge_weekend_multiplier: Number(data.surge_weekend_multiplier) || 1,
+          surge_lastminute_enabled: !!data.surge_lastminute_enabled,
+          surge_lastminute_hours: Number(data.surge_lastminute_hours) || 0,
+          surge_lastminute_multiplier: Number(data.surge_lastminute_multiplier) || 1,
+          surge_holiday_enabled: !!data.surge_holiday_enabled,
+          surge_holiday_multiplier: Number(data.surge_holiday_multiplier) || 1,
+        });
         setTrackingIds({
           meta_pixel_id: data.meta_pixel_id ?? null,
           google_analytics_id: data.google_analytics_id ?? null,
         });
         setRecurringDiscountConfig(configFromBusinessSettings(data));
+        if (Array.isArray(data.custom_frequencies)) {
+          setCustomFrequenciesFromRpc(data.custom_frequencies);
+        }
       });
   }, [organizationId]);
 
