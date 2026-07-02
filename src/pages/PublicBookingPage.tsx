@@ -437,6 +437,8 @@ export default function PublicBookingPage() {
             organization_id: organizationId || undefined,
             organization_slug: orgSlug || undefined,
             square_footage: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : undefined,
+            has_pets: hasPets,
+            room_reductions: roomReductions,
           },
         });
 
