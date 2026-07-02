@@ -36,6 +36,7 @@ interface ClientPortalContextType {
   user: ClientPortalUser | null;
   customer: CustomerInfo | null;
   loyalty: LoyaltyInfo | null;
+  sessionToken: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => void;
