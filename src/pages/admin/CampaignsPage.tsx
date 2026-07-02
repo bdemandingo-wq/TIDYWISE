@@ -171,6 +171,10 @@ export default function CampaignsPage() {
   // Campaign detail dialog
   const [detailCampaignId, setDetailCampaignId] = useState<string | null>(null);
 
+  // Campaign edit dialog
+  const [editCampaign, setEditCampaign] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", subject: "", body: "", is_active: false });
+
   // Test results
   const [testResult, setTestResult] = useState<{
     inactive: number; contactable: number; excludedCount?: number; customers?: any[];
