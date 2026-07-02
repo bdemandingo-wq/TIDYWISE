@@ -52,6 +52,17 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Verify caller is either the service role (internal webhook) or an
+    // authenticated member of this organization.
+    const access = await verifyOrgAccess(req, organizationId);
+    if (!access.ok) {
+      console.warn("[send-admin-booking-notification] Unauthorized:", access.error);
+      return new Response(JSON.stringify({ error: access.error }), {
+        status: access.status,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     // STRICT ISOLATION: Verify Resend API key is available
     if (!RESEND_API_KEY) {
       console.error("[send-admin-booking-notification] Missing RESEND_API_KEY");
