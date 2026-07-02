@@ -25,6 +25,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { reviewRequestId, customerId, organizationId, rating } = await req.json();
 
+    // SECURITY: caller must be a member of the organization (or service-role).
+    const gate = await verifyOrgAccess(req, organizationId);
+    if (!gate.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: gate.error }),
+        { status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Only send referral request for 5-star reviews
     if (rating !== 5) {
       console.log(`[send-referral-request] Skipping - rating ${rating} is not 5 stars`);
