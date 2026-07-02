@@ -42,6 +42,7 @@ import {
   HARDCODED_DEFAULTS,
   type RecurringDiscountConfig,
 } from '@/lib/recurringDiscount';
+import { useCustomFrequencies, resolveCustomFrequencyDiscountPct } from '@/hooks/useCustomFrequencies';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
@@ -125,6 +126,8 @@ export default function PublicBookingPage() {
     homeConditionOptions,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
+
+  const { customFrequencies } = useCustomFrequencies(organizationId);
 
   const isLight = bookingFormTheme === 'light';
 
@@ -298,9 +301,16 @@ export default function PublicBookingPage() {
     // Apply frequency discount — pulled from per-org business_settings.
     // The helper handles both 'bi-weekly' (public form) and 'biweekly'
     // (admin form) ids and falls back to the prior hardcoded values when
-    // business_settings is missing the columns.
+    // business_settings is missing the columns. Custom frequencies
+    // (id shape "custom:<uuid>") take precedence via their own discount_pct.
     if (selectedFrequency !== 'one-time') {
-      const discountMult = getFrequencyDiscountMultiplier(selectedFrequency, recurringDiscountConfig);
+      const customPct = resolveCustomFrequencyDiscountPct({
+        frequencyId: selectedFrequency,
+        customFrequencies,
+      });
+      const discountMult = customPct > 0
+        ? customPct / 100
+        : getFrequencyDiscountMultiplier(selectedFrequency, recurringDiscountConfig);
       if (discountMult > 0) total = total * (1 - discountMult);
     }
 
@@ -807,6 +817,33 @@ export default function PublicBookingPage() {
                       </Card>
                       );
                     })}
+                    {customFrequencies.map((cf) => {
+                      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                      const sub = cf.days_of_week && cf.days_of_week.length > 0
+                        ? cf.days_of_week.map((d) => dayLabels[d]).join('/')
+                        : `Every ${cf.interval_days} day${cf.interval_days !== 1 ? 's' : ''}`;
+                      const id = `custom:${cf.id}`;
+                      return (
+                        <Card
+                          key={cf.id}
+                          className={cn(
+                            'cursor-pointer transition-all hover:shadow-md text-center',
+                            selectedFrequency === id && 'ring-2 ring-primary'
+                          )}
+                          onClick={() => setSelectedFrequency(id)}
+                        >
+                          <CardContent className="p-4">
+                            <p className="font-semibold">{cf.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                            {cf.discount_pct > 0 && (
+                              <Badge variant="secondary" className="mt-1 text-success">
+                                {cf.discount_pct}% off
+                              </Badge>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -883,7 +920,9 @@ export default function PublicBookingPage() {
                         <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
                         {selectedFrequency !== 'one-time' && (
                           <p className="text-xs text-success font-medium mt-1">
-                            {selectedFrequency} discount applied
+                            {selectedFrequency.startsWith('custom:')
+                              ? `${customFrequencies.find((c) => `custom:${c.id}` === selectedFrequency)?.name ?? 'Custom'} discount applied`
+                              : `${selectedFrequency} discount applied`}
                           </p>
                         )}
                       </div>
