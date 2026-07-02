@@ -189,12 +189,47 @@ export function ServicePricingEditor() {
     setEditingCell(null);
   };
 
+  const handlePetLabelEdit = (index: number, newLabel: string) => {
+    if (!currentPricing) return;
+    const newOptions = [...currentPricing.pet_options];
+    newOptions[index] = { ...newOptions[index], label: newLabel };
+    setCurrentPricing({ ...currentPricing, pet_options: newOptions });
+    setEditingCell(null);
+  };
+
   const handleConditionEdit = (index: number, newPrice: number) => {
     if (!currentPricing) return;
     const newOptions = [...currentPricing.home_condition_options];
     newOptions[index] = { ...newOptions[index], price: newPrice };
     setCurrentPricing({ ...currentPricing, home_condition_options: newOptions });
     setEditingCell(null);
+  };
+
+  const handleConditionLabelEdit = (index: number, newLabel: string) => {
+    if (!currentPricing) return;
+    const newOptions = [...currentPricing.home_condition_options];
+    newOptions[index] = { ...newOptions[index], label: newLabel };
+    setCurrentPricing({ ...currentPricing, home_condition_options: newOptions });
+    setEditingCell(null);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleConditionDragEnd = (event: DragEndEvent) => {
+    if (!currentPricing) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const items = currentPricing.home_condition_options;
+    const oldIndex = items.findIndex((o) => String(o.id) === String(active.id));
+    const newIndex = items.findIndex((o) => String(o.id) === String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    setCurrentPricing({
+      ...currentPricing,
+      home_condition_options: arrayMove(items, oldIndex, newIndex),
+    });
   };
 
   const handleDeletePet = (index: number) => {
