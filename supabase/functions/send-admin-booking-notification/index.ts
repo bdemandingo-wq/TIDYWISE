@@ -207,20 +207,43 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    if (sendError) {
-      console.error("[send-admin-booking-notification] Resend error:", sendError);
-      return new Response(
-        JSON.stringify({
-          error: sendError.message ?? "Failed to send email",
-        }),
-        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
+    if (sendError || !data?.id) {
+      const rawMsg = sendError?.message ?? "Email send failed (no email id returned)";
+      console.error("[send-admin-booking-notification] Resend error:", rawMsg);
 
-    if (!data?.id) {
-      console.error("[send-admin-booking-notification] Missing email id (unknown send failure)");
+      // Classify common Resend failures so the org owner sees an actionable message
+      const lower = rawMsg.toLowerCase();
+      let friendly = `Email failed: ${rawMsg}`;
+      if (lower.includes("domain") && (lower.includes("verif") || lower.includes("not found"))) {
+        friendly = "Email failed: sender domain not verified in Resend — check Settings → Emails";
+      } else if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("forbidden")) {
+        friendly = "Email failed: Resend API key invalid or missing — check Settings → Emails";
+      } else if (lower.includes("from")) {
+        friendly = "Email failed: invalid sender address — check Settings → Emails";
+      }
+
+      // Surface to org owner via admin_system_notifications (existing mechanism, dedupe by day)
+      try {
+        if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const day = new Date().toISOString().slice(0, 10);
+          await admin.from("admin_system_notifications").upsert({
+            organization_id: organizationId,
+            type: "email_send_failure",
+            title: "Booking notification email failed",
+            message: friendly,
+            link: "/dashboard/settings?tab=emails",
+            metadata: { function: "send-admin-booking-notification", raw: rawMsg, from: senderFrom, to: adminEmail },
+            is_read: false,
+            dedupe_key: `email_send_failure:send-admin-booking-notification:${day}`,
+          }, { onConflict: "organization_id,dedupe_key" });
+        }
+      } catch (notifyErr) {
+        console.error("[send-admin-booking-notification] Failed to write admin notification:", notifyErr);
+      }
+
       return new Response(
-        JSON.stringify({ error: "Email send failed (no email id returned)" }),
+        JSON.stringify({ error: friendly, detail: rawMsg }),
         { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
