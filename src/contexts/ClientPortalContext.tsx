@@ -68,6 +68,9 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
           setUser(parsed.user);
           setCustomer(parsed.customer);
           setLoyalty(parsed.loyalty);
+          if (typeof parsed.sessionToken === 'string') {
+            setSessionToken(parsed.sessionToken);
+          }
         }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
@@ -76,7 +79,12 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const saveSession = (userData: ClientPortalUser, customerData: CustomerInfo, loyaltyData: LoyaltyInfo | null) => {
+  const saveSession = (
+    userData: ClientPortalUser,
+    customerData: CustomerInfo,
+    loyaltyData: LoyaltyInfo | null,
+    tokenOverride?: string | null,
+  ) => {
     // Expire sessions after 30 days to limit PII sitting in localStorage indefinitely
     const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
     // Strip the most sensitive PII (email, phone) from what we persist. These
@@ -91,10 +99,12 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       phone: null,
       property_type: customerData.property_type,
     };
+    const tokenToStore = tokenOverride !== undefined ? tokenOverride : sessionToken;
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       user: userData,
       customer: safeCustomer,
       loyalty: loyaltyData,
+      sessionToken: tokenToStore,
       expiresAt,
     }));
   };
