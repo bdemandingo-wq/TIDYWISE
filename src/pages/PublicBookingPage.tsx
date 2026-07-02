@@ -1233,6 +1233,24 @@ export default function PublicBookingPage() {
                         </div>
                       );
                     })}
+                    {hasPets && petFee > 0 && (
+                      <div className="flex justify-between items-center text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><PawPrint className="h-3 w-3" /> Pet fee</span>
+                        <span>+${petFee}</span>
+                      </div>
+                    )}
+                    {(['bedroom','bathroom','full_bath'] as const)
+                      .filter((k) => !excludedRoomTypes.includes(k) && (roomReductions[k] || 0) > 0)
+                      .map((k) => {
+                        const labels = { bedroom: 'Bedrooms skipped', bathroom: 'Bathrooms skipped', full_bath: 'Full baths skipped' };
+                        const amt = (roomReductions[k] || 0) * (roomReductionPrices[k] || 0);
+                        return (
+                          <div key={k} className="flex justify-between items-center text-sm text-success">
+                            <span>{labels[k]} × {roomReductions[k]}</span>
+                            <span>-${amt}</span>
+                          </div>
+                        );
+                      })}
                     <div className="border-t pt-2 flex justify-between font-bold text-lg">
                       <span>Total</span>
                       <span className="text-primary">${calculateTotal()}</span>
