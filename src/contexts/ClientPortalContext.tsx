@@ -188,7 +188,8 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       setUser(portalUser);
       setCustomer(customerData);
       setLoyalty(loyaltyData);
-      saveSession(portalUser, customerData, loyaltyData);
+      setSessionToken(newSessionToken);
+      saveSession(portalUser, customerData, loyaltyData, newSessionToken);
 
       return { error: null };
     } catch (err: any) {
