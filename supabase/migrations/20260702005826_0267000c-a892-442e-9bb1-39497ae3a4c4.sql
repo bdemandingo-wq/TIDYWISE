@@ -1,0 +1,1 @@
+UPDATE public.blog_keyword_queue SET status='queued', error_message=NULL WHERE id='6973aa45-b16d-4626-a67a-c4ce9816e715';
