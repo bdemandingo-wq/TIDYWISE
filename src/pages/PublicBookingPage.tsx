@@ -127,6 +127,8 @@ export default function PublicBookingPage() {
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
 
+  const { customFrequencies } = useCustomFrequencies(organizationId);
+
   const isLight = bookingFormTheme === 'light';
 
   // Apply org branding colors once when loaded (no re-renders)
