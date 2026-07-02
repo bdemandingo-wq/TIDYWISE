@@ -95,6 +95,10 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageCustomer, setMessageCustomer] = useState<{ id: string; name: string; phone: string } | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
 
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
