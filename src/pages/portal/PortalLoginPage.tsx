@@ -22,8 +22,15 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function PortalLoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn, loading: contextLoading } = useClientPortal();
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_expired') {
+      toast.error('Your session expired. Please sign in again.');
+    }
+  }, [searchParams]);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
