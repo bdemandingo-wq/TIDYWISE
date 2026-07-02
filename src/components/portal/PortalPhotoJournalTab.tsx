@@ -33,26 +33,28 @@ interface BookingGroup {
 }
 
 export function PortalPhotoJournalTab() {
-  const { user, sessionToken } = useClientPortal();
+  const { user, sessionToken, invokePortal } = useClientPortal();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<BookingGroup[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [flatPhotos, setFlatPhotos] = useState<JournalPhoto[]>([]);
 
   useEffect(() => {
-    if (!user?.id || !sessionToken) return;
+    if (!user?.id) return;
+    if (!sessionToken) {
+      // Pre-signed-token session — force re-login so photos can load.
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke(
+        const { data, error, unauthorized } = await invokePortal<{ photos: JournalPhoto[] }>(
           "get-portal-photo-journal",
-          {
-            body: {},
-            headers: { "x-portal-session": sessionToken },
-          },
+          { body: {} },
         );
-        if (cancelled) return;
+        if (cancelled || unauthorized) return;
         if (error) throw error;
         const photos: JournalPhoto[] = data?.photos ?? [];
         setFlatPhotos(photos);
@@ -89,7 +91,7 @@ export function PortalPhotoJournalTab() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, sessionToken]);
+  }, [user?.id, sessionToken, invokePortal]);
 
   if (loading) {
     return (
