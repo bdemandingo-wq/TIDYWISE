@@ -725,6 +725,7 @@ export default function SettingsPage() {
         <TabsContent value="pricing" className="space-y-6">
           <PricingSettingsCard />
           <RecurringDiscountSettingsCard />
+          <CustomFrequenciesManager />
           <SurgePricingSettings />
         </TabsContent>
 
