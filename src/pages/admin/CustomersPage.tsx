@@ -10,6 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -95,6 +97,10 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageCustomer, setMessageCustomer] = useState<{ id: string; name: string; phone: string } | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
 
   const { data: customers = [], isLoading } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
@@ -945,11 +951,13 @@ export default function CustomersPage() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const q = new URLSearchParams({
-                                              phone: customer.phone,
+                                            setMessageCustomer({
+                                              id: customer.id,
                                               name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
+                                              phone: customer.phone,
                                             });
-                                            navigate(`/dashboard/messages?${q.toString()}`);
+                                            setMessageText('');
+                                            setMessageDialogOpen(true);
                                           }}
                                           className="inline-flex items-center hover:text-primary transition-colors"
                                           aria-label="Send message via OpenPhone"
@@ -1127,6 +1135,62 @@ export default function CustomersPage() {
         onImport={handleImportCustomers}
         sampleData={CUSTOMER_SAMPLE}
       />
+
+      <Dialog open={messageDialogOpen} onOpenChange={(open) => { if (!messageSending) setMessageDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Message {messageCustomer?.name || 'customer'}</DialogTitle>
+            <DialogDescription>
+              Sends via OpenPhone to {messageCustomer ? maskPhone(messageCustomer.phone) : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Type your message…"
+            rows={5}
+            maxLength={1600}
+            disabled={messageSending}
+            autoFocus
+          />
+          <div className="text-xs text-muted-foreground text-right">{messageText.length}/1600</div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setMessageDialogOpen(false)} disabled={messageSending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!messageCustomer || !messageText.trim() || !organization?.id) return;
+                setMessageSending(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('send-openphone-sms', {
+                    body: {
+                      to: messageCustomer.phone,
+                      message: messageText.trim(),
+                      organizationId: organization.id,
+                    },
+                  });
+                  if (error) throw error;
+                  if (data && data.success === false) {
+                    toast.error(data.error || 'Failed to send message');
+                    return;
+                  }
+                  toast.success(`Message sent to ${messageCustomer.name || 'customer'}`);
+                  setMessageDialogOpen(false);
+                  setMessageText('');
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Failed to send message');
+                } finally {
+                  setMessageSending(false);
+                }
+              }}
+              disabled={messageSending || !messageText.trim()}
+            >
+              {messageSending ? 'Sending…' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

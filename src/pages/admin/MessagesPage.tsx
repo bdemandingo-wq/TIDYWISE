@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -115,8 +115,6 @@ const formatUnreadCount = (count: number) => {
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const composeParamHandled = useRef(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -599,31 +597,8 @@ export default function MessagesPage() {
     return () => clearTimeout(timer);
   }, [searchQuery, organizationId]);
 
-  // Handle ?phone=&name= deep link (e.g. from Customers page message icon)
-  useEffect(() => {
-    if (composeParamHandled.current) return;
-    if (loading || !organizationId) return;
-    const phoneParam = searchParams.get('phone');
-    if (!phoneParam) return;
-    composeParamHandled.current = true;
-    const nameParam = searchParams.get('name') || '';
-    const digits = phoneParam.replace(/\D/g, '');
-    const withCountry = digits.startsWith('1') ? `+${digits}` : `+1${digits}`;
-    const normalizedTarget = normalizePhone(withCountry);
-    const existing = conversations.find(c => normalizePhone(c.customer_phone) === normalizedTarget);
-    if (existing) {
-      setSelectedConversation(existing);
-    } else {
-      setNewPhone(withCountry);
-      setNewName(nameParam);
-      setConversationType('client');
-      setNewConversationOpen(true);
-    }
-    const next = new URLSearchParams(searchParams);
-    next.delete('phone');
-    next.delete('name');
-    setSearchParams(next, { replace: true });
-  }, [loading, organizationId, conversations, searchParams, setSearchParams]);
+
+
 
   const filteredConversations = useMemo(() => {
     // Deduplicate by normalized phone number — keep the most recent conversation
