@@ -34,6 +34,8 @@ const EXCLUDED_PATHS = new Set<string>([
   "/signup",
   "/logout",
   "/auth",
+  "/auth/callback",
+  "/auth/confirm",
   "/onboarding",
   "/card-saved",
   "/delete-account",
@@ -41,7 +43,7 @@ const EXCLUDED_PATHS = new Set<string>([
 ]);
 
 // Prefix exclusions — any route whose path starts with one of these is skipped.
-const EXCLUDED_PREFIXES = ["/dashboard", "/staff", "/portal", "/admin"];
+const EXCLUDED_PREFIXES = ["/dashboard", "/staff", "/portal", "/admin", "/auth", "/checkout"];
 
 function shouldExclude(path: string): boolean {
   if (EXCLUDED_PATHS.has(path)) return true;
