@@ -26,8 +26,26 @@ import { useServicePricing, ServicePricingData } from '@/hooks/useServicePricing
 import { 
   squareFootageRanges,
 } from '@/data/pricingData';
-import { Save, Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Save, Pencil, Plus, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
 interface Service {
   id: string;
