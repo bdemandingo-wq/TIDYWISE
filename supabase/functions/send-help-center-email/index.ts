@@ -49,6 +49,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { type, name, email, message, organization_id }: HelpCenterEmailRequest = parsed.data;
 
+    // SECURITY: caller must be a member of the organization (or service-role).
+    const gate = await verifyOrgAccess(req, organization_id);
+    if (!gate.ok) {
+      return new Response(
+        JSON.stringify({ error: gate.error }),
+        { status: gate.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     console.log("[send-help-center-email] Processing request for org:", organization_id);
 
     // Get email settings from organization_email_settings table
