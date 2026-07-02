@@ -264,7 +264,7 @@ export default function PublicBookingPage() {
     if (service) {
       const result = calculateBasePrice({
         sqftPrices: service.prices,
-        bedroomPricing: bedroomPricing as any,
+        bedroomPricing: (service.bedroomPricing ?? bedroomPricing) as any,
         minimumPrice: service.minimumPrice,
         squareFootageIndex: selectedSqFtIndex,
         bedrooms: selectedBedrooms,
