@@ -833,6 +833,17 @@ export default function CampaignsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setEditForm({
+                              name: campaign.name || "",
+                              subject: campaign.subject || "",
+                              body: campaign.body || "",
+                              is_active: !!campaign.is_active,
+                            });
+                            setEditCampaign(campaign);
+                          }}>
+                            <Edit className="w-4 h-4 mr-2" /> Edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => runCampaign.mutate(campaign.id)}>
                             <Play className="w-4 h-4 mr-2" /> Send Now
                           </DropdownMenuItem>
