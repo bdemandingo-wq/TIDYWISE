@@ -150,6 +150,10 @@ export function useOrganizationSettings() {
         form_button_color: updates.form_button_color !== undefined ? updates.form_button_color : (settings?.form_button_color ?? null),
         form_button_text_color: updates.form_button_text_color !== undefined ? updates.form_button_text_color : (settings?.form_button_text_color ?? null),
         form_accent_color: updates.form_accent_color !== undefined ? updates.form_accent_color : (settings?.form_accent_color ?? null),
+        pet_fee: updates.pet_fee ?? settings?.pet_fee ?? 25,
+        pet_toggle_enabled: updates.pet_toggle_enabled ?? settings?.pet_toggle_enabled ?? true,
+        excluded_room_types: updates.excluded_room_types ?? settings?.excluded_room_types ?? [],
+        room_reduction_prices: updates.room_reduction_prices ?? settings?.room_reduction_prices ?? { ...DEFAULT_ROOM_REDUCTION_PRICES },
       };
 
       const { data, error } = await supabase
