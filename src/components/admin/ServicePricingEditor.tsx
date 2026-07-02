@@ -47,10 +47,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 
-interface Service {
-  id: string;
-  name: string;
-}
 
 interface Service {
   id: string;
