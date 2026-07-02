@@ -88,7 +88,7 @@ export function ServiceStep() {
         .eq('is_active', true)
         .order('interval_days', { ascending: true });
       if (error) throw error;
-      return data as { id: string; name: string; interval_days: number; days_of_week: number[] | null }[];
+      return data as { id: string; name: string; interval_days: number; days_of_week: number[] | null; discount_pct: number }[];
     },
     enabled: !!organization?.id,
   });
