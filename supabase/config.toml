@@ -51,8 +51,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.generate-daily-blogs]
     verify_jwt = false
-  [functions.generate-quote-pdf]
-    verify_jwt = false
   [functions.get-customer-card]
     verify_jwt = false
   [functions.get-deposit-details]
