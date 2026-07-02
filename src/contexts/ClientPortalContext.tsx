@@ -123,15 +123,17 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         return { error: 'Invalid email or password' };
       }
 
-      const validation = validationResult as { valid: boolean; error?: string; user_id?: string } | null;
+      const validation = validationResult as { valid: boolean; error?: string; user_id?: string; session_token?: string } | null;
 
       if (validation?.error === 'rate_limited') {
         return { error: 'Too many attempts. Please wait a few minutes and try again.' };
       }
 
-      if (!validation || !validation.valid) {
+      if (!validation || !validation.valid || !validation.session_token) {
         return { error: 'Invalid email or password' };
       }
+
+      const newSessionToken = validation.session_token;
 
 
       // Use the security definer function to get all user data by email
