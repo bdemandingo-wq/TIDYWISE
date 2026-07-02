@@ -643,12 +643,22 @@ export default function MessagesPage() {
   };
 
   const handleInsertLink = () => {
-    if (!linkUrl.trim()) return;
-    const display = linkText.trim() || linkUrl.trim();
+    const rawUrl = linkUrl.trim();
+    if (!rawUrl) return;
+    // Only allow safe protocols to prevent javascript:/data: XSS via link editor
+    if (!/^(https?:|mailto:)/i.test(rawUrl)) {
+      toast.error('Only http, https, and mailto links are allowed');
+      return;
+    }
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const safeHref = escapeHtml(rawUrl);
+    const display = escapeHtml(linkText.trim() || rawUrl);
     const editor = emailBodyRef.current;
     if (editor) {
       editor.focus();
-      const linkEl = `<a href="${linkUrl.trim()}" style="color: hsl(var(--primary)); text-decoration: underline;" contenteditable="false">${display}</a>&nbsp;`;
+      const linkEl = `<a href="${safeHref}" style="color: hsl(var(--primary)); text-decoration: underline;" contenteditable="false">${display}</a>&nbsp;`;
       document.execCommand('insertHTML', false, linkEl);
       setEmailBody(editor.innerHTML);
     }
