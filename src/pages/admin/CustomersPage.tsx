@@ -935,10 +935,24 @@ export default function CustomersPage() {
                                   <span className="truncate">{maskEmail(customer.email)}</span>
                                 </a>
                                 {customer.phone && (
-                                  <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-sm hover:text-primary transition-colors">
-                                    <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                    {maskPhone(customer.phone)}
-                                  </a>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <a href={`tel:${customer.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                                      <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                      {maskPhone(customer.phone)}
+                                    </a>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <a
+                                          href={`sms:${customer.phone}`}
+                                          className="inline-flex items-center hover:text-primary transition-colors"
+                                          aria-label="Send message via OpenPhone"
+                                        >
+                                          <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                                        </a>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Message via OpenPhone</TooltipContent>
+                                    </Tooltip>
+                                  </div>
                                 )}
                               </div>
                             </TableCell>
