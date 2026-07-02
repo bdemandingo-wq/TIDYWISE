@@ -1,56 +1,60 @@
+## Goal
 
-## 1. Pet Toggle (replaces the "+$25" dropdown card)
+Add a first-class **GoHighLevel (GHL)** destination in Settings → Integrations that runs in parallel with Zapier. You'll be able to paste a GHL webhook URL + auth token, choose which events fire, map which fields each event sends, fire a test, and see every delivery attempt with retry buttons.
 
-**Backend (migration)**
-- Add `has_pets boolean not null default false` to `bookings`.
-- Add `pet_fee numeric not null default 25` and `pet_toggle_enabled boolean not null default true` to `organization_pricing_settings` (single, org-wide pet fee — no more per-option list on the form).
+## What gets built
 
-**Frontend**
-- `PublicBookingPage.tsx`: replace the pet cards grid with a single shadcn `Switch` — "Do you have any pets? +${pet_fee}".
-- State becomes `hasPets: boolean`. `calculateTotal` adds `pet_fee` when true.
-- Submit `has_pets` + include pet fee in `total_amount` (payload already flexible; add `pets: hasPets` in `extras` metadata for the edge function).
-- Admin `ServicePricingEditor.tsx` gets a single "Pet fee" number input + toggle to show/hide the pet question (per-org, not per-service). Keeps existing `pet_options` array untouched for legacy data but no longer rendered on the public form.
+### 1. GHL Settings card
+- Webhook URL field (validated — must look like a GHL inbound webhook / custom URL).
+- Optional `Authorization` header / bearer token field (stored encrypted server-side, never returned to the client).
+- Master enable/disable switch.
+- Inline step-by-step setup guide (create a Workflow → add "Inbound Webhook" trigger → copy URL → optionally enable auth → paste here).
 
-## 2. Exclude Parameters (new admin settings section)
+### 2. Event mapper
+For each of the 8 event types (`customer.created`, `booking.created`, `booking.completed`, `booking.cancelled`, `invoice.paid`, `lead.created`, `estimate.sent`, `review.received`):
+- Toggle to enable/disable that event for GHL.
+- A field-mapping table: source field (from our payload, e.g. `customer.email`) → GHL field (e.g. `email`, `phone`, `firstName`, `tags[]`, custom field key). Pre-filled with sensible defaults per event.
+- Live JSON preview of what will be sent.
 
-**Backend (same migration)**
-Add to `organization_pricing_settings`:
-- `excluded_room_types text[] not null default '{}'` — subset of `{"bedroom","bathroom","full_bath"}`.
-- `room_reduction_prices jsonb not null default '{"bedroom":25,"bathroom":20,"full_bath":25}'` — fixed $ reduction per excludable type.
+### 3. "Test GHL Webhook" button
+- One button per event type that fires the sample payload through the real dispatch pipeline (using the saved mapping + auth) and shows the response status, body, latency, and any error inline.
 
-Extend the `get_public_booking_settings` RPC to return these two fields so the anon booking form can read them.
+### 4. Delivery log
+- New `ghl_dispatch_log` table (org-scoped, RLS).
+- UI card mirroring the Zapier log: search, filters (event type, status), latency column, response snippet on hover, **Retry** button per failed row.
 
-**Frontend**
-- `ServicePricingEditor.tsx` — new "Exclude Parameters" card at the top of the Pricing tab: three checkboxes (Bedrooms, Bathrooms, Full Baths) + a `$` input next to each for the reduction amount. Saves via existing `useOrganizationSettings` hook (extended to include the new fields).
-- Hide the bed/bath selectors on the public form for any type marked excluded. (E.g. if "bedroom" is excluded, bedrooms picker disappears entirely.)
+### 5. Dispatch engine
+- New edge function `ghl-dispatch` (mirrors `zapier-dispatch`): exponential backoff (4 retries on 5xx/429), structured error messages (network / 4xx / 5xx / auth / rate-limit), and friendly troubleshooting hints stored on the failed log row (e.g. "401 → token rejected, regenerate in GHL → Settings → Private Integrations").
+- Wired into the same 8 emission points already firing Zapier, so when GHL is enabled it dispatches in parallel — Zapier failures don't block GHL and vice-versa.
 
-## 3. "Don't need the entire home cleaned?" reducer
+## Technical details
 
-**Frontend only** — no new columns; the reduction is captured in existing `notes` + reflected in `total_amount`.
+**New table `org_ghl_settings`** (one row per org)
+- `organization_id`, `enabled`, `webhook_url`, `auth_header_name`, `auth_token` (REVOKE column-level SELECT on `auth_token` — only edge functions read it via SECURITY DEFINER RPC), `event_config` (JSONB: `{ "lead.created": { enabled: true, fields: { email: "customer.email", ... } }, ... }`).
 
-- On Step 1 of `PublicBookingPage.tsx`, below the bed/bath selectors, render a collapsible (shadcn `Collapsible`) button: "Don't need the entire home cleaned?".
-- When opened, render one row per **non-excluded** room type from settings: label, minus/plus buttons, current count (starts at the selected bed/bath count), and the `$-X` reduction value shown live.
-- New state: `roomReductions: Record<'bedroom'|'bathroom'|'full_bath', number>` — number of rooms the customer is skipping.
-- `calculateTotal` subtracts `reductions[type] * price[type]` from the base, floored at the service's `minimum_price`.
-- The Price Summary card now shows a per-type breakdown:
-  ```
-  Base                   $220
-  Skip 1 bedroom          -$25
-  Skip 2 bathrooms        -$40
-  ─────────────────────
-  Total                   $155
-  ```
-- Reductions are added to `notes` (`"Skipping: 1 bedroom, 2 bathrooms"`) and included in the `total_amount` sent to `external-booking-webhook`, so the backend records the discounted total naturally.
+**New table `ghl_dispatch_log`**
+- `organization_id`, `event_type`, `status` (`success`|`failed`|`retrying`), `http_status`, `attempt`, `latency_ms`, `payload` (JSONB), `response_snippet`, `error_code`, `error_hint`.
+- RLS: org admins read; service role writes.
 
-## Files touched
+**Edge function `ghl-dispatch`** modes:
+- `dispatch` (called from existing emission points + `dispatchGhlEvent` helper).
+- `test` (fires sample payload, returns full response).
+- `validate_webhook` (HEAD/POST ping for the health UI).
+- `retry_log_id` (re-fires a stored failed payload).
 
-**Migration** (one)
-- Adds columns to `bookings` + `organization_pricing_settings`; updates `get_public_booking_settings` RPC.
+**Frontend files**
+- `src/lib/ghl.ts` — `dispatchGhlEvent(eventType, payload)` helper.
+- `src/components/admin/GHLSettingsCard.tsx`
+- `src/components/admin/GHLEventMapper.tsx`
+- `src/components/admin/GHLEventTester.tsx`
+- `src/components/admin/GHLDispatchLogCard.tsx`
+- Wired into `src/pages/admin/SettingsPage.tsx` Integrations tab, directly under the Zapier section.
 
-**Frontend**
-- `src/hooks/useOrganizationSettings.ts` — add new fields to interface, fetch, save.
-- `src/hooks/usePublicOrgPricing.ts` — expose `excludedRoomTypes`, `roomReductionPrices`, `petFee`, `petToggleEnabled` from the RPC result.
-- `src/components/admin/ServicePricingEditor.tsx` — new Exclude Parameters card + Pet fee editor.
-- `src/pages/PublicBookingPage.tsx` — pet toggle, hide excluded selectors, new "Don't need entire home" collapsible + itemized summary.
+**Wiring existing emission points** (already calling `dispatchZapierEvent`): add a parallel `dispatchGhlEvent` call in the same 5 source files — `useBookings.ts`, `QuotesTabContent.tsx`, `LeadsPage.tsx`, `ClientFeedbackPage.tsx`, `stripe-invoice-webhook/index.ts`.
 
-No changes to `external-booking-webhook` — it already accepts arbitrary `total_amount` and `notes`.
+## What I will NOT do (call out if you want it)
+- Two-way sync from GHL back into the CRM (would need GHL Private Integration token + polling/webhooks back — separate build).
+- Per-user GHL OAuth (workspace-level token only).
+- Custom field discovery from the GHL API (mapper uses free-text GHL field names you type in).
+
+Ready to build?

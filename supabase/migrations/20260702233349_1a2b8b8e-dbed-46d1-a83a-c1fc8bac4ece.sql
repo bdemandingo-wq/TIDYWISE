@@ -1,1 +1,0 @@
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS room_reductions jsonb;
