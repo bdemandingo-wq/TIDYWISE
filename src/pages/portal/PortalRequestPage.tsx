@@ -250,12 +250,12 @@ export default function PortalRequestPage() {
       const serviceName = services.find((s) => s.id === selectedService)?.name;
       supabase.functions.invoke("notify-booking-request", {
         body: {
-          organizationId: user.organization_id,
           customerName: `${customer.first_name} ${customer.last_name}`,
           requestedDate: requestedDateISO,
           serviceName,
           notes: notes.trim() || undefined,
         },
+        headers: sessionToken ? { "x-portal-session": sessionToken } : undefined,
       }).catch((err) => console.error("SMS notification error:", err));
 
       toast.success(isReschedule ? "Reschedule request submitted! We'll confirm the update soon." : "Booking request submitted! We'll get back to you soon.");
