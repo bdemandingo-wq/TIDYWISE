@@ -781,6 +781,28 @@ export default function CustomersPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Megaphone className="w-4 h-4" /> Add to Campaign
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  {availableCampaigns.length === 0 ? (
+                    <DropdownMenuItem disabled>No campaigns available</DropdownMenuItem>
+                  ) : (
+                    availableCampaigns.map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        onClick={() => handleBulkAddToCampaign(c as { id: string; name: string; type: string; body: string })}
+                      >
+                        <Megaphone className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                        <span className="truncate">{c.name}</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
