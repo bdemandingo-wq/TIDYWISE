@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
     if (custErr) return json({ error: "Failed to create customer", details: custErr.message }, 500);
     customerId = newCustomer.id;
   }
+  console.log("Customer upserted:", { customer_id: customerId, email, organization_id });
 
   // 2. Resolve service (case-insensitive + alias-aware, else create).
   let serviceId: string | null = body.service_id ?? null;
@@ -190,6 +191,7 @@ Deno.serve(async (req) => {
       }
     }
   }
+  console.log("Service matched/created:", { service_id: serviceId, service_name: resolvedServiceName, incoming_service: body.service });
 
   // 3. Insert booking. square_footage column is text — store the numeric string.
   const sqftValue = body.square_footage != null ? String(body.square_footage) : null;
@@ -224,6 +226,7 @@ Deno.serve(async (req) => {
     .single();
 
   if (bookErr) return json({ error: "Failed to create booking", details: bookErr.message }, 500);
+  console.log("Booking inserted:", { booking_id: booking.id, booking_number: booking.booking_number, scheduled_at: booking.scheduled_at, customer_id: customerId, service_id: serviceId });
 
   // 4. Attach default checklist for this service + append `extras` as line items.
   try {
@@ -300,7 +303,7 @@ Deno.serve(async (req) => {
     console.log("[ingest] checklist attach failed (non-fatal):", (e as Error).message);
   }
 
-  return json({
+  const responsePayload = {
     ok: true,
     booking_id: booking.id,
     booking_number: booking.booking_number,
@@ -309,5 +312,8 @@ Deno.serve(async (req) => {
     service_id: serviceId,
     service_name: resolvedServiceName,
     unmapped_fields: unknownFields,
-  });
+  };
+  console.log("Returning success:", responsePayload);
+
+  return json(responsePayload);
 });
