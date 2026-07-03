@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Invalid JSON body" }, 400);
   }
+  console.log("Received booking ingest:", body);
 
   // Resolve target org — body wins so multiple sites can share the same key.
   const organization_id: string | undefined = body.organization_id || Deno.env.get("EXTERNAL_BOOKING_ORG_ID");
