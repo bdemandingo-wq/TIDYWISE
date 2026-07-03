@@ -1251,6 +1251,7 @@ export type Database = {
           duration: number
           extras: Json | null
           frequency: string | null
+          has_pets: boolean
           id: string
           is_draft: boolean | null
           is_test: boolean | null
@@ -1270,6 +1271,7 @@ export type Database = {
           reschedule_reason: string | null
           rescheduled_at: string | null
           rescheduled_by: string | null
+          room_reductions: Json | null
           scheduled_at: string
           service_id: string | null
           square_footage: string | null
@@ -1312,6 +1314,7 @@ export type Database = {
           duration: number
           extras?: Json | null
           frequency?: string | null
+          has_pets?: boolean
           id?: string
           is_draft?: boolean | null
           is_test?: boolean | null
@@ -1331,6 +1334,7 @@ export type Database = {
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
+          room_reductions?: Json | null
           scheduled_at: string
           service_id?: string | null
           square_footage?: string | null
@@ -1373,6 +1377,7 @@ export type Database = {
           duration?: number
           extras?: Json | null
           frequency?: string | null
+          has_pets?: boolean
           id?: string
           is_draft?: boolean | null
           is_test?: boolean | null
@@ -1392,6 +1397,7 @@ export type Database = {
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
+          room_reductions?: Json | null
           scheduled_at?: string
           service_id?: string | null
           square_footage?: string | null
@@ -5789,6 +5795,7 @@ export type Database = {
           booking_form_theme: string
           created_at: string
           demo_mode_enabled: boolean | null
+          excluded_room_types: string[]
           form_accent_color: string | null
           form_bg_color: string | null
           form_button_color: string | null
@@ -5798,6 +5805,9 @@ export type Database = {
           id: string
           loyalty_program_enabled: boolean
           organization_id: string
+          pet_fee: number
+          pet_toggle_enabled: boolean
+          room_reduction_prices: Json
           sales_tax_percent: number | null
           show_addons_on_booking: boolean | null
           show_bed_bath_on_booking: boolean | null
@@ -5811,6 +5821,7 @@ export type Database = {
           booking_form_theme?: string
           created_at?: string
           demo_mode_enabled?: boolean | null
+          excluded_room_types?: string[]
           form_accent_color?: string | null
           form_bg_color?: string | null
           form_button_color?: string | null
@@ -5820,6 +5831,9 @@ export type Database = {
           id?: string
           loyalty_program_enabled?: boolean
           organization_id: string
+          pet_fee?: number
+          pet_toggle_enabled?: boolean
+          room_reduction_prices?: Json
           sales_tax_percent?: number | null
           show_addons_on_booking?: boolean | null
           show_bed_bath_on_booking?: boolean | null
@@ -5833,6 +5847,7 @@ export type Database = {
           booking_form_theme?: string
           created_at?: string
           demo_mode_enabled?: boolean | null
+          excluded_room_types?: string[]
           form_accent_color?: string | null
           form_bg_color?: string | null
           form_button_color?: string | null
@@ -5842,6 +5857,9 @@ export type Database = {
           id?: string
           loyalty_program_enabled?: boolean
           organization_id?: string
+          pet_fee?: number
+          pet_toggle_enabled?: boolean
+          room_reduction_prices?: Json
           sales_tax_percent?: number | null
           show_addons_on_booking?: boolean | null
           show_bed_bath_on_booking?: boolean | null
