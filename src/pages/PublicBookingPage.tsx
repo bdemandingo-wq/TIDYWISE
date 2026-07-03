@@ -29,7 +29,13 @@ import {
   Lock,
   Globe,
   X,
+  PawPrint,
+  Minus,
+  Plus,
+  ChevronDown,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
@@ -78,8 +84,13 @@ export default function PublicBookingPage() {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [selectedBedrooms, setSelectedBedrooms] = useState<string | null>(null);
   const [selectedBathrooms, setSelectedBathrooms] = useState<string | null>(null);
-  const [selectedPetOption, setSelectedPetOption] = useState<string | null>(null);
+  const [hasPets, setHasPets] = useState<boolean>(false);
   const [selectedHomeCondition, setSelectedHomeCondition] = useState<string | null>(null);
+  // Customer-selected room count reductions ("don't need entire home cleaned")
+  const [roomReductions, setRoomReductions] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({
+    bedroom: 0, bathroom: 0, full_bath: 0,
+  });
+  const [reducerOpen, setReducerOpen] = useState(false);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('one-time');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null); // "HH:mm" 24h format
@@ -97,6 +108,13 @@ export default function PublicBookingPage() {
   const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [recurringDiscountConfig, setRecurringDiscountConfig] =
     useState<RecurringDiscountConfig>(HARDCODED_DEFAULTS);
+  // Per-org pet + exclude-parameters config (from get_public_booking_settings RPC).
+  const [petFee, setPetFee] = useState<number>(25);
+  const [petToggleEnabled, setPetToggleEnabled] = useState<boolean>(true);
+  const [excludedRoomTypes, setExcludedRoomTypes] = useState<Array<'bedroom' | 'bathroom' | 'full_bath'>>([]);
+  const [roomReductionPrices, setRoomReductionPrices] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({
+    bedroom: 25, bathroom: 20, full_bath: 25,
+  });
   const [customerTimezone] = useState<string>(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -203,6 +221,12 @@ export default function PublicBookingPage() {
         if (Array.isArray(data.custom_frequencies)) {
           setCustomFrequenciesFromRpc(data.custom_frequencies);
         }
+        if (typeof data.pet_fee !== 'undefined') setPetFee(Number(data.pet_fee) || 0);
+        if (typeof data.pet_toggle_enabled !== 'undefined') setPetToggleEnabled(!!data.pet_toggle_enabled);
+        if (Array.isArray(data.excluded_room_types)) setExcludedRoomTypes(data.excluded_room_types);
+        if (data.room_reduction_prices && typeof data.room_reduction_prices === 'object') {
+          setRoomReductionPrices((prev) => ({ ...prev, ...data.room_reduction_prices }));
+        }
       });
   }, [organizationId]);
 
@@ -301,10 +325,18 @@ export default function PublicBookingPage() {
     }, 0);
     total += extrasTotal;
 
-    // Add pet fee
-    if (selectedPetOption && petOptions.length > 0) {
-      const pet = petOptions.find(p => p.id === selectedPetOption);
-      if (pet) total += pet.price;
+    // Add pet fee (single org-wide toggle)
+    if (hasPets && petFee > 0) total += petFee;
+
+    // Apply room-reduction discounts ("don't need entire home cleaned").
+    // Each excluded room type is skipped; each remaining type reduces total by
+    // (count * reduction price). Never allow the base to go below service minimum.
+    const reductionsTotal = (Object.keys(roomReductions) as Array<keyof typeof roomReductions>)
+      .filter((k) => !excludedRoomTypes.includes(k))
+      .reduce((sum, k) => sum + (roomReductions[k] || 0) * (roomReductionPrices[k] || 0), 0);
+    if (reductionsTotal > 0) {
+      const floor = service?.minimumPrice ?? 0;
+      total = Math.max(floor, total - reductionsTotal);
     }
 
     // Add home condition fee
@@ -405,6 +437,8 @@ export default function PublicBookingPage() {
             organization_id: organizationId || undefined,
             organization_slug: orgSlug || undefined,
             square_footage: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : undefined,
+            has_pets: hasPets,
+            room_reductions: roomReductions,
           },
         });
 
@@ -658,42 +692,44 @@ export default function PublicBookingPage() {
                   <p className="text-muted-foreground mb-4">Select your home layout</p>
                   <Card>
                     <CardContent className="p-5 space-y-4">
-                      <div>
-                        <Label className="text-base mb-2 block">Bedrooms</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {[...new Set(bedroomPricing.map(bp => bp.bedrooms))].sort((a, b) => a - b).map(bed => (
-                            <Button
-                              key={bed}
-                              type="button"
-                              variant={selectedBedrooms === String(bed) ? 'default' : 'outline'}
-                              onClick={() => setSelectedBedrooms(String(bed))}
-                              className="min-w-[60px]"
-                            >
-                              {bed}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-base mb-2 block">Bathrooms</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {/* Bug fix: show ALL bathroom options independent of selected bedrooms
-                              so the baths selector never disappears when a bed count is picked. */}
-                          {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
-                            .sort((a, b) => a - b)
-                            .map(bath => (
+                      {!excludedRoomTypes.includes('bedroom') && (
+                        <div>
+                          <Label className="text-base mb-2 block">Bedrooms</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[...new Set(bedroomPricing.map(bp => bp.bedrooms))].sort((a, b) => a - b).map(bed => (
                               <Button
-                                key={bath}
+                                key={bed}
                                 type="button"
-                                variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
-                                onClick={() => setSelectedBathrooms(String(bath))}
+                                variant={selectedBedrooms === String(bed) ? 'default' : 'outline'}
+                                onClick={() => setSelectedBedrooms(String(bed))}
                                 className="min-w-[60px]"
                               >
-                                {bath}
+                                {bed}
                               </Button>
                             ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {!excludedRoomTypes.includes('bathroom') && (
+                        <div>
+                          <Label className="text-base mb-2 block">Bathrooms</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
+                              .sort((a, b) => a - b)
+                              .map(bath => (
+                                <Button
+                                  key={bath}
+                                  type="button"
+                                  variant={selectedBathrooms === String(bath) ? 'default' : 'outline'}
+                                  onClick={() => setSelectedBathrooms(String(bath))}
+                                  className="min-w-[60px]"
+                                >
+                                  {bath}
+                                </Button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -863,32 +899,103 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
-              {/* Pet Options */}
-              {displaySettings.show_pet_options && petOptions.length > 0 && (
+              {/* Pets — single boolean toggle (org configurable) */}
+              {displaySettings.show_pet_options && petToggleEnabled && (
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Pets</h2>
-                  <p className="text-muted-foreground mb-4">Do you have any pets?</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {petOptions.map((pet) => (
-                      <Card
-                        key={pet.id}
-                        className={cn(
-                          'cursor-pointer transition-all hover:shadow-md text-center',
-                          selectedPetOption === pet.id && 'ring-2 ring-primary'
-                        )}
-                        onClick={() => setSelectedPetOption(selectedPetOption === pet.id ? null : pet.id)}
-                      >
-                        <CardContent className="p-4">
-                          <p className="font-semibold text-sm">{pet.label}</p>
-                          {pet.price > 0 && (
-                            <p className="text-primary font-semibold text-sm mt-1">+${pet.price}</p>
+                  <p className="text-muted-foreground mb-4">Do you have any pets in the home?</p>
+                  <Card>
+                    <CardContent className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <PawPrint className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-semibold">Pets in the home</p>
+                          {petFee > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              A ${petFee} pet fee will be added when enabled.
+                            </p>
                           )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={hasPets}
+                        onCheckedChange={setHasPets}
+                        aria-label="Toggle pet fee"
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
               )}
+
+              {/* Don't need the entire home cleaned? */}
+              {service && (Number(selectedBedrooms) > 0 || Number(selectedBathrooms) > 0) && (
+                <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span>Don't need the entire home cleaned?</span>
+                      <ChevronDown className={cn('h-4 w-4 transition-transform', reducerOpen && 'rotate-180')} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3">
+                    <Card>
+                      <CardContent className="p-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Skip rooms you don't need cleaned. Each skipped room reduces the total by the amount below.
+                        </p>
+                        {([
+                          { key: 'bedroom' as const, label: 'Bedrooms', max: Number(selectedBedrooms) || 0 },
+                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(Number(selectedBathrooms) || 0) },
+                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(Number(selectedBathrooms) || 0) },
+                        ])
+                          .filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0)
+                          .map((r) => {
+                            const count = roomReductions[r.key];
+                            const price = roomReductionPrices[r.key] || 0;
+                            return (
+                              <div key={r.key} className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-sm">Skip {r.label}</p>
+                                  <p className="text-xs text-muted-foreground">-${price} each</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({ ...prev, [r.key]: Math.max(0, prev[r.key] - 1) }))
+                                    }
+                                    disabled={count <= 0}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center text-sm font-semibold">{count}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({
+                                        ...prev,
+                                        [r.key]: Math.min(r.max, prev[r.key] + 1),
+                                      }))
+                                    }
+                                    disabled={count >= r.max}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </CardContent>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
 
               {/* Home Condition */}
               {displaySettings.show_home_condition && homeConditionOptions.length > 0 && (
@@ -1126,6 +1233,24 @@ export default function PublicBookingPage() {
                         </div>
                       );
                     })}
+                    {hasPets && petFee > 0 && (
+                      <div className="flex justify-between items-center text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><PawPrint className="h-3 w-3" /> Pet fee</span>
+                        <span>+${petFee}</span>
+                      </div>
+                    )}
+                    {(['bedroom','bathroom','full_bath'] as const)
+                      .filter((k) => !excludedRoomTypes.includes(k) && (roomReductions[k] || 0) > 0)
+                      .map((k) => {
+                        const labels = { bedroom: 'Bedrooms skipped', bathroom: 'Bathrooms skipped', full_bath: 'Full baths skipped' };
+                        const amt = (roomReductions[k] || 0) * (roomReductionPrices[k] || 0);
+                        return (
+                          <div key={k} className="flex justify-between items-center text-sm text-success">
+                            <span>{labels[k]} × {roomReductions[k]}</span>
+                            <span>-${amt}</span>
+                          </div>
+                        );
+                      })}
                     <div className="border-t pt-2 flex justify-between font-bold text-lg">
                       <span>Total</span>
                       <span className="text-primary">${calculateTotal()}</span>
