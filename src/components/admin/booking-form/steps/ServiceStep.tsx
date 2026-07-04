@@ -134,6 +134,22 @@ export function ServiceStep() {
   const petOptions = servicePricing?.pet_options || [];
   const homeConditionOptions = servicePricing?.home_condition_options || [];
 
+  // Pet toggle helpers — first pet option with a price is used when toggled on
+  const paidPetOption = petOptions.find((p) => p.price > 0) || petOptions.find((p) => p.id !== 'no_pets');
+  const petsOn = petOption !== 'no_pets' && !!paidPetOption && petOption === paidPetOption.id;
+  const petFee = paidPetOption?.price ?? 0;
+
+  // Exclude parameters (room reductions) from org settings
+  const excludedRoomTypes = (orgSettings?.excluded_room_types ?? []) as Array<'bedroom' | 'bathroom' | 'full_bath'>;
+  const roomReductionPrices = orgSettings?.room_reduction_prices ?? { bedroom: 0, bathroom: 0, full_bath: 0 };
+  const [excludeOpen, setExcludeOpen] = useState(false);
+  const roomOptions: Array<{ key: 'bedroom' | 'bathroom' | 'full_bath'; label: string; max: number }> = [
+    { key: 'bedroom', label: 'Bedrooms', max: Math.max(0, parseInt(bedrooms || '0')) },
+    { key: 'bathroom', label: 'Bathrooms', max: Math.max(0, parseInt(bathrooms || '0')) },
+    { key: 'full_bath', label: 'Full Baths', max: Math.max(0, parseInt(bathrooms || '0')) },
+  ];
+  const availableRooms = roomOptions.filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0);
+
   const totalAddOns = extrasTotal + conditionTotal + petTotal;
   
   // Check visibility settings
