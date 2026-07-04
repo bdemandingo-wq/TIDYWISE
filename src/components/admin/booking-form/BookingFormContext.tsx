@@ -249,6 +249,7 @@ export function BookingFormProvider({
   const [pricingMode, setPricingMode] = useState<'sqft' | 'bedroom'>('sqft');
   const [homeCondition, setHomeCondition] = useState(1);
   const [petOption, setPetOption] = useState('no_pets');
+  const [roomReductions, setRoomReductions] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({ bedroom: 0, bathroom: 0, full_bath: 0 });
   
   // Schedule state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
