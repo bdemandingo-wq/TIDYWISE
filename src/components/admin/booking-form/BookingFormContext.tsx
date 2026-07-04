@@ -67,6 +67,9 @@ interface BookingFormState {
   pricingMode: 'sqft' | 'bedroom';
   homeCondition: number;
   petOption: string;
+  roomReductions: Record<'bedroom' | 'bathroom' | 'full_bath', number>;
+  reductionsTotal: number;
+  
   
   // Schedule
   selectedDate: Date | undefined;
