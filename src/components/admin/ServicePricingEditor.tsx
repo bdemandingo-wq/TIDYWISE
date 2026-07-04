@@ -497,7 +497,7 @@ export function ServicePricingEditor() {
 
   return (
     <div className="space-y-6">
-      <ExcludeParametersCard />
+
 
       {/* Service Selector */}
       <Card>
@@ -701,6 +701,10 @@ export function ServicePricingEditor() {
               </div>
             </CardContent>
           </Card>
+
+          <ExcludeParametersCard />
+
+
 
           {/* Add-On Extras */}
           <Card>
