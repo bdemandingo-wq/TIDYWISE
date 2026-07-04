@@ -382,7 +382,7 @@ export function BookingFormProvider({
         basePrice = Math.round(basePrice * (1 - discountMult));
       }
 
-      return basePrice + extrasTotal + conditionTotal + petTotal;
+      return Math.max(0, basePrice + extrasTotal + conditionTotal + petTotal - reductionsTotal);
     }
 
     if (!selectedService) return 0;
@@ -428,7 +428,7 @@ export function BookingFormProvider({
       basePrice = servicePricing.minimum_price;
     }
     
-    return basePrice + extrasTotal + conditionTotal + petTotal;
+    return Math.max(0, basePrice + extrasTotal + conditionTotal + petTotal - reductionsTotal);
   }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
 
   // Calculate final price after discount
