@@ -680,6 +680,8 @@ export function BookingFormProvider({
       pricingMode,
       homeCondition,
       petOption,
+      roomReductions,
+      reductionsTotal,
       selectedDate,
       selectedTime,
       selectedStaffId,
