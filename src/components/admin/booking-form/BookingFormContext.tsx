@@ -218,6 +218,7 @@ export function BookingFormProvider({
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  const { settings: orgSettings } = useOrganizationSettings();
   // Per-org recurring discount config (one_time / monthly / biweekly / weekly).
   // Falls back to the previous hardcoded values when business_settings is
   // missing the columns or the row hasn't been created yet.
