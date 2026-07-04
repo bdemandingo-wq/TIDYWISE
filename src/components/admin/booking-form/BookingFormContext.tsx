@@ -160,6 +160,7 @@ interface BookingFormContextType extends BookingFormState {
   setPricingMode: (mode: 'sqft' | 'bedroom') => void;
   setHomeCondition: (condition: number) => void;
   setPetOption: (option: string) => void;
+  setRoomReductions: (reductions: Record<'bedroom' | 'bathroom' | 'full_bath', number>) => void;
   setSelectedDate: (date: Date | undefined) => void;
   setSelectedTime: (time: string) => void;
   setSelectedStaffId: (id: string) => void;
