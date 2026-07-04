@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { squareFootageRanges, frequencyOptions } from '@/data/pricingData';
 import { useServicePricing } from '@/hooks/useServicePricing';
-import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { useOrganizationSettings, DEFAULT_ROOM_REDUCTION_PRICES } from '@/hooks/useOrganizationSettings';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
@@ -67,6 +67,9 @@ interface BookingFormState {
   pricingMode: 'sqft' | 'bedroom';
   homeCondition: number;
   petOption: string;
+  roomReductions: Record<'bedroom' | 'bathroom' | 'full_bath', number>;
+  reductionsTotal: number;
+  
   
   // Schedule
   selectedDate: Date | undefined;
@@ -157,6 +160,7 @@ interface BookingFormContextType extends BookingFormState {
   setPricingMode: (mode: 'sqft' | 'bedroom') => void;
   setHomeCondition: (condition: number) => void;
   setPetOption: (option: string) => void;
+  setRoomReductions: (reductions: Record<'bedroom' | 'bathroom' | 'full_bath', number>) => void;
   setSelectedDate: (date: Date | undefined) => void;
   setSelectedTime: (time: string) => void;
   setSelectedStaffId: (id: string) => void;
@@ -214,6 +218,7 @@ export function BookingFormProvider({
   
   // Service-specific pricing from database
   const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  const { settings: orgSettings } = useOrganizationSettings();
   // Per-org recurring discount config (one_time / monthly / biweekly / weekly).
   // Falls back to the previous hardcoded values when business_settings is
   // missing the columns or the row hasn't been created yet.
@@ -245,6 +250,7 @@ export function BookingFormProvider({
   const [pricingMode, setPricingMode] = useState<'sqft' | 'bedroom'>('sqft');
   const [homeCondition, setHomeCondition] = useState(1);
   const [petOption, setPetOption] = useState('no_pets');
+  const [roomReductions, setRoomReductions] = useState<Record<'bedroom' | 'bathroom' | 'full_bath', number>>({ bedroom: 0, bathroom: 0, full_bath: 0 });
   
   // Schedule state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
@@ -339,6 +345,14 @@ export function BookingFormProvider({
     return option?.price || 0;
   }, [servicePricing, petOption]);
 
+  // Room reduction total from org settings prices
+  const reductionsTotal = useMemo(() => {
+    const prices = { ...DEFAULT_ROOM_REDUCTION_PRICES, ...(orgSettings?.room_reduction_prices || {}) };
+    return (Object.keys(roomReductions) as Array<'bedroom' | 'bathroom' | 'full_bath'>)
+      .reduce((sum, k) => sum + (roomReductions[k] || 0) * (prices[k] || 0), 0);
+  }, [roomReductions, orgSettings]);
+
+
   // Get price override from selected location
   const selectedLocationPriceOverride = useMemo(() => {
     if (!selectedLocationId) return null;
@@ -368,7 +382,7 @@ export function BookingFormProvider({
         basePrice = Math.round(basePrice * (1 - discountMult));
       }
 
-      return basePrice + extrasTotal + conditionTotal + petTotal;
+      return Math.max(0, basePrice + extrasTotal + conditionTotal + petTotal - reductionsTotal);
     }
 
     if (!selectedService) return 0;
@@ -414,8 +428,8 @@ export function BookingFormProvider({
       basePrice = servicePricing.minimum_price;
     }
     
-    return basePrice + extrasTotal + conditionTotal + petTotal;
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
+    return Math.max(0, basePrice + extrasTotal + conditionTotal + petTotal - reductionsTotal);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, reductionsTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
@@ -666,6 +680,8 @@ export function BookingFormProvider({
       pricingMode,
       homeCondition,
       petOption,
+      roomReductions,
+      reductionsTotal,
       selectedDate,
       selectedTime,
       selectedStaffId,
@@ -726,6 +742,7 @@ export function BookingFormProvider({
       setPricingMode,
       setHomeCondition,
       setPetOption,
+      setRoomReductions,
       setSelectedDate,
       setSelectedTime,
       setSelectedStaffId,
