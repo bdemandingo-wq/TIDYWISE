@@ -702,6 +702,10 @@ export function ServicePricingEditor() {
             </CardContent>
           </Card>
 
+          <ExcludeParametersCard />
+
+
+
           {/* Add-On Extras */}
           <Card>
             <CardHeader>
