@@ -25,6 +25,7 @@ async function fireZapier(
       .eq("id", invoiceId)
       .maybeSingle();
     await supabase.functions.invoke("zapier-dispatch", {
+      headers: { "x-internal-secret": Deno.env.get("ZAPIER_DISPATCH_INTERNAL_SECRET") ?? "" },
       body: {
         organization_id: orgId,
         event_type: "invoice.paid",

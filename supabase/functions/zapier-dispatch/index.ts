@@ -1,8 +1,10 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { verifyAdminAuth, createUnauthorizedResponse, createForbiddenResponse } from '../_shared/verify-admin-auth.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const INTERNAL_SECRET = Deno.env.get('ZAPIER_DISPATCH_INTERNAL_SECRET');
 
 interface DispatchBody {
   organization_id: string;
@@ -119,6 +121,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    const internalSecretHeader = req.headers.get('x-internal-secret');
+
     const body = (await req.json()) as DispatchBody;
     const { organization_id, event_type, payload, test_webhook_id, retry_log_id, validate_webhook_id } =
       body || ({} as DispatchBody);
@@ -128,6 +133,21 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // SECURITY: trusted internal callers (other edge functions dispatching
+    // system events) present a shared secret. Everyone else must be an
+    // authenticated org admin whose organization matches organization_id.
+    const isInternalCall = !!INTERNAL_SECRET && internalSecretHeader === INTERNAL_SECRET;
+
+    if (!isInternalCall) {
+      const authResult = await verifyAdminAuth(authHeader, { requireAdmin: true });
+      if (!authResult.success) {
+        return createUnauthorizedResponse(authResult.error || 'Unauthorized', corsHeaders);
+      }
+      if (organization_id !== authResult.organizationId) {
+        return createForbiddenResponse('Access denied: organization mismatch', corsHeaders);
+      }
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
