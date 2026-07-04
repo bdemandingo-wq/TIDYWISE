@@ -498,25 +498,83 @@ export function ServiceStep() {
               )}
             </div>
           )}
+
+          {/* Don't need the entire home cleaned? — under Frequency */}
+          {availableRooms.length > 0 && (
+            <Collapsible open={excludeOpen} onOpenChange={setExcludeOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 bg-secondary/20 hover:bg-secondary/40 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <DoorClosed className="h-4 w-4 text-muted-foreground" />
+                    Don't need the entire home cleaned?
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {reductionsTotal > 0 && (
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        -${reductionsTotal}
+                      </Badge>
+                    )}
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', excludeOpen && 'rotate-180')} />
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Skip rooms you don't need cleaned and reduce the price.</p>
+                {availableRooms.map((r) => {
+                  const count = roomReductions[r.key] || 0;
+                  const price = roomReductionPrices[r.key] || 0;
+                  return (
+                    <div key={r.key} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 bg-secondary/10">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Skip {r.label}</p>
+                        <p className="text-xs text-muted-foreground">-${price} per room</p>
+                      </div>
+                      <Select
+                        value={String(count)}
+                        onValueChange={(v) =>
+                          setRoomReductions({ ...roomReductions, [r.key]: parseInt(v) || 0 })
+                        }
+                      >
+                        <SelectTrigger className="w-24 h-9 bg-secondary/30 border-border/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border-border">
+                          {Array.from({ length: r.max + 1 }, (_, i) => (
+                            <SelectItem key={i} value={String(i)}>{i}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </CardContent>
       </Card>
 
-      {/* Home Condition & Pets - only show if enabled */}
+      {/* Home Condition - only show if enabled */}
       {(showCondition || showPets) && (
         <Card className="border-border/50 shadow-sm">
           <CardContent className="pt-6 space-y-5">
             <div className="flex items-center justify-between mb-4">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                Home Condition & Pets
-              </Label>
+              <div>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  Home Condition
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">Additional charges may apply</p>
+              </div>
               {(conditionTotal > 0 || petTotal > 0) && (
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
                   +${conditionTotal + petTotal}
                 </Badge>
               )}
             </div>
-            
+
             {showCondition && (
               <div>
                 <Label className="text-sm font-medium">Home Condition (1-5 scale)</Label>
@@ -540,35 +598,29 @@ export function ServiceStep() {
                 </Select>
               </div>
             )}
-            
-            {showPets && (
-              <div>
-                <Label className="text-sm font-medium flex items-center gap-2">
+
+            {showPets && paidPetOption && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 bg-secondary/10">
+                <div className="flex items-center gap-2">
                   <PawPrint className="h-4 w-4 text-muted-foreground" />
-                  Pets
-                </Label>
-                <Select value={petOption} onValueChange={setPetOption}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {petOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        <div className="flex items-center justify-between w-full gap-4">
-                          <span>{opt.label}</span>
-                          {opt.price > 0 && (
-                            <span className="text-amber-600 font-medium">+${opt.price}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div>
+                    <Label htmlFor="admin-pet-toggle" className="text-sm font-medium cursor-pointer">Pets?</Label>
+                    {petFee > 0 && (
+                      <p className="text-xs text-muted-foreground">+${petFee} pet fee</p>
+                    )}
+                  </div>
+                </div>
+                <Switch
+                  id="admin-pet-toggle"
+                  checked={petsOn}
+                  onCheckedChange={(on) => setPetOption(on && paidPetOption ? paidPetOption.id : 'no_pets')}
+                />
               </div>
             )}
           </CardContent>
         </Card>
       )}
+
 
       {/* Extras - only show if enabled */}
       {showAddons && (
