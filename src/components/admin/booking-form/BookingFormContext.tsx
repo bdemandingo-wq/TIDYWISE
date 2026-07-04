@@ -345,6 +345,14 @@ export function BookingFormProvider({
     return option?.price || 0;
   }, [servicePricing, petOption]);
 
+  // Room reduction total from org settings prices
+  const reductionsTotal = useMemo(() => {
+    const prices = { ...DEFAULT_ROOM_REDUCTION_PRICES, ...(orgSettings?.room_reduction_prices || {}) };
+    return (Object.keys(roomReductions) as Array<'bedroom' | 'bathroom' | 'full_bath'>)
+      .reduce((sum, k) => sum + (roomReductions[k] || 0) * (prices[k] || 0), 0);
+  }, [roomReductions, orgSettings]);
+
+
   // Get price override from selected location
   const selectedLocationPriceOverride = useMemo(() => {
     if (!selectedLocationId) return null;
