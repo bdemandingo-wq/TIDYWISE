@@ -47,6 +47,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { ExcludeParametersCard } from './ExcludeParametersCard';
+import { PetsCard } from './PetsCard';
 
 
 interface Service {
@@ -813,116 +814,8 @@ export function ServicePricingEditor() {
 
           {/* Pet & Condition Options */}
           <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Pet Options</CardTitle>
-                  <Dialog open={isAddPetOpen} onOpenChange={setIsAddPetOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Pet Option</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Label</Label>
-                          <Input
-                            value={newPet.label}
-                            onChange={(e) => setNewPet({ ...newPet, label: e.target.value })}
-                            placeholder="e.g., Large Dog"
-                          />
-                        </div>
-                        <div>
-                          <Label>Price ($)</Label>
-                          <Input
-                            type="number"
-                            value={newPet.price}
-                            onChange={(e) => setNewPet({ ...newPet, price: e.target.value })}
-                            placeholder="15"
-                          />
-                        </div>
-                        <Button onClick={handleAddPet} className="w-full">Add Pet Option</Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Option</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentPricing.pet_options.map((opt, index) => (
-                      <TableRow key={opt.id} className="group">
-                        <TableCell
-                          className="cursor-pointer hover:bg-secondary/50"
-                          onClick={() => {
-                            setEditingCell({ type: 'pet-label', index });
-                            setEditValue(opt.label);
-                          }}
-                        >
-                          {editingCell?.type === 'pet-label' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handlePetLabelEdit(index, editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handlePetLabelEdit(index, editValue))}
-                              className="h-7"
-                              autoFocus
-                            />
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              {opt.label}
-                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell 
-                          className="text-right cursor-pointer hover:bg-secondary/50"
-                          onClick={() => {
-                            setEditingCell({ type: 'pet', index });
-                            setEditValue(opt.price.toString());
-                          }}
-                        >
-                          {editingCell?.type === 'pet' && editingCell.index === index ? (
-                            <Input
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handlePetOptionEdit(index, parseFloat(editValue) || 0)}
-                              onKeyDown={(e) => handleKeyDown(e, () => handlePetOptionEdit(index, parseFloat(editValue) || 0))}
-                              className="w-20 h-7 text-center ml-auto"
-                              autoFocus
-                              type="number"
-                            />
-                          ) : (
-                            <span>+${opt.price}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="w-10">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
-                            onClick={() => handleDeletePet(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <PetsCard />
+
 
             <Card>
               <CardHeader>
