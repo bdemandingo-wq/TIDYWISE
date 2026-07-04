@@ -429,7 +429,7 @@ export function BookingFormProvider({
     }
     
     return Math.max(0, basePrice + extrasTotal + conditionTotal + petTotal - reductionsTotal);
-  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
+  }, [selectedService, servicePricing, pricingMode, squareFootage, bedrooms, bathrooms, frequency, customFrequencyDays, recurringDaysOfWeek, extrasTotal, conditionTotal, petTotal, reductionsTotal, selectedLocationPriceOverride, recurringDiscountConfig, customFrequencies]);
 
   // Calculate final price after discount
   const finalPrice = useMemo(() => {
