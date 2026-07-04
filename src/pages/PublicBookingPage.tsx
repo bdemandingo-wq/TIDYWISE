@@ -735,6 +735,76 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
+              {/* Don't need the entire home cleaned? */}
+              {(Number(selectedBedrooms) > 0 || Number(selectedBathrooms) > 0) && (
+                <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span>Don't need the entire home cleaned?</span>
+                      <ChevronDown className={cn('h-4 w-4 transition-transform', reducerOpen && 'rotate-180')} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3">
+                    <Card>
+                      <CardContent className="p-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Skip rooms you don't need cleaned. Each skipped room reduces the total by the amount below.
+                        </p>
+                        {([
+                          { key: 'bedroom' as const, label: 'Bedrooms', max: Number(selectedBedrooms) || 0 },
+                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(Number(selectedBathrooms) || 0) },
+                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(Number(selectedBathrooms) || 0) },
+                        ])
+                          .filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0)
+                          .map((r) => {
+                            const count = roomReductions[r.key];
+                            const price = roomReductionPrices[r.key] || 0;
+                            return (
+                              <div key={r.key} className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-sm">Skip {r.label}</p>
+                                  <p className="text-xs text-muted-foreground">-${price} each</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({ ...prev, [r.key]: Math.max(0, prev[r.key] - 1) }))
+                                    }
+                                    disabled={count <= 0}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center text-sm font-semibold">{count}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      setRoomReductions((prev) => ({
+                                        ...prev,
+                                        [r.key]: Math.min(r.max, prev[r.key] + 1),
+                                      }))
+                                    }
+                                    disabled={count >= r.max}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </CardContent>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+
               {/* Service Selection */}
               <div>
                 <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
