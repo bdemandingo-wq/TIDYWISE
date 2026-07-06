@@ -61,30 +61,51 @@ export function BookingDetailsDialog({
   if (!booking) return null;
 
   const handleSendCardLink = async () => {
-    if (!booking.customer?.email) {
+    const phone = (booking.customer as any)?.phone as string | undefined;
+    const email = booking.customer?.email;
+    if (!phone && !email) {
       toast({
         title: "Error",
-        description: "Customer email is required to send card link",
+        description: "Customer needs a phone number or email to receive the card link",
         variant: "destructive",
       });
       return;
     }
 
+    // Default to SMS when the customer has a phone number; otherwise email
+    const channel: 'sms' | 'email' = phone ? 'sms' : 'email';
+
     setSendingLink(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-card-collection-link', {
         body: {
-          email: booking.customer.email,
-          customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
+          email: email ?? undefined,
+          phone: phone ?? undefined,
+          channel,
+          customerName: `${booking.customer?.first_name ?? ''} ${booking.customer?.last_name ?? ''}`.trim() || 'Customer',
           organizationId: organizationId ?? undefined,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Surface the real error body from the edge function
+        let msg = error.message;
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx?.json) {
+            const body = await ctx.json();
+            if (body?.error) msg = typeof body.error === 'string' ? body.error : JSON.stringify(body.error);
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
 
+      const deliveredVia = (data as any)?.deliveredVia as 'sms' | 'email' | undefined;
+      const fellBack = (data as any)?.fellBackToEmail;
+      const target = deliveredVia === 'sms' ? phone : email;
       toast({
-        title: "Card link sent!",
-        description: `A secure card setup link has been emailed to ${booking.customer.email}`,
+        title: fellBack ? 'Sent via email (SMS unavailable)' : 'Card link sent!',
+        description: `Secure card setup link sent via ${deliveredVia === 'sms' ? 'SMS' : 'email'} to ${target}`,
       });
     } catch (error: any) {
       console.error('Error sending card link:', error);
