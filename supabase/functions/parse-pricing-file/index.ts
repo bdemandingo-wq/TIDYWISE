@@ -47,6 +47,22 @@ serve(async (req) => {
     });
     if (limited) return limited;
 
+    // Per-org AI credit consumption (looks up the caller's primary org)
+    if (userId) {
+      const { data: membership } = await admin
+        .from("org_memberships")
+        .select("organization_id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (membership?.organization_id) {
+        const denied = await enforceAiCredit(admin, { orgId: membership.organization_id, corsHeaders });
+        if (denied) return denied;
+      }
+    }
+
+
     const prompt = `You are a pricing data extraction expert. Analyze the following content from a pricing file (${fileName}, type: ${fileType}) and extract all service pricing information.
 
 Return a JSON object with this exact structure:
