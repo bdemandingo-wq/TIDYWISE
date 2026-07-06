@@ -76,6 +76,13 @@ serve(async (req) => {
       });
     }
 
+    // AI rate limiting (per-org 200/hr, per-user 30/min)
+    const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+    const limited = await enforceAiRateLimit(supabase, {
+      orgId: body.organizationId, userId: userData.user.id, corsHeaders,
+    });
+    if (limited) return limited;
+
     // Business settings for tone/name
     const { data: settings } = await supabase
       .from("business_settings")

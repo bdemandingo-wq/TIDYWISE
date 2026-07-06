@@ -119,6 +119,15 @@ serve(async (req) => {
       });
     }
 
+    // AI rate limiting (per-user 30/min). No per-org scope: admin help chat has no org context here.
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supaUrl, serviceKey);
+    const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+    const limited = await enforceAiRateLimit(adminClient, {
+      userId: userData.user.id, corsHeaders,
+    });
+    if (limited) return limited;
+
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
