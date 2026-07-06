@@ -1,20 +1,20 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import { requireCronOrUser } from "../_shared/requireCronOrUser.ts";
 import { checkOrgEmailEligibility, unsubscribeFooterHtml } from "../_shared/emailEligibility.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
-  // Cron auth gate (allows manual invocation only with x-cron-secret)
-  const cronGate = requireCronSecret(req);
-  if (cronGate) return cronGate;
+  // Allow either cron secret OR authenticated user (manual "Run Now")
+  const gate = await requireCronOrUser(req);
+  if (gate) return gate;
 
 
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
