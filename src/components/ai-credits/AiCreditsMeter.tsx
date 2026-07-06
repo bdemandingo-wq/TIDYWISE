@@ -25,8 +25,8 @@ export function AiCreditsMeter({ compact = false, showBuy = true }: Props) {
   const isLow = remaining <= 3 && purchased === 0;
 
   const label = compact
-    ? `${remaining} left`
-    : `${remaining} AI credits left today`;
+    ? `Free: ${remaining}`
+    : `${remaining} free AI credits left today`;
 
   return (
     <TooltipProvider>
@@ -40,7 +40,7 @@ export function AiCreditsMeter({ compact = false, showBuy = true }: Props) {
               <Sparkles className="h-3 w-3" />
               {label}
               {purchased > 0 && (
-                <span className="ml-1 opacity-80">· +{purchased} bought</span>
+                <span className="ml-1 opacity-80">· {purchased} extra credits</span>
               )}
             </Badge>
           </TooltipTrigger>
