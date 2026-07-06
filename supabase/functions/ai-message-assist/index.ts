@@ -165,7 +165,7 @@ No markdown, no commentary, just JSON.`;
           return new Response(JSON.stringify({ error: "Rate limit. Try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         if (aiRes.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Add credits in Settings." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         throw new Error("AI request failed");
       }
@@ -233,7 +233,7 @@ No markdown, no commentary, just JSON.`;
         const txt = await aiRes.text();
         console.error("[ai-message-assist] summary err:", aiRes.status, txt);
         if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (aiRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (aiRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         throw new Error("AI summary failed");
       }
       const aiData = await aiRes.json();
