@@ -466,6 +466,39 @@ export type Database = {
           },
         ]
       }
+      ai_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          request_count: number
+          scope: string
+          scope_id: string
+          updated_at: string
+          window_seconds: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          request_count?: number
+          scope: string
+          scope_id: string
+          updated_at?: string
+          window_seconds: number
+          window_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          request_count?: number
+          scope?: string
+          scope_id?: string
+          updated_at?: string
+          window_seconds?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       ai_reply_locks: {
         Row: {
           conversation_id: string
@@ -9304,7 +9337,22 @@ export type Database = {
         }
         Returns: Json
       }
+      check_and_increment_ai_rate_limit: {
+        Args: {
+          p_limit: number
+          p_scope: string
+          p_scope_id: string
+          p_window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          current_count: number
+          limit_value: number
+          retry_after_seconds: number
+        }[]
+      }
       classify_service_bucket: { Args: { p_name: string }; Returns: string }
+      cleanup_ai_rate_limits: { Args: never; Returns: number }
       client_cancel_booking: {
         Args: { p_booking_id: string; p_customer_id: string }
         Returns: Json
