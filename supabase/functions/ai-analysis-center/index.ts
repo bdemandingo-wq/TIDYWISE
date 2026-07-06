@@ -227,6 +227,15 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    // AI rate limiting (per-org 200/hr, per-user 30/min)
+    const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+    const limited = await enforceAiRateLimit(supabaseAdmin, {
+      orgId: organizationId,
+      userId: (access as any).userId ?? null,
+      corsHeaders,
+    });
+    if (limited) return limited;
+
     const orgId = organizationId;
 
     // ─── PROACTIVE INSIGHTS (data-driven, no AI needed for basic ones) ───
