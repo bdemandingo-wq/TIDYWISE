@@ -236,6 +236,11 @@ serve(async (req) => {
     });
     if (limited) return limited;
 
+    // Per-org AI credit consumption
+    const { enforceAiCredit } = await import("../_shared/ai-credits.ts");
+    const denied = await enforceAiCredit(supabaseAdmin, { orgId: organizationId, corsHeaders });
+    if (denied) return denied;
+
     const orgId = organizationId;
 
     // ─── PROACTIVE INSIGHTS (data-driven, no AI needed for basic ones) ───
