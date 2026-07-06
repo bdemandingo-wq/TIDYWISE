@@ -110,6 +110,22 @@ export default function NotificationsPage() {
     }
   };
 
+  const extractInvokeError = async (error: any): Promise<string> => {
+    try {
+      const ctx = error?.context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) return typeof body.error === 'string' ? body.error : JSON.stringify(body.error);
+        if (body?.message) return body.message;
+      }
+      if (ctx && typeof ctx.text === 'function') {
+        const txt = await ctx.text();
+        if (txt) return txt;
+      }
+    } catch { /* ignore parse errors */ }
+    return error?.message || 'Unknown error';
+  };
+
   const handleSendBrief = async () => {
     if (!organization?.id) return;
     setSendingBrief(true);
@@ -117,8 +133,15 @@ export default function NotificationsPage() {
       const { data, error } = await supabase.functions.invoke('morning-brief', {
         body: { org_id: organization.id },
       });
-      if (error) throw error;
-      toast.success(`Morning brief sent! Jobs: ${data?.sections?.jobs ?? 0}, Estimates: ${data?.sections?.estimates ?? 0}, Requests: ${data?.sections?.requests ?? 0}`);
+      if (error) {
+        const msg = await extractInvokeError(error);
+        throw new Error(msg);
+      }
+      if (data?.skipped) {
+        toast.warning(`Morning brief skipped: ${data.reason || 'not eligible'}`);
+      } else {
+        toast.success(`Morning brief sent! Jobs: ${data?.sections?.jobs ?? 0}, Estimates: ${data?.sections?.estimates ?? 0}, Requests: ${data?.sections?.requests ?? 0}`);
+      }
     } catch (e: any) {
       toast.error(`Failed to send morning brief: ${e.message}`);
     } finally {
@@ -133,8 +156,15 @@ export default function NotificationsPage() {
       const { data, error } = await supabase.functions.invoke('evening-brief', {
         body: { org_id: organization.id },
       });
-      if (error) throw error;
-      toast.success(`End of day report sent! Completed: ${data?.summary?.completed ?? 0}, Revenue: $${data?.summary?.revenue?.toFixed(0) ?? 0}, Tomorrow: ${data?.summary?.tomorrow ?? 0}`);
+      if (error) {
+        const msg = await extractInvokeError(error);
+        throw new Error(msg);
+      }
+      if (data?.skipped) {
+        toast.warning(`End of day report skipped: ${data.reason || 'not eligible'}`);
+      } else {
+        toast.success(`End of day report sent! Completed: ${data?.summary?.completed ?? 0}, Revenue: $${data?.summary?.revenue?.toFixed(0) ?? 0}, Tomorrow: ${data?.summary?.tomorrow ?? 0}`);
+      }
     } catch (e: any) {
       toast.error(`Failed to send evening report: ${e.message}`);
     } finally {
