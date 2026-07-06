@@ -30,8 +30,12 @@ export function AISuggestReplyButton({ organizationId, conversationId, contactTy
       if (data?.error) throw new Error(data.error);
       setSuggestions(data?.suggestions || []);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to get suggestions';
-      toast.error(msg);
+      const { handlePossibleAiCreditError } = await import('@/components/ai-credits/AiCreditLimitModal');
+      const handled = await handlePossibleAiCreditError(e);
+      if (!handled) {
+        const msg = e instanceof Error ? e.message : 'Failed to get suggestions';
+        toast.error(msg);
+      }
       setOpen(false);
     } finally {
       setLoading(false);
