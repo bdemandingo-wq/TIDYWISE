@@ -132,29 +132,45 @@ export function useOrganizationSettings() {
     if (!organization?.id) return;
 
     try {
+      // Re-fetch the latest row before merging so concurrent card saves on the
+      // same page don't overwrite each other with stale local state.
+      const { data: current } = await supabase
+        .from('organization_pricing_settings')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .maybeSingle();
+
+      const base: any = current ?? {};
+      const pick = <K extends keyof OrganizationPricingSettings>(key: K, fallback: any) => {
+        if ((updates as any)[key] !== undefined) return (updates as any)[key];
+        if ((base as any)[key] !== undefined && (base as any)[key] !== null) return (base as any)[key];
+        return (settings as any)?.[key] ?? fallback;
+      };
+
       const settingsData = {
         organization_id: organization.id,
-        show_sqft_on_booking: updates.show_sqft_on_booking ?? settings?.show_sqft_on_booking ?? true,
-        show_addons_on_booking: updates.show_addons_on_booking ?? settings?.show_addons_on_booking ?? true,
-        show_frequency_discount: updates.show_frequency_discount ?? settings?.show_frequency_discount ?? true,
-        show_pet_options: updates.show_pet_options ?? settings?.show_pet_options ?? true,
-        show_home_condition: updates.show_home_condition ?? settings?.show_home_condition ?? true,
-        show_bed_bath_on_booking: updates.show_bed_bath_on_booking ?? settings?.show_bed_bath_on_booking ?? true,
-        sales_tax_percent: updates.sales_tax_percent ?? settings?.sales_tax_percent ?? 0,
-        demo_mode_enabled: updates.demo_mode_enabled ?? settings?.demo_mode_enabled ?? false,
-        loyalty_program_enabled: updates.loyalty_program_enabled ?? settings?.loyalty_program_enabled ?? true,
-        booking_form_theme: updates.booking_form_theme ?? settings?.booking_form_theme ?? 'dark',
-        form_bg_color: updates.form_bg_color !== undefined ? updates.form_bg_color : (settings?.form_bg_color ?? null),
-        form_card_color: updates.form_card_color !== undefined ? updates.form_card_color : (settings?.form_card_color ?? null),
-        form_text_color: updates.form_text_color !== undefined ? updates.form_text_color : (settings?.form_text_color ?? null),
-        form_button_color: updates.form_button_color !== undefined ? updates.form_button_color : (settings?.form_button_color ?? null),
-        form_button_text_color: updates.form_button_text_color !== undefined ? updates.form_button_text_color : (settings?.form_button_text_color ?? null),
-        form_accent_color: updates.form_accent_color !== undefined ? updates.form_accent_color : (settings?.form_accent_color ?? null),
-        pet_fee: updates.pet_fee ?? settings?.pet_fee ?? 25,
-        pet_toggle_enabled: updates.pet_toggle_enabled ?? settings?.pet_toggle_enabled ?? true,
-        excluded_room_types: updates.excluded_room_types ?? settings?.excluded_room_types ?? [],
-        room_reduction_prices: updates.room_reduction_prices ?? settings?.room_reduction_prices ?? { ...DEFAULT_ROOM_REDUCTION_PRICES },
+        show_sqft_on_booking: pick('show_sqft_on_booking', true),
+        show_addons_on_booking: pick('show_addons_on_booking', true),
+        show_frequency_discount: pick('show_frequency_discount', true),
+        show_pet_options: pick('show_pet_options', true),
+        show_home_condition: pick('show_home_condition', true),
+        show_bed_bath_on_booking: pick('show_bed_bath_on_booking', true),
+        sales_tax_percent: pick('sales_tax_percent', 0),
+        demo_mode_enabled: pick('demo_mode_enabled', false),
+        loyalty_program_enabled: pick('loyalty_program_enabled', true),
+        booking_form_theme: pick('booking_form_theme', 'dark'),
+        form_bg_color: updates.form_bg_color !== undefined ? updates.form_bg_color : (base.form_bg_color ?? settings?.form_bg_color ?? null),
+        form_card_color: updates.form_card_color !== undefined ? updates.form_card_color : (base.form_card_color ?? settings?.form_card_color ?? null),
+        form_text_color: updates.form_text_color !== undefined ? updates.form_text_color : (base.form_text_color ?? settings?.form_text_color ?? null),
+        form_button_color: updates.form_button_color !== undefined ? updates.form_button_color : (base.form_button_color ?? settings?.form_button_color ?? null),
+        form_button_text_color: updates.form_button_text_color !== undefined ? updates.form_button_text_color : (base.form_button_text_color ?? settings?.form_button_text_color ?? null),
+        form_accent_color: updates.form_accent_color !== undefined ? updates.form_accent_color : (base.form_accent_color ?? settings?.form_accent_color ?? null),
+        pet_fee: pick('pet_fee', 25),
+        pet_toggle_enabled: pick('pet_toggle_enabled', true),
+        excluded_room_types: updates.excluded_room_types ?? base.excluded_room_types ?? settings?.excluded_room_types ?? [],
+        room_reduction_prices: updates.room_reduction_prices ?? base.room_reduction_prices ?? settings?.room_reduction_prices ?? { ...DEFAULT_ROOM_REDUCTION_PRICES },
       };
+
 
       const { data, error } = await supabase
         .from('organization_pricing_settings')

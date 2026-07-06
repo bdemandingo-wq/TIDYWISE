@@ -132,13 +132,14 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
-      const [inactiveRes, bookingsRes, newClientsRes] = await Promise.all([
-        // Clients inactive 60+ days
+      const [recentBookingsRes, bookingsRes, newClientsRes] = await Promise.all([
+        // Customers with a booking in the last 60 days — used to derive inactive count
         supabase
-          .from('customers')
-          .select('id', { count: 'exact', head: true })
+          .from('bookings')
+          .select('customer_id')
           .eq('organization_id', organization.id)
-          .lt('last_booking_date', sixtyDaysAgo),
+          .neq('status', 'cancelled')
+          .gte('scheduled_at', sixtyDaysAgo),
         // This month's bookings for day-of-week analysis
         supabase
           .from('bookings')
@@ -155,6 +156,17 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
           .eq('is_recurring', false)
           .gte('created_at', addDays(now, -30).toISOString()),
       ]);
+
+      // Derive inactive customer count: total customers minus those with a recent booking
+      const activeCustomerIds = new Set(
+        (recentBookingsRes.data ?? []).map((b: any) => b.customer_id).filter(Boolean)
+      );
+      const { count: totalCustomers } = await supabase
+        .from('customers')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organization.id);
+      const inactiveRes = { count: Math.max(0, (totalCustomers ?? 0) - activeCustomerIds.size) };
+
 
       // Day of week analysis
       const dayCounts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
