@@ -22,7 +22,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const webhookSecret = Deno.env.get("STRIPE_SUBSCRIPTION_WEBHOOK_SECRET");
   if (!stripeKey || !webhookSecret) {
     return new Response(JSON.stringify({ error: "Stripe env not configured" }), { status: 500, headers: corsHeaders });
   }
