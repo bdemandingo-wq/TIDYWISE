@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useCopilot, type CopilotMessage } from '@/hooks/useCopilot';
+import { AiCreditsMeter } from '@/components/ai-credits/AiCreditsMeter';
 
 const SUGGESTED_PROMPTS = [
   'How do I add my first booking?',
