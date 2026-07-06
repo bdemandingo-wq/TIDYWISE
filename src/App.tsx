@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthProviderNoSession } from "@/hooks/useAuthNoSession";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { AiCreditLimitModal } from "@/components/ai-credits/AiCreditLimitModal";
 import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
