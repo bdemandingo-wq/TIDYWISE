@@ -335,7 +335,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'proactive-insights', organizationId: orgId },
-      });
+      );
       if (error) throw error;
       setProactiveInsights(data?.insights || []);
     } catch (e: any) {
@@ -357,7 +357,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'dynamic-chips', organizationId: orgId },
-      });
+      );
       if (error) throw error;
       setDynamicChips(data?.chips || []);
     } catch {
@@ -385,7 +385,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'insights', organizationId: orgId, businessSnapshot },
-      });
+      );
       if (error) throw error;
       setInsights(data?.insights || []);
     } catch (e: any) {
@@ -408,7 +408,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
-      });
+      );
       if (error) throw error;
       setSchedRec(data?.recommendation || '');
     } catch { setSchedRec('Unable to generate recommendation.'); }
@@ -429,7 +429,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'growth-playbook', organizationId: orgId },
-      });
+      );
       if (error) throw error;
       setPlaybook(data?.playbook || '');
     } catch (e: any) {
@@ -471,7 +471,7 @@ export function AIAnalysisCenter() {
     try {
       const { data, error } = await invokeAi('ai-analysis-center', 
         { type: 'draft-message', prompt, channel, organizationId: orgId },
-      });
+      );
       if (error) throw error;
       setDraftText((data as any)?.message || '');
     } catch (e: any) {
