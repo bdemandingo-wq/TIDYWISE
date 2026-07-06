@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse } from "../_shared/verify-admin-auth.ts";
 import { enforceAiRateLimit } from "../_shared/ai-rate-limit.ts";
+import { enforceAiCredit } from "../_shared/ai-credits.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
