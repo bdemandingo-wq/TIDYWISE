@@ -20,6 +20,21 @@ import ReactMarkdown from 'react-markdown';
 import { useQuery as useRQ } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { handlePossibleAiCreditError } from '@/components/ai-credits/AiCreditLimitModal';
+
+/** Wraps supabase.functions.invoke and shows the credit-limit modal when a 402 comes back. */
+async function invokeAi(fn: string, body: unknown) {
+  const result = await supabase.functions.invoke(fn, { body });
+  if (result.error) {
+    const handled = await handlePossibleAiCreditError(result.error);
+    if (handled) {
+      // Return a soft-null so callers show empty state instead of a red toast.
+      return { data: null, error: null, creditLimited: true } as const;
+    }
+  }
+  return { ...result, creditLimited: false } as const;
+}
+
 
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; cardStyle: React.CSSProperties }) {
