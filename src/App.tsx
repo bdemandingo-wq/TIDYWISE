@@ -192,6 +192,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <AppStateHandler />
+                <AiCreditLimitModal />
                 {/*
                   Native (Capacitor) builds should use HashRouter to avoid blank screens on launch
                   due to history-based routing not being handled by the embedded webview.
