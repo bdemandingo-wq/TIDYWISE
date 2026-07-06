@@ -21,7 +21,7 @@ function aiRequest(apiKey: string, body: Record<string, unknown>) {
 
 function handleRateLimit(status: number) {
   if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   return null;
 }
 

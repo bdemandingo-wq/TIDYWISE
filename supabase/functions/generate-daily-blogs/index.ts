@@ -133,7 +133,7 @@ async function callLovableAI(systemPrompt: string, userPrompt: string): Promise<
   if (!res.ok) {
     const text = await res.text();
     if (res.status === 429) throw new Error("Rate limit on AI gateway");
-    if (res.status === 402) throw new Error("AI gateway credits exhausted");
+    if (res.status === 402) throw new Error("AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately.");
     throw new Error(`AI gateway ${res.status}: ${text.substring(0, 300)}`);
   }
   const data = await res.json();

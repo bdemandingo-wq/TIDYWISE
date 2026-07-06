@@ -535,7 +535,7 @@ export function AIAnalysisCenter() {
       });
 
       if (resp.status === 429) { toast.error('Rate limit exceeded. Try again later.'); setChatLoading(false); return; }
-      if (resp.status === 402) { toast.error('AI credits exhausted. Please add credits.'); setChatLoading(false); return; }
+      if (resp.status === 402) { toast.error('AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately.'); setChatLoading(false); return; }
       if (!resp.ok || !resp.body) {
         const errorText = await resp.text().catch(() => '');
         console.error('AI chat error:', resp.status, errorText);
