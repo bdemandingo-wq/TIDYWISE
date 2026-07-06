@@ -332,7 +332,7 @@ export function CustomServicesManager() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
@@ -347,12 +347,12 @@ export function CustomServicesManager() {
             else setIsAddOpen(true);
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Service
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
               <DialogHeader>
                 <DialogTitle>
                   {editingService ? 'Edit Service' : 'Create New Service'}

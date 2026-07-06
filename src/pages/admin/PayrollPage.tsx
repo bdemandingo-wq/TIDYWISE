@@ -283,7 +283,10 @@ export default function PayrollPage() {
     setPayoutNotes('');
   };
 
+  // #13 fix: track which button was pressed so only that one shows a spinner
+  const [payingMethod, setPayingMethod] = useState<'stripe_transfer' | 'external' | null>(null);
   const handlePayout = (method: 'stripe_transfer' | 'external') => {
+    setPayingMethod(method);
     payoutMutation.mutate({
       staffId: payoutDialog.staffId,
       amount: payoutDialog.amount,
@@ -1337,7 +1340,7 @@ export default function PayrollPage() {
                     disabled={!hasStripe || payoutMutation.isPending}
                     className="w-full gap-2"
                   >
-                    {payoutMutation.isPending ? (
+                    {payoutMutation.isPending && payingMethod === 'stripe_transfer' ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <CreditCard className="w-4 h-4" />
@@ -1363,7 +1366,7 @@ export default function PayrollPage() {
                     disabled={payoutMutation.isPending}
                     className="w-full gap-2"
                   >
-                    {payoutMutation.isPending ? (
+                    {payoutMutation.isPending && payingMethod === 'external' ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Banknote className="w-4 h-4" />

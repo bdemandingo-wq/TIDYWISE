@@ -46,6 +46,79 @@ function randomSuffix(length = 5) {
 // Cleaning-only template
 const cleaningTemplate = getIndustryTemplate("Home Cleaning")!;
 
+// ── Qualifying questions (steps 2-5) ────────────────────────────────────
+// Single-select cards that auto-advance. Answers are stored in
+// sessionStorage (`tw_onboarding_answers`) and used by /choose-plan to
+// personalize the recommended plan. Psychology: self-identification →
+// pain surfacing → pain agitation → aspiration, so by the paywall the
+// user has articulated WHY they need this.
+interface QualifyingOption {
+  value: string;
+  label: string;
+  sub?: string;
+}
+interface QualifyingQuestion {
+  key: 'teamSize' | 'bookingMethod' | 'biggestPain' | 'revenueGoal';
+  title: string;
+  description: string;
+  options: QualifyingOption[];
+}
+
+const QUALIFYING_QUESTIONS: QualifyingQuestion[] = [
+  {
+    key: 'teamSize',
+    title: "Where's your business today?",
+    description: 'This helps us set up the right tools for your size',
+    options: [
+      { value: 'solo', label: 'Just me', sub: 'Solo cleaner getting started' },
+      { value: 'small', label: 'Me + 1-4 cleaners', sub: 'Small team, growing fast' },
+      { value: 'mid', label: '5-15 cleaners', sub: 'Established team operation' },
+      { value: 'large', label: '15+ cleaners', sub: 'Multi-team or multi-location' },
+    ],
+  },
+  {
+    key: 'bookingMethod',
+    title: 'How do bookings come in right now?',
+    description: 'Be honest — this is where most owners lose money',
+    options: [
+      { value: 'manual', label: 'Calls & texts I track myself', sub: 'Notes app, memory, paper' },
+      { value: 'dms', label: 'Instagram / Facebook DMs', sub: 'Scattered across inboxes' },
+      { value: 'referrals', label: 'Word of mouth & referrals', sub: 'Great clients, no system' },
+      { value: 'software', label: 'Another software', sub: "It's not working for me" },
+    ],
+  },
+  {
+    key: 'biggestPain',
+    title: "What's eating most of your week?",
+    description: 'The #1 thing you wish would run itself',
+    options: [
+      { value: 'scheduling', label: 'Scheduling & dispatching chaos', sub: 'Who goes where, and when' },
+      { value: 'payments', label: 'Chasing invoices & payments', sub: 'Getting paid late or not at all' },
+      { value: 'noshows', label: 'No-shows & cancellations', sub: 'Empty slots, lost revenue' },
+      { value: 'everything', label: 'Doing everything myself', sub: 'No time to actually grow' },
+    ],
+  },
+  {
+    key: 'revenueGoal',
+    title: 'Where do you want to be in 12 months?',
+    description: "Your answer shapes the growth plan we'll set up",
+    options: [
+      { value: '5k', label: 'First consistent $5k/mo', sub: 'Prove the business works' },
+      { value: '10k', label: 'Steady $10k/mo', sub: 'Full-time income, reliable team' },
+      { value: '25k', label: 'Scale past $25k/mo', sub: 'Systems running without me' },
+      { value: '50k', label: '$50k+/mo operation', sub: 'Multi-team, serious growth' },
+    ],
+  },
+];
+
+// Maps biggestPain → the line shown while "building the dashboard"
+const PAIN_BUILD_LINE: Record<string, string> = {
+  scheduling: 'Configuring your smart scheduler',
+  payments: 'Setting up automated invoicing & payments',
+  noshows: 'Activating reminder & no-show protection',
+  everything: 'Automating your admin workflows',
+};
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const isNative = Capacitor.isNativePlatform();
@@ -53,6 +126,14 @@ export default function OnboardingPage() {
   const { organization, loading: orgLoading, refetch } = useOrganization();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  // Qualifying answers (steps 2-5). Persisted to sessionStorage on
+  // completion so /choose-plan can personalize the recommendation.
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Briefly-highlighted option before auto-advance (visual confirmation).
+  const [flashValue, setFlashValue] = useState<string | null>(null);
+  // Post-creation "building your dashboard" overlay.
+  const [building, setBuilding] = useState(false);
+  const [buildStage, setBuildStage] = useState(0);
   const [businessName, setBusinessName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [needsPhoneCollection, setNeedsPhoneCollection] = useState(false);
@@ -95,10 +176,13 @@ export default function OnboardingPage() {
   // If the user already has a business and isn't creating a new one, redirect.
   const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
   useEffect(() => {
-    if (!orgLoading && organization && !isNewBusiness) {
+    // `building` guard: right after creation, refetch() sets `organization`
+    // and this effect would yank the user to /dashboard mid-overlay (and
+    // AdminRoute would bounce them again). Let the overlay own navigation.
+    if (!orgLoading && organization && !isNewBusiness && !building) {
       navigate('/dashboard', { replace: true });
     }
-  }, [orgLoading, organization, navigate]);
+  }, [orgLoading, organization, navigate, building]);
 
   // If not logged in, send to login.
   useEffect(() => {
@@ -363,7 +447,26 @@ export default function OnboardingPage() {
 
       toast.success('Business created successfully with your services!');
       await refetch();
-      navigate('/dashboard');
+      // Persist qualifying answers for /choose-plan personalization.
+      try {
+        sessionStorage.setItem(
+          'tw_onboarding_answers',
+          JSON.stringify({ ...answers, businessName: name }),
+        );
+      } catch { /* no-op */ }
+      // Hard paywall: web users pick a plan before entering the dashboard.
+      // Native skips the paywall entirely (App Store 3.1.1).
+      if (isNative) {
+        navigate('/dashboard');
+      } else {
+        // "Building your dashboard" — staged reveal referencing their
+        // answers, then land on the paywall while momentum is high.
+        setBuilding(true);
+        [0, 1, 2, 3].forEach((stage) => {
+          window.setTimeout(() => setBuildStage(stage + 1), 700 + stage * 800);
+        });
+        window.setTimeout(() => navigate('/choose-plan'), 4200);
+      }
     } catch (error: any) {
       console.error('Error creating organization:', error);
       toast.error(error.message || 'Failed to create business');
@@ -376,7 +479,19 @@ export default function OnboardingPage() {
   const canProceedStep1 = businessName.trim().length >= 2;
   const canProceedStep2 = selectedServices.size > 0;
 
-  const totalSteps = 2;
+  const totalSteps = 6;
+  const currentQuestion =
+    step >= 2 && step <= 5 ? QUALIFYING_QUESTIONS[step - 2] : null;
+
+  const selectQualifyingOption = (key: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [key]: value }));
+    setFlashValue(value);
+    // Brief highlight so the tap feels acknowledged, then auto-advance.
+    window.setTimeout(() => {
+      setFlashValue(null);
+      setStep((s) => s + 1);
+    }, 280);
+  };
 
   // Show loading spinner while checking organization status
   if (orgLoading) {
@@ -397,6 +512,44 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
+      {/* "Building your dashboard" overlay — staged reveal after creation,
+          referencing the user's own answers, then lands on /choose-plan. */}
+      {building && (
+        <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-6">
+          <div className="w-full max-w-md space-y-6">
+            <div className="text-center space-y-2">
+              <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
+              <h2 className="text-2xl font-bold">
+                Building {businessName.trim() || 'your business'}'s dashboard
+              </h2>
+              <p className="text-muted-foreground text-sm">This takes just a moment…</p>
+            </div>
+            <div className="space-y-3">
+              {[
+                'Creating your online booking page',
+                'Setting up your team scheduler & CRM',
+                PAIN_BUILD_LINE[answers.biggestPain] || 'Automating your admin workflows',
+                'Preparing your growth plan',
+              ].map((line, i) => (
+                <div
+                  key={line}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border p-3 transition-all duration-500',
+                    buildStage > i ? 'opacity-100 border-primary/40' : 'opacity-30 border-border',
+                  )}
+                >
+                  {buildStage > i ? (
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                  ) : (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground shrink-0" />
+                  )}
+                  <span className="text-sm font-medium">{line}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <SEOHead
         title="Set Up Your Cleaning Business | TidyWise"
         description="Tell TidyWise about your cleaning business and pick the services you offer in two quick steps. You'll be ready to take bookings right after."
@@ -422,20 +575,23 @@ export default function OnboardingPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Set Up Your Cleaning Business</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {currentQuestion ? currentQuestion.title : 'Set Up Your Cleaning Business'}
+          </CardTitle>
           <CardDescription>
             {step === 1 && "Let's start with your business name"}
-            {step === 2 && "Choose which cleaning services you want to offer"}
+            {currentQuestion && currentQuestion.description}
+            {step === 6 && "Choose which cleaning services you want to offer"}
           </CardDescription>
           
           {/* Progress indicator */}
           <div className="flex items-center justify-center gap-2 mt-4">
-            {[1, 2].map((s) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
               <div 
                 key={s}
                 className={cn(
                   "h-2 rounded-full transition-all",
-                  s === step ? "w-8 bg-primary" : s < step ? "w-8 bg-primary/60" : "w-8 bg-muted"
+                  s === step ? "w-8 bg-primary" : s < step ? "w-4 bg-primary/60" : "w-4 bg-muted"
                 )}
               />
             ))}
@@ -500,13 +656,59 @@ export default function OnboardingPage() {
                 disabled={!canProceedStep1}
                 onClick={() => setStep(2)}
               >
-                Choose Services <ArrowRight className="ml-2 h-4 w-4" />
+                Continue <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           )}
 
-          {/* Step 2: Service Selection */}
-          {step === 2 && (
+          {/* Steps 2-5: Qualifying questions — tap to auto-advance */}
+          {currentQuestion && (
+            <div className="space-y-3">
+              {currentQuestion.options.map((opt) => {
+                const selected =
+                  answers[currentQuestion.key] === opt.value || flashValue === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={flashValue !== null}
+                    onClick={() => selectQualifyingOption(currentQuestion.key, opt.value)}
+                    className={cn(
+                      'w-full flex items-center justify-between rounded-lg border p-4 text-left transition-all',
+                      'hover:border-primary hover:bg-primary/5',
+                      selected ? 'border-primary bg-primary/10 shadow-sm' : 'border-border',
+                    )}
+                  >
+                    <span>
+                      <span className="block font-medium">{opt.label}</span>
+                      {opt.sub && (
+                        <span className="block text-sm text-muted-foreground mt-0.5">{opt.sub}</span>
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        'ml-4 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all',
+                        selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+                      )}
+                    >
+                      {selected && <Check className="h-3 w-3" />}
+                    </span>
+                  </button>
+                );
+              })}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={() => setStep(step - 1)}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+            </div>
+          )}
+
+          {/* Step 6: Service Selection */}
+          {step === 6 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
@@ -657,7 +859,7 @@ export default function OnboardingPage() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep(5)}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>

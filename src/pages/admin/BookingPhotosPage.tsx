@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SignedImage } from '@/components/ui/signed-image';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Search, Camera, Calendar, User, Loader2, Image as ImageIcon, Trash2, Play, Download, Video } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -242,10 +245,36 @@ export default function BookingPhotosPage() {
     try {
       const { data, error } = await supabase.storage.from('booking-photos').createSignedUrl(photo.photo_url, 300);
       if (error || !data?.signedUrl) throw error;
-      const anchor = document.createElement('a');
-      anchor.href = data.signedUrl;
-      anchor.download = photo.photo_url.split('/').pop() || 'download';
-      anchor.click();
+      const filename = photo.photo_url.split('/').pop() || 'photo.jpg';
+
+      // Fetch the actual bytes — a cross-origin <a download> is ignored by
+      // browsers and just navigates (which opened Safari on the phone).
+      const resp = await fetch(data.signedUrl);
+      const blob = await resp.blob();
+
+      if (Capacitor.isNativePlatform()) {
+        // Native: write to cache then open the iOS share sheet, where the
+        // user can "Save Image" straight to Photos.
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.readAsDataURL(blob);
+        });
+        const written = await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Cache,
+        });
+        await Share.share({ files: [written.uri] });
+      } else {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        anchor.click();
+        URL.revokeObjectURL(objectUrl);
+      }
     } catch {
       toast.error('Failed to download');
     }
@@ -342,6 +371,7 @@ export default function BookingPhotosPage() {
                           bucket="booking-photos"
                           alt={`${photo.photo_type || 'Booking'} photo`}
                           className="w-full h-full object-cover"
+                          thumbWidth={400}
                           fallback={
                             <div className="w-full h-full flex items-center justify-center">
                               <ImageIcon className="w-8 h-8 text-muted-foreground" />

@@ -139,6 +139,7 @@ const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
 const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const ChoosePlanPage = lazy(() => import("./pages/ChoosePlanPage"));
 const CheckoutSuccessPage = lazy(() => import("./pages/CheckoutSuccessPage"));
 const CleaningBusinessSoftware = lazy(() => import("./pages/CleaningBusinessSoftware"));
 const LocationSoftwarePage = lazy(() => import("./pages/locations/LocationSoftwarePage"));
@@ -232,6 +233,7 @@ const App = () => (
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
                       {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
                       <Route path="/pricing" element={<Navigate to="/login" replace />} />
+                      <Route path="/choose-plan" element={<Navigate to="/login" replace />} />
                       <Route path="/onboarding" element={<Navigate to="/login" replace />} />
                       <Route path="/demo" element={<Navigate to="/login" replace />} />
                       <Route path="/review/:token" element={<ReviewPage />} />
@@ -337,6 +339,7 @@ const App = () => (
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<ErrorBoundary featureName="Pricing"><PricingPage /></ErrorBoundary>} />
+                     <Route path="/choose-plan" element={<ErrorBoundary featureName="Choose Plan"><ChoosePlanPage /></ErrorBoundary>} />
                      <Route path="/checkout/success" element={<ErrorBoundary featureName="Checkout Success"><CheckoutSuccessPage /></ErrorBoundary>} />
                      <Route path="/demo" element={<DemoPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />

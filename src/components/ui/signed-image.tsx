@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ImageIcon } from 'lucide-react';
-import { getSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+import { getSignedUrl, extractStoragePath, type SignedUrlTransform } from '@/hooks/useSignedUrl';
 
 interface SignedImageProps {
   /** Storage path or URL - can be raw path, storage: prefixed, or legacy public URL */
@@ -18,6 +18,8 @@ interface SignedImageProps {
   expiresIn?: number;
   /** Native loading attribute (default: lazy — these are gallery/preview thumbnails) */
   loading?: 'lazy' | 'eager';
+  /** Request a server-resized thumbnail of this width (gallery grids). Omit for full-res. */
+  thumbWidth?: number;
 }
 
 /**
@@ -32,6 +34,7 @@ export function SignedImage({
   fallback,
   expiresIn = 3600,
   loading: loadingAttr = 'lazy',
+  thumbWidth,
 }: SignedImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,10 @@ export function SignedImage({
       return;
     }
 
+    const transform: SignedUrlTransform | undefined = thumbWidth
+      ? { width: thumbWidth, quality: 75, resize: 'cover' }
+      : undefined;
+
     const loadImage = async () => {
       setLoading(true);
       setError(false);
@@ -53,7 +60,7 @@ export function SignedImage({
         if (src.startsWith('storage:')) {
           const [, bucketName, ...pathParts] = src.split(':');
           const path = pathParts.join(':');
-          const signedUrl = await getSignedUrl(bucketName, path, expiresIn);
+          const signedUrl = await getSignedUrl(bucketName, path, expiresIn, transform);
           setImageUrl(signedUrl);
         }
         // Check if it's already a full URL (legacy data or external)
@@ -61,7 +68,7 @@ export function SignedImage({
           // Try to extract path from Supabase URL and get signed URL
           const storagePath = extractStoragePath(src);
           if (storagePath && storagePath !== src) {
-            const signedUrl = await getSignedUrl(bucket, storagePath, expiresIn);
+            const signedUrl = await getSignedUrl(bucket, storagePath, expiresIn, transform);
             setImageUrl(signedUrl);
           } else {
             // External URL or can't extract path - use as-is
@@ -70,7 +77,7 @@ export function SignedImage({
         }
         // Raw storage path
         else {
-          const signedUrl = await getSignedUrl(bucket, src, expiresIn);
+          const signedUrl = await getSignedUrl(bucket, src, expiresIn, transform);
           setImageUrl(signedUrl);
         }
       } catch (err) {
@@ -82,7 +89,7 @@ export function SignedImage({
     };
 
     loadImage();
-  }, [src, bucket, expiresIn]);
+  }, [src, bucket, expiresIn, thumbWidth]);
 
   if (loading) {
     // Let callers control sizing via className (important for small avatars/logos).

@@ -142,11 +142,27 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
                 </Button>
               )}
               {invoice.stripe_invoice_url && (
-                <Button variant="outline" size="sm" asChild>
-                  <a href={invoice.stripe_invoice_url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Pay Online
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    // #12: the owner viewing this isn't the payer — they need
+                    // to hand the payment link to the customer, not open it.
+                    const url = invoice.stripe_invoice_url!;
+                    try {
+                      if (navigator.share) {
+                        await navigator.share({ title: 'Invoice payment link', url });
+                      } else {
+                        await navigator.clipboard.writeText(url);
+                        toast.success('Payment link copied — share it with your customer.');
+                      }
+                    } catch {
+                      /* user cancelled share sheet */
+                    }
+                  }}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Share Link
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={handlePrint}>

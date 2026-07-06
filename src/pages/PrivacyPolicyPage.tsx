@@ -1,9 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
+import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPolicyPage() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
@@ -12,14 +14,28 @@ export default function PrivacyPolicyPage() {
         canonical="/privacy-policy"
       />
 
-      <header className="border-b border-border bg-background/80 backdrop-blur-md">
+      {/* #17: sticky header + top safe-area so Back never hides under the
+          iPhone status bar, and history-based back so it returns to the
+          screen the user actually came from (sign-up, settings, etc.). */}
+      <header
+        className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold text-foreground">TIDYWISE</span>
             <span className="text-sm text-muted-foreground">Privacy Policy</span>
           </div>
-          <Button variant="outline" asChild>
-            <Link to="/">Back</Link>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.history.length > 1) navigate(-1);
+              else navigate('/');
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
         </div>
       </header>

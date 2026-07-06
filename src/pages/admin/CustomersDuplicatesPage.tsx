@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, ArrowRight, Loader2, ShieldX, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, ShieldX, Sparkles, Star, Trash2 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -262,8 +262,33 @@ export default function CustomersDuplicatesPage() {
     [customers, ignoredKeys],
   );
 
-  const ignoreMutation = useMutation({
-    mutationFn: async (pair: DuplicatePair) => {
+  // #9: delete a duplicate record outright (typical for 0-booking dupes)
+  const deleteMutation = useMutation({
+    mutationFn: async (customer: Customer) => {
+      if (!orgId) throw new Error('No org');
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customer.id)
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return customer;
+    },
+    onSuccess: (customer) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-duplicates', orgId] });
+      toast.success(`${customer.first_name} ${customer.last_name} deleted`);
+    },
+    onError: (err: Error) => {
+      toast.error(
+        err.message?.includes('violates foreign key')
+          ? 'This customer has bookings or invoices — merge instead of deleting.'
+          : err.message || 'Failed to delete customer',
+      );
+    },
+  });
+
+  const ignoreMutation = useMutation({    mutationFn: async (pair: DuplicatePair) => {
       if (!orgId || !user?.id) throw new Error('No org/user');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
@@ -451,6 +476,11 @@ export default function CustomersDuplicatesPage() {
                 setConfirmMerge({ pair, primary, secondary })
               }
               onIgnore={() => ignoreMutation.mutate(pair)}
+              onDelete={(customer) => {
+                if (window.confirm(`Delete ${customer.first_name} ${customer.last_name}? This cannot be undone.`)) {
+                  deleteMutation.mutate(customer);
+                }
+              }}
               ignoring={ignoreMutation.isPending}
             />
           ))}
@@ -513,6 +543,7 @@ interface PairCardProps {
   statsB: CustomerStats | undefined;
   onMerge: (primary: Customer, secondary: Customer) => void;
   onIgnore: () => void;
+  onDelete: (customer: Customer) => void;
   ignoring: boolean;
 }
 
@@ -522,6 +553,7 @@ function DuplicatePairCard({
   statsB,
   onMerge,
   onIgnore,
+  onDelete,
   ignoring,
 }: PairCardProps) {
   return (
@@ -558,6 +590,7 @@ function DuplicatePairCard({
               </>
             }
             onKeepThisOne={() => onMerge(pair.a, pair.b)}
+            onDelete={() => onDelete(pair.a)}
           />
           <CustomerCompareCard
             customer={pair.b}
@@ -571,6 +604,7 @@ function DuplicatePairCard({
               </>
             }
             onKeepThisOne={() => onMerge(pair.b, pair.a)}
+            onDelete={() => onDelete(pair.b)}
           />
         </div>
       </CardContent>
@@ -604,6 +638,7 @@ function CustomerCompareCard({
   primaryLabel,
   mergeLabel,
   onKeepThisOne,
+  onDelete,
 }: {
   customer: Customer;
   stats: CustomerStats | undefined;
@@ -612,6 +647,7 @@ function CustomerCompareCard({
   primaryLabel: string;
   mergeLabel: React.ReactNode;
   onKeepThisOne: () => void;
+  onDelete: () => void;
 }) {
   const sameField = (k: keyof Customer) =>
     norm(customer[k] as string | null) === norm(otherCustomer[k] as string | null) &&
@@ -652,6 +688,16 @@ function CustomerCompareCard({
       <div className="pt-3 border-t flex flex-col gap-2">
         <Button size="sm" onClick={onKeepThisOne} className="w-full">
           {primaryLabel}
+        </Button>
+        {/* #9: allow deleting a duplicate record outright (0-booking dupes
+            usually shouldn't be merged, just removed) */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full text-destructive hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="w-4 h-4 mr-1.5" /> Delete this record
         </Button>
         <p className="text-xs text-muted-foreground text-center">
           {mergeLabel}

@@ -23,6 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
+import { getTimeInTimezone } from "@/lib/timezoneUtils";
+import { useOrgTimezone } from "@/hooks/useOrgTimezone";
 import { AdminLiveTracking } from "./AdminLiveTracking";
 import { fmt } from '@/lib/activeCurrency';
 
@@ -54,6 +56,7 @@ export function BookingDetailsDialog({
   const [sendingLink, setSendingLink] = useState(false);
   const [creatingQuote, setCreatingQuote] = useState(false);
   const { organizationId } = useOrgId();
+  const orgTimezone = useOrgTimezone();
 
   if (!booking) return null;
 
@@ -211,7 +214,9 @@ export function BookingDetailsDialog({
               <div>
                 <dt className="text-xs text-muted-foreground">Scheduled</dt>
                 <dd className="text-sm font-medium">{format(scheduled, "MMM d, yyyy")}</dd>
-                <dd className="text-xs text-muted-foreground">{format(scheduled, "h:mm a")}</dd>
+                <dd className="text-xs text-muted-foreground">
+                  {getTimeInTimezone(booking.scheduled_at, orgTimezone)}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Staff</dt>

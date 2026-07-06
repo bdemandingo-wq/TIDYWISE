@@ -101,7 +101,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
     !!subscription?.subscription_end ||
     (!!subscription?.product_id && subscription.product_id !== 'org_trial');
 
-  const paywallDestination = isExistingCustomer ? '/dashboard/subscription' : '/pricing';
+  const paywallDestination = isExistingCustomer ? '/dashboard/subscription' : '/choose-plan';
 
   // Imperative one-shot redirect, keyed on pathname.
   useEffect(() => {

@@ -258,22 +258,22 @@ export function LoyaltyProgramSettings() {
               {loyaltyMembers.map((member) => (
                 <div 
                   key={member.id} 
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                  className="flex flex-col gap-3 p-3 border rounded-lg hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className={getTierColor(member.tier)}>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <Badge variant="outline" className={`shrink-0 ${getTierColor(member.tier)}`}>
                       {getTierIcon(member.tier)}
                       <span className="ml-1 capitalize">{member.tier}</span>
                     </Badge>
-                    <div>
-                      <p className="font-medium">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
                         {member.customer?.first_name} {member.customer?.last_name}
                       </p>
-                      <p className="text-xs text-muted-foreground">{member.customer?.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{member.customer?.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
+                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                    <div className="text-left sm:text-right">
                       <p className="font-bold text-primary">{member.points.toLocaleString()} pts</p>
                       <p className="text-xs text-muted-foreground">
                         Lifetime: {member.lifetime_points.toLocaleString()}
@@ -282,6 +282,7 @@ export function LoyaltyProgramSettings() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="shrink-0"
                       onClick={() => setSelectedCustomer(member)}
                     >
                       Add Points

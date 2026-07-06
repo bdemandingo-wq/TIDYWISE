@@ -207,7 +207,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden" style={{ touchAction: 'manipulation' }}>
+    <div
+      className="min-h-screen bg-background flex flex-col overflow-x-hidden"
+      // #16: on the native app the title was clipped under the iPhone notch —
+      // respect the top safe-area inset.
+      style={{ touchAction: 'manipulation', paddingTop: 'env(safe-area-inset-top)' }}
+    >
       {/* Both /auth and /login render this same page; canonical consolidates to /auth as the preferred URL. */}
       <SEOHead title={seoTitle} description={seoDescription} canonical="/auth" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">

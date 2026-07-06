@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Sparkles, Calendar, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, Calendar, ArrowRight, Loader2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
@@ -181,6 +181,29 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
     staleTime: 5 * 60 * 1000,
   });
 
+  // #20: expandable list of the actual eligible clients per suggestion
+  const [viewingReason, setViewingReason] = useState<string | null>(null);
+  const { data: eligibleClients, isLoading: eligibleLoading } = useQuery({
+    queryKey: ['discount-eligible-clients', organization?.id, viewingReason],
+    enabled: !!organization?.id && (viewingReason === 'rebook' || viewingReason === 'win_back'),
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      let q = supabase
+        .from('customers')
+        .select('id, first_name, last_name, email, phone, created_at, last_booking_date')
+        .eq('organization_id', organization.id)
+        .limit(100);
+      if (viewingReason === 'rebook') {
+        q = q.eq('is_recurring', false).gte('created_at', addDays(new Date(), -30).toISOString());
+      } else {
+        q = q.lt('last_booking_date', addDays(new Date(), -60).toISOString());
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const suggestions = useMemo(() => {
     if (!businessData) return [];
     const result: DiscountSuggestion[] = [];
@@ -328,9 +351,41 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{s.description}</p>
                   {s.eligibleCount > 0 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      ~{s.eligibleCount} eligible clients
-                    </p>
+                    <>
+                      {(s.reason === 'rebook' || s.reason === 'win_back') ? (
+                        <button
+                          type="button"
+                          className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary underline underline-offset-2"
+                          onClick={() => setViewingReason(viewingReason === s.reason ? null : s.reason)}
+                        >
+                          <Users className="w-3 h-3" />
+                          ~{s.eligibleCount} eligible clients
+                          {viewingReason === s.reason ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          ~{s.eligibleCount} eligible clients
+                        </p>
+                      )}
+                      {viewingReason === s.reason && (
+                        <div className="mt-2 rounded-md border bg-background/60 max-h-56 overflow-y-auto divide-y">
+                          {eligibleLoading ? (
+                            <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Loading clients…
+                            </div>
+                          ) : (eligibleClients || []).length === 0 ? (
+                            <div className="p-3 text-xs text-muted-foreground">No matching clients found</div>
+                          ) : (
+                            (eligibleClients || []).map((c: any) => (
+                              <div key={c.id} className="p-2 text-xs flex items-center justify-between gap-2">
+                                <span className="font-medium truncate">{c.first_name} {c.last_name}</span>
+                                <span className="text-muted-foreground truncate">{c.phone || c.email || ''}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 <Button

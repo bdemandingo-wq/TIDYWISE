@@ -1789,7 +1789,7 @@ export default function BookingsPage() {
             </SelectTrigger>
             <SelectContent className="bg-popover border-border rounded-xl">
               <SelectItem value="all">All Bookings</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="pending">Upcoming Cleans</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
