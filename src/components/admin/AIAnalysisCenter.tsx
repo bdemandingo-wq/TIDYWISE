@@ -333,8 +333,8 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setProactiveLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'proactive-insights', organizationId: orgId },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'proactive-insights', organizationId: orgId },
       });
       if (error) throw error;
       setProactiveInsights(data?.insights || []);
@@ -355,8 +355,8 @@ export function AIAnalysisCenter() {
   const fetchDynamicChips = useCallback(async () => {
     if (!orgId) return;
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'dynamic-chips', organizationId: orgId },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'dynamic-chips', organizationId: orgId },
       });
       if (error) throw error;
       setDynamicChips(data?.chips || []);
@@ -383,8 +383,8 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setInsightsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'insights', organizationId: orgId, businessSnapshot },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'insights', organizationId: orgId, businessSnapshot },
       });
       if (error) throw error;
       setInsights(data?.insights || []);
@@ -406,8 +406,8 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setSchedLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
       });
       if (error) throw error;
       setSchedRec(data?.recommendation || '');
@@ -427,8 +427,8 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setPlaybookLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'growth-playbook', organizationId: orgId },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'growth-playbook', organizationId: orgId },
       });
       if (error) throw error;
       setPlaybook(data?.playbook || '');
@@ -469,8 +469,8 @@ export function AIAnalysisCenter() {
     setDraftText('');
     setDraftLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'draft-message', prompt, channel, organizationId: orgId },
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'draft-message', prompt, channel, organizationId: orgId },
       });
       if (error) throw error;
       setDraftText((data as any)?.message || '');
