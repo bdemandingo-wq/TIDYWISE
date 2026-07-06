@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enforceAiRateLimit } from "../_shared/ai-rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +26,25 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // AI rate limiting (per-user 30/min if authenticated; otherwise global 200/hr).
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    let userId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: userData } = await admin.auth.getUser(token);
+      userId = userData?.user?.id ?? null;
+    }
+    const GLOBAL_PARSE_SCOPE = "00000000-0000-0000-0000-0000000dab11";
+    const limited = await enforceAiRateLimit(admin, {
+      userId,
+      orgId: userId ? null : GLOBAL_PARSE_SCOPE,
+      corsHeaders,
+    });
+    if (limited) return limited;
 
     const prompt = `You are a pricing data extraction expert. Analyze the following content from a pricing file (${fileName}, type: ${fileType}) and extract all service pricing information.
 
