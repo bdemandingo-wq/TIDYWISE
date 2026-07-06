@@ -33,6 +33,13 @@ const handler = async (req: Request): Promise<Response> => {
     });
     if (limited) return limited;
 
+    // Per-org AI credit consumption
+    if (authResult.organizationId) {
+      const denied = await enforceAiCredit(adminClient, { orgId: authResult.organizationId, corsHeaders });
+      if (denied) return denied;
+    }
+
+
     const { companyName, serviceType = "cleaning", audience = "all_eligible", timestamp } = await req.json();
     
     const uniqueId = timestamp || Date.now();
