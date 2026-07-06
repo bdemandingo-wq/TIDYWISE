@@ -1,29 +1,55 @@
-// Shared helper: rejects any request that doesn't carry the correct
-// x-cron-secret header. Use at the top of cron-driven edge functions.
+// Shared helper: allow requests that either:
+//   1. carry the correct x-cron-secret header (cron/scheduled invocations), or
+//   2. carry a valid Supabase user JWT (manual "Run Now" from the app UI).
 //
-//   const cronGate = requireCronSecret(req);
-//   if (cronGate) return cronGate;
+//   const gate = await requireCronSecret(req);
+//   if (gate) return gate;
+
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
-export function requireCronSecret(req: Request): Response | null {
+export async function requireCronSecret(req: Request): Promise<Response | null> {
   const expected = Deno.env.get("CRON_SECRET");
+  const provided = req.headers.get("x-cron-secret");
+
+  // Path 1: valid cron secret
+  if (expected && provided && provided === expected) {
+    return null;
+  }
+
+  // Path 2: valid authenticated user JWT
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data, error } = await supabase.auth.getClaims(token);
+      if (!error && data?.claims?.sub) {
+        return null;
+      }
+    } catch (_e) {
+      // fall through to unauthorized
+    }
+  }
+
   if (!expected) {
-    // Fail closed if the secret isn't configured.
     return new Response(
-      JSON.stringify({ error: "CRON_SECRET not configured on server" }),
+      JSON.stringify({ error: "CRON_SECRET not configured on server and no valid user session provided" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-  const provided = req.headers.get("x-cron-secret");
-  if (!provided || provided !== expected) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  return null;
+
+  return new Response(
+    JSON.stringify({ error: "Unauthorized: provide a valid x-cron-secret header or authenticated user session" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 }
