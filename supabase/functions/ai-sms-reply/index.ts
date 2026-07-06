@@ -53,6 +53,11 @@ serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // AI rate limiting (per-org 200/hr). No user scope: this is a webhook-triggered flow.
+    const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+    const limited = await enforceAiRateLimit(supabase, { orgId: organizationId, corsHeaders });
+    if (limited) return limited;
+
     console.log(`[ai-sms-reply] Processing for org=${organizationId}, conv=${conversationId}`);
 
     // 1. Check if ai_sms_reply automation is enabled
