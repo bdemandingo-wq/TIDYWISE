@@ -55,6 +55,9 @@ export function PricingImport() {
       });
 
       if (fnError) {
+        const { handlePossibleAiCreditError } = await import('@/components/ai-credits/AiCreditLimitModal');
+        const handled = await handlePossibleAiCreditError(fnError);
+        if (handled) { setIsProcessing(false); return; }
         throw new Error(fnError.message);
       }
 

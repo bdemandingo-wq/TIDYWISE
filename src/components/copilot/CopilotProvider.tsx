@@ -260,20 +260,29 @@ export function CopilotProvider({ children }: CopilotProviderProps) {
         // Show unread indicator if the user replied while the panel was closed.
         setHasUnread((prevUnread) => (prevUnread || !isOpen));
       } catch (err) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : 'Something went wrong. Try again in a sec.';
-        // Distinguish network failures from server errors for better copy.
-        const isNetwork =
-          err instanceof TypeError && /fetch|network/i.test(msg);
-        setError(
-          isNetwork
-            ? "Can't reach the server. Check your connection."
-            : msg.includes('hit a snag')
-              ? msg
-              : 'Tidy hit a snag. Try again in a sec.',
+        // Detect and show the shared credit-limit modal for 402 responses.
+        const { handlePossibleAiCreditError } = await import(
+          '@/components/ai-credits/AiCreditLimitModal'
         );
+        const wasCreditLimit = await handlePossibleAiCreditError(err);
+        if (wasCreditLimit) {
+          setMessages((prev) => prev.slice(0, -1)); // drop the optimistic user msg
+          setError(null);
+        } else {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : 'Something went wrong. Try again in a sec.';
+          const isNetwork =
+            err instanceof TypeError && /fetch|network/i.test(msg);
+          setError(
+            isNetwork
+              ? "Can't reach the server. Check your connection."
+              : msg.includes('hit a snag')
+                ? msg
+                : 'Tidy hit a snag. Try again in a sec.',
+          );
+        }
       } finally {
         setIsLoading(false);
       }

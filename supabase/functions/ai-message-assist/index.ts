@@ -83,6 +83,11 @@ serve(async (req) => {
     });
     if (limited) return limited;
 
+    // Per-org AI credit consumption (1 credit per request)
+    const { enforceAiCredit } = await import("../_shared/ai-credits.ts");
+    const denied = await enforceAiCredit(supabase, { orgId: body.organizationId, corsHeaders });
+    if (denied) return denied;
+
     // Business settings for tone/name
     const { data: settings } = await supabase
       .from("business_settings")

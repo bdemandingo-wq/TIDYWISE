@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useCopilot, type CopilotMessage } from '@/hooks/useCopilot';
+import { AiCreditsMeter } from '@/components/ai-credits/AiCreditsMeter';
 
 const SUGGESTED_PROMPTS = [
   'How do I add my first booking?',
@@ -214,6 +215,7 @@ function Header({ onClose, onNewChat, hasMessages }: { onClose: () => void; onNe
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold leading-tight">Tidy</p>
         <p className="text-xs text-muted-foreground">Your TidyWise co-pilot</p>
+        <div className="mt-1"><AiCreditsMeter compact showBuy={false} /></div>
       </div>
       {hasMessages && (
         <Button

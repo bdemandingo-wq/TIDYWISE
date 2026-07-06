@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse } from "../_shared/verify-admin-auth.ts";
 import { enforceAiRateLimit } from "../_shared/ai-rate-limit.ts";
+import { enforceAiCredit } from "../_shared/ai-credits.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,13 @@ const handler = async (req: Request): Promise<Response> => {
       corsHeaders,
     });
     if (limited) return limited;
+
+    // Per-org AI credit consumption
+    if (authResult.organizationId) {
+      const denied = await enforceAiCredit(adminClient, { orgId: authResult.organizationId, corsHeaders });
+      if (denied) return denied;
+    }
+
 
     const { companyName, serviceType = "cleaning", audience = "all_eligible", timestamp } = await req.json();
     

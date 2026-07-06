@@ -58,6 +58,11 @@ serve(async (req: Request) => {
     const limited = await enforceAiRateLimit(supabase, { orgId: organizationId, corsHeaders });
     if (limited) return limited;
 
+    // Per-org AI credit consumption
+    const { enforceAiCredit } = await import("../_shared/ai-credits.ts");
+    const denied = await enforceAiCredit(supabase, { orgId: organizationId, corsHeaders });
+    if (denied) return denied;
+
     console.log(`[ai-sms-reply] Processing for org=${organizationId}, conv=${conversationId}`);
 
     // 1. Check if ai_sms_reply automation is enabled
