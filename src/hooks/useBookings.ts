@@ -491,7 +491,8 @@ export function useServices() {
         throw error;
       }
 
-      return data;
+      const { sortServices } = await import('@/lib/serviceOrder');
+      return sortServices(data || []);
     },
     enabled: !!organizationId,
     staleTime: 1000 * 60 * 10, // 10 minutes - services rarely change
